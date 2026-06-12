@@ -47,6 +47,16 @@ class MeController extends BaseController
         return ok($this->service->saveProfile($this->memberId, $request->all()));
     }
 
+    #[Apidoc\Title('上报已看引导页版本')]
+    #[Apidoc\Url('/app/help/common/onboarding/seen')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('version', type: 'string', require: true, desc: '已看引导页版本')]
+    #[Apidoc\Returned('onboarding_version', type: 'string', desc: '已记录版本')]
+    public function onboardingSeen(Request $request): Response
+    {
+        return ok($this->service->markOnboardingSeen($this->memberId, (string) $request->post('version', '')));
+    }
+
     #[Apidoc\Title('提交医生资质')]
     #[Apidoc\Url('/app/help/me/doctor-certification')]
     #[Apidoc\Method('POST')]

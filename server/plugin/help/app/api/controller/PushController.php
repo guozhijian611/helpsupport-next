@@ -20,7 +20,7 @@ class PushController extends BaseController
     }
 
     #[Apidoc\Title('注册推送设备')]
-    #[Apidoc\Url('/app/help/push/device')]
+    #[Apidoc\Url('/app/help/push/device/register')]
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('device_id', type: 'string', require: true, desc: '设备标识')]
     #[Apidoc\Param('platform', type: 'string', require: true, desc: 'ios/android')]
@@ -36,11 +36,11 @@ class PushController extends BaseController
     }
 
     #[Apidoc\Title('注销推送设备')]
-    #[Apidoc\Url('/app/help/push/device/logout')]
+    #[Apidoc\Url('/app/help/push/device/unregister')]
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('device_id', type: 'string', require: true, desc: '设备标识')]
     #[Apidoc\Param('platform', type: 'string', require: true, desc: 'ios/android')]
-    public function logoutDevice(Request $request): Response
+    public function unregisterDevice(Request $request): Response
     {
         $this->service->logoutDevice($this->memberId, $request->post());
         return ok('操作成功');

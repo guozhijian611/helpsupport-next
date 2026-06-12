@@ -9,6 +9,7 @@ use Webman\Route;
 Route::group('/app/help', function () {
     Route::get('/common/app-config', [CommonController::class, 'appConfig']);
     Route::get('/common/onboarding', [CommonController::class, 'onboarding']);
+    Route::post('/common/onboarding/seen', [MeController::class, 'onboardingSeen']);
 
     Route::get('/me/profile', [MeController::class, 'profile']);
     Route::put('/me/profile', [MeController::class, 'saveProfile']);
@@ -17,8 +18,8 @@ Route::group('/app/help', function () {
     Route::get('/local-model/catalog', [LocalModelController::class, 'catalog']);
     Route::get('/local-model/prompts', [LocalModelController::class, 'prompts']);
 
-    Route::post('/push/device', [PushController::class, 'registerDevice']);
-    Route::post('/push/device/logout', [PushController::class, 'logoutDevice']);
+    Route::post('/push/device/register', [PushController::class, 'registerDevice']);
+    Route::post('/push/device/unregister', [PushController::class, 'unregisterDevice']);
     Route::get('/push/preference', [PushController::class, 'preference']);
     Route::put('/push/preference', [PushController::class, 'savePreference']);
 });

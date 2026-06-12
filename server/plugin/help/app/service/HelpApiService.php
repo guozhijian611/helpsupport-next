@@ -107,6 +107,21 @@ class HelpApiService
         return $this->rowByMember('sa_help_member_profile', $memberId);
     }
 
+    public function markOnboardingSeen(int $memberId, string $version): array
+    {
+        $version = trim($version);
+        if ($version === '') {
+            throw new ApiException('引导页版本必须填写', 400);
+        }
+
+        $this->upsertByMember('sa_help_member_profile', $memberId, [
+            'onboarding_version' => $version,
+            'status' => 1,
+        ]);
+
+        return $this->rowByMember('sa_help_member_profile', $memberId);
+    }
+
     public function saveDoctorCertification(int $memberId, array $data): array
     {
         $payload = $this->only($data, [
