@@ -1,8 +1,12 @@
 <?php
 
 use plugin\help\app\api\controller\CommonController;
+use plugin\help\app\api\controller\AppointmentController;
+use plugin\help\app\api\controller\HomeController;
 use plugin\help\app\api\controller\LocalModelController;
+use plugin\help\app\api\controller\MaterialController;
 use plugin\help\app\api\controller\MeController;
+use plugin\help\app\api\controller\PlanController;
 use plugin\help\app\api\controller\PushController;
 use Webman\Route;
 
@@ -11,9 +15,36 @@ Route::group('/app/help', function () {
     Route::get('/common/onboarding', [CommonController::class, 'onboarding']);
     Route::post('/common/onboarding/seen', [MeController::class, 'onboardingSeen']);
 
+    Route::get('/home/summary', [HomeController::class, 'summary']);
+
     Route::get('/me/profile', [MeController::class, 'profile']);
-    Route::put('/me/profile', [MeController::class, 'saveProfile']);
+    Route::post('/me/profile/save', [MeController::class, 'saveProfile']);
     Route::post('/me/doctor-certification', [MeController::class, 'doctorCertification']);
+    Route::get('/me/journals', [MeController::class, 'journals']);
+    Route::post('/me/journal', [MeController::class, 'saveJournal']);
+    Route::post('/me/journal/delete', [MeController::class, 'deleteJournal']);
+    Route::get('/me/messages', [MeController::class, 'messages']);
+    Route::put('/me/message/read', [MeController::class, 'readMessage']);
+
+    Route::get('/material/categories', [MaterialController::class, 'categories']);
+    Route::get('/material/list', [MaterialController::class, 'list']);
+    Route::get('/material/detail', [MaterialController::class, 'detail']);
+    Route::get('/material/history', [MaterialController::class, 'history']);
+    Route::post('/material/history/save', [MaterialController::class, 'saveHistory']);
+    Route::get('/material/collections', [MaterialController::class, 'collections']);
+    Route::post('/material/like', [MaterialController::class, 'toggleLike']);
+    Route::post('/material/collect', [MaterialController::class, 'toggleCollect']);
+
+    Route::get('/plan/current', [PlanController::class, 'current']);
+    Route::get('/plan/tasks', [PlanController::class, 'tasks']);
+    Route::put('/plan/task/status', [PlanController::class, 'saveTaskStatus']);
+    Route::get('/plan/assessment-results', [PlanController::class, 'assessmentResults']);
+    Route::post('/plan/assessment-result', [PlanController::class, 'saveAssessmentResult']);
+
+    Route::get('/appointment/doctors', [AppointmentController::class, 'doctors']);
+    Route::get('/appointment/list', [AppointmentController::class, 'list']);
+    Route::post('/appointment', [AppointmentController::class, 'create']);
+    Route::post('/appointment/cancel', [AppointmentController::class, 'cancel']);
 
     Route::get('/local-model/catalog', [LocalModelController::class, 'catalog']);
     Route::get('/local-model/prompts', [LocalModelController::class, 'prompts']);
@@ -21,5 +52,5 @@ Route::group('/app/help', function () {
     Route::post('/push/device/register', [PushController::class, 'registerDevice']);
     Route::post('/push/device/unregister', [PushController::class, 'unregisterDevice']);
     Route::get('/push/preference', [PushController::class, 'preference']);
-    Route::put('/push/preference', [PushController::class, 'savePreference']);
+    Route::post('/push/preference/save', [PushController::class, 'savePreference']);
 });

@@ -42,7 +42,7 @@ class PushController extends BaseController
     #[Apidoc\Param('platform', type: 'string', require: true, desc: 'ios/android')]
     public function unregisterDevice(Request $request): Response
     {
-        $this->service->logoutDevice($this->memberId, $request->post());
+        $this->service->unregisterDevice($this->memberId, $request->post());
         return ok('操作成功');
     }
 
@@ -56,8 +56,8 @@ class PushController extends BaseController
     }
 
     #[Apidoc\Title('保存推送偏好')]
-    #[Apidoc\Url('/app/help/push/preference')]
-    #[Apidoc\Method('PUT')]
+    #[Apidoc\Url('/app/help/push/preference/save')]
+    #[Apidoc\Method('POST')]
     #[Apidoc\Param('is_push_enabled', type: 'int', require: false, desc: '总通知开关 1是 2否')]
     #[Apidoc\Param('is_task_reminder_enabled', type: 'int', require: false, desc: '任务提醒 1是 2否')]
     #[Apidoc\Param('is_community_enabled', type: 'int', require: false, desc: '社区互动 1是 2否')]
