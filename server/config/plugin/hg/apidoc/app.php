@@ -22,6 +22,11 @@ return [
                 'title'=>'支付插件移动端接口',
                 'path'=>'plugin\saipay\app\api\controller',
                 'key'=>'saipay-api',
+            ],
+            [
+                'title'=>'HelpSupport 移动端接口',
+                'path'=>'plugin\help\app\api\controller',
+                'key'=>'help-api',
             ]
         ],
         // （必须）指定通用注释定义的文件地址
