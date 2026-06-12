@@ -171,6 +171,7 @@ class MemberLogic extends BaseLogic
             'id' => $adminInfo->id,
             'username' => $adminInfo->username,
             'plat' => 'saiuser',
+            'client' => JwtToken::TOKEN_CLIENT_MOBILE,
             'type' => $platform_id,
         ]);
 
@@ -350,6 +351,7 @@ class MemberLogic extends BaseLogic
                 'id' => $user->id,
                 'username' => $user->username,
                 'plat' => 'saiuser',
+                'client' => JwtToken::TOKEN_CLIENT_MOBILE,
                 'type' => $platform_id
             ]);
 
@@ -394,6 +396,7 @@ class MemberLogic extends BaseLogic
                 'id' => $model->id,
                 'username' => $model->account,
                 'plat' => 'saiuser',
+                'client' => JwtToken::TOKEN_CLIENT_MOBILE,
                 'type' => $platform_id
             ]);
 
@@ -431,6 +434,7 @@ class MemberLogic extends BaseLogic
                 'id' => $user->id,
                 'username' => $user->username,
                 'plat' => 'saiuser',
+                'client' => JwtToken::TOKEN_CLIENT_MOBILE,
                 'type' => $platform_id
             ]);
 
@@ -473,6 +477,7 @@ class MemberLogic extends BaseLogic
                 'id' => $model->id,
                 'username' => $model->account,
                 'plat' => 'saiuser',
+                'client' => JwtToken::TOKEN_CLIENT_MOBILE,
                 'type' => $platform_id
             ]);
 

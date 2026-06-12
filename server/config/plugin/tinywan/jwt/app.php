@@ -30,8 +30,8 @@ return [
         /** 时钟偏差冗余时间，单位秒。建议这个余地应该不大于几分钟 */
         'leeway' => 60,
 
-        /** 是否允许单设备登录，默认不允许 false */
-        'is_single_device' => false,
+        /** 是否允许单设备登录，HelpSupport 移动端需要同一会员只保留最新登录态 */
+        'is_single_device' => true,
 
         /** 缓存令牌时间，单位：秒。默认 7 天 */
         'cache_token_ttl' => 604800,
