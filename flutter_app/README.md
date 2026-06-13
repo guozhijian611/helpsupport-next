@@ -17,9 +17,15 @@ flutter run --dart-define=HELP_SUPPORT_API_BASE_URL=http://127.0.0.1:8787
 
 运行前需要准备 native 动态库：
 
-- Android：把对应 ABI 的 `libllama.so` 放到 `android/app/src/main/jniLibs/<abi>/libllama.so`，例如 `arm64-v8a/libllama.so`。
+- Android：运行 `./tool/build_android_llama.sh`，脚本会按 `llama_cpp_dart` 绑定对应的 `llama.cpp` 提交构建 CPU-only `libmtmd.so`、`libllama.so`、`libggml*.so` 和 `libc++_shared.so`，并复制到 `android/app/src/main/jniLibs/<abi>/`。
 - iOS：把 `libllama.dylib` 或对应 framework 嵌入 Runner target，并确保签名和嵌入方式符合 iOS 要求。
 - 桌面或本机调试：可用 `--dart-define=HELP_SUPPORT_LLAMA_LIBRARY_PATH=/absolute/path/libllama.dylib` 指定动态库路径。
+
+Android 默认加载 `libmtmd.so`。如需额外构建 x86_64 模拟器库，可运行：
+
+```bash
+LLAMA_ANDROID_ABIS="arm64-v8a x86_64" ./tool/build_android_llama.sh
+```
 
 如果动态库缺失、ABI 不匹配或依赖库缺失，本地模型聊天页会在发送前显示运行时检查错误。
 

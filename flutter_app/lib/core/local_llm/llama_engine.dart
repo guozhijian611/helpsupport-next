@@ -133,7 +133,10 @@ class LlamaEngine {
     if (_libraryPath.isNotEmpty) {
       return _libraryPath;
     }
-    if (Platform.isAndroid || Platform.isLinux) {
+    if (Platform.isAndroid) {
+      return 'libmtmd.so';
+    }
+    if (Platform.isLinux) {
       return 'libllama.so';
     }
     if (Platform.isIOS || Platform.isMacOS) {

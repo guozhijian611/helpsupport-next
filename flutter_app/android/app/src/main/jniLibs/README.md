@@ -1,11 +1,19 @@
 # Native llama runtime
 
-Place compiled llama.cpp shared libraries here by Android ABI:
+Run the project script to build CPU-only llama.cpp Android libraries:
 
-```text
-arm64-v8a/libllama.so
-armeabi-v7a/libllama.so
-x86_64/libllama.so
+```bash
+./tool/build_android_llama.sh
 ```
 
-Only commit binaries after confirming their source, license, ABI, and build flags.
+The script writes generated binaries here by Android ABI:
+
+```text
+arm64-v8a/libmtmd.so
+arm64-v8a/libllama.so
+arm64-v8a/libggml*.so
+arm64-v8a/libc++_shared.so
+```
+
+Generated `.so` files are ignored by Git. Only commit binaries after confirming
+their source, license, ABI, and build flags.
