@@ -52,6 +52,18 @@ export default {
   },
 
   /**
+   * 审核帖子
+   * @param params 审核参数
+   * @returns 执行结果
+   */
+  audit(params: Record<string, any>) {
+    return request.post<any>({
+      url: '/app/help/admin/community/SaCommunityPost/audit',
+      data: params
+    })
+  },
+
+  /**
    * 删除数据
    * @param id 数据ID
    * @returns 执行结果

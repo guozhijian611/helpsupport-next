@@ -1,16 +1,19 @@
 <?php
 
-use plugin\help\app\api\controller\CommonController;
 use plugin\help\app\api\controller\AppointmentController;
 use plugin\help\app\api\controller\AuthController;
 use plugin\help\app\api\controller\ChatController;
 use plugin\help\app\api\controller\CommunityController;
+use plugin\help\app\api\controller\CommonController;
 use plugin\help\app\api\controller\HomeController;
 use plugin\help\app\api\controller\LocalModelController;
 use plugin\help\app\api\controller\MaterialController;
 use plugin\help\app\api\controller\MeController;
 use plugin\help\app\api\controller\PlanController;
 use plugin\help\app\api\controller\PushController;
+use plugin\help\app\admin\controller\community\SaCommunityCommentController as AdminCommunityCommentController;
+use plugin\help\app\admin\controller\community\SaCommunityPostController as AdminCommunityPostController;
+use plugin\help\app\admin\controller\community\SaCommunityReportController as AdminCommunityReportController;
 use Webman\Route;
 
 Route::group('/app/help', function () {
@@ -81,4 +84,15 @@ Route::group('/app/help', function () {
     Route::post('/push/device/unregister', [PushController::class, 'unregisterDevice']);
     Route::get('/push/preference', [PushController::class, 'preference']);
     Route::post('/push/preference/save', [PushController::class, 'savePreference']);
+});
+
+Route::group('/app/help/admin/community', function () {
+    fastRoute('SaCommunityPost', AdminCommunityPostController::class);
+    Route::post('/SaCommunityPost/audit', [AdminCommunityPostController::class, 'audit']);
+
+    fastRoute('SaCommunityComment', AdminCommunityCommentController::class);
+    Route::post('/SaCommunityComment/audit', [AdminCommunityCommentController::class, 'audit']);
+
+    fastRoute('SaCommunityReport', AdminCommunityReportController::class);
+    Route::post('/SaCommunityReport/handle', [AdminCommunityReportController::class, 'handle']);
 });

@@ -6,14 +6,17 @@
         <el-descriptions-item label="帖子内容">
           <div v-html="formData?.content"></div>
         </el-descriptions-item>
-        <el-descriptions-item label="图片URL数组">
-          <img :src="formData?.images" style="width: 200px" />
+        <el-descriptions-item label="图片">
+          <div v-if="imageList.length" class="image-list">
+            <img v-for="item in imageList" :key="item" :src="item" />
+          </div>
+          <span v-else>暂无</span>
         </el-descriptions-item>
         <el-descriptions-item label="链接">
           <div v-text="formData?.link_url"></div>
         </el-descriptions-item>
-        <el-descriptions-item label="标签数组">
-          <div v-text="formData?.tags"></div>
+        <el-descriptions-item label="标签">
+          <div v-text="tagText"></div>
         </el-descriptions-item>
         <el-descriptions-item label="是否匿名 1是 2否">
           <sa-dict :value="formData?.is_anonymous" dict="yes_or_no" render="span" />
@@ -52,6 +55,7 @@
 </template>
 
 <script setup lang="ts">
+  import { computed } from 'vue'
   import api from '../../../api/community/post'
 
   interface Props {
@@ -99,13 +103,16 @@
     is_top: 2,
     audit_remark: '',
     audit_by: null,
-    audit_time: '',
+    audit_time: ''
   }
 
   /**
    * 表单数据
    */
   const formData = reactive({ ...initialFormData })
+
+  const imageList = computed(() => parseJsonList(formData.images))
+  const tagText = computed(() => parseJsonList(formData.tags).join('、') || '暂无')
 
   /**
    * 监听弹窗打开，初始化表单数据
@@ -145,4 +152,34 @@
       }
     }
   }
+
+  const parseJsonList = (value: unknown): string[] => {
+    if (Array.isArray(value)) {
+      return value.map(String).filter(Boolean)
+    }
+    if (typeof value !== 'string' || value === '') {
+      return []
+    }
+    try {
+      const parsed = JSON.parse(value)
+      return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : []
+    } catch {
+      return [value]
+    }
+  }
 </script>
+
+<style scoped>
+  .image-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .image-list img {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 6px;
+  }
+</style>

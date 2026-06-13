@@ -50,4 +50,24 @@ class SaCommunityPost extends BaseModel
      */
     protected $table = 'sa_community_post';
 
+    public function searchMemberIdAttr($query, $value): void
+    {
+        $query->where('member_id', (int) $value);
+    }
+
+    public function searchContentAttr($query, $value): void
+    {
+        $query->where('content', 'like', '%' . $value . '%');
+    }
+
+    public function searchAuditStatusAttr($query, $value): void
+    {
+        $query->where('audit_status', (int) $value);
+    }
+
+    public function searchStatusAttr($query, $value): void
+    {
+        $query->where('status', (int) $value);
+    }
+
 }

@@ -8,12 +8,39 @@
     @search="handleSearch"
     @expand="handleExpand"
   >
+    <el-col v-bind="setSpan(6)">
+      <el-form-item label="会员ID" prop="member_id">
+        <el-input v-model="formData.member_id" placeholder="请输入会员ID" clearable />
+      </el-form-item>
+    </el-col>
+    <el-col v-bind="setSpan(6)">
+      <el-form-item label="内容" prop="content">
+        <el-input v-model="formData.content" placeholder="请输入帖子内容" clearable />
+      </el-form-item>
+    </el-col>
+    <el-col v-bind="setSpan(6)">
+      <el-form-item label="审核状态" prop="audit_status">
+        <el-select v-model="formData.audit_status" placeholder="请选择审核状态" clearable>
+          <el-option label="待审核" :value="0" />
+          <el-option label="已通过" :value="1" />
+          <el-option label="已拒绝" :value="2" />
+          <el-option label="AI标记" :value="3" />
+        </el-select>
+      </el-form-item>
+    </el-col>
+    <el-col v-bind="setSpan(6)">
+      <el-form-item label="状态" prop="status">
+        <el-select v-model="formData.status" placeholder="请选择状态" clearable>
+          <el-option label="正常" :value="1" />
+          <el-option label="隐藏" :value="2" />
+          <el-option label="封禁" :value="3" />
+        </el-select>
+      </el-form-item>
+    </el-col>
   </sa-search-bar>
 </template>
 
 <script setup lang="ts">
-  import commonApi from '@/api/common'
-
   interface Props {
     modelValue: Record<string, any>
   }
@@ -33,19 +60,6 @@
   const formData = computed({
     get: () => props.modelValue,
     set: (val) => emit('update:modelValue', val)
-  })
-
-  // 选项数据
-  const optionData = reactive({
-  })
-
-  // 初始化选项数据
-  const initOptions = async () => {
-  }
-
-  // 组件挂载时初始化选项数据
-  onMounted(() => {
-    initOptions()
   })
 
   // 重置
