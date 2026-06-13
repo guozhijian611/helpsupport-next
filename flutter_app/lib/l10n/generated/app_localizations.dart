@@ -278,6 +278,36 @@ abstract class AppLocalizations {
   /// **'Download failed'**
   String get modelDownloadFailed;
 
+  /// No description provided for @localChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Local chat'**
+  String get localChat;
+
+  /// No description provided for @clearLocalChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear chat'**
+  String get clearLocalChat;
+
+  /// No description provided for @localModelMessageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask locally'**
+  String get localModelMessageHint;
+
+  /// No description provided for @localModelNotReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Download and verify the model first.'**
+  String get localModelNotReady;
+
+  /// No description provided for @modelUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The local model is unavailable.'**
+  String get modelUnavailable;
+
   /// No description provided for @chatTitle.
   ///
   /// In en, this message translates to:

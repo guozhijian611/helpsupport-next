@@ -13,6 +13,8 @@ class LocalModelItem {
     required this.license,
     required this.minMemoryMb,
     required this.contextSize,
+    required this.defaultTemperature,
+    required this.defaultTopP,
   });
 
   final int id;
@@ -28,6 +30,8 @@ class LocalModelItem {
   final String license;
   final int minMemoryMb;
   final int contextSize;
+  final double defaultTemperature;
+  final double defaultTopP;
 
   factory LocalModelItem.fromJson(Map<String, dynamic> json) {
     return LocalModelItem(
@@ -44,6 +48,8 @@ class LocalModelItem {
       license: _stringValue(json['license']),
       minMemoryMb: _intValue(json['min_memory_mb']),
       contextSize: _intValue(json['context_size']),
+      defaultTemperature: _doubleValue(json['default_temperature']),
+      defaultTopP: _doubleValue(json['default_top_p']),
     );
   }
 }
@@ -55,7 +61,9 @@ class LocalModelPrompt {
     required this.chatMode,
     required this.locale,
     required this.title,
+    required this.systemPrompt,
     required this.firstMessage,
+    required this.safetyPrompt,
   });
 
   final int id;
@@ -63,7 +71,9 @@ class LocalModelPrompt {
   final String chatMode;
   final String locale;
   final String title;
+  final String systemPrompt;
   final String firstMessage;
+  final String safetyPrompt;
 
   factory LocalModelPrompt.fromJson(Map<String, dynamic> json) {
     return LocalModelPrompt(
@@ -72,7 +82,9 @@ class LocalModelPrompt {
       chatMode: _stringValue(json['chat_mode']),
       locale: _stringValue(json['locale']),
       title: _stringValue(json['title']),
+      systemPrompt: _stringValue(json['system_prompt']),
       firstMessage: _stringValue(json['first_message']),
+      safetyPrompt: _stringValue(json['safety_prompt']),
     );
   }
 }
@@ -134,6 +146,16 @@ int _intValue(Object? value, {int fallback = 0}) {
   }
   if (value is String) {
     return int.tryParse(value) ?? fallback;
+  }
+  return fallback;
+}
+
+double _doubleValue(Object? value, {double fallback = 0}) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  if (value is String) {
+    return double.tryParse(value) ?? fallback;
   }
   return fallback;
 }

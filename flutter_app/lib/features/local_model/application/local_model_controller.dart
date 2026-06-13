@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/local_llm/llama_engine.dart';
+import '../../../core/local_llm/local_chat_store.dart';
 import '../../../core/local_llm/model_downloader.dart';
+import '../../../core/local_llm/local_prompt_resolver.dart';
 import '../../../core/providers/app_providers.dart';
 import '../data/local_model_models.dart';
 import '../data/local_model_repository.dart';
@@ -26,6 +29,18 @@ final modelDownloaderProvider = Provider<ModelDownloader>((ref) {
     ref.watch(apiClientProvider).dio,
     ref.watch(sharedPreferencesProvider),
   );
+});
+
+final localChatStoreProvider = Provider<LocalChatStore>((ref) {
+  return LocalChatStore(ref.watch(tokenStorageProvider));
+});
+
+final llamaEngineProvider = Provider<LlamaEngine>((ref) {
+  return const LlamaEngine();
+});
+
+final localPromptResolverProvider = Provider<LocalPromptResolver>((ref) {
+  return const LocalPromptResolver();
 });
 
 final localModelDownloadControllerProvider =

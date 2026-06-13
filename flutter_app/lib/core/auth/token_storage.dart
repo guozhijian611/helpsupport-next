@@ -15,6 +15,14 @@ class SecureTokenStorage {
 
   Future<String?> readMemberId() => _storage.read(key: _memberIdKey);
 
+  Future<String?> readValue(String key) => _storage.read(key: key);
+
+  Future<void> writeValue(String key, String value) {
+    return _storage.write(key: key, value: value);
+  }
+
+  Future<void> deleteValue(String key) => _storage.delete(key: key);
+
   Future<void> saveSession({
     required String accessToken,
     required String refreshToken,

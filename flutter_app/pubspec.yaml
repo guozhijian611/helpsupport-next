@@ -51,6 +51,7 @@ dependencies:
   google_sign_in: ^7.2.0
   sign_in_with_apple: ^8.1.0
   intl: ^0.20.2
+  llama_cpp_dart: ^0.2.2
 
 dev_dependencies:
   flutter_test:

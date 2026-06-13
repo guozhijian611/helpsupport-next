@@ -102,6 +102,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelDownloadFailed => 'Download failed';
 
   @override
+  String get localChat => 'Local chat';
+
+  @override
+  String get clearLocalChat => 'Clear chat';
+
+  @override
+  String get localModelMessageHint => 'Ask locally';
+
+  @override
+  String get localModelNotReady => 'Download and verify the model first.';
+
+  @override
+  String get modelUnavailable => 'The local model is unavailable.';
+
+  @override
   String get chatTitle => 'AI chat';
 
   @override

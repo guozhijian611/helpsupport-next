@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
 import '../application/local_model_controller.dart';
@@ -115,10 +116,20 @@ class _DownloadAction extends ConsumerWidget {
         dimension: 32,
         child: CircularProgressIndicator(strokeWidth: 3),
       ),
-      LocalModelDownloadStatus.ready => IconButton(
-        tooltip: context.l10n.deleteModel,
-        onPressed: () => _delete(context, ref),
-        icon: const Icon(Icons.delete_outline),
+      LocalModelDownloadStatus.ready => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton.filledTonal(
+            tooltip: context.l10n.localChat,
+            onPressed: () => _openLocalChat(context),
+            icon: const Icon(Icons.chat_bubble_outline),
+          ),
+          IconButton(
+            tooltip: context.l10n.deleteModel,
+            onPressed: () => _delete(context, ref),
+            icon: const Icon(Icons.delete_outline),
+          ),
+        ],
       ),
       LocalModelDownloadStatus.failed ||
       LocalModelDownloadStatus.notDownloaded => IconButton.filledTonal(
@@ -127,6 +138,18 @@ class _DownloadAction extends ConsumerWidget {
         icon: const Icon(Icons.download_outlined),
       ),
     };
+  }
+
+  void _openLocalChat(BuildContext context) {
+    context.push(
+      Uri(
+        path: '/local-model/chat/${item.id}',
+        queryParameters: {
+          'mode': 'companion',
+          'title': item.name.isEmpty ? item.code : item.name,
+        },
+      ).toString(),
+    );
   }
 
   Future<void> _download(BuildContext context, WidgetRef ref) async {

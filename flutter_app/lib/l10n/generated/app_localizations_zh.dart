@@ -99,6 +99,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelDownloadFailed => '下载失败';
 
   @override
+  String get localChat => '本地对话';
+
+  @override
+  String get clearLocalChat => '清空对话';
+
+  @override
+  String get localModelMessageHint => '本地提问';
+
+  @override
+  String get localModelNotReady => '请先下载并校验模型。';
+
+  @override
+  String get modelUnavailable => '本地模型不可用。';
+
+  @override
   String get chatTitle => 'AI 聊天';
 
   @override
