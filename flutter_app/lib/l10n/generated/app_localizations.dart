@@ -140,6 +140,42 @@ abstract class AppLocalizations {
   /// **'Email sign in'**
   String get emailLogin;
 
+  /// No description provided for @username.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get username;
+
+  /// No description provided for @password.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get password;
+
+  /// No description provided for @accountLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get accountLogin;
+
+  /// No description provided for @loggingIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing in...'**
+  String get loggingIn;
+
+  /// No description provided for @requiredField.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get requiredField;
+
+  /// No description provided for @logout.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get logout;
+
   /// No description provided for @googleLogin.
   ///
   /// In en, this message translates to:

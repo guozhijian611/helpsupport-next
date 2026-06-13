@@ -41,4 +41,11 @@ class FirebasePushService {
     }
     return _messaging?.getToken();
   }
+
+  Future<String?> readApnsToken() async {
+    if (!_available) {
+      return null;
+    }
+    return _messaging?.getAPNSToken();
+  }
 }

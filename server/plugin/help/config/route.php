@@ -2,6 +2,7 @@
 
 use plugin\help\app\api\controller\CommonController;
 use plugin\help\app\api\controller\AppointmentController;
+use plugin\help\app\api\controller\AuthController;
 use plugin\help\app\api\controller\HomeController;
 use plugin\help\app\api\controller\LocalModelController;
 use plugin\help\app\api\controller\MaterialController;
@@ -11,6 +12,11 @@ use plugin\help\app\api\controller\PushController;
 use Webman\Route;
 
 Route::group('/app/help', function () {
+    Route::post('/auth/account-login', [AuthController::class, 'accountLogin']);
+    Route::post('/auth/google', [AuthController::class, 'google']);
+    Route::post('/auth/apple', [AuthController::class, 'apple']);
+    Route::post('/auth/refresh', [AuthController::class, 'refresh']);
+
     Route::get('/common/app-config', [CommonController::class, 'appConfig']);
     Route::get('/common/onboarding', [CommonController::class, 'onboarding']);
     Route::post('/common/onboarding/seen', [MeController::class, 'onboardingSeen']);

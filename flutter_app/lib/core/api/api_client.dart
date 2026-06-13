@@ -44,9 +44,14 @@ class ApiClient {
   Future<ApiResult<T>> postApi<T>(
     String path, {
     Object? data,
+    Options? options,
     required T Function(Object? value) decode,
   }) async {
-    final response = await dio.post<Object?>(path, data: data);
+    final response = await dio.post<Object?>(
+      path,
+      data: data,
+      options: options,
+    );
     return _decode(response.data, decode);
   }
 

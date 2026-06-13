@@ -30,6 +30,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get emailLogin => '邮箱登录';
 
   @override
+  String get username => '用户名';
+
+  @override
+  String get password => '密码';
+
+  @override
+  String get accountLogin => '登录';
+
+  @override
+  String get loggingIn => '登录中...';
+
+  @override
+  String get requiredField => '必填';
+
+  @override
+  String get logout => '退出登录';
+
+  @override
   String get googleLogin => '使用 Google 继续';
 
   @override

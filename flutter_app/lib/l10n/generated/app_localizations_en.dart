@@ -32,6 +32,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get emailLogin => 'Email sign in';
 
   @override
+  String get username => 'Username';
+
+  @override
+  String get password => 'Password';
+
+  @override
+  String get accountLogin => 'Sign in';
+
+  @override
+  String get loggingIn => 'Signing in...';
+
+  @override
+  String get requiredField => 'Required';
+
+  @override
+  String get logout => 'Sign out';
+
+  @override
   String get googleLogin => 'Continue with Google';
 
   @override

@@ -1,20 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
+import '../../auth/application/auth_controller.dart';
 
-class HomeShell extends StatefulWidget {
+class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
   @override
-  State<HomeShell> createState() => _HomeShellState();
+  ConsumerState<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends ConsumerState<HomeShell> {
   int _index = 0;
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(authControllerProvider, (previous, next) {
+      final wasAuthenticated = switch (previous) {
+        AsyncData(:final value) => value != null,
+        _ => false,
+      };
+      if (wasAuthenticated && next.hasValue && next.value == null) {
+        context.go('/login');
+      }
+      if (next.hasError) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(next.error.toString())));
+      }
+    });
+
+    final isLoggingOut = ref.watch(authControllerProvider).isLoading;
     final destinations = [
       _HomeDestination(
         label: context.l10n.patient,
@@ -44,6 +62,13 @@ class _HomeShellState extends State<HomeShell> {
             tooltip: context.l10n.localModelTitle,
             onPressed: () => context.push('/local-model'),
             icon: const Icon(Icons.memory_outlined),
+          ),
+          IconButton(
+            tooltip: context.l10n.logout,
+            onPressed: isLoggingOut
+                ? null
+                : ref.read(authControllerProvider.notifier).logout,
+            icon: const Icon(Icons.logout),
           ),
         ],
       ),
