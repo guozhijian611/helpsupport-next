@@ -78,6 +78,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localModelSubtitle => '下载已校验模型，用于设备端隐私对话。';
 
   @override
+  String get downloadModel => '下载';
+
+  @override
+  String get deleteModel => '删除';
+
+  @override
+  String get modelNotDownloaded => '未下载';
+
+  @override
+  String get modelReady => '已校验，可使用';
+
+  @override
+  String get modelDownloading => '下载中';
+
+  @override
+  String get modelVerifying => '正在校验 SHA256';
+
+  @override
+  String get modelDownloadFailed => '下载失败';
+
+  @override
   String get chatTitle => 'AI 聊天';
 
   @override

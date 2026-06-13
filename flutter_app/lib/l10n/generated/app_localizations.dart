@@ -236,6 +236,48 @@ abstract class AppLocalizations {
   /// **'Download verified models for private on-device chat.'**
   String get localModelSubtitle;
 
+  /// No description provided for @downloadModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get downloadModel;
+
+  /// No description provided for @deleteModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get deleteModel;
+
+  /// No description provided for @modelNotDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Not downloaded'**
+  String get modelNotDownloaded;
+
+  /// No description provided for @modelReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified and ready'**
+  String get modelReady;
+
+  /// No description provided for @modelDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading'**
+  String get modelDownloading;
+
+  /// No description provided for @modelVerifying.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying SHA256'**
+  String get modelVerifying;
+
+  /// No description provided for @modelDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed'**
+  String get modelDownloadFailed;
+
   /// No description provided for @chatTitle.
   ///
   /// In en, this message translates to:

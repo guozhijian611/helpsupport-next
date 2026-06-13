@@ -81,6 +81,27 @@ class AppLocalizationsEn extends AppLocalizations {
       'Download verified models for private on-device chat.';
 
   @override
+  String get downloadModel => 'Download';
+
+  @override
+  String get deleteModel => 'Delete';
+
+  @override
+  String get modelNotDownloaded => 'Not downloaded';
+
+  @override
+  String get modelReady => 'Verified and ready';
+
+  @override
+  String get modelDownloading => 'Downloading';
+
+  @override
+  String get modelVerifying => 'Verifying SHA256';
+
+  @override
+  String get modelDownloadFailed => 'Download failed';
+
+  @override
   String get chatTitle => 'AI chat';
 
   @override

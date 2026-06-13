@@ -77,6 +77,57 @@ class LocalModelPrompt {
   }
 }
 
+enum LocalModelDownloadStatus {
+  notDownloaded,
+  downloading,
+  verifying,
+  ready,
+  failed,
+}
+
+class LocalModelDownloadState {
+  const LocalModelDownloadState({
+    required this.status,
+    this.progress = 0,
+    this.filePath = '',
+    this.sha256 = '',
+    this.errorMessage = '',
+  });
+
+  const LocalModelDownloadState.notDownloaded()
+    : this(status: LocalModelDownloadStatus.notDownloaded);
+
+  const LocalModelDownloadState.downloading(double progress)
+    : this(status: LocalModelDownloadStatus.downloading, progress: progress);
+
+  const LocalModelDownloadState.verifying()
+    : this(status: LocalModelDownloadStatus.verifying);
+
+  const LocalModelDownloadState.ready({
+    required String filePath,
+    required String sha256,
+  }) : this(
+         status: LocalModelDownloadStatus.ready,
+         progress: 1,
+         filePath: filePath,
+         sha256: sha256,
+       );
+
+  const LocalModelDownloadState.failed(String errorMessage)
+    : this(status: LocalModelDownloadStatus.failed, errorMessage: errorMessage);
+
+  final LocalModelDownloadStatus status;
+  final double progress;
+  final String filePath;
+  final String sha256;
+  final String errorMessage;
+
+  bool get isReady => status == LocalModelDownloadStatus.ready;
+  bool get isBusy =>
+      status == LocalModelDownloadStatus.downloading ||
+      status == LocalModelDownloadStatus.verifying;
+}
+
 int _intValue(Object? value, {int fallback = 0}) {
   if (value is num) {
     return value.toInt();
