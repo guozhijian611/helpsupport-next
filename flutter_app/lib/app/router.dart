@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/auth/presentation/login_screen.dart';
+import '../features/chat/presentation/chat_home_screen.dart';
+import '../features/chat/presentation/chat_session_screen.dart';
 import '../features/home/presentation/home_shell.dart';
 import '../features/local_model/presentation/local_model_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
@@ -30,6 +32,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/home',
         name: 'home',
         builder: (context, state) => const HomeShell(),
+      ),
+      GoRoute(
+        path: '/chat',
+        name: 'chat',
+        builder: (context, state) => const ChatHomeScreen(),
+      ),
+      GoRoute(
+        path: '/chat/session/:id',
+        name: 'chat-session',
+        builder: (context, state) {
+          return ChatSessionScreen(
+            sessionId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+            chatMode: state.uri.queryParameters['mode'] ?? 'companion',
+            title: state.uri.queryParameters['title'] ?? '',
+          );
+        },
       ),
       GoRoute(
         path: '/local-model',

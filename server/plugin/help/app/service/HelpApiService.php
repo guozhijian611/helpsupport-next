@@ -200,6 +200,278 @@ class HelpApiService
             ->toArray();
     }
 
+    public function chatOverview(int $memberId): array
+    {
+        $modes = [];
+        foreach ($this->chatModes() as $mode) {
+            $latestSession = Db::table('sa_member_chat_session')
+                ->where('member_id', $memberId)
+                ->where('chat_mode', $mode)
+                ->where('status', 1)
+                ->whereNull('delete_time')
+                ->order('is_pinned', 'asc')
+                ->orderRaw('last_message_time IS NULL ASC')
+                ->order('last_message_time', 'desc')
+                ->order('id', 'desc')
+                ->find() ?: [];
+
+            $modes[] = [
+                'chat_mode' => $mode,
+                'prompt_text' => (string) Db::table('sa_member_chat_config')
+                    ->where('member_id', $memberId)
+                    ->where('chat_mode', $mode)
+                    ->whereNull('delete_time')
+                    ->value('prompt_text'),
+                'session_count' => (int) Db::table('sa_member_chat_session')
+                    ->where('member_id', $memberId)
+                    ->where('chat_mode', $mode)
+                    ->where('status', 1)
+                    ->whereNull('delete_time')
+                    ->count(),
+                'latest_session' => $latestSession,
+            ];
+        }
+
+        return [
+            'modes' => $modes,
+            'recent_sessions' => Db::table('sa_member_chat_session')
+                ->where('member_id', $memberId)
+                ->where('status', 1)
+                ->whereNull('delete_time')
+                ->order('is_pinned', 'asc')
+                ->orderRaw('last_message_time IS NULL ASC')
+                ->order('last_message_time', 'desc')
+                ->order('id', 'desc')
+                ->limit(10)
+                ->select()
+                ->toArray(),
+        ];
+    }
+
+    public function chatConfigs(int $memberId, array $params): array
+    {
+        $query = Db::table('sa_member_chat_config')
+            ->where('member_id', $memberId)
+            ->whereNull('delete_time');
+        if (!empty($params['chat_mode'])) {
+            $query->where('chat_mode', $this->chatMode($params['chat_mode']));
+        }
+
+        return $query->order('id', 'asc')->select()->toArray();
+    }
+
+    public function saveChatConfig(int $memberId, array $data): array
+    {
+        $chatMode = $this->chatMode($data['chat_mode'] ?? '');
+        $promptText = trim((string) ($data['prompt_text'] ?? ''));
+        if ($promptText === '') {
+            throw new ApiException('聊天提示词必须填写', 400);
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $exists = Db::table('sa_member_chat_config')
+            ->where('member_id', $memberId)
+            ->where('chat_mode', $chatMode)
+            ->whereNull('delete_time')
+            ->find();
+
+        if ($exists) {
+            Db::table('sa_member_chat_config')->where('id', $exists['id'])->update([
+                'prompt_text' => $promptText,
+                'updated_by' => $memberId,
+                'update_time' => $now,
+            ]);
+            return Db::table('sa_member_chat_config')->where('id', $exists['id'])->find() ?: [];
+        }
+
+        $id = Db::table('sa_member_chat_config')->insertGetId([
+            'member_id' => $memberId,
+            'chat_mode' => $chatMode,
+            'prompt_text' => $promptText,
+            'created_by' => $memberId,
+            'updated_by' => $memberId,
+            'create_time' => $now,
+            'update_time' => $now,
+        ]);
+
+        return Db::table('sa_member_chat_config')->where('id', $id)->find() ?: [];
+    }
+
+    public function chatSessions(int $memberId, array $params): array
+    {
+        return $this->paginate(function () use ($memberId, $params) {
+            $query = Db::table('sa_member_chat_session')
+                ->where('member_id', $memberId)
+                ->where('status', 1)
+                ->whereNull('delete_time');
+            if (!empty($params['chat_mode'])) {
+                $query->where('chat_mode', $this->chatMode($params['chat_mode']));
+            }
+            if (!empty($params['keyword'])) {
+                $keyword = '%' . trim((string) $params['keyword']) . '%';
+                $query->where(function ($query) use ($keyword) {
+                    $query->where('session_name', 'like', $keyword)
+                        ->whereOr('last_message', 'like', $keyword);
+                });
+            }
+
+            return $query
+                ->order('is_pinned', 'asc')
+                ->orderRaw('last_message_time IS NULL ASC')
+                ->order('last_message_time', 'desc')
+                ->order('id', 'desc');
+        }, $params);
+    }
+
+    public function saveChatSession(int $memberId, array $data): array
+    {
+        $sessionId = (int) ($data['id'] ?? 0);
+        $chatMode = $this->chatMode($data['chat_mode'] ?? '');
+        $sessionName = trim((string) ($data['session_name'] ?? ''));
+        $isPinned = $this->intIn($data['is_pinned'] ?? 2, [1, 2], '置顶参数错误');
+        $now = date('Y-m-d H:i:s');
+
+        if ($sessionId > 0) {
+            $this->assertChatSession($memberId, $sessionId);
+            $payload = [
+                'chat_mode' => $chatMode,
+                'is_pinned' => $isPinned,
+                'updated_by' => $memberId,
+                'update_time' => $now,
+            ];
+            if ($sessionName !== '') {
+                $payload['session_name'] = $sessionName;
+            }
+            Db::table('sa_member_chat_session')->where('id', $sessionId)->update($payload);
+            return Db::table('sa_member_chat_session')->where('id', $sessionId)->find() ?: [];
+        }
+
+        if ($sessionName === '') {
+            $count = (int) Db::table('sa_member_chat_session')
+                ->where('member_id', $memberId)
+                ->where('status', 1)
+                ->whereNull('delete_time')
+                ->count();
+            $sessionName = 'Conversation ' . ($count + 1);
+        }
+
+        $id = Db::table('sa_member_chat_session')->insertGetId([
+            'member_id' => $memberId,
+            'chat_mode' => $chatMode,
+            'session_name' => $sessionName,
+            'last_message' => '',
+            'last_message_time' => null,
+            'is_pinned' => $isPinned,
+            'status' => 1,
+            'created_by' => $memberId,
+            'updated_by' => $memberId,
+            'create_time' => $now,
+            'update_time' => $now,
+        ]);
+
+        return Db::table('sa_member_chat_session')->where('id', $id)->find() ?: [];
+    }
+
+    public function deleteChatSession(int $memberId, int $sessionId): array
+    {
+        $this->assertChatSession($memberId, $sessionId);
+        $now = date('Y-m-d H:i:s');
+        Db::transaction(function () use ($memberId, $sessionId, $now) {
+            Db::table('sa_member_chat_session')->where('id', $sessionId)->update([
+                'status' => 2,
+                'delete_time' => $now,
+                'updated_by' => $memberId,
+                'update_time' => $now,
+            ]);
+            Db::table('sa_member_chat_record')
+                ->where('member_id', $memberId)
+                ->where('session_id', $sessionId)
+                ->whereNull('delete_time')
+                ->update([
+                    'status' => 2,
+                    'delete_time' => $now,
+                    'updated_by' => $memberId,
+                    'update_time' => $now,
+                ]);
+        });
+
+        return ['id' => $sessionId, 'deleted' => true];
+    }
+
+    public function chatRecords(int $memberId, array $params): array
+    {
+        $sessionId = (int) ($params['session_id'] ?? 0);
+        if ($sessionId > 0) {
+            $this->assertChatSession($memberId, $sessionId);
+        }
+
+        return $this->paginate(function () use ($memberId, $params, $sessionId) {
+            $query = Db::table('sa_member_chat_record')
+                ->where('member_id', $memberId)
+                ->where('status', 1)
+                ->whereNull('delete_time');
+            if ($sessionId > 0) {
+                $query->where('session_id', $sessionId);
+            }
+            if (!empty($params['chat_mode'])) {
+                $query->where('chat_mode', $this->chatMode($params['chat_mode']));
+            }
+
+            return $query->order('message_time', 'asc')->order('id', 'asc');
+        }, $params);
+    }
+
+    public function saveUserChatRecord(int $memberId, array $data): array
+    {
+        $sessionId = (int) ($data['session_id'] ?? 0);
+        $content = trim((string) ($data['content'] ?? ''));
+        $contentType = trim((string) ($data['content_type'] ?? 'text'));
+        if ($sessionId <= 0) {
+            throw new ApiException('会话ID必须填写', 400);
+        }
+        if ($content === '') {
+            throw new ApiException('消息内容必须填写', 400);
+        }
+        if (!in_array($contentType, ['text', 'image', 'file', 'voice'], true)) {
+            throw new ApiException('消息类型参数错误', 400);
+        }
+
+        $session = $this->assertChatSession($memberId, $sessionId);
+        $now = date('Y-m-d H:i:s');
+        $summaryPrefix = $contentType === 'voice' ? '[voice] ' : '';
+        $summaryLength = max(1, 120 - mb_strlen($summaryPrefix));
+
+        $id = Db::transaction(function () use ($memberId, $session, $sessionId, $content, $contentType, $summaryPrefix, $summaryLength, $now) {
+            $recordId = Db::table('sa_member_chat_record')->insertGetId([
+                'session_id' => $sessionId,
+                'member_id' => $memberId,
+                'chat_mode' => $session['chat_mode'],
+                'role' => 'user',
+                'content' => $content,
+                'content_type' => $contentType,
+                'token_count' => 0,
+                'message_time' => $now,
+                'ext' => null,
+                'status' => 1,
+                'created_by' => $memberId,
+                'updated_by' => $memberId,
+                'create_time' => $now,
+                'update_time' => $now,
+            ]);
+
+            Db::table('sa_member_chat_session')->where('id', $sessionId)->update([
+                'last_message' => $summaryPrefix . mb_substr($content, 0, $summaryLength),
+                'last_message_time' => $now,
+                'updated_by' => $memberId,
+                'update_time' => $now,
+            ]);
+
+            return $recordId;
+        });
+
+        return Db::table('sa_member_chat_record')->where('id', $id)->find() ?: [];
+    }
+
     public function registerDevice(int $memberId, array $data): array
     {
         $deviceId = trim((string) ($data['device_id'] ?? ''));
@@ -1005,6 +1277,36 @@ class HelpApiService
         $payload['create_time'] = $now;
         $payload['update_time'] = $now;
         Db::table($table)->insert($payload);
+    }
+
+    private function chatModes(): array
+    {
+        return ['doctor', 'companion', 'patient'];
+    }
+
+    private function chatMode(mixed $value): string
+    {
+        $value = trim((string) $value);
+        if (!in_array($value, $this->chatModes(), true)) {
+            throw new ApiException('聊天模式参数错误', 400);
+        }
+
+        return $value;
+    }
+
+    private function assertChatSession(int $memberId, int $sessionId): array
+    {
+        $session = Db::table('sa_member_chat_session')
+            ->where('id', $sessionId)
+            ->where('member_id', $memberId)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$session) {
+            throw new ApiException('会话不存在或无权访问', 404);
+        }
+
+        return $session;
     }
 
     private function configGroups(array $codes): array

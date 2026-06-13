@@ -81,6 +81,45 @@ class AppLocalizationsEn extends AppLocalizations {
       'Download verified models for private on-device chat.';
 
   @override
+  String get chatTitle => 'AI chat';
+
+  @override
+  String get doctorChatMode => 'Doctor mode';
+
+  @override
+  String get doctorChatDescription =>
+      'Prepare questions and organize care advice.';
+
+  @override
+  String get companionChatMode => 'Companion mode';
+
+  @override
+  String get companionChatDescription =>
+      'A calm space for support and reflection.';
+
+  @override
+  String get patientChatMode => 'Patient mode';
+
+  @override
+  String get patientChatDescription =>
+      'Collect symptoms, feelings, and follow-up notes.';
+
+  @override
+  String get recentConversations => 'Recent conversations';
+
+  @override
+  String get noConversations => 'No conversations yet.';
+
+  @override
+  String get noMessages => 'No messages yet.';
+
+  @override
+  String get chatMessageHint => 'Write a message';
+
+  @override
+  String get sendMessage => 'Send';
+
+  @override
   String get networkUnavailable => 'Unable to reach the HelpSupport API.';
 
   @override

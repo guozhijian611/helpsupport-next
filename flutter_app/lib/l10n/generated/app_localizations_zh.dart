@@ -78,6 +78,42 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localModelSubtitle => '下载已校验模型，用于设备端隐私对话。';
 
   @override
+  String get chatTitle => 'AI 聊天';
+
+  @override
+  String get doctorChatMode => '医生模式';
+
+  @override
+  String get doctorChatDescription => '整理问题和照护建议。';
+
+  @override
+  String get companionChatMode => '陪伴模式';
+
+  @override
+  String get companionChatDescription => '用于支持和情绪整理的安静空间。';
+
+  @override
+  String get patientChatMode => '患者模式';
+
+  @override
+  String get patientChatDescription => '收集症状、感受和复诊记录。';
+
+  @override
+  String get recentConversations => '最近会话';
+
+  @override
+  String get noConversations => '暂无会话。';
+
+  @override
+  String get noMessages => '暂无消息。';
+
+  @override
+  String get chatMessageHint => '输入消息';
+
+  @override
+  String get sendMessage => '发送';
+
+  @override
   String get networkUnavailable => '暂时无法连接 HelpSupport API。';
 
   @override

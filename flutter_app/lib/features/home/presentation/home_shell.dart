@@ -59,6 +59,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         title: Text(context.l10n.homeTitle),
         actions: [
           IconButton(
+            tooltip: context.l10n.chatTitle,
+            onPressed: () => context.push('/chat'),
+            icon: const Icon(Icons.auto_awesome_outlined),
+          ),
+          IconButton(
             tooltip: context.l10n.localModelTitle,
             onPressed: () => context.push('/local-model'),
             icon: const Icon(Icons.memory_outlined),

@@ -3,6 +3,7 @@
 use plugin\help\app\api\controller\CommonController;
 use plugin\help\app\api\controller\AppointmentController;
 use plugin\help\app\api\controller\AuthController;
+use plugin\help\app\api\controller\ChatController;
 use plugin\help\app\api\controller\HomeController;
 use plugin\help\app\api\controller\LocalModelController;
 use plugin\help\app\api\controller\MaterialController;
@@ -22,6 +23,15 @@ Route::group('/app/help', function () {
     Route::post('/common/onboarding/seen', [MeController::class, 'onboardingSeen']);
 
     Route::get('/home/summary', [HomeController::class, 'summary']);
+
+    Route::get('/chat/overview', [ChatController::class, 'overview']);
+    Route::get('/chat/config', [ChatController::class, 'configs']);
+    Route::post('/chat/config', [ChatController::class, 'saveConfig']);
+    Route::get('/chat/sessions', [ChatController::class, 'sessions']);
+    Route::post('/chat/session', [ChatController::class, 'saveSession']);
+    Route::post('/chat/session/delete', [ChatController::class, 'deleteSession']);
+    Route::get('/chat/records', [ChatController::class, 'records']);
+    Route::post('/chat/record', [ChatController::class, 'saveRecord']);
 
     Route::get('/me/profile', [MeController::class, 'profile']);
     Route::post('/me/profile/save', [MeController::class, 'saveProfile']);

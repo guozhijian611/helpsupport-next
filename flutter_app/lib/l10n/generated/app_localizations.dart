@@ -236,6 +236,78 @@ abstract class AppLocalizations {
   /// **'Download verified models for private on-device chat.'**
   String get localModelSubtitle;
 
+  /// No description provided for @chatTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI chat'**
+  String get chatTitle;
+
+  /// No description provided for @doctorChatMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Doctor mode'**
+  String get doctorChatMode;
+
+  /// No description provided for @doctorChatDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Prepare questions and organize care advice.'**
+  String get doctorChatDescription;
+
+  /// No description provided for @companionChatMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Companion mode'**
+  String get companionChatMode;
+
+  /// No description provided for @companionChatDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'A calm space for support and reflection.'**
+  String get companionChatDescription;
+
+  /// No description provided for @patientChatMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Patient mode'**
+  String get patientChatMode;
+
+  /// No description provided for @patientChatDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Collect symptoms, feelings, and follow-up notes.'**
+  String get patientChatDescription;
+
+  /// No description provided for @recentConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent conversations'**
+  String get recentConversations;
+
+  /// No description provided for @noConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'No conversations yet.'**
+  String get noConversations;
+
+  /// No description provided for @noMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'No messages yet.'**
+  String get noMessages;
+
+  /// No description provided for @chatMessageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Write a message'**
+  String get chatMessageHint;
+
+  /// No description provided for @sendMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get sendMessage;
+
   /// No description provided for @networkUnavailable.
   ///
   /// In en, this message translates to:
