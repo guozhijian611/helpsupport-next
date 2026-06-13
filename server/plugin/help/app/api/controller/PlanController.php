@@ -35,6 +35,10 @@ class PlanController extends BaseController
     #[Apidoc\Query('status', type: 'int', require: false, desc: '任务状态')]
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
+    #[Apidoc\Returned('list', type: 'array', desc: '每日任务列表')]
+    #[Apidoc\Returned('total', type: 'int', desc: '总数')]
+    #[Apidoc\Returned('page', type: 'int', desc: '当前页码')]
+    #[Apidoc\Returned('page_size', type: 'int', desc: '每页数量')]
     public function tasks(Request $request): Response
     {
         return ok($this->service->dailyTasks($this->memberId, $request->get()));
@@ -46,6 +50,9 @@ class PlanController extends BaseController
     #[Apidoc\Param('task_id', type: 'int', require: true, desc: '任务ID')]
     #[Apidoc\Param('status', type: 'int', require: true, desc: '状态 0待办 1完成 2跳过 3延期')]
     #[Apidoc\Param('completion_note', type: 'string', require: false, desc: '完成备注')]
+    #[Apidoc\Returned('id', type: 'int', desc: '任务ID')]
+    #[Apidoc\Returned('status', type: 'int', desc: '更新后的任务状态')]
+    #[Apidoc\Returned('completed_time', type: 'datetime', desc: '完成时间')]
     public function saveTaskStatus(Request $request): Response
     {
         return ok($this->service->saveTaskStatus($this->memberId, $request->all()));
@@ -56,6 +63,10 @@ class PlanController extends BaseController
     #[Apidoc\Method('GET')]
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
+    #[Apidoc\Returned('list', type: 'array', desc: '评估结果列表')]
+    #[Apidoc\Returned('total', type: 'int', desc: '总数')]
+    #[Apidoc\Returned('page', type: 'int', desc: '当前页码')]
+    #[Apidoc\Returned('page_size', type: 'int', desc: '每页数量')]
     public function assessmentResults(Request $request): Response
     {
         return ok($this->service->assessmentResults($this->memberId, $request->get()));
@@ -67,6 +78,9 @@ class PlanController extends BaseController
     #[Apidoc\Param('assessment_title', type: 'string', require: true, desc: '量表名称')]
     #[Apidoc\Param('answers', type: 'array', require: false, desc: '作答结果')]
     #[Apidoc\Param('achieved_score', type: 'int', require: false, desc: '实得分')]
+    #[Apidoc\Returned('id', type: 'int', desc: '评估结果ID')]
+    #[Apidoc\Returned('assessment_title', type: 'string', desc: '量表名称')]
+    #[Apidoc\Returned('achieved_score', type: 'int', desc: '实得分')]
     public function saveAssessmentResult(Request $request): Response
     {
         return ok($this->service->saveAssessmentResult($this->memberId, $request->post()));

@@ -79,6 +79,9 @@ class MeController extends BaseController
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
     #[Apidoc\Returned('list', type: 'array', desc: '日记列表')]
+    #[Apidoc\Returned('total', type: 'int', desc: '总数')]
+    #[Apidoc\Returned('page', type: 'int', desc: '当前页码')]
+    #[Apidoc\Returned('page_size', type: 'int', desc: '每页数量')]
     public function journals(Request $request): Response
     {
         return ok($this->service->journals($this->memberId, $request->get()));
@@ -92,6 +95,9 @@ class MeController extends BaseController
     #[Apidoc\Param('title', type: 'string', require: true, desc: '标题')]
     #[Apidoc\Param('content', type: 'string', require: false, desc: '内容')]
     #[Apidoc\Param('media', type: 'array', require: false, desc: '媒体列表')]
+    #[Apidoc\Returned('id', type: 'int', desc: '日记ID')]
+    #[Apidoc\Returned('entry_date', type: 'string', desc: '记录日期')]
+    #[Apidoc\Returned('title', type: 'string', desc: '标题')]
     public function saveJournal(Request $request): Response
     {
         return ok($this->service->saveJournal($this->memberId, $request->post()));
@@ -101,6 +107,8 @@ class MeController extends BaseController
     #[Apidoc\Url('/app/help/me/journal/delete')]
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('id', type: 'int', require: true, desc: '日记ID')]
+    #[Apidoc\Returned('id', type: 'int', desc: '日记ID')]
+    #[Apidoc\Returned('deleted', type: 'boolean', desc: '是否删除成功')]
     public function deleteJournal(Request $request): Response
     {
         return ok($this->service->deleteJournal($this->memberId, (int) $request->post('id')));
@@ -112,6 +120,10 @@ class MeController extends BaseController
     #[Apidoc\Query('is_read', type: 'int', require: false, desc: '是否已读 1是 2否')]
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
+    #[Apidoc\Returned('list', type: 'array', desc: '消息列表')]
+    #[Apidoc\Returned('total', type: 'int', desc: '总数')]
+    #[Apidoc\Returned('page', type: 'int', desc: '当前页码')]
+    #[Apidoc\Returned('page_size', type: 'int', desc: '每页数量')]
     public function messages(Request $request): Response
     {
         return ok($this->service->messages($this->memberId, $request->get()));
@@ -122,6 +134,7 @@ class MeController extends BaseController
     #[Apidoc\Method('PUT')]
     #[Apidoc\Param('message_id', type: 'int', require: false, desc: '消息ID，空则按条件批量标记')]
     #[Apidoc\Param('all', type: 'int', require: false, desc: '是否全部标记 1是')]
+    #[Apidoc\Returned('affected', type: 'int', desc: '标记已读的消息数量')]
     public function readMessage(Request $request): Response
     {
         return ok($this->service->readMessage($this->memberId, $request->all()));

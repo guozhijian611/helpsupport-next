@@ -40,6 +40,7 @@ class PushController extends BaseController
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('device_id', type: 'string', require: true, desc: '设备标识')]
     #[Apidoc\Param('platform', type: 'string', require: true, desc: 'ios/android')]
+    #[Apidoc\Returned('data', type: 'string', desc: '操作结果')]
     public function unregisterDevice(Request $request): Response
     {
         $this->service->unregisterDevice($this->memberId, $request->post());
@@ -50,6 +51,13 @@ class PushController extends BaseController
     #[Apidoc\Url('/app/help/push/preference')]
     #[Apidoc\Method('GET')]
     #[Apidoc\Returned('is_push_enabled', type: 'int', desc: '总通知开关 1是 2否')]
+    #[Apidoc\Returned('is_task_reminder_enabled', type: 'int', desc: '任务提醒开关 1是 2否')]
+    #[Apidoc\Returned('is_community_enabled', type: 'int', desc: '社区互动开关 1是 2否')]
+    #[Apidoc\Returned('is_appointment_enabled', type: 'int', desc: '预约提醒开关 1是 2否')]
+    #[Apidoc\Returned('is_audit_notice_enabled', type: 'int', desc: '审核/系统通知开关 1是 2否')]
+    #[Apidoc\Returned('is_local_companion_enabled', type: 'int', desc: '本地陪伴提醒开关 1是 2否')]
+    #[Apidoc\Returned('quiet_start_time', type: 'string', desc: '免打扰开始时间')]
+    #[Apidoc\Returned('quiet_end_time', type: 'string', desc: '免打扰结束时间')]
     public function preference(Request $request): Response
     {
         return ok($this->service->pushPreference($this->memberId));
@@ -66,6 +74,10 @@ class PushController extends BaseController
     #[Apidoc\Param('is_local_companion_enabled', type: 'int', require: false, desc: '本地陪伴提醒 1是 2否')]
     #[Apidoc\Param('quiet_start_time', type: 'string', require: false, desc: '免打扰开始时间 HH:mm:ss')]
     #[Apidoc\Param('quiet_end_time', type: 'string', require: false, desc: '免打扰结束时间 HH:mm:ss')]
+    #[Apidoc\Returned('id', type: 'int', desc: '偏好记录ID')]
+    #[Apidoc\Returned('is_push_enabled', type: 'int', desc: '总通知开关 1是 2否')]
+    #[Apidoc\Returned('quiet_start_time', type: 'string', desc: '免打扰开始时间')]
+    #[Apidoc\Returned('quiet_end_time', type: 'string', desc: '免打扰结束时间')]
     public function savePreference(Request $request): Response
     {
         return ok($this->service->savePushPreference($this->memberId, $request->all()));

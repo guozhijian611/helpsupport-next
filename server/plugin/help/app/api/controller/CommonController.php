@@ -25,6 +25,7 @@ class CommonController extends OpenController
     #[Apidoc\Returned('app', type: 'object', desc: 'App基础配置')]
     #[Apidoc\Returned('oauth', type: 'object', desc: '第三方登录客户端配置，不包含服务端私钥')]
     #[Apidoc\Returned('push', type: 'object', desc: '推送公开配置')]
+    #[Apidoc\Returned('member_platforms', type: 'array', desc: '已初始化的第三方会员平台')]
     public function appConfig(Request $request): Response
     {
         return ok($this->service->appConfig());

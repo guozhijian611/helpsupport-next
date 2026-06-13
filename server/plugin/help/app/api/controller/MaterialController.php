@@ -39,6 +39,8 @@ class MaterialController extends BaseController
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 15, desc: '每页数量')]
     #[Apidoc\Returned('list', type: 'array', desc: '素材列表')]
     #[Apidoc\Returned('total', type: 'int', desc: '总数')]
+    #[Apidoc\Returned('page', type: 'int', desc: '当前页码')]
+    #[Apidoc\Returned('page_size', type: 'int', desc: '每页数量')]
     public function list(Request $request): Response
     {
         return ok($this->service->materials($this->memberId, $request->get()));
@@ -60,6 +62,9 @@ class MaterialController extends BaseController
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
     #[Apidoc\Returned('list', type: 'array', desc: '浏览历史')]
+    #[Apidoc\Returned('total', type: 'int', desc: '总数')]
+    #[Apidoc\Returned('page', type: 'int', desc: '当前页码')]
+    #[Apidoc\Returned('page_size', type: 'int', desc: '每页数量')]
     public function history(Request $request): Response
     {
         return ok($this->service->materialHistory($this->memberId, $request->get()));
@@ -72,6 +77,8 @@ class MaterialController extends BaseController
     #[Apidoc\Param('content_type', type: 'string', require: true, desc: '内容类型')]
     #[Apidoc\Param('title', type: 'string', require: true, desc: '内容标题')]
     #[Apidoc\Param('route', type: 'string', require: true, desc: '页面路由')]
+    #[Apidoc\Returned('id', type: 'int', desc: '浏览历史ID')]
+    #[Apidoc\Returned('viewed_at', type: 'datetime', desc: '最近浏览时间')]
     public function saveHistory(Request $request): Response
     {
         return ok($this->service->saveMaterialHistory($this->memberId, $request->post()));
@@ -82,6 +89,10 @@ class MaterialController extends BaseController
     #[Apidoc\Method('GET')]
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
+    #[Apidoc\Returned('list', type: 'array', desc: '素材收藏列表')]
+    #[Apidoc\Returned('total', type: 'int', desc: '总数')]
+    #[Apidoc\Returned('page', type: 'int', desc: '当前页码')]
+    #[Apidoc\Returned('page_size', type: 'int', desc: '每页数量')]
     public function collections(Request $request): Response
     {
         return ok($this->service->materialCollections($this->memberId, $request->get()));
@@ -91,7 +102,8 @@ class MaterialController extends BaseController
     #[Apidoc\Url('/app/help/material/like')]
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('material_id', type: 'int', require: true, desc: '素材ID')]
-    #[Apidoc\Returned('is_liked', type: 'bool', desc: '是否已点赞')]
+    #[Apidoc\Returned('material_id', type: 'int', desc: '素材ID')]
+    #[Apidoc\Returned('is_liked', type: 'boolean', desc: '是否已点赞')]
     public function toggleLike(Request $request): Response
     {
         return ok($this->service->toggleMaterialLike($this->memberId, (int) $request->post('material_id')));
@@ -101,7 +113,8 @@ class MaterialController extends BaseController
     #[Apidoc\Url('/app/help/material/collect')]
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('material_id', type: 'int', require: true, desc: '素材ID')]
-    #[Apidoc\Returned('is_collected', type: 'bool', desc: '是否已收藏')]
+    #[Apidoc\Returned('material_id', type: 'int', desc: '素材ID')]
+    #[Apidoc\Returned('is_collected', type: 'boolean', desc: '是否已收藏')]
     public function toggleCollect(Request $request): Response
     {
         return ok($this->service->toggleMaterialCollect($this->memberId, (int) $request->post('material_id')));
