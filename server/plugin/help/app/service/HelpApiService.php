@@ -719,6 +719,210 @@ class HelpApiService
         ];
     }
 
+    public function communityTags(): array
+    {
+        $rows = Db::table('sa_community_tag')
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->field('id, tag_name, tag_name_i18n, color, sort')
+            ->order('sort', 'asc')
+            ->order('id', 'asc')
+            ->select()
+            ->toArray();
+
+        foreach ($rows as &$row) {
+            $row['tag_name_i18n'] = $this->decodeJsonArray($row['tag_name_i18n'] ?? null);
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    public function communityPosts(int $memberId, array $params): array
+    {
+        $page = $this->paginate(function () use ($memberId, $params) {
+            $query = $this->visibleCommunityPostQuery($memberId)
+                ->field('p.*, m.nickname AS author_name, m.avatar AS author_avatar');
+
+            if (!empty($params['keyword'])) {
+                $keyword = '%' . trim((string) $params['keyword']) . '%';
+                $query->where('p.content', 'like', $keyword);
+            }
+            if ((int) ($params['mine'] ?? 2) === 1) {
+                $query->where('p.member_id', $memberId);
+            }
+
+            return $query
+                ->order('p.is_top', 'asc')
+                ->order('p.id', 'desc');
+        }, $params);
+
+        $page['list'] = $this->decorateCommunityPosts($page['list'], $memberId);
+        return $page;
+    }
+
+    public function communityPostDetail(int $memberId, int $postId): array
+    {
+        $post = $this->assertVisibleCommunityPost($memberId, $postId);
+
+        Db::execute('UPDATE `sa_community_post` SET `view_count` = `view_count` + 1, `update_time` = NOW() WHERE `id` = ' . $postId);
+        $post['view_count'] = ((int) ($post['view_count'] ?? 0)) + 1;
+
+        return $this->decorateCommunityPosts([$post], $memberId)[0] ?? [];
+    }
+
+    public function saveCommunityPost(int $memberId, array $data): array
+    {
+        $content = trim((string) ($data['content'] ?? ''));
+        if ($content === '') {
+            throw new ApiException('帖子内容必须填写', 400);
+        }
+
+        $payload = [
+            'member_id' => $memberId,
+            'content' => $content,
+            'images' => $this->jsonValue($data['images'] ?? null),
+            'link_url' => trim((string) ($data['link_url'] ?? '')),
+            'tags' => $this->jsonValue($data['tags'] ?? null),
+            'is_anonymous' => $this->intIn($data['is_anonymous'] ?? 2, [1, 2], '匿名参数错误'),
+            'is_doctor_post' => 2,
+            'audit_status' => 0,
+            'status' => 1,
+        ];
+
+        $id = $this->saveRow('sa_community_post', $payload, $memberId);
+        return $this->communityPostDetail($memberId, $id);
+    }
+
+    public function communityComments(int $memberId, array $params): array
+    {
+        $postId = (int) ($params['post_id'] ?? 0);
+        $this->assertVisibleCommunityPost($memberId, $postId);
+        $parentId = max(0, (int) ($params['parent_id'] ?? 0));
+
+        $page = $this->paginate(function () use ($memberId, $postId, $parentId) {
+            return Db::table('sa_community_comment')
+                ->alias('c')
+                ->leftJoin('sa_member m', 'm.id = c.member_id AND m.delete_time IS NULL')
+                ->where('c.post_id', $postId)
+                ->where('c.parent_id', $parentId)
+                ->where('c.status', 1)
+                ->whereNull('c.delete_time')
+                ->where(function ($query) use ($memberId) {
+                    $query->where('c.audit_status', 1)->whereOr('c.member_id', $memberId);
+                })
+                ->field('c.*, m.nickname AS author_name, m.avatar AS author_avatar')
+                ->order('c.id', 'asc');
+        }, $params);
+
+        $page['list'] = $this->decorateCommunityComments($page['list'], $memberId);
+        return $page;
+    }
+
+    public function saveCommunityComment(int $memberId, array $data): array
+    {
+        $postId = (int) ($data['post_id'] ?? 0);
+        $this->assertVisibleCommunityPost($memberId, $postId);
+        $parentId = max(0, (int) ($data['parent_id'] ?? 0));
+        if ($parentId > 0) {
+            $this->assertVisibleCommunityComment($memberId, $parentId);
+        }
+
+        $content = trim((string) ($data['content'] ?? ''));
+        if ($content === '') {
+            throw new ApiException('评论内容必须填写', 400);
+        }
+
+        $commentId = Db::transaction(function () use ($memberId, $postId, $parentId, $content, $data) {
+            $id = $this->saveRow('sa_community_comment', [
+                'post_id' => $postId,
+                'member_id' => $memberId,
+                'parent_id' => $parentId,
+                'reply_to_member_id' => (int) ($data['reply_to_member_id'] ?? 0) ?: null,
+                'content' => $content,
+                'attachments' => $this->jsonValue($data['attachments'] ?? null),
+                'is_anonymous' => $this->intIn($data['is_anonymous'] ?? 2, [1, 2], '匿名参数错误'),
+                'audit_status' => 1,
+                'status' => 1,
+            ], $memberId);
+            $this->syncCommunityCounter('post', $postId, 'comment_count', true);
+
+            return $id;
+        });
+
+        $comment = Db::table('sa_community_comment')
+            ->alias('c')
+            ->leftJoin('sa_member m', 'm.id = c.member_id AND m.delete_time IS NULL')
+            ->where('c.id', $commentId)
+            ->field('c.*, m.nickname AS author_name, m.avatar AS author_avatar')
+            ->find() ?: [];
+
+        return $this->decorateCommunityComments([$comment], $memberId)[0] ?? [];
+    }
+
+    public function toggleCommunityLike(int $memberId, array $data): array
+    {
+        $targetType = $this->intIn($data['target_type'] ?? 0, [1, 2], '点赞目标类型错误');
+        $targetId = (int) ($data['target_id'] ?? 0);
+        if ($targetType === 1) {
+            $this->assertVisibleCommunityPost($memberId, $targetId);
+        } else {
+            $this->assertVisibleCommunityComment($memberId, $targetId);
+        }
+
+        $isActive = Db::transaction(function () use ($memberId, $targetType, $targetId) {
+            $active = $this->toggleCommunityLikeRow($memberId, $targetType, $targetId);
+            $this->syncCommunityCounter($targetType === 1 ? 'post' : 'comment', $targetId, 'like_count', $active);
+
+            return $active;
+        });
+
+        return [
+            'target_type' => $targetType,
+            'target_id' => $targetId,
+            'is_liked' => $isActive,
+        ];
+    }
+
+    public function toggleCommunityCollect(int $memberId, int $postId): array
+    {
+        $this->assertVisibleCommunityPost($memberId, $postId);
+        $isActive = $this->toggleInteraction('sa_community_collect', $memberId, 'post_id', $postId);
+        $this->syncCommunityCounter('post', $postId, 'collect_count', $isActive);
+
+        return ['post_id' => $postId, 'is_collected' => $isActive];
+    }
+
+    public function reportCommunityTarget(int $memberId, array $data): array
+    {
+        $targetType = $this->intIn($data['target_type'] ?? 0, [1, 2, 3], '举报目标类型错误');
+        $targetId = (int) ($data['target_id'] ?? 0);
+        if ($targetId <= 0) {
+            throw new ApiException('举报目标ID必须填写', 400);
+        }
+        if ($targetType === 1) {
+            $this->assertVisibleCommunityPost($memberId, $targetId);
+        } elseif ($targetType === 2) {
+            $this->assertVisibleCommunityComment($memberId, $targetId);
+        }
+
+        $reason = trim((string) ($data['reason'] ?? ''));
+        if ($reason === '') {
+            throw new ApiException('举报原因必须填写', 400);
+        }
+
+        $id = $this->saveRow('sa_community_report', [
+            'member_id' => $memberId,
+            'target_type' => $targetType,
+            'target_id' => $targetId,
+            'reason' => $reason,
+            'description' => trim((string) ($data['description'] ?? '')),
+            'handle_status' => 0,
+        ], $memberId);
+
+        return Db::table('sa_community_report')->where('id', $id)->find() ?: [];
+    }
+
     public function materialCategories(array $params): array
     {
         $query = Db::table('sa_content_category')
@@ -1225,6 +1429,183 @@ class HelpApiService
             ->where('status', 1)
             ->whereNull('delete_time')
             ->whereRaw('(is_public = 1 OR member_id = ' . $memberId . ')');
+    }
+
+    private function visibleCommunityPostQuery(int $memberId)
+    {
+        return Db::table('sa_community_post')
+            ->alias('p')
+            ->leftJoin('sa_member m', 'm.id = p.member_id AND m.delete_time IS NULL')
+            ->where('p.status', 1)
+            ->whereNull('p.delete_time')
+            ->where(function ($query) use ($memberId) {
+                $query->where('p.audit_status', 1)->whereOr('p.member_id', $memberId);
+            });
+    }
+
+    private function assertVisibleCommunityPost(int $memberId, int $postId): array
+    {
+        if ($postId <= 0) {
+            throw new ApiException('帖子ID必须填写', 400);
+        }
+
+        $post = $this->visibleCommunityPostQuery($memberId)
+            ->where('p.id', $postId)
+            ->field('p.*, m.nickname AS author_name, m.avatar AS author_avatar')
+            ->find();
+        if (!$post) {
+            throw new ApiException('帖子不存在或无权访问', 404);
+        }
+
+        return $post;
+    }
+
+    private function assertVisibleCommunityComment(int $memberId, int $commentId): array
+    {
+        if ($commentId <= 0) {
+            throw new ApiException('评论ID必须填写', 400);
+        }
+
+        $comment = Db::table('sa_community_comment')
+            ->alias('c')
+            ->where('c.id', $commentId)
+            ->where('c.status', 1)
+            ->whereNull('c.delete_time')
+            ->where(function ($query) use ($memberId) {
+                $query->where('c.audit_status', 1)->whereOr('c.member_id', $memberId);
+            })
+            ->find();
+        if (!$comment) {
+            throw new ApiException('评论不存在或无权访问', 404);
+        }
+
+        $this->assertVisibleCommunityPost($memberId, (int) $comment['post_id']);
+        return $comment;
+    }
+
+    private function decorateCommunityPosts(array $rows, int $memberId): array
+    {
+        foreach ($rows as &$row) {
+            $postId = (int) ($row['id'] ?? 0);
+            $row['images'] = $this->decodeJsonArray($row['images'] ?? null);
+            $row['tags'] = $this->decodeJsonArray($row['tags'] ?? null);
+            $row['is_liked'] = $this->activeCommunityLikeExists($memberId, 1, $postId);
+            $row['is_collected'] = $this->activeInteractionExists('sa_community_collect', $memberId, 'post_id', $postId);
+            $this->applyCommunityAuthor($row);
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    private function decorateCommunityComments(array $rows, int $memberId): array
+    {
+        foreach ($rows as &$row) {
+            $row['attachments'] = $this->decodeJsonArray($row['attachments'] ?? null);
+            $row['is_liked'] = $this->activeCommunityLikeExists($memberId, 2, (int) ($row['id'] ?? 0));
+            $this->applyCommunityAuthor($row);
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    private function applyCommunityAuthor(array &$row): void
+    {
+        if ((int) ($row['is_anonymous'] ?? 2) === 1) {
+            $row['author_name'] = 'Anonymous';
+            $row['author_avatar'] = '';
+            return;
+        }
+
+        $row['author_name'] = trim((string) ($row['author_name'] ?? '')) ?: 'Member #' . (int) ($row['member_id'] ?? 0);
+        $row['author_avatar'] = (string) ($row['author_avatar'] ?? '');
+    }
+
+    private function activeCommunityLikeExists(int $memberId, int $targetType, int $targetId): bool
+    {
+        return (bool) Db::table('sa_community_like')
+            ->where('member_id', $memberId)
+            ->where('target_type', $targetType)
+            ->where('target_id', $targetId)
+            ->whereNull('delete_time')
+            ->find();
+    }
+
+    private function toggleCommunityLikeRow(int $memberId, int $targetType, int $targetId): bool
+    {
+        $now = date('Y-m-d H:i:s');
+        $row = Db::table('sa_community_like')
+            ->where('member_id', $memberId)
+            ->where('target_type', $targetType)
+            ->where('target_id', $targetId)
+            ->find();
+
+        if ($row && empty($row['delete_time'])) {
+            Db::table('sa_community_like')->where('id', $row['id'])->update([
+                'delete_time' => $now,
+                'updated_by' => $memberId,
+                'update_time' => $now,
+            ]);
+            return false;
+        }
+
+        if ($row) {
+            Db::table('sa_community_like')->where('id', $row['id'])->update([
+                'delete_time' => null,
+                'updated_by' => $memberId,
+                'update_time' => $now,
+            ]);
+            return true;
+        }
+
+        Db::table('sa_community_like')->insert([
+            'member_id' => $memberId,
+            'target_type' => $targetType,
+            'target_id' => $targetId,
+            'created_by' => $memberId,
+            'updated_by' => $memberId,
+            'create_time' => $now,
+            'update_time' => $now,
+        ]);
+
+        return true;
+    }
+
+    private function syncCommunityCounter(string $target, int $targetId, string $field, bool $increase): void
+    {
+        $tables = [
+            'post' => ['table' => 'sa_community_post', 'fields' => ['like_count', 'comment_count', 'collect_count']],
+            'comment' => ['table' => 'sa_community_comment', 'fields' => ['like_count']],
+        ];
+        if (!isset($tables[$target]) || !in_array($field, $tables[$target]['fields'], true)) {
+            return;
+        }
+
+        $operator = $increase ? '+' : '-';
+        Db::execute(sprintf(
+            'UPDATE `%1$s` SET `%2$s` = GREATEST(`%2$s` %3$s 1, 0), `update_time` = NOW() WHERE `id` = %4$d',
+            $tables[$target]['table'],
+            $field,
+            $operator,
+            $targetId
+        ));
+    }
+
+    private function decodeJsonArray(mixed $value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+        if (is_array($value)) {
+            return $value;
+        }
+        if (!is_string($value)) {
+            return [];
+        }
+
+        $decoded = json_decode($value, true);
+        return is_array($decoded) ? $decoded : [];
     }
 
     private function assertVisibleMaterial(int $memberId, int $materialId): void

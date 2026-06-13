@@ -4,6 +4,7 @@ use plugin\help\app\api\controller\CommonController;
 use plugin\help\app\api\controller\AppointmentController;
 use plugin\help\app\api\controller\AuthController;
 use plugin\help\app\api\controller\ChatController;
+use plugin\help\app\api\controller\CommunityController;
 use plugin\help\app\api\controller\HomeController;
 use plugin\help\app\api\controller\LocalModelController;
 use plugin\help\app\api\controller\MaterialController;
@@ -33,6 +34,16 @@ Route::group('/app/help', function () {
     Route::get('/chat/records', [ChatController::class, 'records']);
     Route::post('/chat/record', [ChatController::class, 'saveRecord']);
     Route::post('/chat/send', [ChatController::class, 'send']);
+
+    Route::get('/community/tags', [CommunityController::class, 'tags']);
+    Route::get('/community/posts', [CommunityController::class, 'posts']);
+    Route::get('/community/post', [CommunityController::class, 'post']);
+    Route::post('/community/post', [CommunityController::class, 'savePost']);
+    Route::get('/community/comments', [CommunityController::class, 'comments']);
+    Route::post('/community/comment', [CommunityController::class, 'saveComment']);
+    Route::post('/community/like', [CommunityController::class, 'toggleLike']);
+    Route::post('/community/collect', [CommunityController::class, 'toggleCollect']);
+    Route::post('/community/report', [CommunityController::class, 'report']);
 
     Route::get('/me/profile', [MeController::class, 'profile']);
     Route::post('/me/profile/save', [MeController::class, 'saveProfile']);

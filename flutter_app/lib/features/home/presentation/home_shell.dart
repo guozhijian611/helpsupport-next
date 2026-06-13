@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../community/presentation/community_feed_screen.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
@@ -53,10 +54,17 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       _HomeDestination(label: context.l10n.me, icon: Icons.person_outline),
     ];
     final current = destinations[_index];
+    final body = _index == 2
+        ? const CommunityFeedScreen()
+        : _HomePanel(
+            icon: current.icon,
+            title: current.label,
+            subtitle: context.l10n.homeGreeting,
+          );
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.l10n.homeTitle),
+        title: Text(_index == 0 ? context.l10n.homeTitle : current.label),
         actions: [
           IconButton(
             tooltip: context.l10n.chatTitle,
@@ -77,13 +85,14 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: _HomePanel(
-          icon: current.icon,
-          title: current.label,
-          subtitle: context.l10n.homeGreeting,
-        ),
-      ),
+      body: SafeArea(child: body),
+      floatingActionButton: _index == 2
+          ? FloatingActionButton(
+              tooltip: context.l10n.communityNewPost,
+              onPressed: () => context.push('/community/new'),
+              child: const Icon(Icons.edit_outlined),
+            )
+          : null,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (value) => setState(() => _index = value),

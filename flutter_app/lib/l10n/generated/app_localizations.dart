@@ -440,6 +440,84 @@ abstract class AppLocalizations {
   /// **'Community'**
   String get community;
 
+  /// No description provided for @communityFeedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No community posts yet.'**
+  String get communityFeedEmpty;
+
+  /// No description provided for @communityNewPost.
+  ///
+  /// In en, this message translates to:
+  /// **'New post'**
+  String get communityNewPost;
+
+  /// No description provided for @communityPostHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Share what you want support with...'**
+  String get communityPostHint;
+
+  /// No description provided for @communityPublish.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish'**
+  String get communityPublish;
+
+  /// No description provided for @communityAnonymous.
+  ///
+  /// In en, this message translates to:
+  /// **'Post anonymously'**
+  String get communityAnonymous;
+
+  /// No description provided for @communityPendingReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending review'**
+  String get communityPendingReview;
+
+  /// No description provided for @communityComments.
+  ///
+  /// In en, this message translates to:
+  /// **'Comments'**
+  String get communityComments;
+
+  /// No description provided for @communityCommentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Write a supportive reply'**
+  String get communityCommentHint;
+
+  /// No description provided for @communitySendComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Send comment'**
+  String get communitySendComment;
+
+  /// No description provided for @communityLike.
+  ///
+  /// In en, this message translates to:
+  /// **'Like'**
+  String get communityLike;
+
+  /// No description provided for @communityUnlike.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlike'**
+  String get communityUnlike;
+
+  /// No description provided for @communityCollect.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get communityCollect;
+
+  /// No description provided for @communityUncollect.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsave'**
+  String get communityUncollect;
+
   /// No description provided for @plan.
   ///
   /// In en, this message translates to:

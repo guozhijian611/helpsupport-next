@@ -180,6 +180,45 @@ class AppLocalizationsZh extends AppLocalizations {
   String get community => '社区';
 
   @override
+  String get communityFeedEmpty => '暂无社区帖子。';
+
+  @override
+  String get communityNewPost => '发布帖子';
+
+  @override
+  String get communityPostHint => '写下你想获得支持的内容...';
+
+  @override
+  String get communityPublish => '发布';
+
+  @override
+  String get communityAnonymous => '匿名发布';
+
+  @override
+  String get communityPendingReview => '待审核';
+
+  @override
+  String get communityComments => '评论';
+
+  @override
+  String get communityCommentHint => '写一条支持性的回复';
+
+  @override
+  String get communitySendComment => '发送评论';
+
+  @override
+  String get communityLike => '点赞';
+
+  @override
+  String get communityUnlike => '取消点赞';
+
+  @override
+  String get communityCollect => '收藏';
+
+  @override
+  String get communityUncollect => '取消收藏';
+
+  @override
   String get plan => '计划';
 
   @override

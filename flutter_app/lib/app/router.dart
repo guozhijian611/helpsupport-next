@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/chat/presentation/chat_home_screen.dart';
 import '../features/chat/presentation/chat_session_screen.dart';
+import '../features/community/presentation/community_post_detail_screen.dart';
+import '../features/community/presentation/community_post_editor_screen.dart';
 import '../features/home/presentation/home_shell.dart';
 import '../features/local_model/presentation/local_model_chat_screen.dart';
 import '../features/local_model/presentation/local_model_screen.dart';
@@ -47,6 +49,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             sessionId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
             chatMode: state.uri.queryParameters['mode'] ?? 'companion',
             title: state.uri.queryParameters['title'] ?? '',
+          );
+        },
+      ),
+      GoRoute(
+        path: '/community/new',
+        name: 'community-new',
+        builder: (context, state) => const CommunityPostEditorScreen(),
+      ),
+      GoRoute(
+        path: '/community/post/:id',
+        name: 'community-post',
+        builder: (context, state) {
+          return CommunityPostDetailScreen(
+            postId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
           );
         },
       ),

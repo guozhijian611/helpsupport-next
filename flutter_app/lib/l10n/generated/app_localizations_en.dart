@@ -187,6 +187,45 @@ class AppLocalizationsEn extends AppLocalizations {
   String get community => 'Community';
 
   @override
+  String get communityFeedEmpty => 'No community posts yet.';
+
+  @override
+  String get communityNewPost => 'New post';
+
+  @override
+  String get communityPostHint => 'Share what you want support with...';
+
+  @override
+  String get communityPublish => 'Publish';
+
+  @override
+  String get communityAnonymous => 'Post anonymously';
+
+  @override
+  String get communityPendingReview => 'Pending review';
+
+  @override
+  String get communityComments => 'Comments';
+
+  @override
+  String get communityCommentHint => 'Write a supportive reply';
+
+  @override
+  String get communitySendComment => 'Send comment';
+
+  @override
+  String get communityLike => 'Like';
+
+  @override
+  String get communityUnlike => 'Unlike';
+
+  @override
+  String get communityCollect => 'Save';
+
+  @override
+  String get communityUncollect => 'Unsave';
+
+  @override
   String get plan => 'Plan';
 
   @override
