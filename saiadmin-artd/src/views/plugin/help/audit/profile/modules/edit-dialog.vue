@@ -1,0 +1,231 @@
+<template>
+  <el-drawer
+    v-model="visible"
+    :title="dialogType === 'add' ? '新增医生资质审核' : '编辑医生资质审核'"
+    :size="900"
+    align-center
+    :close-on-click-modal="false"
+    @close="handleClose"
+  >
+    <el-form ref="formRef" :model="formData" :rules="rules" label-width="120px">
+      <el-row :gutter="20">
+        <el-col :span="24">
+          <el-form-item label="真实姓名" prop="real_name">
+            <el-input v-model="formData.real_name" placeholder="请输入真实姓名" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="职称" prop="title">
+            <el-input v-model="formData.title" placeholder="请输入职称" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="医院/机构" prop="hospital">
+            <el-input v-model="formData.hospital" placeholder="请输入医院/机构" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="科室" prop="department">
+            <el-input v-model="formData.department" placeholder="请输入科室" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="专业方向" prop="specialty">
+            <el-input v-model="formData.specialty" placeholder="请输入专业方向" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="执业证书编号" prop="license_no">
+            <el-input v-model="formData.license_no" placeholder="请输入执业证书编号" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="证书图片数组" prop="certification_images">
+            <sa-image-upload v-model="formData.certification_images" :limit="1" :multiple="false" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="审核备注" prop="audit_remark">
+            <el-input v-model="formData.audit_remark" placeholder="请输入审核备注" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="审核人" prop="audit_by">
+            <el-input v-model="formData.audit_by" placeholder="请输入审核人" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="审核时间" prop="audit_time">
+            <el-date-picker
+              v-model="formData.audit_time"
+              type="datetime"
+              value-format="YYYY-MM-DD HH:mm:ss"
+              placeholder="请选择审核时间"
+              clearable
+            />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="通过时间" prop="approved_time">
+            <el-date-picker
+              v-model="formData.approved_time"
+              type="datetime"
+              value-format="YYYY-MM-DD HH:mm:ss"
+              placeholder="请选择通过时间"
+              clearable
+            />
+          </el-form-item>
+        </el-col>
+      </el-row>
+    </el-form>
+    <template #footer>
+      <el-button @click="handleClose">取消</el-button>
+      <el-button type="primary" @click="handleSubmit">提交</el-button>
+    </template>
+  </el-drawer>
+</template>
+
+<script setup lang="ts">
+  import commonApi from '@/api/common'
+  import api from '../../../api/audit/profile'
+  import { ElMessage } from 'element-plus'
+  import type { FormInstance, FormRules } from 'element-plus'
+
+  interface Props {
+    modelValue: boolean
+    dialogType: string
+    data?: Record<string, any>
+  }
+
+  interface Emits {
+    (e: 'update:modelValue', value: boolean): void
+    (e: 'success'): void
+  }
+
+  const props = withDefaults(defineProps<Props>(), {
+    modelValue: false,
+    dialogType: 'add',
+    data: undefined
+  })
+
+  const emit = defineEmits<Emits>()
+
+  const formRef = ref<FormInstance>()
+  const optionData = reactive({
+    treeData: <any[]>[],
+  })
+
+  /**
+   * 弹窗显示状态双向绑定
+   */
+  const visible = computed({
+    get: () => props.modelValue,
+    set: (value) => emit('update:modelValue', value)
+  })
+
+  /**
+   * 表单验证规则
+   */
+  const rules = reactive<FormRules>({
+    member_id: [{ required: true, message: '医生会员ID必需填写', trigger: 'blur' }],
+    real_name: [{ required: true, message: '真实姓名必需填写', trigger: 'blur' }],
+    title: [{ required: true, message: '职称必需填写', trigger: 'blur' }],
+    hospital: [{ required: true, message: '医院/机构必需填写', trigger: 'blur' }],
+    department: [{ required: true, message: '科室必需填写', trigger: 'blur' }],
+    specialty: [{ required: true, message: '专业方向必需填写', trigger: 'blur' }],
+    license_no: [{ required: true, message: '执业证书编号必需填写', trigger: 'blur' }],
+    audit_status: [{ required: true, message: '审核状态 0待审核 1已通过 2已拒绝必需填写', trigger: 'blur' }],
+    audit_remark: [{ required: true, message: '审核备注必需填写', trigger: 'blur' }],
+    status: [{ required: true, message: '状态 1正常 2禁用必需填写', trigger: 'blur' }],
+  })
+
+  /**
+   * 初始数据
+   */
+  const initialFormData = {
+    id: null,
+    real_name: '',
+    title: '',
+    hospital: '',
+    department: '',
+    specialty: '',
+    license_no: '',
+    certification_images: '',
+    audit_remark: '',
+    audit_by: null,
+    audit_time: '',
+    approved_time: '',
+  }
+
+  /**
+   * 表单数据
+   */
+  const formData = reactive({ ...initialFormData })
+
+  /**
+   * 监听弹窗打开，初始化表单数据
+   */
+  watch(
+    () => props.modelValue,
+    (newVal) => {
+      if (newVal) {
+        initPage()
+      }
+    }
+  )
+
+  /**
+   * 初始化页面数据
+   */
+  const initPage = async () => {
+    // 先重置为初始值
+    Object.assign(formData, initialFormData)
+    // 如果有数据，则填充数据
+    if (props.data) {
+      await nextTick()
+      initForm()
+    }
+  }
+
+  /**
+   * 初始化表单数据
+   */
+  const initForm = () => {
+    if (props.data) {
+      for (const key in formData) {
+        if (props.data[key] != null && props.data[key] != undefined) {
+          ;(formData as any)[key] = props.data[key]
+        }
+      }
+    }
+  }
+
+  /**
+   * 关闭弹窗并重置表单
+   */
+  const handleClose = () => {
+    visible.value = false
+    formRef.value?.resetFields()
+  }
+
+  /**
+   * 提交表单
+   */
+  const handleSubmit = async () => {
+    if (!formRef.value) return
+    try {
+      await formRef.value.validate()
+      if (props.dialogType === 'add') {
+        await api.save(formData)
+        ElMessage.success('新增成功')
+      } else {
+        await api.update(formData)
+        ElMessage.success('修改成功')
+      }
+      emit('success')
+      handleClose()
+    } catch (error) {
+      console.log('表单验证失败:', error)
+    }
+  }
+</script>
