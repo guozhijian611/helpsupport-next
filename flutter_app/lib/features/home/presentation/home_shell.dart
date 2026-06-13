@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../community/presentation/community_feed_screen.dart';
+import '../../plan/presentation/plan_screen.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
@@ -54,13 +55,15 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       _HomeDestination(label: context.l10n.me, icon: Icons.person_outline),
     ];
     final current = destinations[_index];
-    final body = _index == 2
-        ? const CommunityFeedScreen()
-        : _HomePanel(
-            icon: current.icon,
-            title: current.label,
-            subtitle: context.l10n.homeGreeting,
-          );
+    final body = switch (_index) {
+      1 => const PlanScreen(),
+      2 => const CommunityFeedScreen(),
+      _ => _HomePanel(
+        icon: current.icon,
+        title: current.label,
+        subtitle: context.l10n.homeGreeting,
+      ),
+    };
 
     return Scaffold(
       appBar: AppBar(

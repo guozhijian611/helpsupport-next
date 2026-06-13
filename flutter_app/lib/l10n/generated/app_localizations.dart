@@ -524,6 +524,114 @@ abstract class AppLocalizations {
   /// **'Plan'**
   String get plan;
 
+  /// No description provided for @planCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Current plan'**
+  String get planCurrent;
+
+  /// No description provided for @planEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No active treatment plan yet.'**
+  String get planEmpty;
+
+  /// No description provided for @planTodayTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s tasks'**
+  String get planTodayTasks;
+
+  /// No description provided for @planTaskEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No tasks scheduled for today.'**
+  String get planTaskEmpty;
+
+  /// No description provided for @planAssessments.
+  ///
+  /// In en, this message translates to:
+  /// **'Assessments'**
+  String get planAssessments;
+
+  /// No description provided for @planAssessmentEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No assessment records yet.'**
+  String get planAssessmentEmpty;
+
+  /// No description provided for @planNoDate.
+  ///
+  /// In en, this message translates to:
+  /// **'No date'**
+  String get planNoDate;
+
+  /// No description provided for @planStatusDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft'**
+  String get planStatusDraft;
+
+  /// No description provided for @planStatusActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get planStatusActive;
+
+  /// No description provided for @planStatusPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get planStatusPaused;
+
+  /// No description provided for @planStatusFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished'**
+  String get planStatusFinished;
+
+  /// No description provided for @planTaskTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'To do'**
+  String get planTaskTodo;
+
+  /// No description provided for @planTaskDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get planTaskDone;
+
+  /// No description provided for @planTaskSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped'**
+  String get planTaskSkipped;
+
+  /// No description provided for @planTaskDelayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Delayed'**
+  String get planTaskDelayed;
+
+  /// No description provided for @planTaskComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete'**
+  String get planTaskComplete;
+
+  /// No description provided for @planTaskSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get planTaskSkip;
+
+  /// No description provided for @planTaskUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Task updated.'**
+  String get planTaskUpdated;
+
   /// No description provided for @me.
   ///
   /// In en, this message translates to:

@@ -229,5 +229,59 @@ class AppLocalizationsEn extends AppLocalizations {
   String get plan => 'Plan';
 
   @override
+  String get planCurrent => 'Current plan';
+
+  @override
+  String get planEmpty => 'No active treatment plan yet.';
+
+  @override
+  String get planTodayTasks => 'Today\'s tasks';
+
+  @override
+  String get planTaskEmpty => 'No tasks scheduled for today.';
+
+  @override
+  String get planAssessments => 'Assessments';
+
+  @override
+  String get planAssessmentEmpty => 'No assessment records yet.';
+
+  @override
+  String get planNoDate => 'No date';
+
+  @override
+  String get planStatusDraft => 'Draft';
+
+  @override
+  String get planStatusActive => 'Active';
+
+  @override
+  String get planStatusPaused => 'Paused';
+
+  @override
+  String get planStatusFinished => 'Finished';
+
+  @override
+  String get planTaskTodo => 'To do';
+
+  @override
+  String get planTaskDone => 'Done';
+
+  @override
+  String get planTaskSkipped => 'Skipped';
+
+  @override
+  String get planTaskDelayed => 'Delayed';
+
+  @override
+  String get planTaskComplete => 'Complete';
+
+  @override
+  String get planTaskSkip => 'Skip';
+
+  @override
+  String get planTaskUpdated => 'Task updated.';
+
+  @override
   String get me => 'Me';
 }

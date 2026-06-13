@@ -222,5 +222,59 @@ class AppLocalizationsZh extends AppLocalizations {
   String get plan => '计划';
 
   @override
+  String get planCurrent => '当前计划';
+
+  @override
+  String get planEmpty => '暂无进行中的治疗计划。';
+
+  @override
+  String get planTodayTasks => '今日任务';
+
+  @override
+  String get planTaskEmpty => '今天暂无任务。';
+
+  @override
+  String get planAssessments => '评估记录';
+
+  @override
+  String get planAssessmentEmpty => '暂无评估记录。';
+
+  @override
+  String get planNoDate => '暂无日期';
+
+  @override
+  String get planStatusDraft => '草稿';
+
+  @override
+  String get planStatusActive => '进行中';
+
+  @override
+  String get planStatusPaused => '已暂停';
+
+  @override
+  String get planStatusFinished => '已完成';
+
+  @override
+  String get planTaskTodo => '待办';
+
+  @override
+  String get planTaskDone => '已完成';
+
+  @override
+  String get planTaskSkipped => '已跳过';
+
+  @override
+  String get planTaskDelayed => '已延期';
+
+  @override
+  String get planTaskComplete => '完成';
+
+  @override
+  String get planTaskSkip => '跳过';
+
+  @override
+  String get planTaskUpdated => '任务状态已更新。';
+
+  @override
   String get me => '我的';
 }
