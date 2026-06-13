@@ -1,0 +1,91 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for English (`en`).
+class AppLocalizationsEn extends AppLocalizations {
+  AppLocalizationsEn([String locale = 'en']) : super(locale);
+
+  @override
+  String get appTitle => 'HelpSupport';
+
+  @override
+  String get splashTitle => 'HelpSupport';
+
+  @override
+  String get splashSubtitle =>
+      'Private mental health support for patients and doctors.';
+
+  @override
+  String get continueLabel => 'Continue';
+
+  @override
+  String get loginTitle => 'Sign in';
+
+  @override
+  String get loginSubtitle =>
+      'Use your account or a trusted identity provider.';
+
+  @override
+  String get emailLogin => 'Email sign in';
+
+  @override
+  String get googleLogin => 'Continue with Google';
+
+  @override
+  String get appleLogin => 'Continue with Apple';
+
+  @override
+  String get homeTitle => 'Today';
+
+  @override
+  String get homeGreeting => 'Your support space is ready.';
+
+  @override
+  String get onboardingTitle => 'Onboarding';
+
+  @override
+  String get onboardingLoading => 'Loading onboarding content...';
+
+  @override
+  String get onboardingEmpty => 'No onboarding content is available yet.';
+
+  @override
+  String get retry => 'Retry';
+
+  @override
+  String get localModelTitle => 'Local models';
+
+  @override
+  String get localModelSubtitle =>
+      'Download verified models for private on-device chat.';
+
+  @override
+  String get networkUnavailable => 'Unable to reach the HelpSupport API.';
+
+  @override
+  String get apiBaseUrlLabel => 'API base URL';
+
+  @override
+  String get notifications => 'Notifications';
+
+  @override
+  String get permissions => 'Permissions';
+
+  @override
+  String get doctor => 'Doctor';
+
+  @override
+  String get patient => 'Patient';
+
+  @override
+  String get community => 'Community';
+
+  @override
+  String get plan => 'Plan';
+
+  @override
+  String get me => 'Me';
+}
