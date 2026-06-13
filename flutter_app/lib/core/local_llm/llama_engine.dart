@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ffi';
 import 'dart:io';
 import 'dart:math';
 
@@ -7,6 +8,28 @@ import 'package:llama_cpp_dart/llama_cpp_dart.dart';
 import '../../features/local_model/data/local_model_models.dart';
 import 'local_chat_store.dart';
 
+class LlamaRuntimeStatus {
+  const LlamaRuntimeStatus({
+    required this.isAvailable,
+    required this.libraryPath,
+    this.errorMessage = '',
+  });
+
+  const LlamaRuntimeStatus.available(String libraryPath)
+    : this(isAvailable: true, libraryPath: libraryPath);
+
+  const LlamaRuntimeStatus.unavailable(String libraryPath, String errorMessage)
+    : this(
+        isAvailable: false,
+        libraryPath: libraryPath,
+        errorMessage: errorMessage,
+      );
+
+  final bool isAvailable;
+  final String libraryPath;
+  final String errorMessage;
+}
+
 class LlamaEngine {
   const LlamaEngine();
 
@@ -14,6 +37,16 @@ class LlamaEngine {
     'HELP_SUPPORT_LLAMA_LIBRARY_PATH',
     defaultValue: '',
   );
+
+  Future<LlamaRuntimeStatus> inspectRuntime() async {
+    final path = _resolvedLibraryPath();
+    try {
+      DynamicLibrary.open(path);
+      return LlamaRuntimeStatus.available(path);
+    } on Object catch (error) {
+      return LlamaRuntimeStatus.unavailable(path, error.toString());
+    }
+  }
 
   Future<String> generate({
     required LocalModelItem model,
@@ -26,8 +59,12 @@ class LlamaEngine {
     final parent = LlamaParent(_loadCommand(model, modelPath));
     final buffer = StringBuffer();
     StreamSubscription<String>? subscription;
+    final runtime = await inspectRuntime();
+    if (!runtime.isAvailable) {
+      throw StateError('本地推理库不可用：${runtime.errorMessage}');
+    }
 
-    Llama.libraryPath = _resolvedLibraryPath();
+    Llama.libraryPath = runtime.libraryPath;
 
     try {
       await parent.init();

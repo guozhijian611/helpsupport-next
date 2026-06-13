@@ -11,6 +11,18 @@ flutter run --dart-define=HELP_SUPPORT_API_BASE_URL=http://127.0.0.1:8787
 
 `HELP_SUPPORT_API_BASE_URL` 默认值是 `http://127.0.0.1:8787`，后端 API 使用现有 `/app/help/...` 路由。
 
+## 本地模型
+
+本地模型对话使用 `llama_cpp_dart` 调用平台侧 llama.cpp 动态库。Flutter 负责从 `/app/help/local-model/catalog` 拉取模型目录、下载 GGUF 文件、校验 SHA256，并在设备本地完成回复。
+
+运行前需要准备 native 动态库：
+
+- Android：把对应 ABI 的 `libllama.so` 放到 `android/app/src/main/jniLibs/<abi>/libllama.so`，例如 `arm64-v8a/libllama.so`。
+- iOS：把 `libllama.dylib` 或对应 framework 嵌入 Runner target，并确保签名和嵌入方式符合 iOS 要求。
+- 桌面或本机调试：可用 `--dart-define=HELP_SUPPORT_LLAMA_LIBRARY_PATH=/absolute/path/libllama.dylib` 指定动态库路径。
+
+如果动态库缺失、ABI 不匹配或依赖库缺失，本地模型聊天页会在发送前显示运行时检查错误。
+
 ## 校验
 
 ```bash

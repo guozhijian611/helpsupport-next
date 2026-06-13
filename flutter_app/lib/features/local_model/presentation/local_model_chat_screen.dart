@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
+import '../../../core/local_llm/llama_engine.dart';
 import '../../../core/local_llm/local_chat_store.dart';
 import '../../../core/local_llm/local_prompt_resolver.dart';
 import '../../../core/providers/app_providers.dart';
@@ -49,6 +50,10 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
     final promptLocale = Localizations.localeOf(context).toLanguageTag();
     final prompts = ref.watch(localModelPromptsProvider(promptLocale));
     final downloadStates = ref.watch(localModelDownloadControllerProvider);
+    final runtimeStatus = ref.watch(llamaRuntimeStatusProvider);
+    final runtimeReady = runtimeStatus.hasValue
+        ? runtimeStatus.value?.isAvailable == true
+        : false;
 
     return Scaffold(
       appBar: AppBar(
@@ -93,6 +98,7 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
                     );
                 return Column(
                   children: [
+                    _RuntimeBanner(status: runtimeStatus),
                     Expanded(
                       child: _LocalMessageList(
                         loading: _loadingMessages,
@@ -107,7 +113,7 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
                           Expanded(
                             child: TextField(
                               controller: _controller,
-                              enabled: !_sending,
+                              enabled: !_sending && runtimeReady,
                               minLines: 1,
                               maxLines: 4,
                               decoration: InputDecoration(
@@ -120,7 +126,7 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
                           const SizedBox(width: 8),
                           IconButton.filled(
                             tooltip: context.l10n.sendMessage,
-                            onPressed: _sending
+                            onPressed: _sending || !runtimeReady
                                 ? null
                                 : () => _send(model, state, prompt),
                             icon: _sending
@@ -186,8 +192,13 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
       return;
     }
 
+    final unavailableMessage = context.l10n.localModelRuntimeUnavailable;
     setState(() => _sending = true);
     try {
+      final runtime = await ref.read(llamaRuntimeStatusProvider.future);
+      if (!runtime.isAvailable) {
+        throw StateError('$unavailableMessage ${runtime.errorMessage}');
+      }
       final memberId = await _memberId();
       final history = await ref
           .read(localChatStoreProvider)
@@ -246,6 +257,103 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
 
   Future<String> _memberId() async {
     return await ref.read(tokenStorageProvider).readMemberId() ?? 'anonymous';
+  }
+}
+
+class _RuntimeBanner extends StatelessWidget {
+  const _RuntimeBanner({required this.status});
+
+  final AsyncValue<LlamaRuntimeStatus> status;
+
+  @override
+  Widget build(BuildContext context) {
+    return status.when(
+      data: (runtime) {
+        if (runtime.isAvailable) {
+          return _InlineStatus(
+            icon: Icons.check_circle_outline,
+            text:
+                '${context.l10n.localModelRuntimeReady} '
+                '${runtime.libraryPath}',
+            severity: _InlineStatusSeverity.success,
+          );
+        }
+        return _InlineStatus(
+          icon: Icons.error_outline,
+          text: [
+            '${context.l10n.localModelRuntimeUnavailable} '
+                '${runtime.libraryPath}',
+            runtime.errorMessage,
+          ].where((line) => line.trim().isNotEmpty).join('\n'),
+          severity: _InlineStatusSeverity.error,
+        );
+      },
+      error: (error, _) => _InlineStatus(
+        icon: Icons.error_outline,
+        text: '${context.l10n.localModelRuntimeUnavailable} $error',
+        severity: _InlineStatusSeverity.error,
+      ),
+      loading: () => _InlineStatus(
+        icon: Icons.sync,
+        text: context.l10n.localModelRuntimeChecking,
+        severity: _InlineStatusSeverity.info,
+      ),
+    );
+  }
+}
+
+enum _InlineStatusSeverity { info, success, error }
+
+class _InlineStatus extends StatelessWidget {
+  const _InlineStatus({
+    required this.icon,
+    required this.text,
+    required this.severity,
+  });
+
+  final IconData icon;
+  final String text;
+  final _InlineStatusSeverity severity;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final (background, foreground) = switch (severity) {
+      _InlineStatusSeverity.success => (
+        colorScheme.secondaryContainer,
+        colorScheme.onSecondaryContainer,
+      ),
+      _InlineStatusSeverity.error => (
+        colorScheme.errorContainer,
+        colorScheme.onErrorContainer,
+      ),
+      _ => (colorScheme.surfaceContainerHighest, colorScheme.onSurfaceVariant),
+    };
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: foreground, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: foreground),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

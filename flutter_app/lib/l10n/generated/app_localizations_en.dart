@@ -117,6 +117,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelUnavailable => 'The local model is unavailable.';
 
   @override
+  String get localModelRuntimeChecking => 'Checking local inference runtime...';
+
+  @override
+  String get localModelRuntimeReady => 'Local inference runtime ready:';
+
+  @override
+  String get localModelRuntimeUnavailable =>
+      'Local inference runtime unavailable:';
+
+  @override
   String get chatTitle => 'AI chat';
 
   @override

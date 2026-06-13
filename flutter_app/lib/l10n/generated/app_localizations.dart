@@ -308,6 +308,24 @@ abstract class AppLocalizations {
   /// **'The local model is unavailable.'**
   String get modelUnavailable;
 
+  /// No description provided for @localModelRuntimeChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking local inference runtime...'**
+  String get localModelRuntimeChecking;
+
+  /// No description provided for @localModelRuntimeReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Local inference runtime ready:'**
+  String get localModelRuntimeReady;
+
+  /// No description provided for @localModelRuntimeUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Local inference runtime unavailable:'**
+  String get localModelRuntimeUnavailable;
+
   /// No description provided for @chatTitle.
   ///
   /// In en, this message translates to:

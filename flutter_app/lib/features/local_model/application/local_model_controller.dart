@@ -39,6 +39,11 @@ final llamaEngineProvider = Provider<LlamaEngine>((ref) {
   return const LlamaEngine();
 });
 
+final llamaRuntimeStatusProvider =
+    FutureProvider.autoDispose<LlamaRuntimeStatus>((ref) {
+      return ref.watch(llamaEngineProvider).inspectRuntime();
+    });
+
 final localPromptResolverProvider = Provider<LocalPromptResolver>((ref) {
   return const LocalPromptResolver();
 });

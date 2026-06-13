@@ -114,6 +114,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelUnavailable => '本地模型不可用。';
 
   @override
+  String get localModelRuntimeChecking => '正在检查本地推理运行时...';
+
+  @override
+  String get localModelRuntimeReady => '本地推理运行时已就绪：';
+
+  @override
+  String get localModelRuntimeUnavailable => '本地推理运行时不可用：';
+
+  @override
   String get chatTitle => 'AI 聊天';
 
   @override
