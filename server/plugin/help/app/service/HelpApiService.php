@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace plugin\help\app\service;
 
+use plugin\saiai\app\service\AiFactory;
 use plugin\saiadmin\exception\ApiException;
 use think\facade\Db;
 
@@ -438,10 +439,9 @@ class HelpApiService
 
         $session = $this->assertChatSession($memberId, $sessionId);
         $now = date('Y-m-d H:i:s');
-        $summaryPrefix = $contentType === 'voice' ? '[voice] ' : '';
-        $summaryLength = max(1, 120 - mb_strlen($summaryPrefix));
+        $summary = $this->chatSummary($content, $contentType);
 
-        $id = Db::transaction(function () use ($memberId, $session, $sessionId, $content, $contentType, $summaryPrefix, $summaryLength, $now) {
+        $id = Db::transaction(function () use ($memberId, $session, $sessionId, $content, $contentType, $summary, $now) {
             $recordId = Db::table('sa_member_chat_record')->insertGetId([
                 'session_id' => $sessionId,
                 'member_id' => $memberId,
@@ -460,7 +460,7 @@ class HelpApiService
             ]);
 
             Db::table('sa_member_chat_session')->where('id', $sessionId)->update([
-                'last_message' => $summaryPrefix . mb_substr($content, 0, $summaryLength),
+                'last_message' => $summary,
                 'last_message_time' => $now,
                 'updated_by' => $memberId,
                 'update_time' => $now,
@@ -470,6 +470,106 @@ class HelpApiService
         });
 
         return Db::table('sa_member_chat_record')->where('id', $id)->find() ?: [];
+    }
+
+    public function sendChatMessage(int $memberId, array $data): array
+    {
+        $sessionId = (int) ($data['session_id'] ?? 0);
+        $content = trim((string) ($data['content'] ?? $data['message'] ?? ''));
+        $contentType = trim((string) ($data['content_type'] ?? 'text'));
+        $configId = max(0, (int) ($data['config_id'] ?? 0));
+
+        if ($content === '') {
+            throw new ApiException('消息内容必须填写', 400);
+        }
+        if ($contentType !== 'text') {
+            throw new ApiException('在线 AI 暂只支持文本消息', 400);
+        }
+
+        if ($sessionId > 0) {
+            $session = $this->assertChatSession($memberId, $sessionId);
+            $chatMode = (string) $session['chat_mode'];
+            if (!empty($data['chat_mode']) && $this->chatMode($data['chat_mode']) !== $chatMode) {
+                throw new ApiException('聊天模式与会话不匹配', 400);
+            }
+        } else {
+            $chatMode = $this->chatMode($data['chat_mode'] ?? '');
+            $session = [];
+        }
+
+        $history = $sessionId > 0 ? $this->chatHistory($memberId, $sessionId) : [];
+        $prompt = $this->chatSystemPrompt($memberId, $chatMode);
+        $aiResult = AiFactory::chatOnceByConfigId($this->chatAiMessage($prompt, $content), $history, $configId);
+        $assistantContent = trim((string) ($aiResult['content'] ?? ''));
+        if ($assistantContent === '') {
+            throw new ApiException('AI 未返回有效内容', 502);
+        }
+
+        $now = date('Y-m-d H:i:s');
+        return Db::transaction(function () use ($memberId, $session, $sessionId, $chatMode, $content, $contentType, $assistantContent, $aiResult, $configId, $now) {
+            $activeSession = $session;
+            if ($sessionId <= 0) {
+                $count = (int) Db::table('sa_member_chat_session')
+                    ->where('member_id', $memberId)
+                    ->where('status', 1)
+                    ->whereNull('delete_time')
+                    ->count();
+                $newSessionId = Db::table('sa_member_chat_session')->insertGetId([
+                    'member_id' => $memberId,
+                    'chat_mode' => $chatMode,
+                    'session_name' => 'Conversation ' . ($count + 1),
+                    'last_message' => '',
+                    'last_message_time' => null,
+                    'is_pinned' => 2,
+                    'status' => 1,
+                    'created_by' => $memberId,
+                    'updated_by' => $memberId,
+                    'create_time' => $now,
+                    'update_time' => $now,
+                ]);
+                $activeSession = Db::table('sa_member_chat_session')->where('id', $newSessionId)->find() ?: [];
+            }
+
+            $activeSessionId = (int) ($activeSession['id'] ?? 0);
+            $userRecord = $this->insertChatRecord(
+                $memberId,
+                $activeSessionId,
+                $chatMode,
+                'user',
+                $content,
+                $contentType,
+                null,
+                $now
+            );
+            $assistantRecord = $this->insertChatRecord(
+                $memberId,
+                $activeSessionId,
+                $chatMode,
+                'assistant',
+                $assistantContent,
+                'text',
+                $this->jsonValue([
+                    'ai_model' => (string) ($aiResult['model'] ?? ''),
+                    'ai_type' => (string) ($aiResult['type'] ?? ''),
+                    'config_id' => $configId,
+                ]),
+                $now
+            );
+
+            Db::table('sa_member_chat_session')->where('id', $activeSessionId)->update([
+                'last_message' => $this->chatSummary($assistantContent),
+                'last_message_time' => $now,
+                'updated_by' => $memberId,
+                'update_time' => $now,
+            ]);
+
+            return [
+                'session' => Db::table('sa_member_chat_session')->where('id', $activeSessionId)->find() ?: [],
+                'user_record' => $userRecord,
+                'assistant_record' => $assistantRecord,
+                'records' => [$userRecord, $assistantRecord],
+            ];
+        });
     }
 
     public function registerDevice(int $memberId, array $data): array
@@ -1307,6 +1407,96 @@ class HelpApiService
         }
 
         return $session;
+    }
+
+    private function chatHistory(int $memberId, int $sessionId, int $limit = 20): array
+    {
+        $records = Db::table('sa_member_chat_record')
+            ->where('member_id', $memberId)
+            ->where('session_id', $sessionId)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->whereIn('role', ['user', 'assistant'])
+            ->field('role, content')
+            ->order('message_time', 'desc')
+            ->order('id', 'desc')
+            ->limit($limit)
+            ->select()
+            ->toArray();
+
+        return array_reverse($records);
+    }
+
+    private function chatSystemPrompt(int $memberId, string $chatMode): string
+    {
+        $prompts = [
+            'doctor' => '你是一位谨慎、温和的 AI 心理医生助手。请优先安抚情绪、澄清问题、给出可执行建议。你不能冒充真实执业诊断，不要给出绝对化结论。如用户出现自伤、自杀、伤人、幻觉、失控等高风险信号，必须明确建议立刻联系家属、当地急救电话或尽快前往线下精神心理专科就医。',
+            'companion' => '你是一位温柔、稳定、耐心的 AI 心理陪伴助手。请多倾听、多共情，避免说教，并帮助用户把当下感受表达清楚。',
+            'patient' => '你是一位帮助用户整理病情和感受的 AI 助手。请帮助用户梳理症状、情绪、诱因和需要补充给医生的信息。',
+        ];
+        $prompt = $prompts[$chatMode] ?? $prompts['companion'];
+        $customPrompt = trim((string) Db::table('sa_member_chat_config')
+            ->where('member_id', $memberId)
+            ->where('chat_mode', $chatMode)
+            ->whereNull('delete_time')
+            ->value('prompt_text'));
+
+        if ($customPrompt !== '') {
+            $prompt .= "\n\n用户额外要求：\n" . $customPrompt;
+        }
+
+        return $prompt;
+    }
+
+    private function chatAiMessage(string $systemPrompt, string $content): string
+    {
+        return "请严格遵守以下 HelpSupport 场景提示词：\n"
+            . $systemPrompt
+            . "\n\n用户消息：\n"
+            . $content;
+    }
+
+    private function insertChatRecord(
+        int $memberId,
+        int $sessionId,
+        string $chatMode,
+        string $role,
+        string $content,
+        string $contentType,
+        ?string $ext,
+        string $now
+    ): array {
+        $id = Db::table('sa_member_chat_record')->insertGetId([
+            'session_id' => $sessionId,
+            'member_id' => $memberId,
+            'chat_mode' => $chatMode,
+            'role' => $role,
+            'content' => $content,
+            'content_type' => $contentType,
+            'token_count' => 0,
+            'message_time' => $now,
+            'ext' => $ext,
+            'status' => 1,
+            'created_by' => $memberId,
+            'updated_by' => $memberId,
+            'create_time' => $now,
+            'update_time' => $now,
+        ]);
+
+        return Db::table('sa_member_chat_record')->where('id', $id)->find() ?: [];
+    }
+
+    private function chatSummary(string $content, string $contentType = 'text'): string
+    {
+        $prefix = match ($contentType) {
+            'image' => '[image] ',
+            'file' => '[file] ',
+            'voice' => '[voice] ',
+            default => '',
+        };
+        $length = max(1, 120 - mb_strlen($prefix));
+
+        return $prefix . mb_substr($content, 0, $length);
     }
 
     private function configGroups(array $codes): array

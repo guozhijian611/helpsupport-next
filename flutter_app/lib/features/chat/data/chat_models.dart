@@ -104,6 +104,33 @@ class ChatRecord {
   }
 }
 
+class ChatSendResult {
+  const ChatSendResult({
+    required this.session,
+    required this.userRecord,
+    required this.assistantRecord,
+    required this.records,
+  });
+
+  final ChatSession session;
+  final ChatRecord userRecord;
+  final ChatRecord assistantRecord;
+  final List<ChatRecord> records;
+
+  factory ChatSendResult.fromJson(Object? value) {
+    if (value is! Map<String, dynamic>) {
+      throw const FormatException('Unexpected chat send result shape');
+    }
+
+    return ChatSendResult(
+      session: ChatSession.fromJson(_map(value['session'])),
+      userRecord: ChatRecord.fromJson(_map(value['user_record'])),
+      assistantRecord: ChatRecord.fromJson(_map(value['assistant_record'])),
+      records: _list(value['records'], ChatRecord.fromJson),
+    );
+  }
+}
+
 class ChatPage<T> {
   const ChatPage({
     required this.list,
@@ -132,6 +159,13 @@ class ChatPage<T> {
       pageSize: (value['page_size'] as num?)?.toInt() ?? 20,
     );
   }
+}
+
+Map<String, dynamic> _map(Object? value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+  return const {};
 }
 
 List<T> _list<T>(Object? value, T Function(Map<String, dynamic> json) decode) {

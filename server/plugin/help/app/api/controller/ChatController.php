@@ -115,4 +115,19 @@ class ChatController extends BaseController
     {
         return ok($this->service->saveUserChatRecord($this->memberId, $request->post()));
     }
+
+    #[Apidoc\Title('发送在线AI消息')]
+    #[Apidoc\Url('/app/help/chat/send')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('session_id', type: 'int', require: false, desc: '会话ID，不传时按 chat_mode 创建新会话')]
+    #[Apidoc\Param('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient，创建新会话时必填')]
+    #[Apidoc\Param('content', type: 'string', require: true, desc: '用户消息内容')]
+    #[Apidoc\Param('config_id', type: 'int', require: false, default: 0, desc: '可选 SaiAI 模型配置ID')]
+    #[Apidoc\Returned('session', type: 'object', desc: '会话信息')]
+    #[Apidoc\Returned('user_record', type: 'object', desc: '用户消息')]
+    #[Apidoc\Returned('assistant_record', type: 'object', desc: 'AI 回复消息')]
+    public function send(Request $request): Response
+    {
+        return ok($this->service->sendChatMessage($this->memberId, $request->post()));
+    }
 }

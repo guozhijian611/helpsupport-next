@@ -32,6 +32,7 @@ Route::group('/app/help', function () {
     Route::post('/chat/session/delete', [ChatController::class, 'deleteSession']);
     Route::get('/chat/records', [ChatController::class, 'records']);
     Route::post('/chat/record', [ChatController::class, 'saveRecord']);
+    Route::post('/chat/send', [ChatController::class, 'send']);
 
     Route::get('/me/profile', [MeController::class, 'profile']);
     Route::post('/me/profile/save', [MeController::class, 'saveProfile']);

@@ -94,7 +94,11 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen> {
     try {
       await ref
           .read(chatRepositoryProvider)
-          .saveUserRecord(sessionId: widget.sessionId, content: content);
+          .sendMessage(
+            sessionId: widget.sessionId,
+            chatMode: widget.chatMode,
+            content: content,
+          );
       _controller.clear();
       ref.invalidate(chatRecordsProvider(widget.sessionId));
       ref.invalidate(chatOverviewProvider);

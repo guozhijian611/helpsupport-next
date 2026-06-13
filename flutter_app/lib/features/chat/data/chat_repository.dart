@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../../../core/api/api_client.dart';
 import 'chat_models.dart';
 
@@ -77,5 +79,27 @@ class ChatRepository {
       throw const FormatException('聊天消息保存失败');
     }
     return record;
+  }
+
+  Future<ChatSendResult> sendMessage({
+    required int sessionId,
+    required String chatMode,
+    required String content,
+  }) async {
+    final result = await _apiClient.postApi<ChatSendResult>(
+      '/app/help/chat/send',
+      data: {
+        'session_id': sessionId,
+        'chat_mode': chatMode,
+        'content': content,
+      },
+      options: Options(receiveTimeout: const Duration(seconds: 75)),
+      decode: ChatSendResult.fromJson,
+    );
+    final sendResult = result.data;
+    if (sendResult == null || sendResult.assistantRecord.id <= 0) {
+      throw const FormatException('AI 回复保存失败');
+    }
+    return sendResult;
   }
 }
