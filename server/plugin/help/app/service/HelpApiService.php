@@ -202,6 +202,61 @@ class HelpApiService
             ->toArray();
     }
 
+    public function saveLocalModelDownloadLog(int $memberId, array $data): array
+    {
+        $model = $this->localModelByInput($data);
+        $downloadStatus = trim((string) ($data['download_status'] ?? ''));
+        if (!in_array($downloadStatus, ['started', 'success', 'failed', 'canceled'], true)) {
+            throw new ApiException('模型下载状态参数错误', 400);
+        }
+
+        $payload = $this->only($data, [
+            'platform',
+            'app_version',
+            'locale',
+            'downloaded_size',
+            'sha256',
+            'duration_seconds',
+            'error_code',
+            'error_message',
+            'started_at',
+            'finished_at',
+            'ext',
+            'remark',
+        ]);
+        $payload['model_id'] = (int) $model['id'];
+        $payload['model_code'] = (string) $model['code'];
+        $payload['model_name'] = (string) $model['name'];
+        $payload['download_status'] = $downloadStatus;
+        $payload['file_size'] = (int) ($model['file_size'] ?? 0);
+        $payload['downloaded_size'] = max(0, (int) ($payload['downloaded_size'] ?? 0));
+        $payload['duration_seconds'] = max(0, (int) ($payload['duration_seconds'] ?? 0));
+        foreach (['platform', 'app_version', 'locale', 'sha256', 'error_code', 'error_message'] as $field) {
+            $payload[$field] = trim((string) ($payload[$field] ?? ''));
+        }
+        if ($payload['platform'] !== '' && !in_array($payload['platform'], ['ios', 'android'], true)) {
+            throw new ApiException('客户端平台参数错误', 400);
+        }
+        if (array_key_exists('ext', $payload)) {
+            $payload['ext'] = $this->jsonValue($payload['ext']);
+        }
+        foreach (['started_at', 'finished_at'] as $field) {
+            if (array_key_exists($field, $payload) && trim((string) $payload[$field]) === '') {
+                $payload[$field] = null;
+            }
+        }
+        if (empty($payload['started_at'])) {
+            $payload['started_at'] = date('Y-m-d H:i:s');
+        }
+        if (in_array($downloadStatus, ['success', 'failed', 'canceled'], true) && empty($payload['finished_at'])) {
+            $payload['finished_at'] = date('Y-m-d H:i:s');
+        }
+        $payload['status'] = 1;
+
+        $id = $this->saveRow('sa_local_model_download_log', $payload, $memberId);
+        return Db::table('sa_local_model_download_log')->where('id', $id)->find() ?: [];
+    }
+
     public function chatOverview(int $memberId): array
     {
         $modes = [];
@@ -3043,6 +3098,31 @@ class HelpApiService
         $payload['create_time'] = $now;
         $payload['update_time'] = $now;
         Db::table($table)->insert($payload);
+    }
+
+    private function localModelByInput(array $data): array
+    {
+        $modelId = (int) ($data['model_id'] ?? 0);
+        $modelCode = trim((string) ($data['model_code'] ?? ''));
+        if ($modelId <= 0 && $modelCode === '') {
+            throw new ApiException('模型ID或模型编码必须填写', 400);
+        }
+
+        $query = Db::table('sa_local_model_catalog')
+            ->where('status', 1)
+            ->whereNull('delete_time');
+        if ($modelId > 0) {
+            $query->where('id', $modelId);
+        } else {
+            $query->where('code', $modelCode);
+        }
+
+        $model = $query->find();
+        if (!$model) {
+            throw new ApiException('模型不存在或不可下载', 404);
+        }
+
+        return $model;
     }
 
     private function chatModes(): array

@@ -131,6 +131,7 @@ Route::group('/app/help', function () {
 
     Route::get('/local-model/catalog', [LocalModelController::class, 'catalog']);
     Route::get('/local-model/prompts', [LocalModelController::class, 'prompts']);
+    Route::post('/local-model/download-log', [LocalModelController::class, 'saveDownloadLog']);
 
     Route::post('/push/device/register', [PushController::class, 'registerDevice']);
     Route::post('/push/device/unregister', [PushController::class, 'unregisterDevice']);

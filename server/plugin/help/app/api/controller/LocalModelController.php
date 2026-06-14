@@ -40,4 +40,24 @@ class LocalModelController extends BaseController
     {
         return ok($this->service->localModelPrompts($request->get()));
     }
+
+    #[Apidoc\Title('上报模型下载日志')]
+    #[Apidoc\Url('/app/help/local-model/download-log')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('model_id', type: 'int', require: false, desc: '模型目录ID，与model_code至少传一个')]
+    #[Apidoc\Param('model_code', type: 'string', require: false, desc: '模型编码，与model_id至少传一个')]
+    #[Apidoc\Param('platform', type: 'string', require: false, desc: '客户端平台 ios/android')]
+    #[Apidoc\Param('app_version', type: 'string', require: false, desc: 'App版本')]
+    #[Apidoc\Param('locale', type: 'string', require: false, desc: '客户端语言')]
+    #[Apidoc\Param('download_status', type: 'string', require: true, desc: '下载状态 started/success/failed/canceled')]
+    #[Apidoc\Param('downloaded_size', type: 'int', require: false, desc: '已下载大小')]
+    #[Apidoc\Param('duration_seconds', type: 'int', require: false, desc: '下载耗时秒')]
+    #[Apidoc\Param('sha256', type: 'string', require: false, desc: '客户端下载后校验 SHA256')]
+    #[Apidoc\Param('error_code', type: 'string', require: false, desc: '错误码')]
+    #[Apidoc\Param('error_message', type: 'string', require: false, desc: '错误摘要，不上传敏感内容')]
+    #[Apidoc\Returned('id', type: 'int', desc: '日志ID')]
+    public function saveDownloadLog(Request $request): Response
+    {
+        return ok($this->service->saveLocalModelDownloadLog($this->memberId, $request->post()));
+    }
 }
