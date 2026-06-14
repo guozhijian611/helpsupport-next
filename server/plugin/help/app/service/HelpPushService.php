@@ -61,47 +61,48 @@ class HelpPushService
             return $message;
         }
 
-        $results = [];
-        $invalidDeviceIds = [];
-        foreach ($devices as $device) {
-            $result = [
-                'device_id' => (int) ($device['id'] ?? 0),
-                'platform' => (string) ($device['platform'] ?? ''),
-                'success' => false,
-            ];
-            try {
-                $result = array_merge($result, $this->sendFcm(
-                    (string) $device['fcm_token'],
-                    (string) $message['title'],
-                    (string) $message['content'],
-                    $this->fcmData($message, $templateCode, (string) $template['scene'], $payload)
-                ));
-            } catch (Throwable $throwable) {
-                $result = array_merge($result, [
-                    'error' => $this->publicError($throwable->getMessage()),
-                ]);
-            }
+        return $this->pushMessageToDevices($message, $devices, $templateCode, (string) $template['scene'], $payload);
+    }
 
-            if ($this->shouldDeactivateDevice($result)) {
-                $invalidDeviceIds[] = (int) ($device['id'] ?? 0);
-            }
-            $results[] = $result;
+    public function pushMessage(int $messageId): array
+    {
+        if ($messageId <= 0) {
+            return [];
         }
 
-        $this->deactivateInvalidDevices($memberId, $invalidDeviceIds);
+        $message = Db::table('sa_member_message')
+            ->where('id', $messageId)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->find() ?: [];
+        if ($message === []) {
+            return [];
+        }
 
-        $successCount = count(array_filter($results, static fn (array $row) => $row['success'] === true));
-        Db::table('sa_member_message')->where('id', $messageId)->update([
-            'is_pushed' => $successCount > 0 ? 1 : 2,
-            'push_status' => $successCount > 0 ? 1 : 2,
-            'push_time' => date('Y-m-d H:i:s'),
-            'ext' => json_encode(array_merge($this->decodeJson($message['ext'] ?? null), [
-                'push_results' => $results,
-            ]), JSON_UNESCAPED_UNICODE),
-            'update_time' => date('Y-m-d H:i:s'),
-        ]);
+        $memberId = (int) ($message['member_id'] ?? 0);
+        $ext = $this->decodeJson($message['ext'] ?? null);
+        $payload = $this->decodeJson($ext['payload'] ?? null);
+        $scene = (string) ($ext['scene'] ?? $payload['scene'] ?? $message['biz_type'] ?? 'system_notice');
+        $scene = $scene !== '' ? $scene : 'system_notice';
+        $templateCode = (string) ($ext['template_code'] ?? $scene);
+        $templateCode = $templateCode !== '' ? $templateCode : 'system_notice';
 
-        return Db::table('sa_member_message')->where('id', $messageId)->find() ?: [];
+        if (!$this->canPush($memberId, $scene)) {
+            return $this->markMessagePushFailed($message, [[
+                'success' => false,
+                'error' => 'push_disabled_or_suppressed',
+            ]]);
+        }
+
+        $devices = $this->activeDevices($memberId);
+        if ($devices === []) {
+            return $this->markMessagePushFailed($message, [[
+                'success' => false,
+                'error' => 'no_active_push_device',
+            ]]);
+        }
+
+        return $this->pushMessageToDevices($message, $devices, $templateCode, $scene, $payload);
     }
 
     private function template(string $templateCode, string $locale): array
@@ -152,6 +153,73 @@ class HelpPushService
             'create_time' => $now,
             'update_time' => $now,
         ]);
+    }
+
+    private function pushMessageToDevices(array $message, array $devices, string $templateCode, string $scene, array $payload): array
+    {
+        $memberId = (int) ($message['member_id'] ?? 0);
+        $messageId = (int) ($message['id'] ?? 0);
+        $results = [];
+        $invalidDeviceIds = [];
+        foreach ($devices as $device) {
+            $result = [
+                'device_id' => (int) ($device['id'] ?? 0),
+                'platform' => (string) ($device['platform'] ?? ''),
+                'success' => false,
+            ];
+            try {
+                $result = array_merge($result, $this->sendFcm(
+                    (string) $device['fcm_token'],
+                    (string) ($message['title'] ?? ''),
+                    (string) ($message['content'] ?? ''),
+                    $this->fcmData($message, $templateCode, $scene, $payload)
+                ));
+            } catch (Throwable $throwable) {
+                $result = array_merge($result, [
+                    'error' => $this->publicError($throwable->getMessage()),
+                ]);
+            }
+
+            if ($this->shouldDeactivateDevice($result)) {
+                $invalidDeviceIds[] = (int) ($device['id'] ?? 0);
+            }
+            $results[] = $result;
+        }
+
+        $this->deactivateInvalidDevices($memberId, $invalidDeviceIds);
+
+        $successCount = count(array_filter($results, static fn (array $row) => $row['success'] === true));
+        Db::table('sa_member_message')->where('id', $messageId)->update([
+            'is_pushed' => $successCount > 0 ? 1 : 2,
+            'push_status' => $successCount > 0 ? 1 : 2,
+            'push_time' => date('Y-m-d H:i:s'),
+            'ext' => json_encode(array_merge($this->decodeJson($message['ext'] ?? null), [
+                'push_results' => $results,
+            ]), JSON_UNESCAPED_UNICODE),
+            'update_time' => date('Y-m-d H:i:s'),
+        ]);
+
+        return Db::table('sa_member_message')->where('id', $messageId)->find() ?: [];
+    }
+
+    private function markMessagePushFailed(array $message, array $results): array
+    {
+        $messageId = (int) ($message['id'] ?? 0);
+        if ($messageId <= 0) {
+            return [];
+        }
+
+        Db::table('sa_member_message')->where('id', $messageId)->update([
+            'is_pushed' => 2,
+            'push_status' => 2,
+            'push_time' => date('Y-m-d H:i:s'),
+            'ext' => json_encode(array_merge($this->decodeJson($message['ext'] ?? null), [
+                'push_results' => $results,
+            ]), JSON_UNESCAPED_UNICODE),
+            'update_time' => date('Y-m-d H:i:s'),
+        ]);
+
+        return Db::table('sa_member_message')->where('id', $messageId)->find() ?: [];
     }
 
     private function canPush(int $memberId, string $scene): bool

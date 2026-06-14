@@ -224,6 +224,15 @@
 
   const actions: HelpCrudAction[] = [
     {
+      label: '推送',
+      method: 'push',
+      type: 'primary',
+      permission: 'help:message:memberMessage:push',
+      confirm: (row: Record<string, any>) => `确定推送消息 #${row.id} 吗？`,
+      visible: (row: Record<string, any>) => Number(row.push_status) !== 1,
+      payload: (row: Record<string, any>) => ({ ids: [row.id] })
+    },
+    {
       label: '已读',
       method: 'markRead',
       type: 'success',

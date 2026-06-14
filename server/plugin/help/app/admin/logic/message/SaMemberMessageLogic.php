@@ -3,6 +3,7 @@
 namespace plugin\help\app\admin\logic\message;
 
 use plugin\help\app\model\message\SaMemberMessage;
+use plugin\help\app\service\HelpPushService;
 use plugin\saiadmin\basic\think\BaseLogic;
 use plugin\saiadmin\exception\ApiException;
 
@@ -51,6 +52,37 @@ class SaMemberMessageLogic extends BaseLogic
             'is_pushed' => 2,
             'push_status' => 2,
         ]);
+    }
+
+    public function push(array|string|int $ids): array
+    {
+        $idList = $this->parseIds($ids);
+        if ($idList === []) {
+            throw new ApiException('请选择要推送的消息');
+        }
+
+        $service = new HelpPushService();
+        $success = 0;
+        $failed = 0;
+        foreach ($idList as $id) {
+            $message = $service->pushMessage($id);
+            if ($message === []) {
+                $failed++;
+                continue;
+            }
+
+            if ((int) ($message['push_status'] ?? 0) === 1) {
+                $success++;
+            } else {
+                $failed++;
+            }
+        }
+
+        return [
+            'total' => count($idList),
+            'success' => $success,
+            'failed' => $failed,
+        ];
     }
 
     private function updateByIds(array|string|int $ids, array $data): bool

@@ -106,4 +106,13 @@ class SaMemberMessageController extends BaseController
 
         return $result ? $this->success('标记成功') : $this->fail('标记失败');
     }
+
+    #[Permission('会员消息推送', 'help:message:memberMessage:push')]
+    public function push(Request $request): Response
+    {
+        $ids = $request->post('ids', $request->post('id', ''));
+        $result = $this->logic->push($ids);
+
+        return $this->success($result, '推送完成');
+    }
 }

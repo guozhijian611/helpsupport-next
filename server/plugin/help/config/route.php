@@ -240,6 +240,7 @@ Route::group('/app/help/admin/message', function () {
     Route::post('/SaMemberMessage/markRead', [AdminMemberMessageController::class, 'markRead']);
     Route::post('/SaMemberMessage/markPushed', [AdminMemberMessageController::class, 'markPushed']);
     Route::post('/SaMemberMessage/markFailed', [AdminMemberMessageController::class, 'markFailed']);
+    Route::post('/SaMemberMessage/push', [AdminMemberMessageController::class, 'push']);
 });
 
 Route::group('/app/help/admin/gamification', function () {
