@@ -14,19 +14,25 @@ class HelpRiskService
 {
     private const ACTION_REJECT = 'reject';
     private const ACTION_REPLACE = 'replace';
+    private const ACTION_REVIEW = 'review';
 
     private array $rules = [];
 
     public function filterText(string $scene, string $text): string
     {
+        return (string) $this->filter($scene, $text)['text'];
+    }
+
+    public function filter(string $scene, string $text): array
+    {
         $text = trim($text);
         if ($text === '') {
-            return '';
+            return $this->result('');
         }
 
         $matches = $this->matchedRules($scene, $text);
         if ($matches === []) {
-            return $text;
+            return $this->result($text);
         }
 
         $this->increaseHitCount(array_column($matches, 'id'));
@@ -37,13 +43,32 @@ class HelpRiskService
         }
 
         $filtered = $text;
+        $reviewRequired = false;
+        $matchedRuleIds = [];
+        $highestRiskLevel = 0;
         foreach ($matches as $rule) {
-            if ((string) ($rule['action'] ?? '') === self::ACTION_REPLACE) {
+            $matchedRuleIds[] = (int) ($rule['id'] ?? 0);
+            $highestRiskLevel = max($highestRiskLevel, (int) ($rule['risk_level'] ?? 0));
+            $action = (string) ($rule['action'] ?? '');
+            if ($action === self::ACTION_REVIEW) {
+                $reviewRequired = true;
+            }
+            if ($action === self::ACTION_REPLACE) {
                 $filtered = $this->replace($filtered, $rule);
             }
         }
 
-        return trim($filtered);
+        return $this->result(trim($filtered), $reviewRequired, $matchedRuleIds, $highestRiskLevel);
+    }
+
+    private function result(string $text, bool $reviewRequired = false, array $matchedRuleIds = [], int $highestRiskLevel = 0): array
+    {
+        return [
+            'text' => $text,
+            'review_required' => $reviewRequired,
+            'matched_rule_ids' => array_values(array_filter(array_unique($matchedRuleIds))),
+            'highest_risk_level' => $highestRiskLevel,
+        ];
     }
 
     private function matchedRules(string $scene, string $text): array

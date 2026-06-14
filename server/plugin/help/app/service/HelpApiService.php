@@ -12,6 +12,7 @@ use Throwable;
 class HelpApiService
 {
     private const DEFAULT_LOCALE = 'en-US';
+    private const RISK_REVIEW_REMARK = '命中风控规则，需人工审核';
 
     public function appConfig(): array
     {
@@ -869,10 +870,12 @@ class HelpApiService
         if ($content === '') {
             throw new ApiException('帖子内容必须填写', 400);
         }
-        $content = (new HelpRiskService())->filterText('community', $content);
+        $riskResult = (new HelpRiskService())->filter('community', $content);
+        $content = (string) $riskResult['text'];
         if ($content === '') {
             throw new ApiException('帖子内容必须填写', 400);
         }
+        $reviewRequired = (bool) ($riskResult['review_required'] ?? false);
 
         $payload = [
             'member_id' => $memberId,
@@ -882,7 +885,8 @@ class HelpApiService
             'tags' => $this->jsonValue($data['tags'] ?? null),
             'is_anonymous' => $this->intIn($data['is_anonymous'] ?? 2, [1, 2], '匿名参数错误'),
             'is_doctor_post' => 2,
-            'audit_status' => 0,
+            'audit_status' => $reviewRequired ? 3 : 0,
+            'audit_remark' => $reviewRequired ? self::RISK_REVIEW_REMARK : '',
             'status' => 1,
         ];
 
@@ -928,10 +932,12 @@ class HelpApiService
         if ($content === '') {
             throw new ApiException('评论内容必须填写', 400);
         }
-        $content = (new HelpRiskService())->filterText('community', $content);
+        $riskResult = (new HelpRiskService())->filter('community', $content);
+        $content = (string) $riskResult['text'];
         if ($content === '') {
             throw new ApiException('评论内容必须填写', 400);
         }
+        $reviewRequired = (bool) ($riskResult['review_required'] ?? false);
 
         $commentId = $this->saveRow('sa_community_comment', [
             'post_id' => $postId,
@@ -942,6 +948,7 @@ class HelpApiService
             'attachments' => $this->jsonValue($data['attachments'] ?? null),
             'is_anonymous' => $this->intIn($data['is_anonymous'] ?? 2, [1, 2], '匿名参数错误'),
             'audit_status' => 0,
+            'audit_remark' => $reviewRequired ? self::RISK_REVIEW_REMARK : '',
             'status' => 1,
         ], $memberId);
 
