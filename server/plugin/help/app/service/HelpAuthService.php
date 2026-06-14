@@ -138,6 +138,7 @@ class HelpAuthService
         }
 
         $platformId = $this->platformId('GOOGLE');
+        $this->ensureVerifiedEmailBinding($platformId, $openid, (string) ($payload['email'] ?? ''), true);
         $token = (new MemberLogic())->thirdPlatform([
             'platform_id' => $platformId,
             'openid' => $openid,
@@ -183,6 +184,12 @@ class HelpAuthService
         }
 
         $platformId = $this->platformId('APPLE');
+        $this->ensureVerifiedEmailBinding(
+            $platformId,
+            $openid,
+            (string) ($payload['email'] ?? ''),
+            $this->truthy($payload['email_verified'] ?? false)
+        );
         $token = (new MemberLogic())->thirdPlatform([
             'platform_id' => $platformId,
             'openid' => $openid,
@@ -330,6 +337,50 @@ class HelpAuthService
         }
 
         return $memberId;
+    }
+
+    private function ensureVerifiedEmailBinding(int $platformId, string $openid, string $email, bool $verified): void
+    {
+        $email = trim($email);
+        if (!$verified || $email === '' || $openid === '') {
+            return;
+        }
+
+        $existingRel = Db::table('sa_member_platform_rel')
+            ->where('platform_id', $platformId)
+            ->where('platform_openid', $openid)
+            ->whereNull('delete_time')
+            ->find();
+        if ($existingRel) {
+            return;
+        }
+
+        $members = Db::table('sa_member')
+            ->where('email', $email)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->field('id')
+            ->limit(2)
+            ->select()
+            ->toArray();
+        if (count($members) !== 1) {
+            return;
+        }
+
+        $now = date('Y-m-d H:i:s');
+        try {
+            Db::table('sa_member_platform_rel')->insert([
+                'member_id' => (int) $members[0]['id'],
+                'platform_id' => $platformId,
+                'platform_openid' => $openid,
+                'is_bind' => 1,
+                'bind_time' => $now,
+                'create_time' => $now,
+                'update_time' => $now,
+            ]);
+        } catch (Throwable) {
+            // 并发登录时可能已有请求完成绑定，后续 thirdPlatform 会按已存在关系登录。
+        }
     }
 
     private function syncVerifiedEmail(int $memberId, string $email, bool $verified): void
