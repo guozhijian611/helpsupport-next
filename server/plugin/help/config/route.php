@@ -252,6 +252,7 @@ Route::group('/app/help/admin/me', function () {
     fastRoute('SaMemberJournal', AdminMemberJournalController::class);
     fastRoute('SaMemberMemoir', AdminMemberMemoirController::class);
     fastRoute('SaMemberMemoirConfig', AdminMemberMemoirConfigController::class);
+    Route::post('/SaMemberMemoirConfig/generate', [AdminMemberMemoirConfigController::class, 'generate']);
     fastRoute('SaMemberRecoveryGoalLog', AdminMemberRecoveryGoalLogController::class);
     fastRoute('SaMemberTriggerLog', AdminMemberTriggerLogController::class);
 });

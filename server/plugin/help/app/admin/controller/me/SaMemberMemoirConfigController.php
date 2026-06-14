@@ -77,4 +77,14 @@ class SaMemberMemoirConfigController extends BaseController
 
         return $result ? $this->success('删除成功') : $this->fail('删除失败');
     }
+
+    #[Permission('生成回忆录', 'help:me:memoirConfig:generate')]
+    public function generate(Request $request): Response
+    {
+        $id = (int) $request->post('id', 0);
+        $memberId = (int) $request->post('member_id', 0);
+        $sourceMonth = (string) $request->post('source_month', '');
+
+        return $this->success($this->logic->generate($id, $memberId, $sourceMonth));
+    }
 }

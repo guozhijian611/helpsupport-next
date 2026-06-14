@@ -1,3 +1,3 @@
 import { createCrudApi } from '../createCrudApi'
 
-export default createCrudApi('/app/help/admin/me/SaMemberMemoirConfig')
+export default createCrudApi('/app/help/admin/me/SaMemberMemoirConfig', ['generate'])

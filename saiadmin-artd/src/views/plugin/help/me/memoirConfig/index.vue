@@ -4,6 +4,7 @@
     :api="api"
     permission-prefix="help:me:memoirConfig"
     :fields="fields"
+    :actions="actions"
   />
 </template>
 
@@ -29,6 +30,29 @@
     { label: '日记', value: 'journal' },
     { label: '任务', value: 'task' },
     { label: '混合', value: 'mixed' }
+  ]
+
+  const actions = [
+    {
+      label: '生成回忆录',
+      method: 'generate',
+      type: 'success' as const,
+      permission: 'help:me:memoirConfig:generate',
+      prompt: {
+        field: 'member_id',
+        label: '会员ID，留空生成所有达标会员',
+        placeholder: '默认生成所有达标会员'
+      },
+      visible: (row: Record<string, any>) => Number(row.status) === 1,
+      payload: (row: Record<string, any>, value?: string) => {
+        const memberId = String(value || '').trim()
+
+        return {
+          id: row.id,
+          member_id: memberId === '' ? 0 : Number(memberId)
+        }
+      }
+    }
   ]
 
   const fields: HelpCrudField[] = [
