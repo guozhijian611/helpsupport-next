@@ -27,6 +27,11 @@
       </ElFormItem>
     </ElCol>
     <ElCol v-bind="setSpan(6)">
+      <ElFormItem label="举报原因" prop="reason">
+        <ElInput v-model="formData.reason" placeholder="请输入举报原因" clearable />
+      </ElFormItem>
+    </ElCol>
+    <ElCol v-bind="setSpan(6)">
       <ElFormItem label="处理状态" prop="handle_status">
         <ElSelect v-model="formData.handle_status" placeholder="请选择处理状态" clearable>
           <ElOption label="待处理" :value="0" />

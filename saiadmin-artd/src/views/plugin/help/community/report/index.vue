@@ -5,17 +5,29 @@
     <ElCard class="art-table-card" shadow="never">
       <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData">
         <template #left>
-          <ElButton
-            v-permission="'help:community:report:destroy'"
-            :disabled="selectedRows.length === 0"
-            @click="deleteSelectedRows(api.delete, refreshData)"
-            v-ripple
-          >
-            <template #icon>
-              <ArtSvgIcon icon="ri:delete-bin-5-line" />
-            </template>
-            删除
-          </ElButton>
+          <ElSpace wrap>
+            <ElButton
+              v-permission="'help:community:report:save'"
+              @click="showDialog('add')"
+              v-ripple
+            >
+              <template #icon>
+                <ArtSvgIcon icon="ri:add-fill" />
+              </template>
+              新增
+            </ElButton>
+            <ElButton
+              v-permission="'help:community:report:destroy'"
+              :disabled="selectedRows.length === 0"
+              @click="deleteSelectedRows(api.delete, refreshData)"
+              v-ripple
+            >
+              <template #icon>
+                <ArtSvgIcon icon="ri:delete-bin-5-line" />
+              </template>
+              删除
+            </ElButton>
+          </ElSpace>
         </template>
       </ArtTableHeader>
 
@@ -47,6 +59,14 @@
         <template #operation="{ row }">
           <div class="flex gap-2">
             <ElButton size="small" @click="openDetail(row)">查看</ElButton>
+            <ElButton
+              v-permission="'help:community:report:update'"
+              size="small"
+              type="primary"
+              @click="showDialog('edit', row)"
+            >
+              编辑
+            </ElButton>
             <ElButton
               v-if="row.handle_status === 0"
               v-permission="'help:community:report:handle'"
@@ -91,6 +111,13 @@
         <ElDescriptionsItem label="举报时间">{{ detail.create_time }}</ElDescriptionsItem>
       </ElDescriptions>
     </ElDrawer>
+
+    <EditDialog
+      v-model="dialogVisible"
+      :dialog-type="dialogType"
+      :data="dialogData"
+      @success="refreshData"
+    />
   </div>
 </template>
 
@@ -100,6 +127,7 @@
   import { useSaiAdmin } from '@/composables/useSaiAdmin'
   import api from '../../api/community/report'
   import TableSearch from './modules/table-search.vue'
+  import EditDialog from './modules/edit-dialog.vue'
 
   const searchForm = ref({
     member_id: undefined,
@@ -149,7 +177,16 @@
     }
   })
 
-  const { deleteRow, deleteSelectedRows, handleSelectionChange, selectedRows } = useSaiAdmin()
+  const {
+    dialogType,
+    dialogVisible,
+    dialogData,
+    showDialog,
+    deleteRow,
+    deleteSelectedRows,
+    handleSelectionChange,
+    selectedRows
+  } = useSaiAdmin()
 
   const openDetail = async (row: Record<string, any>) => {
     detail.value = await api.read(row.id)

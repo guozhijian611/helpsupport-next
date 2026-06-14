@@ -17,6 +17,20 @@ export default {
     })
   },
 
+  save(params: Record<string, any>) {
+    return request.post<any>({
+      url: '/app/help/admin/community/SaCommunityReport/save',
+      data: params
+    })
+  },
+
+  update(params: Record<string, any>) {
+    return request.put<any>({
+      url: '/app/help/admin/community/SaCommunityReport/update',
+      data: params
+    })
+  },
+
   handle(params: Record<string, any>) {
     return request.post<any>({
       url: '/app/help/admin/community/SaCommunityReport/handle',
