@@ -74,7 +74,7 @@
               type="success"
               @click="handleReport(row, 1)"
             >
-              处理
+              处理并隐藏
             </ElButton>
             <ElButton
               v-if="row.handle_status === 0"
@@ -199,12 +199,12 @@
 
   const handleReport = async (row: Record<string, any>, handleStatus: number) => {
     const result = await ElMessageBox.prompt(
-      `请输入${handleStatus === 1 ? '处理' : '忽略'}备注`,
-      handleStatus === 1 ? '处理举报' : '忽略举报',
+      `请输入${handleStatus === 1 ? '处理备注，将同步隐藏被举报帖子/评论' : '忽略备注'}`,
+      handleStatus === 1 ? '处理并隐藏举报目标' : '忽略举报',
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
-        inputPlaceholder: '可选'
+        inputPlaceholder: handleStatus === 1 ? '留空时使用举报原因作为处理备注' : '可选'
       }
     )
     await api.handle({
