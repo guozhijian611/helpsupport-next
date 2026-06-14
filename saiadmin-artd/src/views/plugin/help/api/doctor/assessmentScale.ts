@@ -1,0 +1,6 @@
+import { createCrudApi } from '../createCrudApi'
+
+export default createCrudApi('/app/help/admin/doctor/SaDoctorAssessmentScale', [
+  'publish',
+  'disable'
+])
