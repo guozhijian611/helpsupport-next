@@ -1832,13 +1832,25 @@ class HelpApiService
         if ($planId > 0) {
             $this->assertDoctorPlan($doctorId, $memberId, $planId);
         }
+        $doctorPlanIds = $planId > 0 ? [$planId] : $this->doctorPlanIds($doctorId, $memberId);
+        $doctorStageIds = $this->doctorStageIds($doctorPlanIds);
 
-        return $this->paginate(function () use ($memberId, $params, $planId) {
+        return $this->paginate(function () use ($memberId, $params, $planId, $doctorId, $doctorPlanIds, $doctorStageIds) {
             $query = Db::table('sa_daily_task')
                 ->where('member_id', $memberId)
                 ->whereNull('delete_time');
             if ($planId > 0) {
                 $query->where('plan_id', $planId);
+            } else {
+                $query->where(function ($query) use ($doctorId, $doctorPlanIds, $doctorStageIds) {
+                    $query->where('created_by', $doctorId);
+                    if ($doctorPlanIds !== []) {
+                        $query->whereOr('plan_id', 'in', $doctorPlanIds);
+                    }
+                    if ($doctorStageIds !== []) {
+                        $query->whereOr('stage_id', 'in', $doctorStageIds);
+                    }
+                });
             }
             if (!empty($params['date'])) {
                 $query->where('task_date', (string) $params['date']);
@@ -1867,20 +1879,17 @@ class HelpApiService
             $this->assertDoctorPlan($doctorId, $memberId, $planId);
         }
         $stageId = (int) ($data['stage_id'] ?? 0);
+        $stage = null;
         if ($stageId > 0) {
-            $this->assertDoctorStage($doctorId, $memberId, $stageId);
+            $stage = $this->assertDoctorStage($doctorId, $memberId, $stageId);
+            if ($planId > 0 && (int) ($stage['plan_id'] ?? 0) !== $planId) {
+                throw new ApiException('任务阶段不属于所选治疗计划', 400);
+            }
         }
 
         $taskId = (int) ($data['id'] ?? 0);
         if ($taskId > 0) {
-            $exists = Db::table('sa_daily_task')
-                ->where('id', $taskId)
-                ->where('member_id', $memberId)
-                ->whereNull('delete_time')
-                ->find();
-            if (!$exists) {
-                throw new ApiException('任务不存在或无权操作', 404);
-            }
+            $this->assertDoctorDailyTask($doctorId, $memberId, $taskId);
         }
 
         $payload = $this->only($data, [
@@ -1921,6 +1930,9 @@ class HelpApiService
             }
         }
         $payload['member_id'] = $memberId;
+        if ($planId <= 0 && $stage !== null) {
+            $payload['plan_id'] = (int) ($stage['plan_id'] ?? 0);
+        }
         $payload['task_date'] = $taskDate;
         $payload['title'] = $title;
         $payload['task_type'] = trim((string) ($payload['task_type'] ?? '')) !== ''
@@ -2874,6 +2886,62 @@ class HelpApiService
         }
 
         return $stage;
+    }
+
+    private function assertDoctorDailyTask(int $doctorId, int $memberId, int $taskId): array
+    {
+        if ($taskId <= 0) {
+            throw new ApiException('任务ID参数错误', 400);
+        }
+
+        $task = Db::table('sa_daily_task')
+            ->where('id', $taskId)
+            ->where('member_id', $memberId)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$task) {
+            throw new ApiException('任务不存在或无权操作', 404);
+        }
+
+        $planId = (int) ($task['plan_id'] ?? 0);
+        if ($planId > 0) {
+            $this->assertDoctorPlan($doctorId, $memberId, $planId);
+            return $task;
+        }
+
+        $stageId = (int) ($task['stage_id'] ?? 0);
+        if ($stageId > 0) {
+            $this->assertDoctorStage($doctorId, $memberId, $stageId);
+            return $task;
+        }
+
+        if ((int) ($task['created_by'] ?? 0) !== $doctorId) {
+            throw new ApiException('任务不存在或无权操作', 404);
+        }
+
+        return $task;
+    }
+
+    private function doctorPlanIds(int $doctorId, int $memberId): array
+    {
+        return array_map('intval', Db::table('sa_treatment_plan')
+            ->where('doctor_id', $doctorId)
+            ->where('member_id', $memberId)
+            ->whereNull('delete_time')
+            ->column('id'));
+    }
+
+    private function doctorStageIds(array $planIds): array
+    {
+        $planIds = array_values(array_filter(array_map('intval', $planIds)));
+        if ($planIds === []) {
+            return [];
+        }
+
+        return array_map('intval', Db::table('sa_treatment_stage')
+            ->whereIn('plan_id', $planIds)
+            ->whereNull('delete_time')
+            ->column('id'));
     }
 
     private function assertVisibleTemplateFolder(int $doctorId, string $folderId): array
