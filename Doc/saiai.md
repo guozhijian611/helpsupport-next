@@ -356,6 +356,8 @@ wss://{host}/v1/realtime?model={model}
 
 Nginx 必须把 `/v1/realtime` 代理到实时 WebSocket 进程端口 `8791`，不能落到普通 Webman HTTP 入口。宝塔站点里通常把 `location` 放在当前站点配置中，并确保它位于通用 `/` 代理规则之前。
 
+Docker 发布模式下，`docker.sh` 默认会发布 `8791:8791`。如果需要调整宿主机端口，可在执行脚本时设置 `SAIAI_REALTIME_HOST_PORT`；如果不需要对宿主机发布实时端口，可设置 `PUBLISH_SAIAI_REALTIME_PORT=0`。
+
 `map` 需要放在 Nginx 的 `http` 作用域，不能放进单个 `server` 作用域：
 
 ```nginx

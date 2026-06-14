@@ -47,6 +47,6 @@ final class B8MigrateRollback extends AbstractPhinxCommand
             $arguments[] = '--dry-run';
         }
 
-        return $this->runPhinx($arguments);
+        return $this->runPhinx($arguments, [0], $output);
     }
 }

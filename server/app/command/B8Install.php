@@ -27,8 +27,8 @@ final class B8Install extends AbstractPhinxCommand
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $envPath = base_path('.env');
-        $examplePath = base_path('.env.example');
+        $envPath = $this->writableEnvPath();
+        $examplePath = $this->envExamplePath();
 
         if (!is_file($envPath)) {
             if (!is_file($examplePath)) {
@@ -73,7 +73,7 @@ final class B8Install extends AbstractPhinxCommand
 
         if (!$input->getOption('no-migrate')) {
             $output->writeln('<info>开始执行 Phinx 迁移...</info>');
-            $exitCode = $this->runPhinx(['migrate']);
+            $exitCode = $this->runPhinx(['migrate'], [0], $output);
             if ($exitCode !== self::SUCCESS) {
                 return $exitCode;
             }
@@ -81,6 +81,21 @@ final class B8Install extends AbstractPhinxCommand
 
         $output->writeln('<info>B8AIadmin 首次安装流程完成。</info>');
         return self::SUCCESS;
+    }
+
+    private function writableEnvPath(): string
+    {
+        return base_path(false) . DIRECTORY_SEPARATOR . '.env';
+    }
+
+    private function envExamplePath(): string
+    {
+        $runPathExample = base_path(false) . DIRECTORY_SEPARATOR . '.env.example';
+        if (is_file($runPathExample)) {
+            return $runPathExample;
+        }
+
+        return base_path('.env.example');
     }
 
     private function ask(InputInterface $input, OutputInterface $output, string $label, string $default): string

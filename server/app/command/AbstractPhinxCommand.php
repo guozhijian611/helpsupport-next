@@ -4,35 +4,26 @@ declare(strict_types=1);
 
 namespace app\command;
 
+use Phinx\Console\PhinxApplication;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\ArgvInput;
+use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Console\Output\OutputInterface;
 
 abstract class AbstractPhinxCommand extends Command
 {
-    protected function runPhinx(array $arguments, array $successExitCodes = [0]): int
+    protected function runPhinx(array $arguments, array $successExitCodes = [0], ?OutputInterface $output = null): int
     {
         $command = array_merge([
-            PHP_BINARY,
-            base_path('vendor/bin/phinx'),
+            'phinx',
             '-c',
             $this->databaseFile('phinx.php'),
         ], $arguments);
 
-        $process = proc_open(
-            $command,
-            [
-                0 => STDIN,
-                1 => STDOUT,
-                2 => STDERR,
-            ],
-            $pipes,
-            base_path(false)
-        );
+        $application = new PhinxApplication();
+        $application->setAutoExit(false);
 
-        if (!is_resource($process)) {
-            return self::FAILURE;
-        }
-
-        $exitCode = proc_close($process);
+        $exitCode = $application->doRun(new ArgvInput($command), $output ?? new ConsoleOutput());
         return in_array($exitCode, $successExitCodes, true) ? self::SUCCESS : $exitCode;
     }
 

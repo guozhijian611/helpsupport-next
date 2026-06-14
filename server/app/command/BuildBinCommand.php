@@ -52,13 +52,16 @@ final class BuildBinCommand extends BuildPharCommand
         $version = max((float)$version, 8.1);
 
         $supportZip = class_exists(ZipArchive::class);
-        $microZipFileName = $supportZip ? "php$version.micro.sfx.zip" : "php$version.micro.sfx";
+        $sfxFileName = "php$version.micro.sfx";
+        $microZipFileName = $supportZip ? "$sfxFileName.zip" : $sfxFileName;
         $customIni = (string)config('plugin.webman.console.app.custom_ini', '');
+        $runtimeCacheDir = $this->getRuntimeCacheDir();
+        $this->ensureDirectory($runtimeCacheDir);
 
         $binFile = $this->buildDir . DIRECTORY_SEPARATOR . $this->binFileName;
         $pharFile = $this->buildDir . DIRECTORY_SEPARATOR . $this->getPharFileName();
-        $zipFile = $this->buildDir . DIRECTORY_SEPARATOR . $microZipFileName;
-        $sfxFile = $this->buildDir . DIRECTORY_SEPARATOR . "php$version.micro.sfx";
+        $zipFile = $runtimeCacheDir . DIRECTORY_SEPARATOR . $microZipFileName;
+        $sfxFile = $runtimeCacheDir . DIRECTORY_SEPARATOR . $sfxFileName;
         $customIniHeaderFile = $this->buildDir . DIRECTORY_SEPARATOR . 'custominiheader.bin';
 
         $command = new BuildPharCommand();
@@ -128,8 +131,13 @@ final class BuildBinCommand extends BuildPharCommand
 
         if (!is_file($sfxFile) && $supportZip) {
             $zip = new ZipArchive();
-            $zip->open($zipFile, ZipArchive::CHECKCONS);
-            $zip->extractTo($this->buildDir);
+            $result = $zip->open($zipFile, ZipArchive::CHECKCONS);
+            if ($result !== true) {
+                unlink($zipFile);
+                throw new RuntimeException("PHP{$version} micro.sfx 缓存压缩包损坏，请重新执行构建。");
+            }
+            $zip->extractTo($runtimeCacheDir);
+            $zip->close();
         }
 
         file_put_contents($binFile, file_get_contents($sfxFile));
@@ -149,7 +157,7 @@ final class BuildBinCommand extends BuildPharCommand
         chmod($binFile, 0755);
 
         if (!$input->getOption('keep-intermediate') && config('plugin.webman.console.app.cleanup_intermediate_files', true)) {
-            $this->cleanupIntermediateFiles([$pharFile, $zipFile, $sfxFile]);
+            $this->cleanupIntermediateFiles([$pharFile]);
         }
 
         $output->writeln($this->msg('saved_bin', ['{name}' => $this->binFileName, '{path}' => $binFile]));
@@ -165,6 +173,38 @@ final class BuildBinCommand extends BuildPharCommand
         }
 
         return $name;
+    }
+
+    private function getRuntimeCacheDir(): string
+    {
+        $default = base_path('runtime/build-bin-cache');
+        $dir = trim((string)config('plugin.webman.console.app.bin_runtime_cache_dir', $default));
+        if ($dir === '') {
+            return $default;
+        }
+
+        if (!$this->isRuntimeCacheAbsolutePath($dir)) {
+            $dir = base_path($dir);
+        }
+
+        return rtrim($dir, DIRECTORY_SEPARATOR);
+    }
+
+    private function isRuntimeCacheAbsolutePath(string $path): bool
+    {
+        return str_starts_with($path, DIRECTORY_SEPARATOR)
+            || (bool)preg_match('#^[A-Za-z]:[\\\\/]#', $path);
+    }
+
+    private function ensureDirectory(string $dir): void
+    {
+        if (is_dir($dir)) {
+            return;
+        }
+
+        if (!mkdir($dir, 0777, true) && !is_dir($dir)) {
+            throw new RuntimeException("无法创建 PHP micro.sfx 缓存目录：{$dir}");
+        }
     }
 
     private function patchWorkermanProcessCheck(string $pharFile): void

@@ -23,6 +23,11 @@ return [
 
     'cleanup_intermediate_files' => $bool('WEBMAN_BIN_CLEANUP', true),
 
+    'bin_runtime_cache_dir' => env(
+        'WEBMAN_BIN_RUNTIME_CACHE_DIR',
+        BASE_PATH . DIRECTORY_SEPARATOR . 'runtime' . DIRECTORY_SEPARATOR . 'build-bin-cache'
+    ),
+
     'signature_algorithm'=> Phar::SHA256, //set the signature algorithm for a phar and apply it. The signature algorithm must be one of Phar::MD5, Phar::SHA1, Phar::SHA256, Phar::SHA512, or Phar::OPENSSL.
 
     'private_key_file'  => '', // The file path for certificate or OpenSSL private key file.

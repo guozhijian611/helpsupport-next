@@ -33,7 +33,7 @@ php -d phar.readonly=0 -d memory_limit=-1 webman build:bin
 - CLI PHP 能运行当前项目，建议使用 PHP 8.3。
 - `phar.readonly=0`，否则无法生成 PHAR。
 - 构建进程有足够内存，建议命令行显式加 `-d memory_limit=-1`。
-- 首次构建需要访问 `download.workerman.net` 下载 `phpX.micro.sfx.zip`；后续如果中间文件被清理，则再次构建仍可能重新下载。
+- 首次构建需要访问 `download.workerman.net` 下载 `phpX.micro.sfx.zip`；下载后的 PHP micro 运行时会缓存在 `server/runtime/build-bin-cache/`，后续构建会自动复用。
 - PHP 建议启用 `zip`、`openssl`。没有 `zip` 时会尝试下载未压缩的 micro.sfx；没有 `openssl` 时会回退到 HTTP 下载。
 
 ## 默认构建
@@ -54,7 +54,8 @@ server/build/server
 默认行为：
 
 - 生成最终二进制文件 `build/server`。
-- 中间文件 `build/webman.phar`、`build/phpX.micro.sfx`、`build/phpX.micro.sfx.zip` 构建成功后会自动清理。
+- 中间文件 `build/webman.phar` 构建成功后会自动清理。
+- PHP micro 运行时缓存保留在 `runtime/build-bin-cache/`，用于后续构建复用，不会因为默认清理策略被删除。
 - `server/build/` 已加入 `.gitignore`，不要提交构建产物。
 
 ## 自定义产物名称
@@ -94,9 +95,38 @@ php -d phar.readonly=0 -d memory_limit=-1 webman build:bin
 
 框架会在 PHAR 内修补 Workerman 的进程识别逻辑，保证任意二进制文件名下的 `status`、`stop` 等命令能识别当前主进程。
 
+## PHP micro 缓存
+
+默认缓存目录：
+
+```text
+server/runtime/build-bin-cache/
+```
+
+首次构建会下载并缓存：
+
+```text
+server/runtime/build-bin-cache/php8.3.micro.sfx
+server/runtime/build-bin-cache/php8.3.micro.sfx.zip
+```
+
+后续构建会直接输出 `使用本地 PHP8.3 资源...`，不会重新下载。
+
+如需自定义缓存目录，可在 `.env` 中配置：
+
+```dotenv
+WEBMAN_BIN_RUNTIME_CACHE_DIR=/absolute/path/to/build-bin-cache
+```
+
+也可以使用相对项目根目录的路径：
+
+```dotenv
+WEBMAN_BIN_RUNTIME_CACHE_DIR=runtime/build-bin-cache
+```
+
 ## 保留中间文件
 
-默认构建完成后会清理中间文件。如果需要排查 PHAR 内容或复用 micro.sfx，可使用：
+默认构建完成后会清理 `build/webman.phar`。如果需要排查 PHAR 内容，可使用：
 
 ```bash
 cd server
@@ -114,11 +144,9 @@ WEBMAN_BIN_CLEANUP=false
 ```text
 server/build/server
 server/build/webman.phar
-server/build/php8.3.micro.sfx
-server/build/php8.3.micro.sfx.zip
 ```
 
-中间文件仅用于构建和排查，不应提交到 Git。
+中间文件仅用于构建和排查，不应提交到 Git。PHP micro 运行时缓存始终放在 `runtime/build-bin-cache/`。
 
 ## 指定 PHP micro 版本
 
@@ -302,7 +330,7 @@ phar.readonly = Off
 download.workerman.net
 ```
 
-如果网络不稳定，可以在网络可用环境先构建一次，或用 `--keep-intermediate` 保留下载好的 micro.sfx 文件用于排查。
+如果网络不稳定，可以在网络可用环境先构建一次，确认 `server/runtime/build-bin-cache/` 已有 `phpX.micro.sfx` 或 `phpX.micro.sfx.zip` 后再离线构建。
 
 ### 运行时找不到 .env 配置
 

@@ -49,12 +49,24 @@ DOCKER_NO_CACHE="${DOCKER_NO_CACHE:-0}"
 # 是否在镜像内安装 ca-certificates 和 tzdata。需要访问 HTTPS API 时建议保留开启。
 INSTALL_CA_CERTIFICATES="${INSTALL_CA_CERTIFICATES:-1}"
 
+# 镜像内默认禁用的 OpenTelemetry 自动埋点。
+# 当前基础镜像不安装 opentelemetry 扩展，禁用 pdo 可避免自动注册时输出扩展缺失 warning。
+OTEL_PHP_DISABLED_INSTRUMENTATIONS="${OTEL_PHP_DISABLED_INSTRUMENTATIONS:-pdo}"
+
 # 容器内 Webman 监听端口，需与项目 config/server.php 保持一致。
 APP_PORT="${APP_PORT:-8787}"
 
 # 远程容器名称和宿主机端口映射。
 CONTAINER_NAME="${CONTAINER_NAME:-b8aiadmin}"
-HOST_PORT="${HOST_PORT:-8787}"
+HOST_PORT="${HOST_PORT:-18787}"
+
+# saiai 实时 WebSocket 进程端口，用于 AI 实时语音/多模态能力。
+# SAIAI_REALTIME_WS_PORT 是容器内监听端口，需与 server/.env.production 中同名配置保持一致。
+# SAIAI_REALTIME_HOST_PORT 是宿主机发布端口，只改外部 Nginx 反代端口时改它即可。
+# 默认发布为宿主机 8791 -> 容器 8791，方便 Nginx 将 /v1/realtime 反代到宿主机 127.0.0.1:8791。
+SAIAI_REALTIME_WS_PORT="${SAIAI_REALTIME_WS_PORT:-18791}"
+SAIAI_REALTIME_HOST_PORT="${SAIAI_REALTIME_HOST_PORT:-$SAIAI_REALTIME_WS_PORT}"
+PUBLISH_SAIAI_REALTIME_PORT="${PUBLISH_SAIAI_REALTIME_PORT:-1}"
 
 # 远程容器重启策略。
 DOCKER_RESTART_POLICY="${DOCKER_RESTART_POLICY:-unless-stopped}"
@@ -72,9 +84,11 @@ REMOTE_STORAGE_DIR="${REMOTE_STORAGE_DIR:-/www/wwwroot/b8aiadmin/public/storage}
 # 远程 Docker 网络名，留空则使用 Docker 默认网络。
 REMOTE_DOCKER_NETWORK="${REMOTE_DOCKER_NETWORK:-}"
 
-# 额外 docker run 参数，例如：--add-host host.docker.internal:host-gateway。
+# 额外 docker run 参数。
+# 默认仍使用 Docker bridge 网络，不启用 --network host。
+# 这里只添加 host.docker.internal 映射，让 bridge 网络里的容器可访问宿主机 MySQL/Redis/RabbitMQ。
 # 注意：这里会按 shell 原样拼入远程命令，请不要放不可信输入。
-REMOTE_DOCKER_RUN_ARGS="${REMOTE_DOCKER_RUN_ARGS:-}"
+REMOTE_DOCKER_RUN_ARGS="${REMOTE_DOCKER_RUN_ARGS:---add-host host.docker.internal:host-gateway}"
 
 # 容器启动命令，留空使用镜像默认 CMD ["start"]。
 REMOTE_CONTAINER_COMMAND="${REMOTE_CONTAINER_COMMAND:-}"
@@ -92,6 +106,17 @@ BUILD_ADMIN="${BUILD_ADMIN:-}"
 BUILD_H5="${BUILD_H5:-}"
 RUN_MIGRATE="${RUN_MIGRATE:-}"
 AUTO_REMOTE_UPDATE="${AUTO_REMOTE_UPDATE:-}"
+
+# 是否执行首次安装基线。仅在线上库未导入 Database/b8aiadmin.sql 时开启。
+# 开启后会在新镜像的一次性容器里执行 b8:install --force，导入基线并执行迁移。
+# 注意：首次安装会写入基础表和初始化数据，生产环境必须先确认目标库和备份。
+RUN_INSTALL="${RUN_INSTALL:-}"
+
+# 只重建远程容器。设为 1 时跳过本地构建、上传和 docker load，直接使用服务器已有镜像重建容器。
+REMOTE_REBUILD_ONLY="${REMOTE_REBUILD_ONLY:-0}"
+
+# 远程重建时使用的镜像引用。留空时自动选择服务器上 IMAGE_NAME 对应的最新本地镜像。
+REMOTE_REBUILD_IMAGE_REF="${REMOTE_REBUILD_IMAGE_REF:-}"
 
 # 迁移默认通过新镜像的一次性容器执行。下面三个命令仅用于覆盖默认行为。
 REMOTE_MIGRATE_STATUS_COMMAND="${REMOTE_MIGRATE_STATUS_COMMAND:-}"
@@ -138,7 +163,7 @@ prompt_yes_no() {
   answer="${answer:-$default_answer}"
 
   case "$answer" in
-    y|Y|yes|YES) return 0 ;;
+    1|y|Y|yes|YES|true|TRUE|是|对|好|确认) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -163,6 +188,13 @@ remote_exec() {
   ssh "$REMOTE_ALIAS" "$1"
 }
 
+create_tar_gz() {
+  local source_dir="$1"
+  local archive_path="$2"
+
+  COPYFILE_DISABLE=1 tar --no-xattrs -czf "$archive_path" -C "$source_dir" .
+}
+
 validate_bin_name() {
   case "$BIN_NAME" in
     ''|'.'|'..'|*/*)
@@ -185,7 +217,14 @@ else
   INTERACTIVE="${INTERACTIVE:-0}"
 fi
 
-if [[ "$INTERACTIVE" == "1" ]]; then
+REMOTE_REBUILD_ONLY="$(resolve_bool "$REMOTE_REBUILD_ONLY" 0)"
+
+if [[ "$REMOTE_REBUILD_ONLY" == "1" ]]; then
+  BUILD_ADMIN="${BUILD_ADMIN:-0}"
+  BUILD_H5="${BUILD_H5:-0}"
+  RUN_MIGRATE="${RUN_MIGRATE:-0}"
+  RUN_INSTALL="${RUN_INSTALL:-0}"
+elif [[ "$INTERACTIVE" == "1" ]]; then
   if [[ -z "$BUILD_ADMIN" ]]; then
     if prompt_yes_no "是否编译 admin 管理端？" "n"; then
       BUILD_ADMIN=1
@@ -202,7 +241,18 @@ if [[ "$INTERACTIVE" == "1" ]]; then
     fi
   fi
 
-  if [[ -z "$RUN_MIGRATE" ]]; then
+  if [[ -z "$RUN_INSTALL" ]]; then
+    if prompt_yes_no "是否执行首次安装基线？仅空库第一次部署使用，会导入 Database/b8aiadmin.sql 并执行迁移" "n"; then
+      RUN_INSTALL=1
+      RUN_MIGRATE=0
+    else
+      RUN_INSTALL=0
+    fi
+  fi
+
+  if [[ "$RUN_INSTALL" == "1" ]]; then
+    RUN_MIGRATE=0
+  elif [[ -z "$RUN_MIGRATE" ]]; then
     if prompt_yes_no "是否在自动更新线上镜像时执行镜像内数据库迁移？默认会先 status 和 dry-run" "n"; then
       RUN_MIGRATE=1
     else
@@ -213,21 +263,28 @@ else
   BUILD_ADMIN="${BUILD_ADMIN:-0}"
   BUILD_H5="${BUILD_H5:-0}"
   RUN_MIGRATE="${RUN_MIGRATE:-0}"
+  RUN_INSTALL="${RUN_INSTALL:-0}"
 fi
 
 BUILD_ADMIN="$(resolve_bool "$BUILD_ADMIN" 0)"
 BUILD_H5="$(resolve_bool "$BUILD_H5" 0)"
 RUN_MIGRATE="$(resolve_bool "$RUN_MIGRATE" 0)"
+RUN_INSTALL="$(resolve_bool "$RUN_INSTALL" 0)"
 REMOTE_RELOAD_CONTAINER="$(resolve_bool "$REMOTE_RELOAD_CONTAINER" 1)"
 INSTALL_CA_CERTIFICATES="$(resolve_bool "$INSTALL_CA_CERTIFICATES" 1)"
 INCLUDE_PRODUCTION_ENV="$(resolve_bool "$INCLUDE_PRODUCTION_ENV" 1)"
 INCLUDE_DATABASE="$(resolve_bool "$INCLUDE_DATABASE" 1)"
 MOUNT_RUNTIME_DIR="$(resolve_bool "$MOUNT_RUNTIME_DIR" 0)"
 MOUNT_STORAGE_DIR="$(resolve_bool "$MOUNT_STORAGE_DIR" 0)"
+PUBLISH_SAIAI_REALTIME_PORT="$(resolve_bool "$PUBLISH_SAIAI_REALTIME_PORT" 1)"
 DOCKER_CACHE_ENABLED="$(resolve_bool "$DOCKER_CACHE_ENABLED" 1)"
 DOCKER_NO_CACHE="$(resolve_bool "$DOCKER_NO_CACHE" 0)"
 
 validate_bin_name
+
+if [[ "$RUN_INSTALL" == "1" ]]; then
+  RUN_MIGRATE=0
+fi
 
 if [[ "$RUN_MIGRATE" == "1" ]]; then
   if [[ -n "$REMOTE_MIGRATE_STATUS_COMMAND" || -n "$REMOTE_MIGRATE_DRY_RUN_COMMAND" || -n "$REMOTE_MIGRATE_COMMAND" ]]; then
@@ -236,6 +293,18 @@ if [[ "$RUN_MIGRATE" == "1" ]]; then
     fi
   elif [[ "$INCLUDE_DATABASE" != "1" ]]; then
     fail "RUN_MIGRATE=1 且未配置自定义迁移命令时，INCLUDE_DATABASE 必须为 1"
+  fi
+fi
+
+if [[ "$RUN_INSTALL" == "1" ]]; then
+  if [[ -n "$REMOTE_MIGRATE_STATUS_COMMAND" || -n "$REMOTE_MIGRATE_DRY_RUN_COMMAND" || -n "$REMOTE_MIGRATE_COMMAND" ]]; then
+    fail "RUN_INSTALL=1 会执行 b8:install --force，不能同时配置自定义迁移命令"
+  fi
+  if [[ "$INCLUDE_PRODUCTION_ENV" != "1" ]]; then
+    fail "RUN_INSTALL=1 时必须打包生产 .env，供 b8:install 读取数据库配置"
+  fi
+  if [[ "$INCLUDE_DATABASE" != "1" ]]; then
+    fail "RUN_INSTALL=1 时必须打包 Database，供 b8:install 导入基线 SQL 和迁移"
   fi
 fi
 
@@ -254,6 +323,8 @@ echo "二进制文件名：$BIN_NAME"
 echo "构建 admin：$BUILD_ADMIN"
 echo "构建 H5：$BUILD_H5"
 echo "线上迁移：$RUN_MIGRATE"
+echo "首次安装基线：$RUN_INSTALL"
+echo "直接重建远程容器：$REMOTE_REBUILD_ONLY"
 echo "打包生产 .env：$INCLUDE_PRODUCTION_ENV"
 echo "打包 Database：$INCLUDE_DATABASE"
 echo "Docker 缓存：$DOCKER_CACHE_ENABLED $DOCKER_CACHE_DIR"
@@ -263,21 +334,36 @@ echo "服务器别名：$REMOTE_ALIAS"
 echo "上传目录：$REMOTE_UPLOAD_DIR"
 echo "容器名称：$CONTAINER_NAME"
 echo "端口映射：$HOST_PORT:$APP_PORT"
+if [[ "$PUBLISH_SAIAI_REALTIME_PORT" == "1" ]]; then
+  echo "AI 实时端口：$SAIAI_REALTIME_HOST_PORT:$SAIAI_REALTIME_WS_PORT"
+else
+  echo "AI 实时端口：未发布"
+fi
 echo "远程 .env：${REMOTE_ENV_FILE:-未配置}"
 echo "挂载 runtime：$MOUNT_RUNTIME_DIR ${REMOTE_RUNTIME_DIR}"
 echo "挂载 storage：$MOUNT_STORAGE_DIR ${REMOTE_STORAGE_DIR}"
 
 if [[ "$INTERACTIVE" == "1" ]]; then
-  if ! prompt_yes_no "确认开始构建镜像 tar 包？" "y"; then
-    echo "已取消"
-    exit 0
-  fi
+  read -r -p "配置确认完成，按回车构建镜像 tar 包；输入 r 直接重建远程容器；如需取消请按 Ctrl+C。 " NEXT_ACTION
+  case "$NEXT_ACTION" in
+    r|R)
+      REMOTE_REBUILD_ONLY=1
+      RUN_MIGRATE=0
+      RUN_INSTALL=0
+      AUTO_REMOTE_UPDATE=1
+      echo "已选择直接重建远程容器：跳过本地构建、上传、docker load 和迁移。"
+      ;;
+  esac
 fi
 
 ########################################
 # 本地构建
 ########################################
 
+if [[ "$REMOTE_REBUILD_ONLY" == "1" ]]; then
+  log "跳过本地构建"
+  echo "将直接使用服务器已有镜像重建容器。"
+else
 require_command php
 require_command tar
 require_command docker
@@ -289,6 +375,10 @@ fi
 if ! docker buildx version >/dev/null 2>&1; then
   fail "当前 Docker 不支持 buildx，无法稳定构建 $DOCKER_PLATFORM 镜像"
 fi
+
+DOCKER_BUILDX_DRIVER="$(docker buildx inspect 2>/dev/null | awk '/^Driver:/ {print $2; exit}')"
+DOCKER_BUILDX_DRIVER="${DOCKER_BUILDX_DRIVER:-unknown}"
+echo "Docker buildx driver：$DOCKER_BUILDX_DRIVER"
 
 if [[ "$BUILD_ADMIN" == "1" ]]; then
   log "编译 admin 管理端"
@@ -343,14 +433,14 @@ fi
 
 if [[ -d "$FRONTEND_DIR/dist" ]]; then
   log "压缩 admin 静态资源"
-  tar -czf "$CONTEXT_DIR/public/.release/admin.tar.gz" -C "$FRONTEND_DIR/dist" .
+  create_tar_gz "$FRONTEND_DIR/dist" "$CONTEXT_DIR/public/.release/admin.tar.gz"
 else
   warn "admin dist 不存在，镜像不会包含 admin 静态资源：$FRONTEND_DIR/dist"
 fi
 
 if [[ -d "$UNIAPP_DIR/dist/build/h5" ]]; then
   log "压缩 uniapp H5 静态资源"
-  tar -czf "$CONTEXT_DIR/public/.release/h5.tar.gz" -C "$UNIAPP_DIR/dist/build/h5" .
+  create_tar_gz "$UNIAPP_DIR/dist/build/h5" "$CONTEXT_DIR/public/.release/h5.tar.gz"
 else
   warn "uniapp H5 dist 不存在，镜像不会包含 H5 静态资源：$UNIAPP_DIR/dist/build/h5"
 fi
@@ -432,7 +522,8 @@ WORKDIR /app
 ENV TZ=Asia/Shanghai \\
     B8_EXTRACT_ADMIN=1 \\
     B8_EXTRACT_H5=1 \\
-    B8_KEEP_STATIC_ARCHIVES=1
+    B8_KEEP_STATIC_ARCHIVES=1 \\
+    OTEL_PHP_DISABLED_INSTRUMENTATIONS=$OTEL_PHP_DISABLED_INSTRUMENTATIONS
 EOF
 
 if [[ "$INSTALL_CA_CERTIFICATES" == "1" ]]; then
@@ -458,36 +549,41 @@ RUN chmod +x /app/server /usr/local/bin/docker-entrypoint \\
     && mkdir -p /app/runtime /app/public/storage \\
     && chmod -R 0775 /app/runtime /app/public
 
-EXPOSE $APP_PORT
+EXPOSE $APP_PORT $SAIAI_REALTIME_WS_PORT
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint"]
 CMD ["start"]
 EOF
 
 log "构建 Docker 镜像"
-DOCKER_BUILD_CACHE_FLAGS=()
+DOCKER_BUILD_CMD=(
+  docker buildx build
+  --platform "$DOCKER_PLATFORM"
+  --load
+)
+
 if [[ "$DOCKER_NO_CACHE" == "1" ]]; then
-  DOCKER_BUILD_CACHE_FLAGS+=(--no-cache)
+  DOCKER_BUILD_CMD+=(--no-cache)
 elif [[ "$DOCKER_CACHE_ENABLED" == "1" ]]; then
-  DOCKER_CACHE_NEXT_DIR="${DOCKER_CACHE_DIR}.new"
-  rm -rf "$DOCKER_CACHE_NEXT_DIR"
-  mkdir -p "$(dirname "$DOCKER_CACHE_DIR")"
+  if [[ "$DOCKER_BUILDX_DRIVER" == "docker" ]]; then
+    echo "当前 buildx driver 为 docker，跳过外部缓存导出，使用 Docker 原生构建缓存。"
+  else
+    DOCKER_CACHE_NEXT_DIR="${DOCKER_CACHE_DIR}.new"
+    rm -rf "$DOCKER_CACHE_NEXT_DIR"
+    mkdir -p "$(dirname "$DOCKER_CACHE_DIR")"
 
-  if [[ -f "$DOCKER_CACHE_DIR/index.json" ]]; then
-    DOCKER_BUILD_CACHE_FLAGS+=(--cache-from "type=local,src=$DOCKER_CACHE_DIR")
+    if [[ -f "$DOCKER_CACHE_DIR/index.json" ]]; then
+      DOCKER_BUILD_CMD+=(--cache-from "type=local,src=$DOCKER_CACHE_DIR")
+    fi
+
+    DOCKER_BUILD_CMD+=(--cache-to "type=local,dest=$DOCKER_CACHE_NEXT_DIR,mode=$DOCKER_CACHE_MODE")
   fi
-
-  DOCKER_BUILD_CACHE_FLAGS+=(--cache-to "type=local,dest=$DOCKER_CACHE_NEXT_DIR,mode=$DOCKER_CACHE_MODE")
 fi
 
-docker buildx build \
-  --platform "$DOCKER_PLATFORM" \
-  --load \
-  "${DOCKER_BUILD_CACHE_FLAGS[@]}" \
-  -t "$IMAGE_REF" \
-  "$CONTEXT_DIR"
+DOCKER_BUILD_CMD+=(-t "$IMAGE_REF" "$CONTEXT_DIR")
+"${DOCKER_BUILD_CMD[@]}"
 
-if [[ "$DOCKER_NO_CACHE" != "1" && "$DOCKER_CACHE_ENABLED" == "1" && -d "${DOCKER_CACHE_DIR}.new" ]]; then
+if [[ "$DOCKER_NO_CACHE" != "1" && "$DOCKER_CACHE_ENABLED" == "1" && "$DOCKER_BUILDX_DRIVER" != "docker" && -d "${DOCKER_CACHE_DIR}.new" ]]; then
   rm -rf "$DOCKER_CACHE_DIR"
   mv "${DOCKER_CACHE_DIR}.new" "$DOCKER_CACHE_DIR"
 fi
@@ -496,12 +592,15 @@ log "导出 Docker 镜像 tar 包"
 docker save -o "$IMAGE_TAR_PATH" "$IMAGE_REF"
 
 echo "镜像 tar 包：$IMAGE_TAR_PATH"
+fi
 
 ########################################
 # 远程更新
 ########################################
 
-if [[ -z "$AUTO_REMOTE_UPDATE" && "$INTERACTIVE" == "1" ]]; then
+if [[ "$REMOTE_REBUILD_ONLY" == "1" ]]; then
+  AUTO_REMOTE_UPDATE=1
+elif [[ -z "$AUTO_REMOTE_UPDATE" && "$INTERACTIVE" == "1" ]]; then
   if prompt_yes_no "是否自动上传并更新线上镜像？" "n"; then
     AUTO_REMOTE_UPDATE=1
   else
@@ -512,6 +611,26 @@ else
 fi
 
 AUTO_REMOTE_UPDATE="$(resolve_bool "$AUTO_REMOTE_UPDATE" 0)"
+
+resolve_remote_rebuild_image_ref() {
+  local latest_image=""
+
+  [[ "$REMOTE_REBUILD_ONLY" == "1" ]] || return 0
+
+  if [[ -n "$REMOTE_REBUILD_IMAGE_REF" ]]; then
+    IMAGE_REF="$REMOTE_REBUILD_IMAGE_REF"
+    echo "远程重建镜像：$IMAGE_REF"
+    return 0
+  fi
+
+  latest_image="$(remote_exec "docker image ls $(shell_quote "$IMAGE_NAME") --format '{{.Repository}}:{{.Tag}}' | grep -v ':<none>$' | head -n 1")"
+  if [[ -z "$latest_image" ]]; then
+    fail "服务器上未找到镜像 $IMAGE_NAME，请先完整发布一次，或配置 REMOTE_REBUILD_IMAGE_REF"
+  fi
+
+  IMAGE_REF="$latest_image"
+  echo "远程重建镜像：$IMAGE_REF"
+}
 
 remote_env_arg() {
   if [[ -n "$REMOTE_ENV_FILE" ]]; then
@@ -577,20 +696,43 @@ docker run --rm \\
   $REMOTE_DOCKER_RUN_ARGS \\
   $(shell_quote "$IMAGE_REF") $app_command
 EOF
-)"
+	)"
+}
+
+migration_step_failed() {
+  local step="$1"
+
+  warn "线上迁移 ${step} 失败，已中止容器重建。镜像已上传并 docker load，但没有执行 docker run。"
+  warn "请先修复数据库连接或迁移问题；如果本次只想重建容器，请重新执行并选择不执行迁移。"
+  warn "如果报 sa_system_menu 不存在，说明目标库未导入基线；确认是空库并已备份后，可用 RUN_INSTALL=1 执行首次安装。"
 }
 
 run_remote_migrations() {
-  [[ "$RUN_MIGRATE" == "1" ]] || return 0
+  [[ "$RUN_MIGRATE" == "1" || "$RUN_INSTALL" == "1" ]] || return 0
 
   prepare_remote_mount_dirs
 
+  if [[ "$RUN_INSTALL" == "1" ]]; then
+    log "执行首次安装基线和迁移"
+    if ! run_remote_image_command "b8:install --force"; then
+      migration_step_failed "install"
+      return 1
+    fi
+    return 0
+  fi
+
   if [[ -n "$REMOTE_MIGRATE_STATUS_COMMAND" ]]; then
     log "执行自定义线上迁移 status"
-    remote_exec "$REMOTE_MIGRATE_STATUS_COMMAND"
+    if ! remote_exec "$REMOTE_MIGRATE_STATUS_COMMAND"; then
+      migration_step_failed "status"
+      return 1
+    fi
 
     log "执行自定义线上迁移 dry-run"
-    remote_exec "$REMOTE_MIGRATE_DRY_RUN_COMMAND"
+    if ! remote_exec "$REMOTE_MIGRATE_DRY_RUN_COMMAND"; then
+      migration_step_failed "dry-run"
+      return 1
+    fi
 
     if [[ "$INTERACTIVE" == "1" ]]; then
       if ! prompt_yes_no "确认执行线上真实迁移？请确认数据库已备份" "n"; then
@@ -599,15 +741,24 @@ run_remote_migrations() {
     fi
 
     log "执行自定义线上真实迁移"
-    remote_exec "$REMOTE_MIGRATE_COMMAND"
+    if ! remote_exec "$REMOTE_MIGRATE_COMMAND"; then
+      migration_step_failed "migrate"
+      return 1
+    fi
     return 0
   fi
 
   log "执行线上迁移 status"
-  run_remote_image_command "b8:migrate:status"
+  if ! run_remote_image_command "b8:migrate:status"; then
+    migration_step_failed "status"
+    return 1
+  fi
 
   log "执行线上迁移 dry-run"
-  run_remote_image_command "b8:migrate --dry-run"
+  if ! run_remote_image_command "b8:migrate --dry-run"; then
+    migration_step_failed "dry-run"
+    return 1
+  fi
 
   if [[ "$INTERACTIVE" == "1" ]]; then
     if ! prompt_yes_no "确认执行线上真实迁移？请确认数据库已备份" "n"; then
@@ -616,7 +767,10 @@ run_remote_migrations() {
   fi
 
   log "执行线上真实迁移"
-  run_remote_image_command "b8:migrate"
+  if ! run_remote_image_command "b8:migrate"; then
+    migration_step_failed "migrate"
+    return 1
+  fi
 }
 
 reload_remote_container() {
@@ -629,11 +783,17 @@ reload_remote_container() {
   local env_arg=""
   local network_arg=""
   local volume_args=""
+  local port_args=""
   local command_arg=""
 
   env_arg="$(remote_env_arg)"
   network_arg="$(remote_network_arg)"
   volume_args="$(remote_volume_args)"
+  port_args="-p $(shell_quote "$HOST_PORT:$APP_PORT")"
+
+  if [[ "$PUBLISH_SAIAI_REALTIME_PORT" == "1" ]]; then
+    port_args="$port_args -p $(shell_quote "$SAIAI_REALTIME_HOST_PORT:$SAIAI_REALTIME_WS_PORT")"
+  fi
 
   if [[ -n "$REMOTE_CONTAINER_COMMAND" ]]; then
     command_arg="$REMOTE_CONTAINER_COMMAND"
@@ -653,7 +813,7 @@ docker run -d \\
   --name $(shell_quote "$CONTAINER_NAME") \\
   --restart $(shell_quote "$DOCKER_RESTART_POLICY") \\
   $env_arg \\
-  -p $(shell_quote "$HOST_PORT:$APP_PORT") \\
+  $port_args \\
   $volume_args \\
   $network_arg \\
   $REMOTE_DOCKER_RUN_ARGS \\
@@ -666,18 +826,26 @@ EOF
 
 if [[ "$AUTO_REMOTE_UPDATE" == "1" ]]; then
   require_command ssh
-  require_command scp
 
-  log "创建远程上传目录"
-  remote_exec "mkdir -p $(shell_quote "$REMOTE_UPLOAD_DIR")"
+  if [[ "$REMOTE_REBUILD_ONLY" == "1" ]]; then
+    log "解析远程已有镜像"
+    resolve_remote_rebuild_image_ref
+  else
+    require_command scp
 
-  log "上传镜像 tar 包"
-  scp "$IMAGE_TAR_PATH" "$REMOTE_ALIAS:$REMOTE_UPLOAD_DIR/"
+    log "创建远程上传目录"
+    remote_exec "mkdir -p $(shell_quote "$REMOTE_UPLOAD_DIR")"
 
-  log "加载远程 Docker 镜像"
-  remote_exec "docker load -i $(shell_quote "$REMOTE_IMAGE_TAR")"
+    log "上传镜像 tar 包"
+    scp "$IMAGE_TAR_PATH" "$REMOTE_ALIAS:$REMOTE_UPLOAD_DIR/"
 
-  run_remote_migrations
+    log "加载远程 Docker 镜像"
+    remote_exec "docker load -i $(shell_quote "$REMOTE_IMAGE_TAR")"
+  fi
+
+  if ! run_remote_migrations; then
+    fail "线上迁移失败，当前发布已停止：镜像已 load 到服务器，但容器未重建。"
+  fi
   reload_remote_container
 
   log "远程镜像更新完成"

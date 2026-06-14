@@ -19,6 +19,6 @@ final class B8MigrateCreate extends AbstractPhinxCommand
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        return $this->runPhinx(['create', (string) $input->getArgument('name')]);
+        return $this->runPhinx(['create', (string) $input->getArgument('name')], [0], $output);
     }
 }
