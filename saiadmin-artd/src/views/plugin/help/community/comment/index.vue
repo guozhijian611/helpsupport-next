@@ -89,6 +89,9 @@
         <ElDescriptionsItem label="审核状态">
           {{ auditStatusText(detail.audit_status) }}
         </ElDescriptionsItem>
+        <ElDescriptionsItem label="审核备注">{{ detail.audit_remark || '无' }}</ElDescriptionsItem>
+        <ElDescriptionsItem label="审核人">{{ detail.audit_by || '无' }}</ElDescriptionsItem>
+        <ElDescriptionsItem label="审核时间">{{ detail.audit_time || '无' }}</ElDescriptionsItem>
         <ElDescriptionsItem label="创建时间">{{ detail.create_time }}</ElDescriptionsItem>
       </ElDescriptions>
     </ElDrawer>
@@ -142,6 +145,8 @@
         { prop: 'content', label: '评论内容', minWidth: 280, useSlot: true },
         { prop: 'like_count', label: '点赞', width: 80 },
         { prop: 'audit_status', label: '审核', width: 110, useSlot: true },
+        { prop: 'audit_by', label: '审核人', width: 100 },
+        { prop: 'audit_time', label: '审核时间', width: 170 },
         { prop: 'status', label: '状态', width: 90, useSlot: true },
         { prop: 'create_time', label: '评论时间', width: 170 },
         { prop: 'operation', label: '操作', width: 230, fixed: 'right', useSlot: true }
@@ -157,12 +162,19 @@
   }
 
   const auditComment = async (row: Record<string, any>, auditStatus: number) => {
-    await ElMessageBox.confirm(
-      `确定${auditStatus === 1 ? '通过' : '隐藏'}评论 #${row.id} 吗？`,
-      '审核评论',
-      { type: 'warning' }
-    )
-    await api.audit({ id: row.id, audit_status: auditStatus })
+    let auditRemark = ''
+    if (auditStatus === 2) {
+      const result = await ElMessageBox.prompt('请输入隐藏原因', '审核评论', {
+        inputType: 'textarea',
+        inputValidator: (value) => String(value || '').trim() !== '' || '隐藏原因必须填写',
+        confirmButtonText: '确定',
+        cancelButtonText: '取消'
+      })
+      auditRemark = String(result.value || '').trim()
+    } else {
+      await ElMessageBox.confirm(`确定通过评论 #${row.id} 吗？`, '审核评论', { type: 'warning' })
+    }
+    await api.audit({ id: row.id, audit_status: auditStatus, audit_remark: auditRemark })
     ElMessage.success('审核成功')
     refreshData()
   }

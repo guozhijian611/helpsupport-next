@@ -88,6 +88,7 @@ class SaCommunityCommentController extends BaseController
         $result = $this->logic->audit(
             $id,
             $auditStatus,
+            trim((string) $request->post('audit_remark', '')),
             isset($this->adminId) ? $this->adminId : 0
         );
 

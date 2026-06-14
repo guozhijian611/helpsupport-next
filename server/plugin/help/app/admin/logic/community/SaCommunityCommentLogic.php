@@ -21,13 +21,16 @@ class SaCommunityCommentLogic extends BaseLogic
         $this->orderType = 'DESC';
     }
 
-    public function audit(int $id, int $auditStatus, int $adminId): bool
+    public function audit(int $id, int $auditStatus, string $remark, int $adminId): bool
     {
         if ($id <= 0) {
             throw new ApiException('请选择要审核的评论');
         }
         if (!in_array($auditStatus, [1, 2], true)) {
             throw new ApiException('审核状态参数错误');
+        }
+        if ($auditStatus === 2 && $remark === '') {
+            throw new ApiException('隐藏原因必须填写');
         }
 
         $comment = Db::table('sa_community_comment')
@@ -42,9 +45,12 @@ class SaCommunityCommentLogic extends BaseLogic
         $willApprove = $auditStatus === 1;
         $now = date('Y-m-d H:i:s');
 
-        Db::transaction(function () use ($id, $auditStatus, $adminId, $comment, $wasApproved, $willApprove, $now) {
+        Db::transaction(function () use ($id, $auditStatus, $remark, $adminId, $comment, $wasApproved, $willApprove, $now) {
             Db::table('sa_community_comment')->where('id', $id)->update([
                 'audit_status' => $auditStatus,
+                'audit_remark' => $remark,
+                'audit_by' => $adminId > 0 ? $adminId : null,
+                'audit_time' => $now,
                 'status' => $willApprove ? 1 : 2,
                 'updated_by' => $adminId > 0 ? $adminId : null,
                 'update_time' => $now,
