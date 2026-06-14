@@ -197,10 +197,13 @@ class HelpApiService
         if (!empty($params['chat_mode'])) {
             $query->where('chat_mode', (string) $params['chat_mode']);
         }
-        if (!empty($params['model_id'])) {
-            $query->where(function ($query) use ($params) {
-                $query->where('model_id', (int) $params['model_id'])->whereOr('model_id', null);
+        $modelId = (int) ($params['model_id'] ?? 0);
+        if ($modelId > 0) {
+            $query->where(function ($query) use ($modelId) {
+                $query->where('model_id', $modelId)->whereOr('model_id', null);
             });
+        } else {
+            $query->whereNull('model_id');
         }
 
         return $query
