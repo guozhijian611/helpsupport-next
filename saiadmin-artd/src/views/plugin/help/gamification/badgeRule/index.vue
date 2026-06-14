@@ -1,0 +1,75 @@
+<template>
+  <HelpCrudPage
+    title="荣誉徽章规则"
+    :api="api"
+    permission-prefix="help:gamification:badgeRule"
+    :fields="fields"
+  />
+</template>
+
+<script setup lang="ts">
+  import HelpCrudPage from '../../components/HelpCrudPage.vue'
+  import type { HelpCrudField } from '../../components/helpCrudTypes'
+  import api from '../../api/gamification/badgeRule'
+
+  defineOptions({ name: 'HelpBadgeRule' })
+
+  const statusOptions = [
+    { label: '启用', value: 1, tagType: 'success' as const },
+    { label: '禁用', value: 2, tagType: 'info' as const }
+  ]
+
+  const triggerOptions = [
+    { label: '任务数量', value: 'task_count' },
+    { label: '连续打卡', value: 'checkin_streak' },
+    { label: '日记数量', value: 'journal_count' },
+    { label: '素材学习', value: 'material_learn' },
+    { label: '完成预约', value: 'appointment_done' },
+    { label: '手动发放', value: 'manual' }
+  ]
+
+  const fields: HelpCrudField[] = [
+    { prop: 'id', label: 'ID', table: true, detail: true, width: 80, readonly: true },
+    { prop: 'name', label: '徽章名称', search: true, form: true, required: true, minWidth: 150 },
+    { prop: 'code', label: '徽章编码', search: true, form: true, required: true, minWidth: 150 },
+    { prop: 'description', label: '说明', type: 'textarea', form: true, rows: 3, minWidth: 180 },
+    { prop: 'icon', label: '图标', form: true, table: false },
+    {
+      prop: 'trigger_type',
+      label: '触发类型',
+      search: true,
+      form: true,
+      required: true,
+      options: triggerOptions,
+      width: 120
+    },
+    {
+      prop: 'trigger_value',
+      label: '触发阈值',
+      type: 'number',
+      form: true,
+      required: true,
+      default: 1,
+      width: 100
+    },
+    {
+      prop: 'points_reward',
+      label: '奖励积分',
+      type: 'number',
+      form: true,
+      default: 0,
+      width: 100
+    },
+    { prop: 'sort', label: '排序', type: 'number', form: true, default: 100, width: 90 },
+    {
+      prop: 'status',
+      label: '状态',
+      search: true,
+      form: true,
+      required: true,
+      default: 1,
+      options: statusOptions,
+      width: 100
+    }
+  ]
+</script>

@@ -25,10 +25,13 @@ use plugin\help\app\admin\controller\doctor\SaDoctorAssessmentScaleController as
 use plugin\help\app\admin\controller\doctor\SaDoctorPatientController as AdminDoctorPatientController;
 use plugin\help\app\admin\controller\doctor\SaDoctorTaskTemplateController as AdminDoctorTaskTemplateController;
 use plugin\help\app\admin\controller\doctor\SaDoctorTaskTemplateFolderController as AdminDoctorTaskTemplateFolderController;
+use plugin\help\app\admin\controller\gamification\SaMemberBadgeRuleController as AdminMemberBadgeRuleController;
+use plugin\help\app\admin\controller\gamification\SaMemberPointLogController as AdminMemberPointLogController;
 use plugin\help\app\admin\controller\localModel\SaLocalModelCatalogController as AdminLocalModelCatalogController;
 use plugin\help\app\admin\controller\localModel\SaLocalModelPromptController as AdminLocalModelPromptController;
 use plugin\help\app\admin\controller\material\SaContentCategoryController as AdminContentCategoryController;
 use plugin\help\app\admin\controller\material\SaContentMaterialController as AdminContentMaterialController;
+use plugin\help\app\admin\controller\me\SaMemberMemoirConfigController as AdminMemberMemoirConfigController;
 use plugin\help\app\admin\controller\message\SaMemberMessageController as AdminMemberMessageController;
 use plugin\help\app\admin\controller\plan\SaDailyTaskController as AdminDailyTaskController;
 use plugin\help\app\admin\controller\plan\SaMemberAssessmentResultController as AdminAssessmentResultController;
@@ -37,6 +40,7 @@ use plugin\help\app\admin\controller\plan\SaTreatmentStageController as AdminTre
 use plugin\help\app\admin\controller\push\SaMemberPushDeviceController as AdminMemberPushDeviceController;
 use plugin\help\app\admin\controller\push\SaMemberPushPreferenceController as AdminMemberPushPreferenceController;
 use plugin\help\app\admin\controller\push\SaPushTemplateController as AdminPushTemplateController;
+use plugin\help\app\admin\controller\risk\SaSensitiveWordRuleController as AdminSensitiveWordRuleController;
 use Webman\Route;
 
 Route::group('/app/help', function () {
@@ -218,4 +222,17 @@ Route::group('/app/help/admin/message', function () {
     Route::post('/SaMemberMessage/markRead', [AdminMemberMessageController::class, 'markRead']);
     Route::post('/SaMemberMessage/markPushed', [AdminMemberMessageController::class, 'markPushed']);
     Route::post('/SaMemberMessage/markFailed', [AdminMemberMessageController::class, 'markFailed']);
+});
+
+Route::group('/app/help/admin/gamification', function () {
+    fastRoute('SaMemberBadgeRule', AdminMemberBadgeRuleController::class);
+    fastRoute('SaMemberPointLog', AdminMemberPointLogController::class);
+});
+
+Route::group('/app/help/admin/me', function () {
+    fastRoute('SaMemberMemoirConfig', AdminMemberMemoirConfigController::class);
+});
+
+Route::group('/app/help/admin/risk', function () {
+    fastRoute('SaSensitiveWordRule', AdminSensitiveWordRuleController::class);
 });
