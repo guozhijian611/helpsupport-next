@@ -6,10 +6,20 @@ HelpSupport 患者端与医生端移动应用工程，当前阶段包含 Flutter
 
 ```bash
 flutter pub get
-flutter run --dart-define=HELP_SUPPORT_API_BASE_URL=http://127.0.0.1:8787
+flutter run -d ios --dart-define=HELP_SUPPORT_API_BASE_URL=http://10.0.0.6:8787
 ```
 
-`HELP_SUPPORT_API_BASE_URL` 默认值是 `http://127.0.0.1:8787`，后端 API 使用现有 `/app/help/...` 路由。
+`HELP_SUPPORT_API_BASE_URL` 默认值是 `http://10.0.0.6:8787`，后端 API 使用现有 `/app/help/...` 路由。
+
+## 引导页配置
+
+App 启动后无登录态会进入 `/onboarding`，并请求：
+
+```text
+GET /app/help/common/onboarding?scene=first_launch&version=&locale={locale}
+```
+
+接口返回 `sa_app_onboarding_page` 中已启用的配置。移动端支持后端返回绝对图片 URL，也支持 `/storage/...` 这类相对路径；按钮动作按 `action_type` 执行 `next`、`skip`、`route` 和 `external_url`。
 
 ## 本地模型
 

@@ -23,6 +23,7 @@ class OnboardingRepository {
     return value
         .whereType<Map<String, dynamic>>()
         .map(OnboardingPage.fromJson)
+        .map((page) => page.copyWith(image: _apiClient.resolveUrl(page.image)))
         .toList(growable: false);
   }
 }
