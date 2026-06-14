@@ -31,7 +31,7 @@ class SaDoctorAppointmentValidate extends BaseValidate
     ];
 
     protected $scene = [
-        'save' => ['member_id', 'doctor_id', 'appoint_date', 'appoint_time_slot', 'status'],
-        'update' => ['member_id', 'doctor_id', 'appoint_date', 'appoint_time_slot', 'status'],
+        'save' => ['member_id', 'doctor_id', 'appoint_date', 'appoint_time_slot'],
+        'update' => ['member_id', 'doctor_id', 'appoint_date', 'appoint_time_slot'],
     ];
 }

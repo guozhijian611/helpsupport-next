@@ -22,6 +22,7 @@ class SaDoctorAppointmentLogic extends BaseLogic
     public function add(array $data): mixed
     {
         $data = $this->normalizeFields($data);
+        $data['status'] = 0;
 
         return Db::transaction(function () use ($data) {
             $this->reserveScheduleBookedCount((int) ($data['schedule_id'] ?? 0));
@@ -33,6 +34,10 @@ class SaDoctorAppointmentLogic extends BaseLogic
 
     public function edit($id, array $data): mixed
     {
+        if (array_key_exists('status', $data)) {
+            $this->assertUnchangedStatus((int) $id, $data['status']);
+        }
+
         return parent::edit($id, $this->normalizeFields($data));
     }
 
@@ -42,18 +47,22 @@ class SaDoctorAppointmentLogic extends BaseLogic
             throw new ApiException('接诊方式参数错误');
         }
 
-        return (bool) $this->edit($id, [
+        $this->assertAppointmentStatus($id, [0], '只有待确认的预约可以确认');
+
+        return (bool) parent::edit($id, $this->normalizeFields([
             'status' => 1,
             'meet_type' => $meetType !== '' ? $meetType : null,
             'meet_link' => $meetLink !== '' ? $meetLink : null,
             'confirm_remark' => $remark,
             'confirmed_at' => date('Y-m-d H:i:s'),
-        ]);
+        ]));
     }
 
     public function finish(int $id): bool
     {
-        return (bool) $this->edit($id, [
+        $this->assertAppointmentStatus($id, [1], '只有已确认的预约可以完成');
+
+        return (bool) parent::edit($id, [
             'status' => 2,
             'finished_at' => date('Y-m-d H:i:s'),
         ]);
@@ -65,23 +74,36 @@ class SaDoctorAppointmentLogic extends BaseLogic
         if (!in_array($cancelBy, ['member', 'doctor', 'system'], true)) {
             throw new ApiException('取消方参数错误');
         }
+        if ($reason === '') {
+            throw new ApiException('取消原因必须填写');
+        }
 
-        $appointment = $this->appointmentRow($id);
-        return (bool) $this->edit($id, [
-            'status' => 3,
-            'cancel_reason' => $reason,
-            'cancel_by' => $cancelBy,
-            'canceled_at' => date('Y-m-d H:i:s'),
-        ]) && $this->releaseScheduleBookedCount($appointment);
+        return Db::transaction(function () use ($id, $reason, $cancelBy) {
+            $appointment = $this->assertAppointmentStatus($id, [0, 1], '只有待确认或已确认的预约可以取消');
+
+            return (bool) parent::edit($id, [
+                'status' => 3,
+                'cancel_reason' => $reason,
+                'cancel_by' => $cancelBy,
+                'canceled_at' => date('Y-m-d H:i:s'),
+            ]) && $this->releaseScheduleBookedCount($appointment);
+        });
     }
 
     public function reject(int $id, string $remark): bool
     {
-        $appointment = $this->appointmentRow($id);
-        return (bool) $this->edit($id, [
-            'status' => 4,
-            'confirm_remark' => $remark,
-        ]) && $this->releaseScheduleBookedCount($appointment);
+        if ($remark === '') {
+            throw new ApiException('拒绝原因必须填写');
+        }
+
+        return Db::transaction(function () use ($id, $remark) {
+            $appointment = $this->assertAppointmentStatus($id, [0], '只有待确认的预约可以拒绝');
+
+            return (bool) parent::edit($id, [
+                'status' => 4,
+                'confirm_remark' => $remark,
+            ]) && $this->releaseScheduleBookedCount($appointment);
+        });
     }
 
     private function normalizeFields(array $data): array
@@ -107,6 +129,31 @@ class SaDoctorAppointmentLogic extends BaseLogic
             ->where('id', $id)
             ->whereNull('delete_time')
             ->find() ?: [];
+    }
+
+    private function assertAppointmentStatus(int $id, array $allowedStatuses, string $message): array
+    {
+        $appointment = $this->appointmentRow($id);
+        if (!$appointment) {
+            throw new ApiException('预约不存在');
+        }
+        if (!in_array((int) ($appointment['status'] ?? -1), $allowedStatuses, true)) {
+            throw new ApiException($message);
+        }
+
+        return $appointment;
+    }
+
+    private function assertUnchangedStatus(int $id, mixed $status): void
+    {
+        if (!is_numeric($status)) {
+            throw new ApiException('预约状态参数错误');
+        }
+
+        $appointment = $this->assertAppointmentStatus($id, [0, 1, 2, 3, 4], '预约状态参数错误');
+        if ((int) $status !== (int) ($appointment['status'] ?? -1)) {
+            throw new ApiException('请通过确认、完成、取消或拒绝操作变更预约状态');
+        }
     }
 
     private function reserveScheduleBookedCount(int $scheduleId): void

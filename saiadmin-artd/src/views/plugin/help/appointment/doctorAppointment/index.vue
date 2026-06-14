@@ -81,7 +81,7 @@
     {
       prop: 'status',
       label: '状态',
-      form: true,
+      form: false,
       search: true,
       options: [
         {
@@ -216,7 +216,7 @@
       method: 'cancel',
       type: 'warning',
       permission: 'help:appointment:doctorAppointment:cancel',
-      prompt: { field: 'cancel_reason', label: '请输入取消原因', inputType: 'textarea' },
+      prompt: { field: 'cancel_reason', label: '请输入取消原因', inputType: 'textarea', required: true },
       visible: (row: Record<string, any>) => [0, 1].includes(Number(row.status)),
       payload: (row: Record<string, any>, value?: string) => ({
         id: row.id,
@@ -229,7 +229,7 @@
       method: 'reject',
       type: 'danger',
       permission: 'help:appointment:doctorAppointment:reject',
-      prompt: { field: 'confirm_remark', label: '请输入拒绝原因', inputType: 'textarea' },
+      prompt: { field: 'confirm_remark', label: '请输入拒绝原因', inputType: 'textarea', required: true },
       visible: (row: Record<string, any>) => Number(row.status) === 0,
       payload: (row: Record<string, any>, value?: string) => ({
         id: row.id,
