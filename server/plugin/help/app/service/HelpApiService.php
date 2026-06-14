@@ -117,9 +117,6 @@ class HelpApiService
     public function markOnboardingSeen(int $memberId, string $version): array
     {
         $version = trim($version);
-        if ($version === '') {
-            throw new ApiException('引导页版本必须填写', 400);
-        }
 
         $this->upsertByMember('sa_help_member_profile', $memberId, [
             'onboarding_version' => $version,

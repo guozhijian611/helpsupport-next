@@ -50,7 +50,7 @@ class MeController extends BaseController
     #[Apidoc\Title('上报已看引导页版本')]
     #[Apidoc\Url('/app/help/common/onboarding/seen')]
     #[Apidoc\Method('POST')]
-    #[Apidoc\Param('version', type: 'string', require: true, desc: '已看引导页版本')]
+    #[Apidoc\Param('version', type: 'string', require: false, default: '', desc: '已看引导页版本，空值表示默认版本')]
     #[Apidoc\Returned('onboarding_version', type: 'string', desc: '已记录版本')]
     public function onboardingSeen(Request $request): Response
     {
