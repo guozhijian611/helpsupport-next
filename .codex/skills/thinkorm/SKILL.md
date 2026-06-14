@@ -1,9 +1,11 @@
 ---
-name: ThinkORM 3.0 Development
+name: thinkorm
 description: ThinkORM 3.0 数据库 ORM 开发指南，包含数据库配置、CRUD 操作、链式查询、模型定义、关联关系、模型事件等核心功能的使用方法和最佳实践。
 ---
 
 # ThinkORM 3.0 开发技能指南
+
+本地完整官方手册在 `references/official-manual/file.md`，需要核对 ThinkORM 细节时按需读取。
 
 ## 框架简介
 

@@ -1,5 +1,5 @@
 ---
-name: Element Plus 组件速查手册
+name: elementplus
 description: Element Plus UI 组件库核心 API 速查，涵盖表格、表单、对话框、选择器等常用组件
 ---
 
@@ -7,6 +7,7 @@ description: Element Plus UI 组件库核心 API 速查，涵盖表格、表单�
 
 > **官方文档**: https://element-plus.org/
 > **生成时间**: 2026-02-08
+> **本地参考**: `references/component-manual/`
 
 ---
 

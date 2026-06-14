@@ -16,7 +16,7 @@ description: unibest / create-unibest uni-app 开发指南。用于创建、维�
 - 生成接口代码、配置 OpenAPI、处理 `vue-query`、`uni.request`、上传、多后端地址。
 - 参与 `create-unibest` CLI 开发或新增 Feature。
 
-本地参考文档在 `参考手册/unibest-docs/docs`，本地模板源码在 `参考手册/unibest`。官方站点是 https://unibest.tech/ ，代码仓库是 https://github.com/feige996/unibest ，文档仓库是 https://github.com/unibest-tech/unibest-docs 。
+本地参考文档在 `references/official-docs/docs`，本地 base 模板源码在 `references/base-template`，main 分支源码在 `references/main-source`。官方站点是 https://unibest.tech/ ，代码仓库是 https://github.com/feige996/unibest ，文档仓库是 https://github.com/unibest-tech/unibest-docs 。
 
 ## 深度参考
 
@@ -44,7 +44,7 @@ unibest/
 - `main`：CLI 开发分支，包含 `packages/cli/` 和模板源码。
 - `base`：用户创建项目时克隆的纯净模板。
 
-注意：`参考手册/unibest` 是官方默认分支的浅克隆，当前用于查看 `base` 模板源码。若要改 `create-unibest` CLI，切到或另行克隆 `main` 分支再看 `packages/cli/`。
+注意：`references/base-template` 是官方 `base` 模板浅克隆，当前用于查看用户项目结构。若要改 `create-unibest` CLI，优先查看 `references/main-source/packages/cli/`。
 
 ## 创建项目
 

@@ -37,8 +37,9 @@
 | 官方文档     | https://unibest.tech/                     | unibest 完整开发文档                 |
 | 文档源码     | https://github.com/unibest-tech/unibest-docs | VitePress 文档源码                   |
 | 项目源码     | https://github.com/feige996/unibest       | unibest / create-unibest 项目源码    |
-| 本地参考手册 | 参考手册/unibest-docs/docs               | 已下载的 Markdown 文档               |
-| 本地模板源码 | 参考手册/unibest                         | 已浅克隆的 unibest base 模板源码     |
+| 本地参考手册 | unibest/references/official-docs/docs    | 已下载的 Markdown 文档               |
+| 本地模板源码 | unibest/references/base-template         | 已浅克隆的 unibest base 模板源码     |
+| main 分支源码 | unibest/references/main-source           | 已浅克隆的 create-unibest 源码       |
 
 ### 生成内容
 

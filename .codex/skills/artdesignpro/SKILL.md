@@ -1,5 +1,5 @@
 ---
-name: Art Design Pro 开发指南
+name: artdesignpro
 description: 基于 Art Design Pro 官方文档的 Vue 3 企业级中后台开发技能
 ---
 
@@ -8,6 +8,7 @@ description: 基于 Art Design Pro 官方文档的 Vue 3 企业级中后台开�
 > **生成时间**: 2026-02-08
 > **官方文档**: https://www.artd.pro/
 > **GitHub**: https://github.com/Daymychen/art-design-pro
+> **本地参考**: `references/official-manual/file.md`
 
 ---
 

@@ -4,9 +4,9 @@
 
 ## 本地源码
 
-- `参考手册/unibest`：官方 `base` 模板浅克隆，当前用于查看用户项目结构。
-- `参考手册/unibest-main`：官方 `main` 分支浅克隆，当前用于查看 `packages/cli` 和 Feature 注入逻辑。
-- `参考手册/unibest-docs/docs`：官方文档源码。
+- `references/base-template`：官方 `base` 模板浅克隆，当前用于查看用户项目结构。
+- `references/main-source`：官方 `main` 分支浅克隆，当前用于查看 `packages/cli` 和 Feature 注入逻辑。
+- `references/official-docs/docs`：官方文档源码。
 
 ## 顶层配置
 
@@ -75,7 +75,7 @@
 
 ## create-unibest CLI
 
-在 `参考手册/unibest-main/packages/cli`：
+在 `references/main-source/packages/cli`：
 
 - `src/commands/create.ts`：创建命令入口，验证项目名，读取 unibest 版本，调用 prompt 和 generate。
 - `src/commands/create/prompts.ts`：CLI 参数和交互选项。平台可选 `h5`、`mp-weixin`、`app`、`mp-alipay`、`mp-toutiao`；UI 可选 `none`、`wot-ui-v2`、`wot-ui`、`uview-pro`、`sard-uniapp`、`uv-ui`、`uview-plus`、`tdesign`；Feature 包含 `i18n`、`login`、`lime-echart`、`ucharts`。
