@@ -14,7 +14,7 @@ abstract class AbstractPhinxCommand extends Command
             PHP_BINARY,
             base_path('vendor/bin/phinx'),
             '-c',
-            base_path('../Database/phinx.php'),
+            $this->databaseFile('phinx.php'),
         ], $arguments);
 
         $process = proc_open(
@@ -25,7 +25,7 @@ abstract class AbstractPhinxCommand extends Command
                 2 => STDERR,
             ],
             $pipes,
-            base_path()
+            base_path(false)
         );
 
         if (!is_resource($process)) {
@@ -34,5 +34,21 @@ abstract class AbstractPhinxCommand extends Command
 
         $exitCode = proc_close($process);
         return in_array($exitCode, $successExitCodes, true) ? self::SUCCESS : $exitCode;
+    }
+
+    protected function databaseFile(string $file): string
+    {
+        $candidates = [
+            base_path(false) . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . $file,
+            base_path('../Database/' . $file),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return $candidates[0];
     }
 }

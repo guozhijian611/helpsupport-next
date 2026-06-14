@@ -14,6 +14,10 @@ use plugin\help\app\api\controller\PushController;
 use plugin\help\app\admin\controller\community\SaCommunityCommentController as AdminCommunityCommentController;
 use plugin\help\app\admin\controller\community\SaCommunityPostController as AdminCommunityPostController;
 use plugin\help\app\admin\controller\community\SaCommunityReportController as AdminCommunityReportController;
+use plugin\help\app\admin\controller\plan\SaDailyTaskController as AdminDailyTaskController;
+use plugin\help\app\admin\controller\plan\SaMemberAssessmentResultController as AdminAssessmentResultController;
+use plugin\help\app\admin\controller\plan\SaTreatmentPlanController as AdminTreatmentPlanController;
+use plugin\help\app\admin\controller\plan\SaTreatmentStageController as AdminTreatmentStageController;
 use Webman\Route;
 
 Route::group('/app/help', function () {
@@ -95,4 +99,11 @@ Route::group('/app/help/admin/community', function () {
 
     fastRoute('SaCommunityReport', AdminCommunityReportController::class);
     Route::post('/SaCommunityReport/handle', [AdminCommunityReportController::class, 'handle']);
+});
+
+Route::group('/app/help/admin/plan', function () {
+    fastRoute('SaTreatmentPlan', AdminTreatmentPlanController::class);
+    fastRoute('SaTreatmentStage', AdminTreatmentStageController::class);
+    fastRoute('SaDailyTask', AdminDailyTaskController::class);
+    fastRoute('SaMemberAssessmentResult', AdminAssessmentResultController::class);
 });

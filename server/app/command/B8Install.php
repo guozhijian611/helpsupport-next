@@ -216,7 +216,7 @@ final class B8Install extends AbstractPhinxCommand
             return;
         }
 
-        $sqlFile = base_path('../Database/b8aiadmin.sql');
+        $sqlFile = $this->databaseFile('b8aiadmin.sql');
         if (!is_file($sqlFile)) {
             throw new \RuntimeException('未找到 Database/b8aiadmin.sql。');
         }
