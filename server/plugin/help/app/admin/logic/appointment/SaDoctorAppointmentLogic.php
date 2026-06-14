@@ -3,9 +3,12 @@
 namespace plugin\help\app\admin\logic\appointment;
 
 use plugin\help\app\model\appointment\SaDoctorAppointment;
+use plugin\help\app\service\HelpBadgeService;
+use plugin\help\app\service\HelpPushService;
 use plugin\saiadmin\basic\think\BaseLogic;
 use plugin\saiadmin\exception\ApiException;
 use think\facade\Db;
+use Throwable;
 
 /**
  * 医生预约逻辑层
@@ -47,25 +50,47 @@ class SaDoctorAppointmentLogic extends BaseLogic
             throw new ApiException('接诊方式参数错误');
         }
 
-        $this->assertAppointmentStatus($id, [0], '只有待确认的预约可以确认');
+        $appointment = $this->assertAppointmentStatus($id, [0], '只有待确认的预约可以确认');
+        $result = Db::transaction(function () use ($id, $appointment, $meetType, $meetLink, $remark) {
+            $ok = (bool) parent::edit($id, $this->normalizeFields([
+                'status' => 1,
+                'meet_type' => $meetType !== '' ? $meetType : null,
+                'meet_link' => $meetLink !== '' ? $meetLink : null,
+                'confirm_remark' => $remark,
+                'confirmed_at' => date('Y-m-d H:i:s'),
+            ]));
+            if ($ok) {
+                $this->upsertDoctorPatientRelation((int) $appointment['doctor_id'], (int) $appointment['member_id']);
+            }
 
-        return (bool) parent::edit($id, $this->normalizeFields([
-            'status' => 1,
-            'meet_type' => $meetType !== '' ? $meetType : null,
-            'meet_link' => $meetLink !== '' ? $meetLink : null,
-            'confirm_remark' => $remark,
-            'confirmed_at' => date('Y-m-d H:i:s'),
-        ]));
+            return $ok;
+        });
+        if ($result) {
+            $this->notifyAppointmentMember($appointment, 'confirmed');
+        }
+
+        return $result;
     }
 
     public function finish(int $id): bool
     {
-        $this->assertAppointmentStatus($id, [1], '只有已确认的预约可以完成');
+        $appointment = $this->assertAppointmentStatus($id, [1], '只有已确认的预约可以完成');
+        $result = Db::transaction(function () use ($id, $appointment) {
+            $ok = (bool) parent::edit($id, [
+                'status' => 2,
+                'finished_at' => date('Y-m-d H:i:s'),
+            ]);
+            if ($ok) {
+                (new HelpBadgeService())->awardAppointmentDone((int) $appointment['member_id'], $id);
+            }
 
-        return (bool) parent::edit($id, [
-            'status' => 2,
-            'finished_at' => date('Y-m-d H:i:s'),
-        ]);
+            return $ok;
+        });
+        if ($result) {
+            $this->notifyAppointmentMember($appointment, 'finished');
+        }
+
+        return $result;
     }
 
     public function cancel(int $id, string $reason, string $cancelBy = 'system'): bool
@@ -78,7 +103,8 @@ class SaDoctorAppointmentLogic extends BaseLogic
             throw new ApiException('取消原因必须填写');
         }
 
-        return Db::transaction(function () use ($id, $reason, $cancelBy) {
+        $appointment = [];
+        $result = Db::transaction(function () use ($id, $reason, $cancelBy, &$appointment) {
             $appointment = $this->assertAppointmentStatus($id, [0, 1], '只有待确认或已确认的预约可以取消');
 
             return (bool) parent::edit($id, [
@@ -88,6 +114,11 @@ class SaDoctorAppointmentLogic extends BaseLogic
                 'canceled_at' => date('Y-m-d H:i:s'),
             ]) && $this->releaseScheduleBookedCount($appointment);
         });
+        if ($result) {
+            $this->notifyAppointmentMember($appointment, 'canceled');
+        }
+
+        return $result;
     }
 
     public function reject(int $id, string $remark): bool
@@ -96,7 +127,8 @@ class SaDoctorAppointmentLogic extends BaseLogic
             throw new ApiException('拒绝原因必须填写');
         }
 
-        return Db::transaction(function () use ($id, $remark) {
+        $appointment = [];
+        $result = Db::transaction(function () use ($id, $remark, &$appointment) {
             $appointment = $this->assertAppointmentStatus($id, [0], '只有待确认的预约可以拒绝');
 
             return (bool) parent::edit($id, [
@@ -104,6 +136,11 @@ class SaDoctorAppointmentLogic extends BaseLogic
                 'confirm_remark' => $remark,
             ]) && $this->releaseScheduleBookedCount($appointment);
         });
+        if ($result) {
+            $this->notifyAppointmentMember($appointment, 'rejected');
+        }
+
+        return $result;
     }
 
     private function normalizeFields(array $data): array
@@ -189,5 +226,64 @@ class SaDoctorAppointmentLogic extends BaseLogic
         );
 
         return true;
+    }
+
+    private function upsertDoctorPatientRelation(int $doctorId, int $memberId): void
+    {
+        if ($doctorId <= 0 || $memberId <= 0) {
+            return;
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $exists = Db::table('sa_doctor_patient')
+            ->where('doctor_id', $doctorId)
+            ->where('member_id', $memberId)
+            ->find();
+        if ($exists) {
+            Db::table('sa_doctor_patient')->where('id', $exists['id'])->update([
+                'status' => 1,
+                'bind_source' => 'appointment',
+                'bind_time' => $now,
+                'unbind_time' => null,
+                'delete_time' => null,
+                'updated_by' => $doctorId,
+                'update_time' => $now,
+            ]);
+            return;
+        }
+
+        Db::table('sa_doctor_patient')->insert([
+            'doctor_id' => $doctorId,
+            'member_id' => $memberId,
+            'status' => 1,
+            'bind_source' => 'appointment',
+            'bind_time' => $now,
+            'created_by' => $doctorId,
+            'updated_by' => $doctorId,
+            'create_time' => $now,
+            'update_time' => $now,
+        ]);
+    }
+
+    private function notifyAppointmentMember(array $appointment, string $statusText): void
+    {
+        $memberId = (int) ($appointment['member_id'] ?? 0);
+        $appointmentId = (int) ($appointment['id'] ?? 0);
+        if ($memberId <= 0 || $appointmentId <= 0) {
+            return;
+        }
+
+        try {
+            (new HelpPushService())->notifyMember($memberId, 'appointment_update', [
+                'status_text' => $statusText,
+            ], [
+                'biz_type' => 'appointment',
+                'biz_id' => $appointmentId,
+                'route' => '/pages/appointment/detail',
+                'payload' => ['appointment_id' => $appointmentId],
+            ]);
+        } catch (Throwable) {
+            // 预约状态已落库，通知失败不阻断后台操作。
+        }
     }
 }

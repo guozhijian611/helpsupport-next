@@ -2747,51 +2747,7 @@ class HelpApiService
 
     private function awardBadgesByTrigger(int $memberId, string $triggerType, int $triggerValue, string $sourceType, int $sourceId): void
     {
-        if ($memberId <= 0 || $triggerValue <= 0) {
-            return;
-        }
-
-        $rules = Db::table('sa_member_badge_rule')
-            ->where('trigger_type', $triggerType)
-            ->where('trigger_value', '<=', $triggerValue)
-            ->where('status', 1)
-            ->whereNull('delete_time')
-            ->order('trigger_value', 'asc')
-            ->order('sort', 'asc')
-            ->order('id', 'asc')
-            ->select()
-            ->toArray();
-        $now = date('Y-m-d H:i:s');
-        foreach ($rules as $rule) {
-            $code = (string) ($rule['code'] ?? '');
-            if ($code === '' || Db::table('sa_member_badge')
-                ->where('member_id', $memberId)
-                ->where('badge_code', $code)
-                ->whereNull('delete_time')
-                ->find()) {
-                continue;
-            }
-
-            $badgeId = (int) Db::table('sa_member_badge')->insertGetId([
-                'member_id' => $memberId,
-                'rule_id' => (int) $rule['id'],
-                'badge_code' => $code,
-                'badge_name' => (string) $rule['name'],
-                'source_type' => $sourceType,
-                'source_id' => $sourceId,
-                'award_time' => $now,
-                'status' => 1,
-                'created_by' => $memberId,
-                'updated_by' => $memberId,
-                'create_time' => $now,
-                'update_time' => $now,
-            ]);
-
-            $pointsReward = max(0, (int) ($rule['points_reward'] ?? 0));
-            if ($pointsReward > 0) {
-                $this->addPointLog($memberId, $pointsReward, 'badge', $badgeId, '获得荣誉徽章', (string) $rule['name']);
-            }
-        }
+        (new HelpBadgeService())->awardByTrigger($memberId, $triggerType, $triggerValue, $sourceType, $sourceId);
     }
 
     private function awardJournalBadges(int $memberId, int $journalId): void
@@ -2815,12 +2771,7 @@ class HelpApiService
 
     private function awardAppointmentDoneBadges(int $memberId, int $appointmentId): void
     {
-        $doneCount = (int) Db::table('sa_doctor_appointment')
-            ->where('member_id', $memberId)
-            ->where('status', 2)
-            ->whereNull('delete_time')
-            ->count();
-        $this->awardBadgesByTrigger($memberId, 'appointment_done', $doneCount, 'appointment', $appointmentId);
+        (new HelpBadgeService())->awardAppointmentDone($memberId, $appointmentId);
     }
 
     private function awardCheckinStreakBadges(int $memberId, int $taskId, string $taskDate): void
