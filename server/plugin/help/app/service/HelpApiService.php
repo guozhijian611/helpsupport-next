@@ -1617,6 +1617,7 @@ class HelpApiService
             if ($doctorId === $memberId) {
                 throw new ApiException('不能预约自己', 400);
             }
+            $this->assertNoActiveAppointmentForSchedule($memberId, (int) $schedule['id']);
 
             $payload = $this->only($data, ['meet_type', 'meet_link', 'remark']);
             $payload['member_id'] = $memberId;
@@ -2991,6 +2992,23 @@ class HelpApiService
         }
 
         return $schedule;
+    }
+
+    private function assertNoActiveAppointmentForSchedule(int $memberId, int $scheduleId): void
+    {
+        if ($memberId <= 0 || $scheduleId <= 0) {
+            return;
+        }
+
+        $exists = Db::table('sa_doctor_appointment')
+            ->where('member_id', $memberId)
+            ->where('schedule_id', $scheduleId)
+            ->whereIn('status', [0, 1])
+            ->whereNull('delete_time')
+            ->find();
+        if ($exists) {
+            throw new ApiException('该时段已有待处理预约，请勿重复预约', 400);
+        }
     }
 
     private function releaseAppointmentSchedule(array $appointment): void

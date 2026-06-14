@@ -28,6 +28,10 @@ class SaDoctorAppointmentLogic extends BaseLogic
         $data['status'] = 0;
 
         return Db::transaction(function () use ($data) {
+            $this->assertNoActiveAppointmentForSchedule(
+                (int) ($data['member_id'] ?? 0),
+                (int) ($data['schedule_id'] ?? 0)
+            );
             $this->reserveScheduleBookedCount((int) ($data['schedule_id'] ?? 0));
             $result = parent::add($data);
 
@@ -209,6 +213,23 @@ class SaDoctorAppointmentLogic extends BaseLogic
         );
         if ($affected < 1) {
             throw new ApiException('排班不存在或容量已满');
+        }
+    }
+
+    private function assertNoActiveAppointmentForSchedule(int $memberId, int $scheduleId): void
+    {
+        if ($memberId <= 0 || $scheduleId <= 0) {
+            return;
+        }
+
+        $exists = Db::table('sa_doctor_appointment')
+            ->where('member_id', $memberId)
+            ->where('schedule_id', $scheduleId)
+            ->whereIn('status', [0, 1])
+            ->whereNull('delete_time')
+            ->find();
+        if ($exists) {
+            throw new ApiException('该患者在此排班已有待处理预约，请勿重复添加');
         }
     }
 
