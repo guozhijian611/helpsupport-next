@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -18,23 +21,27 @@ class OnboardingScreen extends ConsumerWidget {
     );
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.onboardingTitle)),
-      body: SafeArea(
-        child: pages.when(
-          data: (items) => items.isEmpty
-              ? _EmptyOnboarding(
+      backgroundColor: _onboardingGradientStart,
+      body: pages.when(
+        data: (items) => items.isEmpty
+            ? _OnboardingGradientBackground(
+                child: _EmptyOnboarding(
                   onRetry: () => ref.invalidate(
                     onboardingPagesProvider(OnboardingQuery(locale: locale)),
                   ),
-                )
-              : _OnboardingPager(items: items),
-          error: (error, stackTrace) => _ErrorState(
+                ),
+              )
+            : _OnboardingPager(items: items),
+        error: (error, stackTrace) => _OnboardingGradientBackground(
+          child: _ErrorState(
             message: context.l10n.networkUnavailable,
             onRetry: () => ref.invalidate(
               onboardingPagesProvider(OnboardingQuery(locale: locale)),
             ),
           ),
-          loading: () => const Center(child: CircularProgressIndicator()),
+        ),
+        loading: () => const _OnboardingGradientBackground(
+          child: Center(child: CircularProgressIndicator(color: Colors.white)),
         ),
       ),
     );
@@ -64,63 +71,111 @@ class _OnboardingPagerState extends State<_OnboardingPager> {
   Widget build(BuildContext context) {
     final item = widget.items[_index];
     final isLast = _index == widget.items.length - 1;
+    final scale = _onboardingLayoutScale(context);
 
-    return Column(
-      children: [
-        Expanded(
-          child: PageView.builder(
+    return _OnboardingGradientBackground(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          PageView.builder(
             controller: _controller,
             itemCount: widget.items.length,
             onPageChanged: (value) => setState(() => _index = value),
             itemBuilder: (context, index) {
-              return _OnboardingPageCard(page: widget.items[index]);
+              return _OnboardingSlide(
+                page: widget.items[index],
+                variant: _slideVariant(index, widget.items[index]),
+              );
             },
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (var i = 0; i < widget.items.length; i++)
-                    AnimatedContainer(
-                      width: i == _index ? 24 : 8,
-                      height: 8,
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      duration: const Duration(milliseconds: 180),
-                      decoration: BoxDecoration(
-                        color: i == _index
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).colorScheme.outlineVariant,
-                        borderRadius: BorderRadius.circular(99),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 94 * scale,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(widget.items.length, (i) {
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: EdgeInsets.symmetric(horizontal: 5 * scale),
+                  width: 28 * scale,
+                  height: 4 * scale,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(
+                      alpha: i == _index ? 1 : 0.4,
+                    ),
+                    borderRadius: BorderRadius.circular(2 * scale),
+                  ),
+                );
+              }),
+            ),
+          ),
+          if (isLast)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 124 * scale,
+              child: Center(
+                child: SizedBox(
+                  width: 240 * scale,
+                  height: 49 * scale,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: BorderSide(color: Colors.white, width: 2 * scale),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(50 * scale),
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              FilledButton(
-                onPressed: () => _handleAction(context, item, isLast),
-                child: Text(
-                  item.buttonText.isNotEmpty
-                      ? item.buttonText
-                      : context.l10n.continueLabel,
+                    onPressed: () => _handleAction(context, item, isLast),
+                    child: Text(
+                      item.buttonText.isNotEmpty
+                          ? item.buttonText
+                          : context.l10n.continueLabel,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ),
               ),
-            ],
-          ),
-        ),
-      ],
+            ),
+        ],
+      ),
     );
   }
 
-  Future<void> _handleAction(
-    BuildContext context,
-    OnboardingPage item,
-    bool isLast,
-  ) async {
+  String _slideVariant(int index, OnboardingPage page) {
+    final marker = '${page.actionValue} ${page.title}'.toLowerCase();
+    if (index == 0 || page.sort <= 10 || marker.contains('welcome')) {
+      return 'cat';
+    }
+    if (index == 1 || page.sort <= 20 || marker.contains('plan')) {
+      return 'dog';
+    }
+    return 'companion';
+  }
+
+  void _goNextOrLogin(BuildContext context, bool isLast) {
+    if (isLast) {
+      context.go('/login');
+      return;
+    }
+    unawaited(
+      _controller.nextPage(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      ),
+    );
+  }
+
+  void _handleAction(BuildContext context, OnboardingPage item, bool isLast) {
     switch (item.actionType.trim()) {
+      case 'next':
+        _goNextOrLogin(context, isLast);
+        return;
       case 'skip':
         context.go('/login');
         return;
@@ -134,82 +189,160 @@ class _OnboardingPagerState extends State<_OnboardingPager> {
       case 'external_url':
         final uri = Uri.tryParse(item.actionValue.trim());
         if (uri != null && uri.hasScheme) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
+          unawaited(launchUrl(uri, mode: LaunchMode.externalApplication));
           return;
         }
         break;
     }
 
-    if (isLast) {
-      context.go('/login');
-      return;
-    }
-    await _controller.nextPage(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOut,
+    _goNextOrLogin(context, isLast);
+  }
+}
+
+class _OnboardingGradientBackground extends StatelessWidget {
+  const _OnboardingGradientBackground({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [_onboardingGradientStart, _onboardingGradientEnd],
+        ),
+      ),
+      child: child,
     );
   }
 }
 
-class _OnboardingPageCard extends StatelessWidget {
-  const _OnboardingPageCard({required this.page});
+class _OnboardingSlide extends StatelessWidget {
+  const _OnboardingSlide({required this.page, required this.variant});
 
   final OnboardingPage page;
+  final String variant;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final scale = _onboardingLayoutScale(context);
+    final safeTop = MediaQuery.paddingOf(context).top;
+    final imageTop =
+        switch (variant) {
+          'cat' => 251.0,
+          'dog' => 278.5,
+          _ => 287.5,
+        } *
+        scale;
+    final imageWidth =
+        switch (variant) {
+          'cat' => 257.0,
+          'dog' => 215.0,
+          _ => 254.5,
+        } *
+        scale;
+    final imageHeight =
+        switch (variant) {
+          'cat' => 342.5,
+          'dog' => 308.0,
+          _ => 294.5,
+        } *
+        scale;
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AspectRatio(
-            aspectRatio: 1.2,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: scheme.primaryContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: page.image.isEmpty
-                  ? Icon(
-                      Icons.health_and_safety_outlined,
-                      size: 96,
-                      color: scheme.onPrimaryContainer,
-                    )
-                  : ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        page.image,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Icon(
-                            Icons.broken_image_outlined,
-                            size: 80,
-                            color: scheme.onPrimaryContainer,
-                          );
-                        },
-                      ),
-                    ),
-            ),
-          ),
-          const SizedBox(height: 28),
-          Text(
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned(
+          top: math.max(72, 100 * scale + safeTop * 0.15),
+          left: 20 * scale,
+          right: 20 * scale,
+          child: Text(
             page.title,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              height: 1.4,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-          const SizedBox(height: 12),
-          Text(
+        ),
+        Positioned(
+          top: math.max(116, 150 * scale + safeTop * 0.15),
+          left: 24 * scale,
+          right: 24 * scale,
+          child: Text(
             page.description,
             textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.78),
+              fontSize: 12,
+              height: 1.45,
+            ),
           ),
-        ],
+        ),
+        Positioned(
+          top: imageTop,
+          left: 0,
+          right: 0,
+          child: _OnboardingImage(
+            source: page.image,
+            width: imageWidth,
+            height: imageHeight,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OnboardingImage extends StatelessWidget {
+  const _OnboardingImage({
+    required this.source,
+    required this.width,
+    required this.height,
+  });
+
+  final String source;
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final placeholder = Icon(
+      Icons.health_and_safety_outlined,
+      color: Colors.white.withValues(alpha: 0.72),
+      size: 76,
+    );
+
+    return Center(
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: source.isEmpty
+            ? placeholder
+            : Image.network(
+                source,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) {
+                    return child;
+                  }
+                  return Center(
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                      value: loadingProgress.expectedTotalBytes == null
+                          ? null
+                          : loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!,
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) => placeholder,
+              ),
       ),
     );
   }
@@ -240,12 +373,32 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(message, textAlign: TextAlign.center),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white),
+            ),
             const SizedBox(height: 16),
-            OutlinedButton(onPressed: onRetry, child: Text(context.l10n.retry)),
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white),
+              ),
+              onPressed: onRetry,
+              child: Text(context.l10n.retry),
+            ),
           ],
         ),
       ),
     );
   }
 }
+
+double _onboardingLayoutScale(BuildContext context) {
+  final width = MediaQuery.sizeOf(context).width;
+  final effectiveWidth = math.max(width, 320.0);
+  return effectiveWidth / 375.0;
+}
+
+const _onboardingGradientStart = Color(0xFFFF9585);
+const _onboardingGradientEnd = Color(0xFFFCB08E);
