@@ -151,9 +151,10 @@
       const result = await ElMessageBox.prompt('请输入拒绝原因', '拒绝帖子', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
-        inputPlaceholder: '可选'
+        inputPlaceholder: '必填',
+        inputValidator: (value) => String(value || '').trim() !== '' || '请输入拒绝原因'
       })
-      auditRemark = String(result.value || '')
+      auditRemark = String(result.value || '').trim()
     } else {
       await ElMessageBox.confirm(`确定通过帖子 #${row.id} 吗？`, '审核帖子', {
         type: 'warning'

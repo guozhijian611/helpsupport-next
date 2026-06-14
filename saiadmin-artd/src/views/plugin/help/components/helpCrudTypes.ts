@@ -36,6 +36,7 @@ export interface HelpCrudAction {
     label: string
     placeholder?: string
     inputType?: 'text' | 'textarea'
+    required?: boolean
   }
   visible?: (row: Record<string, any>) => boolean
   payload?: (row: Record<string, any>, value?: string) => Record<string, any>

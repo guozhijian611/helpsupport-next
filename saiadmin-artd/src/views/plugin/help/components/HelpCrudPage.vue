@@ -403,7 +403,10 @@
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         inputType: action.prompt.inputType || 'text',
-        inputPlaceholder: action.prompt.placeholder || ''
+        inputPlaceholder: action.prompt.placeholder || '',
+        inputValidator: action.prompt.required
+          ? (value) => String(value || '').trim() !== '' || action.prompt?.label || '请输入内容'
+          : undefined
       })
       promptValue = result.value
     } else {

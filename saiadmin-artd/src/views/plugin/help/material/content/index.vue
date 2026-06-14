@@ -268,12 +268,12 @@
       method: 'audit',
       type: 'warning',
       permission: 'help:material:content:audit',
-      prompt: { field: 'audit_remark', label: '请输入拒绝原因', inputType: 'textarea' },
+      prompt: { field: 'audit_remark', label: '请输入拒绝原因', inputType: 'textarea', required: true },
       visible: (row: Record<string, any>) => Number(row.audit_status) !== 3,
       payload: (row: Record<string, any>, value?: string) => ({
         id: row.id,
         audit_status: 3,
-        audit_remark: value || ''
+        audit_remark: String(value || '').trim()
       })
     }
   ]

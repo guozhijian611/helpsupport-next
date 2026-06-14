@@ -33,6 +33,9 @@ class SaContentMaterialLogic extends BaseLogic
         if (!in_array($auditStatus, [1, 2, 3], true)) {
             throw new ApiException('审核状态参数错误');
         }
+        if ($auditStatus === 3 && $remark === '') {
+            throw new ApiException('拒绝原因必须填写');
+        }
 
         return (bool) $this->edit($id, [
             'audit_status' => $auditStatus,
