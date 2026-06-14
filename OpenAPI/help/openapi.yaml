@@ -3002,6 +3002,159 @@
         }
       }
     },
+    "/app/help/me/badges": {
+      "get": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "我的荣誉徽章",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "状态 1有效 2撤销",
+            "format": "int32"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "徽章列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/points": {
+      "get": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "我的积分流水",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "change_type",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "变动类型 income/expense/adjust"
+          },
+          {
+            "name": "source_type",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "来源类型"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "balance": {
+                      "type": "integer",
+                      "description": "当前积分余额",
+                      "format": "int32"
+                    },
+                    "list": {
+                      "type": "array",
+                      "description": "积分流水",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
     "/app/help/me/recovery-goals": {
       "get": {
         "tags": [

@@ -1335,9 +1335,51 @@ class HelpApiService
             'completion_note' => (string) ($data['completion_note'] ?? ''),
             'completed_time' => $status === 1 ? date('Y-m-d H:i:s') : null,
         ];
-        $this->saveRow('sa_daily_task', $payload, $memberId, $taskId);
+        $shouldReward = (int) ($task['status'] ?? 0) !== 1 && $status === 1;
+        Db::transaction(function () use ($memberId, $taskId, $payload, $task, $shouldReward) {
+            $this->saveRow('sa_daily_task', $payload, $memberId, $taskId);
+            if ($shouldReward) {
+                $this->awardTaskCompletionRewards($memberId, $task);
+            }
+        });
 
         return Db::table('sa_daily_task')->where('id', $taskId)->find() ?: [];
+    }
+
+    public function memberBadges(int $memberId, array $params): array
+    {
+        return $this->paginate(function () use ($memberId, $params) {
+            $query = Db::table('sa_member_badge')
+                ->where('member_id', $memberId)
+                ->whereNull('delete_time');
+            if (isset($params['status']) && $params['status'] !== '') {
+                $query->where('status', (int) $params['status']);
+            } else {
+                $query->where('status', 1);
+            }
+
+            return $query->order('award_time', 'desc')->order('id', 'desc');
+        }, $params);
+    }
+
+    public function memberPointLogs(int $memberId, array $params): array
+    {
+        $page = $this->paginate(function () use ($memberId, $params) {
+            $query = Db::table('sa_member_point_log')
+                ->where('member_id', $memberId)
+                ->whereNull('delete_time');
+            if (!empty($params['change_type'])) {
+                $query->where('change_type', (string) $params['change_type']);
+            }
+            if (!empty($params['source_type'])) {
+                $query->where('source_type', (string) $params['source_type']);
+            }
+
+            return $query->order('id', 'desc');
+        }, $params);
+        $page['balance'] = $this->memberPointBalance($memberId);
+
+        return $page;
     }
 
     public function assessmentResults(int $memberId, array $params): array
@@ -2552,6 +2594,115 @@ class HelpApiService
         }
 
         return $relation;
+    }
+
+    private function awardTaskCompletionRewards(int $memberId, array $task): void
+    {
+        $taskId = (int) ($task['id'] ?? 0);
+        if ($taskId <= 0) {
+            return;
+        }
+
+        $points = max(0, (int) ($task['points_reward'] ?? 0));
+        if ($points > 0) {
+            $this->addPointLog($memberId, $points, 'daily_task', $taskId, '完成每日任务', (string) ($task['title'] ?? ''));
+        }
+
+        $taskCount = (int) Db::table('sa_daily_task')
+            ->where('member_id', $memberId)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->count();
+        $this->awardBadgesByTrigger($memberId, 'task_count', $taskCount, 'daily_task', $taskId);
+    }
+
+    private function addPointLog(int $memberId, int $points, string $sourceType, int $sourceId, string $title, string $remark = ''): void
+    {
+        if ($memberId <= 0 || $points === 0 || $sourceType === '') {
+            return;
+        }
+        if ($sourceId > 0 && Db::table('sa_member_point_log')
+            ->where('member_id', $memberId)
+            ->where('source_type', $sourceType)
+            ->where('source_id', $sourceId)
+            ->whereNull('delete_time')
+            ->find()) {
+            return;
+        }
+
+        $balanceAfter = $this->memberPointBalance($memberId) + $points;
+        $now = date('Y-m-d H:i:s');
+        Db::table('sa_member_point_log')->insert([
+            'member_id' => $memberId,
+            'points' => $points,
+            'change_type' => $points > 0 ? 'income' : 'expense',
+            'source_type' => $sourceType,
+            'source_id' => $sourceId,
+            'title' => $title,
+            'remark' => $remark,
+            'balance_after' => $balanceAfter,
+            'created_by' => $memberId,
+            'updated_by' => $memberId,
+            'create_time' => $now,
+            'update_time' => $now,
+        ]);
+    }
+
+    private function awardBadgesByTrigger(int $memberId, string $triggerType, int $triggerValue, string $sourceType, int $sourceId): void
+    {
+        if ($memberId <= 0 || $triggerValue <= 0) {
+            return;
+        }
+
+        $rules = Db::table('sa_member_badge_rule')
+            ->where('trigger_type', $triggerType)
+            ->where('trigger_value', '<=', $triggerValue)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->order('trigger_value', 'asc')
+            ->order('sort', 'asc')
+            ->order('id', 'asc')
+            ->select()
+            ->toArray();
+        $now = date('Y-m-d H:i:s');
+        foreach ($rules as $rule) {
+            $code = (string) ($rule['code'] ?? '');
+            if ($code === '' || Db::table('sa_member_badge')
+                ->where('member_id', $memberId)
+                ->where('badge_code', $code)
+                ->whereNull('delete_time')
+                ->find()) {
+                continue;
+            }
+
+            $badgeId = (int) Db::table('sa_member_badge')->insertGetId([
+                'member_id' => $memberId,
+                'rule_id' => (int) $rule['id'],
+                'badge_code' => $code,
+                'badge_name' => (string) $rule['name'],
+                'source_type' => $sourceType,
+                'source_id' => $sourceId,
+                'award_time' => $now,
+                'status' => 1,
+                'created_by' => $memberId,
+                'updated_by' => $memberId,
+                'create_time' => $now,
+                'update_time' => $now,
+            ]);
+
+            $pointsReward = max(0, (int) ($rule['points_reward'] ?? 0));
+            if ($pointsReward > 0) {
+                $this->addPointLog($memberId, $pointsReward, 'badge', $badgeId, '获得荣誉徽章', (string) $rule['name']);
+            }
+        }
+    }
+
+    private function memberPointBalance(int $memberId): int
+    {
+        return (int) Db::table('sa_member_point_log')
+            ->where('member_id', $memberId)
+            ->whereNull('delete_time')
+            ->sum('points');
     }
 
     private function assertDoctorPlan(int $doctorId, int $memberId, int $planId): array

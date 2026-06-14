@@ -140,6 +140,34 @@ class MeController extends BaseController
         return ok($this->service->memoirDetail($this->memberId, (int) $request->get('id')));
     }
 
+    #[Apidoc\Title('我的荣誉徽章')]
+    #[Apidoc\Url('/app/help/me/badges')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('status', type: 'int', require: false, default: 1, desc: '状态 1有效 2撤销')]
+    #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
+    #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
+    #[Apidoc\Returned('list', type: 'array', desc: '徽章列表')]
+    #[Apidoc\Returned('total', type: 'int', desc: '总数')]
+    public function badges(Request $request): Response
+    {
+        return ok($this->service->memberBadges($this->memberId, $request->get()));
+    }
+
+    #[Apidoc\Title('我的积分流水')]
+    #[Apidoc\Url('/app/help/me/points')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('change_type', type: 'string', require: false, desc: '变动类型 income/expense/adjust')]
+    #[Apidoc\Query('source_type', type: 'string', require: false, desc: '来源类型')]
+    #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
+    #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
+    #[Apidoc\Returned('balance', type: 'int', desc: '当前积分余额')]
+    #[Apidoc\Returned('list', type: 'array', desc: '积分流水')]
+    #[Apidoc\Returned('total', type: 'int', desc: '总数')]
+    public function points(Request $request): Response
+    {
+        return ok($this->service->memberPointLogs($this->memberId, $request->get()));
+    }
+
     #[Apidoc\Title('康复目标记录列表')]
     #[Apidoc\Url('/app/help/me/recovery-goals')]
     #[Apidoc\Method('GET')]

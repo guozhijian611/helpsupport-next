@@ -95,6 +95,8 @@ Route::group('/app/help', function () {
     Route::post('/me/journal/delete', [MeController::class, 'deleteJournal']);
     Route::get('/me/memoirs', [MeController::class, 'memoirs']);
     Route::get('/me/memoir', [MeController::class, 'memoirDetail']);
+    Route::get('/me/badges', [MeController::class, 'badges']);
+    Route::get('/me/points', [MeController::class, 'points']);
     Route::get('/me/recovery-goals', [MeController::class, 'recoveryGoals']);
     Route::post('/me/recovery-goal', [MeController::class, 'saveRecoveryGoal']);
     Route::post('/me/recovery-goal/delete', [MeController::class, 'deleteRecoveryGoal']);
