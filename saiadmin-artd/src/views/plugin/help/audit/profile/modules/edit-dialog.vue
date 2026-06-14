@@ -56,15 +56,6 @@
           </el-form-item>
         </el-col>
         <el-col :span="24">
-          <el-form-item label="审核状态" prop="audit_status">
-            <el-select v-model="formData.audit_status" placeholder="请选择审核状态" class="w-full">
-              <el-option label="待审核" :value="0" />
-              <el-option label="已通过" :value="1" />
-              <el-option label="已拒绝" :value="2" />
-            </el-select>
-          </el-form-item>
-        </el-col>
-        <el-col :span="24">
           <el-form-item label="状态" prop="status">
             <el-select v-model="formData.status" placeholder="请选择状态" class="w-full">
               <el-option label="正常" :value="1" />
@@ -78,34 +69,7 @@
               v-model="formData.audit_remark"
               type="textarea"
               :rows="3"
-              placeholder="普通新增/编辑可留空；拒绝请使用审核按钮填写原因"
-            />
-          </el-form-item>
-        </el-col>
-        <el-col :span="24">
-          <el-form-item label="审核人" prop="audit_by">
-            <el-input v-model="formData.audit_by" placeholder="请输入审核人" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="24">
-          <el-form-item label="审核时间" prop="audit_time">
-            <el-date-picker
-              v-model="formData.audit_time"
-              type="datetime"
-              value-format="YYYY-MM-DD HH:mm:ss"
-              placeholder="请选择审核时间"
-              clearable
-            />
-          </el-form-item>
-        </el-col>
-        <el-col :span="24">
-          <el-form-item label="通过时间" prop="approved_time">
-            <el-date-picker
-              v-model="formData.approved_time"
-              type="datetime"
-              value-format="YYYY-MM-DD HH:mm:ss"
-              placeholder="请选择通过时间"
-              clearable
+              placeholder="可留空；审核通过/拒绝请使用列表操作按钮"
             />
           </el-form-item>
         </el-col>
@@ -163,7 +127,6 @@
     department: [{ required: true, message: '科室必需填写', trigger: 'blur' }],
     specialty: [{ required: true, message: '专业方向必需填写', trigger: 'blur' }],
     license_no: [{ required: true, message: '执业证书编号必需填写', trigger: 'blur' }],
-    audit_status: [{ required: true, message: '审核状态 0待审核 1已通过 2已拒绝必需填写', trigger: 'blur' }],
     status: [{ required: true, message: '状态 1正常 2禁用必需填写', trigger: 'blur' }],
   })
 
@@ -180,12 +143,8 @@
     specialty: '',
     license_no: '',
     certification_images: '',
-    audit_status: 0,
     status: 1,
     audit_remark: '',
-    audit_by: null,
-    audit_time: '',
-    approved_time: '',
   }
 
   /**

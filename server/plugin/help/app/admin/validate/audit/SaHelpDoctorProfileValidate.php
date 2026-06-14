@@ -24,7 +24,6 @@ class SaHelpDoctorProfileValidate extends BaseValidate
         'department' => 'require',
         'specialty' => 'require',
         'license_no' => 'require',
-        'audit_status' => 'require|in:0,1,2',
         'status' => 'require|in:1,2',
     ];
 
@@ -39,8 +38,6 @@ class SaHelpDoctorProfileValidate extends BaseValidate
         'department' => '科室必须填写',
         'specialty' => '专业方向必须填写',
         'license_no' => '执业证书编号必须填写',
-        'audit_status.require' => '审核状态 0待审核 1已通过 2已拒绝必须填写',
-        'audit_status.in' => '审核状态参数错误',
         'status.require' => '状态 1正常 2禁用必须填写',
         'status.in' => '状态参数错误',
     ];
@@ -57,7 +54,6 @@ class SaHelpDoctorProfileValidate extends BaseValidate
             'department',
             'specialty',
             'license_no',
-            'audit_status',
             'status',
         ],
         'update' => [
@@ -68,7 +64,6 @@ class SaHelpDoctorProfileValidate extends BaseValidate
             'department',
             'specialty',
             'license_no',
-            'audit_status',
             'status',
         ],
     ];
