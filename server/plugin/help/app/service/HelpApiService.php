@@ -100,6 +100,9 @@ class HelpApiService
         if (isset($payload['member_role']) && !in_array($payload['member_role'], ['patient', 'doctor'], true)) {
             throw new ApiException('会员身份参数错误', 400);
         }
+        if (($payload['member_role'] ?? '') === 'doctor' && !$this->hasApprovedDoctorProfile($memberId)) {
+            throw new ApiException('医生资质审核通过后才能切换为医生身份', 403);
+        }
         if (isset($payload['gender'])) {
             $payload['gender'] = $this->intIn($payload['gender'], [1, 2, 3], '性别参数错误');
         }
@@ -158,7 +161,6 @@ class HelpApiService
 
         Db::transaction(function () use ($memberId, $payload) {
             $this->upsertByMember('sa_help_member_profile', $memberId, [
-                'member_role' => 'doctor',
                 'status' => 1,
             ]);
             $this->upsertByMember('sa_help_doctor_profile', $memberId, $payload);
@@ -2593,6 +2595,20 @@ class HelpApiService
         }
 
         return $profile;
+    }
+
+    private function hasApprovedDoctorProfile(int $memberId): bool
+    {
+        if ($memberId <= 0) {
+            return false;
+        }
+
+        return Db::table('sa_help_doctor_profile')
+            ->where('member_id', $memberId)
+            ->where('audit_status', 1)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->count() > 0;
     }
 
     private function assertMemberExists(int $memberId): array
