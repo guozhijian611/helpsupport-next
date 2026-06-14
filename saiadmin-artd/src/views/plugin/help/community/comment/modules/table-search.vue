@@ -28,6 +28,7 @@
           <ElOption label="待审核" :value="0" />
           <ElOption label="已通过" :value="1" />
           <ElOption label="已拒绝" :value="2" />
+          <ElOption label="AI预审" :value="3" />
         </ElSelect>
       </ElFormItem>
     </ElCol>

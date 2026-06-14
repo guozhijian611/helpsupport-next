@@ -956,7 +956,7 @@ class HelpApiService
             'content' => $content,
             'attachments' => $this->jsonValue($data['attachments'] ?? null),
             'is_anonymous' => $this->intIn($data['is_anonymous'] ?? 2, [1, 2], '匿名参数错误'),
-            'audit_status' => 0,
+            'audit_status' => $reviewRequired ? 3 : 0,
             'audit_remark' => $reviewRequired ? self::RISK_REVIEW_REMARK : '',
             'status' => 1,
         ], $memberId);

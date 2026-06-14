@@ -193,7 +193,8 @@
     const map: Record<number, string> = {
       0: '待审核',
       1: '已通过',
-      2: '已拒绝'
+      2: '已拒绝',
+      3: 'AI预审'
     }
     return map[Number(status)] || '未知'
   }
@@ -202,7 +203,8 @@
     const map: Record<number, 'success' | 'warning' | 'danger' | 'info'> = {
       0: 'warning',
       1: 'success',
-      2: 'danger'
+      2: 'danger',
+      3: 'warning'
     }
     return map[Number(status)] || 'info'
   }
