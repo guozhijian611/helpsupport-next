@@ -32,6 +32,11 @@
 	<string>HelpSupport uses the microphone for video consultation.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>HelpSupport uses photo access to upload verification materials and images.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

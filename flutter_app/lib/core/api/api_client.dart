@@ -24,10 +24,31 @@ class ApiClient {
 
   static const apiBaseUrl = String.fromEnvironment(
     'HELP_SUPPORT_API_BASE_URL',
-    defaultValue: 'http://127.0.0.1:8787',
+    defaultValue: 'http://10.0.0.6:8787',
   );
 
   final Dio dio;
+
+  String resolveUrl(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return '';
+    }
+
+    final uri = Uri.tryParse(trimmed);
+    if (uri != null && uri.hasScheme) {
+      return trimmed;
+    }
+
+    final baseUri = Uri.parse(dio.options.baseUrl);
+    if (trimmed.startsWith('//')) {
+      return '${baseUri.scheme}:$trimmed';
+    }
+
+    return baseUri
+        .resolve(trimmed.startsWith('/') ? trimmed : '/$trimmed')
+        .toString();
+  }
 
   Future<ApiResult<T>> getApi<T>(
     String path, {

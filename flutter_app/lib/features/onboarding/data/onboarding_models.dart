@@ -68,6 +68,34 @@ class OnboardingPage {
     );
   }
 
+  OnboardingPage copyWith({
+    int? id,
+    String? scene,
+    String? version,
+    String? locale,
+    String? title,
+    String? description,
+    String? image,
+    String? buttonText,
+    String? actionType,
+    String? actionValue,
+    int? sort,
+  }) {
+    return OnboardingPage(
+      id: id ?? this.id,
+      scene: scene ?? this.scene,
+      version: version ?? this.version,
+      locale: locale ?? this.locale,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      image: image ?? this.image,
+      buttonText: buttonText ?? this.buttonText,
+      actionType: actionType ?? this.actionType,
+      actionValue: actionValue ?? this.actionValue,
+      sort: sort ?? this.sort,
+    );
+  }
+
   static int _intValue(Object? value, {int fallback = 0}) {
     if (value is num) {
       return value.toInt();

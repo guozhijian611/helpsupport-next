@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
 import '../application/onboarding_controller.dart';
@@ -100,16 +101,7 @@ class _OnboardingPagerState extends State<_OnboardingPager> {
               ),
               const SizedBox(height: 20),
               FilledButton(
-                onPressed: () {
-                  if (isLast) {
-                    context.go('/login');
-                    return;
-                  }
-                  _controller.nextPage(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOut,
-                  );
-                },
+                onPressed: () => _handleAction(context, item, isLast),
                 child: Text(
                   item.buttonText.isNotEmpty
                       ? item.buttonText
@@ -120,6 +112,41 @@ class _OnboardingPagerState extends State<_OnboardingPager> {
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _handleAction(
+    BuildContext context,
+    OnboardingPage item,
+    bool isLast,
+  ) async {
+    switch (item.actionType.trim()) {
+      case 'skip':
+        context.go('/login');
+        return;
+      case 'route':
+        final route = item.actionValue.trim();
+        if (route.isNotEmpty) {
+          context.go(route.startsWith('/') ? route : '/$route');
+          return;
+        }
+        break;
+      case 'external_url':
+        final uri = Uri.tryParse(item.actionValue.trim());
+        if (uri != null && uri.hasScheme) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+          return;
+        }
+        break;
+    }
+
+    if (isLast) {
+      context.go('/login');
+      return;
+    }
+    await _controller.nextPage(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
     );
   }
 }
@@ -154,7 +181,17 @@ class _OnboardingPageCard extends StatelessWidget {
                     )
                   : ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(page.image, fit: BoxFit.cover),
+                      child: Image.network(
+                        page.image,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(
+                            Icons.broken_image_outlined,
+                            size: 80,
+                            color: scheme.onPrimaryContainer,
+                          );
+                        },
+                      ),
                     ),
             ),
           ),
