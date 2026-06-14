@@ -2122,6 +2122,7 @@ class HelpApiService
     public function publishDoctorAssessmentScale(int $doctorId, string $id): array
     {
         $id = trim($id);
+        $this->assertApprovedDoctor($doctorId);
         $this->assertDoctorOwnedAssessmentScale($doctorId, $id);
 
         Db::table('sa_doctor_assessment_scale')->where('id', $id)->update([
