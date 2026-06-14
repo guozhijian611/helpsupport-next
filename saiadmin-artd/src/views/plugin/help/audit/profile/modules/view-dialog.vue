@@ -25,7 +25,17 @@
           <div v-text="formData?.license_no"></div>
         </el-descriptions-item>
         <el-descriptions-item label="证书图片数组">
-          <img :src="formData?.certification_images" style="width: 200px" />
+          <el-space v-if="certificationImages.length" wrap>
+            <el-image
+              v-for="image in certificationImages"
+              :key="image"
+              :src="image"
+              :preview-src-list="certificationImages"
+              fit="cover"
+              class="certification-image"
+            />
+          </el-space>
+          <span v-else>暂无</span>
         </el-descriptions-item>
         <el-descriptions-item label="审核状态">
           <el-tag :type="auditStatusType(formData?.audit_status)">
@@ -115,6 +125,7 @@
    * 表单数据
    */
   const formData = reactive({ ...initialFormData })
+  const certificationImages = computed(() => parseImageList(formData.certification_images))
 
   /**
    * 监听弹窗打开，初始化表单数据
@@ -172,4 +183,26 @@
     }
     return map[Number(status)] || 'info'
   }
+
+  const parseImageList = (value: unknown): string[] => {
+    if (!value) return []
+    if (Array.isArray(value)) return value.map(String).filter(Boolean)
+    if (typeof value !== 'string') return []
+    try {
+      const parsed = JSON.parse(value)
+      if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean)
+      if (typeof parsed === 'string' && parsed) return [parsed]
+    } catch {
+      return value ? [value] : []
+    }
+    return value ? [value] : []
+  }
 </script>
+
+<style scoped>
+  .certification-image {
+    width: 200px;
+    height: 120px;
+    border-radius: 6px;
+  }
+</style>

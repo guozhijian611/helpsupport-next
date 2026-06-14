@@ -29,6 +29,22 @@ class SaHelpDoctorProfileLogic extends BaseLogic
         $this->orderType = 'DESC';
     }
 
+    public function add(array $data): mixed
+    {
+        $data = $this->normalizeFields($data);
+        $this->assertUnique($data);
+
+        return parent::add($data);
+    }
+
+    public function edit($id, array $data): mixed
+    {
+        $data = $this->normalizeFields($data);
+        $this->assertUnique($data, (int) $id);
+
+        return parent::edit($id, $data);
+    }
+
     public function audit(int $id, int $auditStatus, string $remark, int $adminId): bool
     {
         if ($id <= 0) {
@@ -102,5 +118,62 @@ class SaHelpDoctorProfileLogic extends BaseLogic
         }
 
         return true;
+    }
+
+    private function normalizeFields(array $data): array
+    {
+        if (array_key_exists('member_id', $data)) {
+            $data['member_id'] = (int) $data['member_id'];
+        }
+        if (array_key_exists('certification_images', $data)) {
+            $data['certification_images'] = $this->normalizeImageList($data['certification_images']);
+        }
+
+        return $data;
+    }
+
+    private function normalizeImageList(mixed $value): ?string
+    {
+        if ($value === '' || $value === null) {
+            return null;
+        }
+
+        if (is_array($value) || is_object($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
+
+        $text = trim((string) $value);
+        if ($text === '') {
+            return null;
+        }
+
+        $decoded = json_decode($text, true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            if (is_string($decoded)) {
+                return json_encode([$decoded], JSON_UNESCAPED_UNICODE);
+            }
+            return json_encode($decoded, JSON_UNESCAPED_UNICODE);
+        }
+
+        return json_encode([$text], JSON_UNESCAPED_UNICODE);
+    }
+
+    private function assertUnique(array $data, ?int $id = null): void
+    {
+        $memberId = (int) ($data['member_id'] ?? 0);
+        if ($memberId <= 0) {
+            return;
+        }
+
+        $query = Db::table('sa_help_doctor_profile')
+            ->where('member_id', $memberId)
+            ->whereNull('delete_time');
+        if ($id !== null && $id > 0) {
+            $query->where('id', '<>', $id);
+        }
+
+        if ($query->find()) {
+            throw new ApiException('该会员的医生资质资料已存在');
+        }
     }
 }

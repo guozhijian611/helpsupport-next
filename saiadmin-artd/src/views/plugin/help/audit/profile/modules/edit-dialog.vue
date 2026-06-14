@@ -184,10 +184,28 @@
     if (props.data) {
       for (const key in formData) {
         if (props.data[key] != null && props.data[key] != undefined) {
+          if (key === 'certification_images') {
+            ;(formData as any)[key] = firstImageUrl(props.data[key])
+            continue
+          }
           ;(formData as any)[key] = props.data[key]
         }
       }
     }
+  }
+
+  const firstImageUrl = (value: unknown): string => {
+    if (!value) return ''
+    if (Array.isArray(value)) return String(value[0] || '')
+    if (typeof value !== 'string') return ''
+    try {
+      const parsed = JSON.parse(value)
+      if (Array.isArray(parsed)) return String(parsed[0] || '')
+      if (typeof parsed === 'string') return parsed
+    } catch {
+      return value
+    }
+    return value
   }
 
   /**
