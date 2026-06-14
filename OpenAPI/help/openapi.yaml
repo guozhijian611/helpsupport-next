@@ -615,15 +615,6 @@
         ],
         "summary": "账号密码登录",
         "description": "",
-        "parameters": [
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": true,
-            "type": "string",
-            "description": "身份令牌Token"
-          }
-        ],
         "requestBody": {
           "required": true,
           "description": "",
@@ -691,15 +682,6 @@
         ],
         "summary": "发送注册邮箱验证码",
         "description": "",
-        "parameters": [
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": true,
-            "type": "string",
-            "description": "身份令牌Token"
-          }
-        ],
         "requestBody": {
           "required": true,
           "description": "",
@@ -764,15 +746,6 @@
         ],
         "summary": "邮箱账号注册",
         "description": "",
-        "parameters": [
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": true,
-            "type": "string",
-            "description": "身份令牌Token"
-          }
-        ],
         "requestBody": {
           "required": true,
           "description": "",
@@ -866,15 +839,6 @@
         ],
         "summary": "Google登录",
         "description": "",
-        "parameters": [
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": true,
-            "type": "string",
-            "description": "身份令牌Token"
-          }
-        ],
         "requestBody": {
           "required": true,
           "description": "",
@@ -937,15 +901,6 @@
         ],
         "summary": "Apple登录",
         "description": "",
-        "parameters": [
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": true,
-            "type": "string",
-            "description": "身份令牌Token"
-          }
-        ],
         "requestBody": {
           "required": true,
           "description": "",
