@@ -25,7 +25,7 @@ class CommunityController extends BaseController
     #[Apidoc\Returned('list', type: 'array', desc: '社区标签列表')]
     public function tags(Request $request): Response
     {
-        return ok($this->service->communityTags());
+        return ok($this->service->communityTags($this->memberId));
     }
 
     #[Apidoc\Title('社区帖子列表')]
@@ -113,6 +113,28 @@ class CommunityController extends BaseController
     public function toggleCollect(Request $request): Response
     {
         return ok($this->service->toggleCommunityCollect($this->memberId, (int) $request->post('post_id', 0)));
+    }
+
+    #[Apidoc\Title('社区标签关注切换')]
+    #[Apidoc\Url('/app/help/community/follow-tag')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('tag_id', type: 'int', require: true, desc: '标签ID')]
+    #[Apidoc\Returned('tag_id', type: 'int', desc: '标签ID')]
+    #[Apidoc\Returned('is_followed', type: 'boolean', desc: '当前是否关注')]
+    public function toggleFollowTag(Request $request): Response
+    {
+        return ok($this->service->toggleCommunityFollowTag($this->memberId, (int) $request->post('tag_id', 0)));
+    }
+
+    #[Apidoc\Title('社区用户关注切换')]
+    #[Apidoc\Url('/app/help/community/follow-member')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('target_member_id', type: 'int', require: true, desc: '被关注会员ID')]
+    #[Apidoc\Returned('target_member_id', type: 'int', desc: '被关注会员ID')]
+    #[Apidoc\Returned('is_followed', type: 'boolean', desc: '当前是否关注')]
+    public function toggleFollowMember(Request $request): Response
+    {
+        return ok($this->service->toggleCommunityFollowMember($this->memberId, (int) $request->post('target_member_id', 0)));
     }
 
     #[Apidoc\Title('社区举报')]

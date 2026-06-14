@@ -743,7 +743,7 @@ class HelpApiService
         ];
     }
 
-    public function communityTags(): array
+    public function communityTags(int $memberId = 0): array
     {
         $rows = Db::table('sa_community_tag')
             ->where('status', 1)
@@ -755,7 +755,10 @@ class HelpApiService
             ->toArray();
 
         foreach ($rows as &$row) {
+            $tagId = (int) ($row['id'] ?? 0);
             $row['tag_name_i18n'] = $this->decodeJsonArray($row['tag_name_i18n'] ?? null);
+            $row['is_followed'] = $memberId > 0
+                && $this->activeInteractionExists('sa_community_follow_tag', $memberId, 'tag_id', $tagId);
         }
         unset($row);
 
@@ -918,6 +921,25 @@ class HelpApiService
         $this->syncCommunityCounter('post', $postId, 'collect_count', $isActive);
 
         return ['post_id' => $postId, 'is_collected' => $isActive];
+    }
+
+    public function toggleCommunityFollowTag(int $memberId, int $tagId): array
+    {
+        $this->assertVisibleCommunityTag($tagId);
+        $isActive = $this->toggleInteraction('sa_community_follow_tag', $memberId, 'tag_id', $tagId);
+
+        return ['tag_id' => $tagId, 'is_followed' => $isActive];
+    }
+
+    public function toggleCommunityFollowMember(int $memberId, int $targetMemberId): array
+    {
+        $this->assertCommunityTargetMember($memberId, $targetMemberId);
+        $isActive = $this->toggleInteraction('sa_community_follow_member', $memberId, 'target_member_id', $targetMemberId);
+        if ($isActive) {
+            $this->notifyCommunityFollow($memberId, $targetMemberId);
+        }
+
+        return ['target_member_id' => $targetMemberId, 'is_followed' => $isActive];
     }
 
     public function reportCommunityTarget(int $memberId, array $data): array
@@ -2394,6 +2416,33 @@ class HelpApiService
         ]);
     }
 
+    private function notifyCommunityFollow(int $memberId, int $targetMemberId): void
+    {
+        if ($memberId <= 0 || $targetMemberId <= 0 || $memberId === $targetMemberId) {
+            return;
+        }
+
+        $member = Db::table('sa_member')
+            ->where('id', $memberId)
+            ->whereNull('delete_time')
+            ->field('id, nickname, username')
+            ->find() ?: [];
+        $nickname = trim((string) ($member['nickname'] ?? ''))
+            ?: trim((string) ($member['username'] ?? ''))
+            ?: 'Member #' . $memberId;
+
+        $this->notifyMemberSafely($targetMemberId, 'community_follow', [
+            'nickname' => $nickname,
+        ], [
+            'biz_type' => 'community_follow_member',
+            'biz_id' => $memberId,
+            'route' => '/pages/community/profile',
+            'payload' => [
+                'member_id' => $memberId,
+            ],
+        ]);
+    }
+
     private function rowByMember(string $table, int $memberId): array
     {
         $row = Db::table($table)
@@ -2480,14 +2529,51 @@ class HelpApiService
         return $comment;
     }
 
+    private function assertVisibleCommunityTag(int $tagId): void
+    {
+        if ($tagId <= 0) {
+            throw new ApiException('标签ID必须填写', 400);
+        }
+
+        $exists = Db::table('sa_community_tag')
+            ->where('id', $tagId)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$exists) {
+            throw new ApiException('标签不存在或已禁用', 404);
+        }
+    }
+
+    private function assertCommunityTargetMember(int $memberId, int $targetMemberId): void
+    {
+        if ($targetMemberId <= 0 || $targetMemberId === $memberId) {
+            throw new ApiException('关注会员ID参数错误', 400);
+        }
+
+        $exists = Db::table('sa_member')
+            ->where('id', $targetMemberId)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$exists) {
+            throw new ApiException('关注会员不存在或已禁用', 404);
+        }
+    }
+
     private function decorateCommunityPosts(array $rows, int $memberId): array
     {
         foreach ($rows as &$row) {
             $postId = (int) ($row['id'] ?? 0);
+            $authorId = (int) ($row['member_id'] ?? 0);
             $row['images'] = $this->decodeJsonArray($row['images'] ?? null);
             $row['tags'] = $this->decodeJsonArray($row['tags'] ?? null);
             $row['is_liked'] = $this->activeCommunityLikeExists($memberId, 1, $postId);
             $row['is_collected'] = $this->activeInteractionExists('sa_community_collect', $memberId, 'post_id', $postId);
+            $row['is_followed_author'] = $authorId > 0
+                && $authorId !== $memberId
+                && (int) ($row['is_anonymous'] ?? 2) !== 1
+                && $this->activeInteractionExists('sa_community_follow_member', $memberId, 'target_member_id', $authorId);
             $this->applyCommunityAuthor($row);
         }
         unset($row);

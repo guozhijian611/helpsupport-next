@@ -68,6 +68,8 @@ Route::group('/app/help', function () {
     Route::post('/community/comment', [CommunityController::class, 'saveComment']);
     Route::post('/community/like', [CommunityController::class, 'toggleLike']);
     Route::post('/community/collect', [CommunityController::class, 'toggleCollect']);
+    Route::post('/community/follow-tag', [CommunityController::class, 'toggleFollowTag']);
+    Route::post('/community/follow-member', [CommunityController::class, 'toggleFollowMember']);
     Route::post('/community/report', [CommunityController::class, 'report']);
 
     Route::get('/me/profile', [MeController::class, 'profile']);
