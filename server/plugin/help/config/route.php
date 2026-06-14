@@ -19,6 +19,7 @@ use plugin\help\app\admin\controller\chat\SaMemberChatConfigController as AdminM
 use plugin\help\app\admin\controller\community\SaCommunityCommentController as AdminCommunityCommentController;
 use plugin\help\app\admin\controller\community\SaCommunityPostController as AdminCommunityPostController;
 use plugin\help\app\admin\controller\community\SaCommunityReportController as AdminCommunityReportController;
+use plugin\help\app\admin\controller\config\HelpRuntimeConfigController as AdminHelpRuntimeConfigController;
 use plugin\help\app\admin\controller\config\SaAppOnboardingPageController as AdminAppOnboardingPageController;
 use plugin\help\app\admin\controller\doctor\SaDoctorAssessmentScaleController as AdminDoctorAssessmentScaleController;
 use plugin\help\app\admin\controller\doctor\SaDoctorPatientController as AdminDoctorPatientController;
@@ -155,6 +156,8 @@ Route::group('/app/help/admin/community', function () {
 
 Route::group('/app/help/admin/config', function () {
     fastRoute('SaAppOnboardingPage', AdminAppOnboardingPageController::class);
+    Route::get('/HelpRuntimeConfig/read', [AdminHelpRuntimeConfigController::class, 'read']);
+    Route::post('/HelpRuntimeConfig/update', [AdminHelpRuntimeConfigController::class, 'update']);
 });
 
 Route::group('/app/help/admin/audit', function () {
