@@ -21,7 +21,7 @@ class SaMemberMessageLogic extends BaseLogic
 
     public function add(array $data): mixed
     {
-        return parent::add($this->normalizeFields($data));
+        return parent::add($this->normalizeFields($data, true));
     }
 
     public function edit($id, array $data): mixed
@@ -116,7 +116,7 @@ class SaMemberMessageLogic extends BaseLogic
         )));
     }
 
-    private function normalizeFields(array $data): array
+    private function normalizeFields(array $data, bool $isCreate = false): array
     {
         foreach ([
             'is_pushed' => 2,
@@ -125,7 +125,11 @@ class SaMemberMessageLogic extends BaseLogic
             'biz_id' => 0,
             'status' => 1,
         ] as $field => $default) {
-            if (!array_key_exists($field, $data) || $data[$field] === '') {
+            if ($isCreate && (!array_key_exists($field, $data) || $data[$field] === '')) {
+                $data[$field] = $default;
+                continue;
+            }
+            if (!$isCreate && array_key_exists($field, $data) && $data[$field] === '') {
                 $data[$field] = $default;
             }
         }
@@ -153,6 +157,11 @@ class SaMemberMessageLogic extends BaseLogic
             return json_encode($value, JSON_UNESCAPED_UNICODE);
         }
 
-        return (string) $value;
+        $decoded = json_decode((string) $value, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new ApiException('扩展JSON格式错误');
+        }
+
+        return json_encode($decoded, JSON_UNESCAPED_UNICODE);
     }
 }
