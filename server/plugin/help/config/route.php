@@ -142,6 +142,7 @@ Route::group('/app/help/admin/config', function () {
 
 Route::group('/app/help/admin/audit', function () {
     fastRoute('SaHelpDoctorProfile', AdminHelpDoctorProfileController::class);
+    Route::post('/SaHelpDoctorProfile/audit', [AdminHelpDoctorProfileController::class, 'audit']);
 });
 
 Route::group('/app/help/admin/chat', function () {

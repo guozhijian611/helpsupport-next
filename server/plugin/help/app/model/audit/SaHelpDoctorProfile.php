@@ -63,4 +63,19 @@ class SaHelpDoctorProfile extends BaseModel
         $query->where('title', 'like', '%'.$value.'%');
     }
 
+    /**
+     * 审核状态 搜索
+     */
+    public function searchAuditStatusAttr($query, $value)
+    {
+        $query->where('audit_status', (int) $value);
+    }
+
+    /**
+     * 状态 搜索
+     */
+    public function searchStatusAttr($query, $value)
+    {
+        $query->where('status', (int) $value);
+    }
 }

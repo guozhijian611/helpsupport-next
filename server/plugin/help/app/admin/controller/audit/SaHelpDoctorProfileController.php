@@ -39,6 +39,8 @@ class SaHelpDoctorProfileController extends BaseController
         $where = $request->more([
             ['real_name', ''],
             ['title', ''],
+            ['audit_status', ''],
+            ['status', ''],
         ]);
         $query = $this->logic->search($where);
         $data = $this->logic->getList($query);
@@ -119,4 +121,27 @@ class SaHelpDoctorProfileController extends BaseController
         }
     }
 
+    /**
+     * 审核医生资质
+     * @param Request $request
+     * @return Response
+     */
+    #[Permission('医生资质审核', 'help:audit:profile:audit')]
+    public function audit(Request $request): Response
+    {
+        $id = (int) $request->post('id', 0);
+        $auditStatus = (int) $request->post('audit_status', 0);
+        if ($id <= 0) {
+            return $this->fail('请选择要审核的医生资料');
+        }
+
+        $result = $this->logic->audit(
+            $id,
+            $auditStatus,
+            trim((string) $request->post('audit_remark', '')),
+            isset($this->adminId) ? $this->adminId : 0
+        );
+
+        return $result ? $this->success('审核成功') : $this->fail('审核失败');
+    }
 }
