@@ -1286,6 +1286,563 @@ class HelpApiService
         return Db::table('sa_doctor_appointment')->where('id', $appointmentId)->find() ?: [];
     }
 
+    public function doctorPatients(int $doctorId, array $params): array
+    {
+        $this->assertApprovedDoctor($doctorId);
+
+        return $this->paginate(function () use ($doctorId, $params) {
+            $query = Db::table('sa_doctor_patient')
+                ->alias('dp')
+                ->leftJoin('sa_member m', 'm.id = dp.member_id AND m.delete_time IS NULL')
+                ->leftJoin('sa_help_member_profile hp', 'hp.member_id = dp.member_id AND hp.delete_time IS NULL')
+                ->where('dp.doctor_id', $doctorId)
+                ->whereNull('dp.delete_time')
+                ->field('dp.*, m.nickname, m.avatar, hp.gender, hp.birthday, hp.recovery_goal, hp.locale, hp.timezone');
+
+            if (isset($params['status']) && $params['status'] !== '') {
+                $query->where('dp.status', (int) $params['status']);
+            }
+            if (!empty($params['keyword'])) {
+                $keyword = '%' . trim((string) $params['keyword']) . '%';
+                $query->where(function ($query) use ($keyword) {
+                    $query->where('m.nickname', 'like', $keyword)
+                        ->whereOr('hp.recovery_goal', 'like', $keyword);
+                });
+            }
+
+            return $query->orderRaw('dp.bind_time IS NULL ASC')
+                ->order('dp.bind_time', 'desc')
+                ->order('dp.id', 'desc');
+        }, $params);
+    }
+
+    public function bindDoctorPatient(int $doctorId, array $data): array
+    {
+        $this->assertApprovedDoctor($doctorId);
+        $memberId = (int) ($data['member_id'] ?? 0);
+        if ($memberId <= 0 || $memberId === $doctorId) {
+            throw new ApiException('患者会员ID参数错误', 400);
+        }
+
+        return $this->upsertDoctorPatientRelation($doctorId, $memberId, (string) ($data['bind_source'] ?? 'manual'));
+    }
+
+    public function unbindDoctorPatient(int $doctorId, array $data): array
+    {
+        $memberId = (int) ($data['member_id'] ?? 0);
+        $relation = $this->assertDoctorPatient($doctorId, $memberId);
+
+        $now = date('Y-m-d H:i:s');
+        Db::table('sa_doctor_patient')->where('id', $relation['id'])->update([
+            'status' => 2,
+            'unbind_time' => $now,
+            'updated_by' => $doctorId,
+            'update_time' => $now,
+        ]);
+
+        return Db::table('sa_doctor_patient')->where('id', $relation['id'])->find() ?: [];
+    }
+
+    public function doctorPatientPlans(int $doctorId, array $params): array
+    {
+        $memberId = (int) ($params['member_id'] ?? 0);
+        $this->assertDoctorPatient($doctorId, $memberId);
+
+        $query = Db::table('sa_treatment_plan')
+            ->where('member_id', $memberId)
+            ->where('doctor_id', $doctorId)
+            ->whereNull('delete_time');
+        if (isset($params['status']) && $params['status'] !== '') {
+            $query->where('status', (int) $params['status']);
+        }
+
+        $plans = $query->order('id', 'desc')->select()->toArray();
+        if ($plans === []) {
+            return ['list' => []];
+        }
+
+        $planIds = array_column($plans, 'id');
+        $stages = Db::table('sa_treatment_stage')
+            ->whereIn('plan_id', $planIds)
+            ->whereNull('delete_time')
+            ->order('sort', 'asc')
+            ->order('id', 'asc')
+            ->select()
+            ->toArray();
+        $stageMap = [];
+        foreach ($stages as $stage) {
+            $stageMap[$stage['plan_id']][] = $stage;
+        }
+        foreach ($plans as &$plan) {
+            $plan['stages'] = $stageMap[$plan['id']] ?? [];
+        }
+        unset($plan);
+
+        return ['list' => $plans];
+    }
+
+    public function saveDoctorTreatmentPlan(int $doctorId, array $data): array
+    {
+        $memberId = (int) ($data['member_id'] ?? 0);
+        $this->assertDoctorPatient($doctorId, $memberId);
+
+        $title = trim((string) ($data['title'] ?? ''));
+        if ($title === '') {
+            throw new ApiException('计划标题必须填写', 400);
+        }
+
+        $planId = (int) ($data['id'] ?? 0);
+        if ($planId > 0) {
+            $this->assertDoctorPlan($doctorId, $memberId, $planId);
+        }
+
+        $payload = $this->only($data, [
+            'title',
+            'description',
+            'start_date',
+            'end_date',
+            'source_type',
+            'status',
+            'remark',
+        ]);
+        $payload['member_id'] = $memberId;
+        $payload['doctor_id'] = $doctorId;
+        $payload['title'] = $title;
+        $payload['source_type'] = trim((string) ($payload['source_type'] ?? '')) !== ''
+            ? (string) $payload['source_type']
+            : 'manual';
+        $payload['status'] = isset($payload['status']) && $payload['status'] !== ''
+            ? $this->intIn($payload['status'], [1, 2, 3], '计划状态参数错误')
+            : 1;
+        foreach (['start_date', 'end_date'] as $field) {
+            if (array_key_exists($field, $payload) && $payload[$field] === '') {
+                $payload[$field] = null;
+            }
+        }
+
+        $id = $this->saveRow('sa_treatment_plan', $payload, $doctorId, $planId);
+        return Db::table('sa_treatment_plan')->where('id', $id)->find() ?: [];
+    }
+
+    public function doctorDailyTasks(int $doctorId, array $params): array
+    {
+        $memberId = (int) ($params['member_id'] ?? 0);
+        $this->assertDoctorPatient($doctorId, $memberId);
+
+        $planId = (int) ($params['plan_id'] ?? 0);
+        if ($planId > 0) {
+            $this->assertDoctorPlan($doctorId, $memberId, $planId);
+        }
+
+        return $this->paginate(function () use ($memberId, $params, $planId) {
+            $query = Db::table('sa_daily_task')
+                ->where('member_id', $memberId)
+                ->whereNull('delete_time');
+            if ($planId > 0) {
+                $query->where('plan_id', $planId);
+            }
+            if (!empty($params['date'])) {
+                $query->where('task_date', (string) $params['date']);
+            }
+            if (isset($params['status']) && $params['status'] !== '') {
+                $query->where('status', (int) $params['status']);
+            }
+
+            return $query->order('task_date', 'desc')->order('start_time', 'asc')->order('id', 'asc');
+        }, $params);
+    }
+
+    public function saveDoctorDailyTask(int $doctorId, array $data): array
+    {
+        $memberId = (int) ($data['member_id'] ?? 0);
+        $this->assertDoctorPatient($doctorId, $memberId);
+
+        $taskDate = trim((string) ($data['task_date'] ?? ''));
+        $title = trim((string) ($data['title'] ?? ''));
+        if ($taskDate === '' || $title === '') {
+            throw new ApiException('任务日期和标题必须填写', 400);
+        }
+
+        $planId = (int) ($data['plan_id'] ?? 0);
+        if ($planId > 0) {
+            $this->assertDoctorPlan($doctorId, $memberId, $planId);
+        }
+        $stageId = (int) ($data['stage_id'] ?? 0);
+        if ($stageId > 0) {
+            $this->assertDoctorStage($doctorId, $memberId, $stageId);
+        }
+
+        $taskId = (int) ($data['id'] ?? 0);
+        if ($taskId > 0) {
+            $exists = Db::table('sa_daily_task')
+                ->where('id', $taskId)
+                ->where('member_id', $memberId)
+                ->whereNull('delete_time')
+                ->find();
+            if (!$exists) {
+                throw new ApiException('任务不存在或无权操作', 404);
+            }
+        }
+
+        $payload = $this->only($data, [
+            'plan_id',
+            'stage_id',
+            'task_date',
+            'start_time',
+            'end_time',
+            'title',
+            'description',
+            'task_type',
+            'source',
+            'source_id',
+            'reminders',
+            'attachments',
+            'points_reward',
+            'completion_note',
+            'status',
+            'remark',
+        ]);
+        foreach (['reminders', 'attachments'] as $field) {
+            if (array_key_exists($field, $payload)) {
+                $payload[$field] = $this->jsonValue($payload[$field]);
+            }
+        }
+        foreach ([
+            'plan_id' => 0,
+            'stage_id' => 0,
+            'points_reward' => 10,
+        ] as $field => $default) {
+            if (array_key_exists($field, $payload) && $payload[$field] === '') {
+                $payload[$field] = $default;
+            }
+        }
+        foreach (['start_time', 'end_time'] as $field) {
+            if (array_key_exists($field, $payload) && $payload[$field] === '') {
+                $payload[$field] = null;
+            }
+        }
+        $payload['member_id'] = $memberId;
+        $payload['task_date'] = $taskDate;
+        $payload['title'] = $title;
+        $payload['task_type'] = trim((string) ($payload['task_type'] ?? '')) !== ''
+            ? (string) $payload['task_type']
+            : 'daily';
+        $payload['source'] = trim((string) ($payload['source'] ?? '')) !== ''
+            ? (string) $payload['source']
+            : 'manual';
+        $payload['status'] = isset($payload['status']) && $payload['status'] !== ''
+            ? $this->intIn($payload['status'], [0, 1, 2, 3], '任务状态参数错误')
+            : 0;
+
+        $id = $this->saveRow('sa_daily_task', $payload, $doctorId, $taskId);
+        return Db::table('sa_daily_task')->where('id', $id)->find() ?: [];
+    }
+
+    public function doctorTaskTemplateFolders(int $doctorId, array $params): array
+    {
+        $this->assertApprovedDoctor($doctorId);
+        $query = Db::table('sa_doctor_task_template_folder')
+            ->whereIn('doctor_id', [0, $doctorId])
+            ->whereNull('delete_time');
+        if (isset($params['status']) && $params['status'] !== '') {
+            $query->where('status', (int) $params['status']);
+        } else {
+            $query->where('status', 1);
+        }
+
+        return $query->order('doctor_id', 'asc')->order('sort', 'asc')->order('id', 'asc')->select()->toArray();
+    }
+
+    public function doctorTaskTemplates(int $doctorId, array $params): array
+    {
+        $this->assertApprovedDoctor($doctorId);
+        $query = Db::table('sa_doctor_task_template')
+            ->whereIn('doctor_id', [0, $doctorId])
+            ->whereNull('delete_time');
+        if (!empty($params['folder_id'])) {
+            $query->where('folder_id', (string) $params['folder_id']);
+        }
+        if (!empty($params['stage'])) {
+            $query->where('stage', (string) $params['stage']);
+        }
+        if (isset($params['status']) && $params['status'] !== '') {
+            $query->where('status', (int) $params['status']);
+        } else {
+            $query->where('status', 1);
+        }
+
+        return $query->order('doctor_id', 'asc')->order('sort', 'asc')->order('id', 'asc')->select()->toArray();
+    }
+
+    public function saveDoctorTaskTemplate(int $doctorId, array $data): array
+    {
+        $this->assertApprovedDoctor($doctorId);
+        $title = trim((string) ($data['title'] ?? ''));
+        if ($title === '') {
+            throw new ApiException('模板名称必须填写', 400);
+        }
+
+        $id = trim((string) ($data['id'] ?? ''));
+        if ($id !== '') {
+            $this->assertDoctorOwnedTemplate($doctorId, $id);
+        } else {
+            $id = bin2hex(random_bytes(16));
+        }
+
+        $payload = $this->only($data, [
+            'folder_id',
+            'stage',
+            'title',
+            'description',
+            'task_type',
+            'priority',
+            'start_time',
+            'end_time',
+            'frequency',
+            'reward_score',
+            'color',
+            'reminder_rule',
+            'attachments',
+            'sort',
+            'status',
+            'remark',
+        ]);
+        if (!empty($payload['folder_id'])) {
+            $this->assertVisibleTemplateFolder($doctorId, (string) $payload['folder_id']);
+        }
+        foreach (['reminder_rule', 'attachments'] as $field) {
+            if (array_key_exists($field, $payload)) {
+                $payload[$field] = $this->jsonValue($payload[$field]);
+            }
+        }
+        foreach ([
+            'reward_score' => 0,
+            'sort' => 100,
+        ] as $field => $default) {
+            if (array_key_exists($field, $payload) && $payload[$field] === '') {
+                $payload[$field] = $default;
+            }
+        }
+        $payload['doctor_id'] = $doctorId;
+        $payload['title'] = $title;
+        $payload['task_type'] = trim((string) ($payload['task_type'] ?? '')) !== ''
+            ? (string) $payload['task_type']
+            : 'daily';
+        $payload['priority'] = trim((string) ($payload['priority'] ?? '')) !== ''
+            ? (string) $payload['priority']
+            : 'normal';
+        $payload['start_time'] = trim((string) ($payload['start_time'] ?? '')) !== ''
+            ? (string) $payload['start_time']
+            : '09:00';
+        $payload['end_time'] = trim((string) ($payload['end_time'] ?? '')) !== ''
+            ? (string) $payload['end_time']
+            : '09:30';
+        $payload['frequency'] = trim((string) ($payload['frequency'] ?? '')) !== ''
+            ? (string) $payload['frequency']
+            : 'daily';
+        $payload['status'] = isset($payload['status']) && $payload['status'] !== ''
+            ? $this->intIn($payload['status'], [1, 2], '模板状态参数错误')
+            : 1;
+
+        $now = date('Y-m-d H:i:s');
+        if (Db::table('sa_doctor_task_template')->where('id', $id)->whereNull('delete_time')->find()) {
+            $payload['updated_by'] = $doctorId;
+            $payload['update_time'] = $now;
+            Db::table('sa_doctor_task_template')->where('id', $id)->update($payload);
+        } else {
+            $payload['id'] = $id;
+            $payload['created_by'] = $doctorId;
+            $payload['updated_by'] = $doctorId;
+            $payload['create_time'] = $now;
+            $payload['update_time'] = $now;
+            Db::table('sa_doctor_task_template')->insert($payload);
+        }
+
+        return Db::table('sa_doctor_task_template')->where('id', $id)->find() ?: [];
+    }
+
+    public function doctorAssessmentScales(int $doctorId, array $params): array
+    {
+        $this->assertApprovedDoctor($doctorId);
+        $query = Db::table('sa_doctor_assessment_scale')
+            ->whereRaw(sprintf("((doctor_id = 0 AND status = 'published') OR doctor_id = %d)", $doctorId))
+            ->whereNull('delete_time');
+        if (!empty($params['stage'])) {
+            $query->where('stage', (string) $params['stage']);
+        }
+        if (!empty($params['status'])) {
+            $query->where('status', (string) $params['status']);
+        }
+
+        return $query->order('doctor_id', 'asc')->order('published_at', 'desc')->order('id', 'asc')->select()->toArray();
+    }
+
+    public function saveDoctorAssessmentScale(int $doctorId, array $data): array
+    {
+        $this->assertApprovedDoctor($doctorId);
+        $title = trim((string) ($data['title'] ?? ''));
+        if ($title === '') {
+            throw new ApiException('量表名称必须填写', 400);
+        }
+
+        $id = trim((string) ($data['id'] ?? ''));
+        if ($id !== '') {
+            $this->assertDoctorOwnedAssessmentScale($doctorId, $id);
+        } else {
+            $id = bin2hex(random_bytes(16));
+        }
+
+        $payload = $this->only($data, [
+            'title',
+            'stage',
+            'description',
+            'total_score',
+            'questions',
+            'scoring_rule',
+            'status',
+            'published_at',
+            'remark',
+        ]);
+        foreach (['questions', 'scoring_rule'] as $field) {
+            if (array_key_exists($field, $payload)) {
+                $payload[$field] = $this->jsonValue($payload[$field]);
+            }
+        }
+        if (array_key_exists('published_at', $payload) && $payload['published_at'] === '') {
+            $payload['published_at'] = null;
+        }
+        if (array_key_exists('total_score', $payload) && $payload['total_score'] === '') {
+            $payload['total_score'] = 0;
+        }
+        $payload['doctor_id'] = $doctorId;
+        $payload['title'] = $title;
+        $payload['status'] = (string) ($payload['status'] ?? 'draft');
+        if (!in_array($payload['status'], ['draft', 'published', 'disabled'], true)) {
+            throw new ApiException('量表状态参数错误', 400);
+        }
+        if ($payload['status'] === 'published' && empty($payload['published_at'])) {
+            $payload['published_at'] = date('Y-m-d H:i:s');
+        }
+
+        $now = date('Y-m-d H:i:s');
+        if (Db::table('sa_doctor_assessment_scale')->where('id', $id)->whereNull('delete_time')->find()) {
+            $payload['updated_by'] = $doctorId;
+            $payload['update_time'] = $now;
+            Db::table('sa_doctor_assessment_scale')->where('id', $id)->update($payload);
+        } else {
+            $payload['id'] = $id;
+            $payload['created_by'] = $doctorId;
+            $payload['updated_by'] = $doctorId;
+            $payload['create_time'] = $now;
+            $payload['update_time'] = $now;
+            Db::table('sa_doctor_assessment_scale')->insert($payload);
+        }
+
+        return Db::table('sa_doctor_assessment_scale')->where('id', $id)->find() ?: [];
+    }
+
+    public function publishDoctorAssessmentScale(int $doctorId, string $id): array
+    {
+        $id = trim($id);
+        $this->assertDoctorOwnedAssessmentScale($doctorId, $id);
+
+        Db::table('sa_doctor_assessment_scale')->where('id', $id)->update([
+            'status' => 'published',
+            'published_at' => date('Y-m-d H:i:s'),
+            'updated_by' => $doctorId,
+            'update_time' => date('Y-m-d H:i:s'),
+        ]);
+
+        return Db::table('sa_doctor_assessment_scale')->where('id', $id)->find() ?: [];
+    }
+
+    public function doctorAppointments(int $doctorId, array $params): array
+    {
+        $this->assertApprovedDoctor($doctorId);
+
+        return $this->paginate(function () use ($doctorId, $params) {
+            $query = Db::table('sa_doctor_appointment')
+                ->where('doctor_id', $doctorId)
+                ->whereNull('delete_time');
+            if (isset($params['member_id']) && $params['member_id'] !== '') {
+                $query->where('member_id', (int) $params['member_id']);
+            }
+            if (!empty($params['date'])) {
+                $query->where('appoint_date', (string) $params['date']);
+            }
+            if (isset($params['status']) && $params['status'] !== '') {
+                $query->where('status', (int) $params['status']);
+            }
+
+            return $query->order('appoint_date', 'desc')->order('appoint_time_slot', 'desc')->order('id', 'desc');
+        }, $params);
+    }
+
+    public function confirmDoctorAppointment(int $doctorId, array $data): array
+    {
+        $appointment = $this->assertDoctorAppointment($doctorId, (int) ($data['appointment_id'] ?? 0), [0]);
+        $meetType = trim((string) ($data['meet_type'] ?? ''));
+        if ($meetType !== '' && !in_array($meetType, ['link', 'address', 'phone'], true)) {
+            throw new ApiException('接诊方式参数错误', 400);
+        }
+
+        Db::transaction(function () use ($doctorId, $data, $appointment, $meetType) {
+            Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->update([
+                'status' => 1,
+                'meet_type' => $meetType !== '' ? $meetType : null,
+                'meet_link' => trim((string) ($data['meet_link'] ?? '')) ?: null,
+                'confirm_remark' => (string) ($data['confirm_remark'] ?? ''),
+                'confirmed_at' => date('Y-m-d H:i:s'),
+                'updated_by' => $doctorId,
+                'update_time' => date('Y-m-d H:i:s'),
+            ]);
+            $this->upsertDoctorPatientRelation($doctorId, (int) $appointment['member_id'], 'appointment');
+        });
+
+        return Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
+    }
+
+    public function finishDoctorAppointment(int $doctorId, array $data): array
+    {
+        $appointment = $this->assertDoctorAppointment($doctorId, (int) ($data['appointment_id'] ?? 0), [1]);
+        Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->update([
+            'status' => 2,
+            'finished_at' => date('Y-m-d H:i:s'),
+            'updated_by' => $doctorId,
+            'update_time' => date('Y-m-d H:i:s'),
+        ]);
+
+        return Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
+    }
+
+    public function cancelDoctorAppointment(int $doctorId, array $data): array
+    {
+        $appointment = $this->assertDoctorAppointment($doctorId, (int) ($data['appointment_id'] ?? 0), [0, 1]);
+        Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->update([
+            'status' => 3,
+            'cancel_by' => 'doctor',
+            'cancel_reason' => (string) ($data['cancel_reason'] ?? ''),
+            'canceled_at' => date('Y-m-d H:i:s'),
+            'updated_by' => $doctorId,
+            'update_time' => date('Y-m-d H:i:s'),
+        ]);
+
+        return Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
+    }
+
+    public function rejectDoctorAppointment(int $doctorId, array $data): array
+    {
+        $appointment = $this->assertDoctorAppointment($doctorId, (int) ($data['appointment_id'] ?? 0), [0]);
+        Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->update([
+            'status' => 4,
+            'confirm_remark' => (string) ($data['confirm_remark'] ?? ''),
+            'updated_by' => $doctorId,
+            'update_time' => date('Y-m-d H:i:s'),
+        ]);
+
+        return Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
+    }
+
     public function journals(int $memberId, array $params): array
     {
         return $this->paginate(fn () => Db::table('sa_member_journal')
@@ -1395,6 +1952,211 @@ class HelpApiService
         ]);
 
         return ['affected' => $affected];
+    }
+
+    private function assertApprovedDoctor(int $doctorId): array
+    {
+        $profile = Db::table('sa_help_doctor_profile')
+            ->where('member_id', $doctorId)
+            ->where('audit_status', 1)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$profile) {
+            throw new ApiException('医生资质未通过审核或不可用', 403);
+        }
+
+        return $profile;
+    }
+
+    private function assertMemberExists(int $memberId): array
+    {
+        if ($memberId <= 0) {
+            throw new ApiException('会员ID参数错误', 400);
+        }
+
+        $member = Db::table('sa_member')
+            ->where('id', $memberId)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$member) {
+            throw new ApiException('会员不存在', 404);
+        }
+
+        return $member;
+    }
+
+    private function upsertDoctorPatientRelation(int $doctorId, int $memberId, string $bindSource): array
+    {
+        $this->assertMemberExists($memberId);
+        $bindSource = in_array($bindSource, ['manual', 'system', 'appointment'], true) ? $bindSource : 'manual';
+        $now = date('Y-m-d H:i:s');
+        $exists = Db::table('sa_doctor_patient')
+            ->where('doctor_id', $doctorId)
+            ->where('member_id', $memberId)
+            ->find();
+
+        if ($exists) {
+            Db::table('sa_doctor_patient')->where('id', $exists['id'])->update([
+                'status' => 1,
+                'bind_source' => $bindSource,
+                'bind_time' => $now,
+                'unbind_time' => null,
+                'delete_time' => null,
+                'updated_by' => $doctorId,
+                'update_time' => $now,
+            ]);
+
+            return Db::table('sa_doctor_patient')->where('id', $exists['id'])->find() ?: [];
+        }
+
+        $id = Db::table('sa_doctor_patient')->insertGetId([
+            'doctor_id' => $doctorId,
+            'member_id' => $memberId,
+            'status' => 1,
+            'bind_source' => $bindSource,
+            'bind_time' => $now,
+            'created_by' => $doctorId,
+            'updated_by' => $doctorId,
+            'create_time' => $now,
+            'update_time' => $now,
+        ]);
+
+        return Db::table('sa_doctor_patient')->where('id', $id)->find() ?: [];
+    }
+
+    private function assertDoctorPatient(int $doctorId, int $memberId): array
+    {
+        $this->assertApprovedDoctor($doctorId);
+        if ($memberId <= 0 || $memberId === $doctorId) {
+            throw new ApiException('患者会员ID参数错误', 400);
+        }
+
+        $relation = Db::table('sa_doctor_patient')
+            ->where('doctor_id', $doctorId)
+            ->where('member_id', $memberId)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$relation) {
+            throw new ApiException('患者未绑定或无权操作', 403);
+        }
+
+        return $relation;
+    }
+
+    private function assertDoctorPlan(int $doctorId, int $memberId, int $planId): array
+    {
+        if ($planId <= 0) {
+            throw new ApiException('治疗计划ID参数错误', 400);
+        }
+
+        $plan = Db::table('sa_treatment_plan')
+            ->where('id', $planId)
+            ->where('doctor_id', $doctorId)
+            ->where('member_id', $memberId)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$plan) {
+            throw new ApiException('治疗计划不存在或无权操作', 404);
+        }
+
+        return $plan;
+    }
+
+    private function assertDoctorStage(int $doctorId, int $memberId, int $stageId): array
+    {
+        if ($stageId <= 0) {
+            throw new ApiException('治疗阶段ID参数错误', 400);
+        }
+
+        $stage = Db::table('sa_treatment_stage')
+            ->alias('s')
+            ->leftJoin('sa_treatment_plan p', 'p.id = s.plan_id AND p.delete_time IS NULL')
+            ->where('s.id', $stageId)
+            ->where('s.member_id', $memberId)
+            ->where('p.doctor_id', $doctorId)
+            ->whereNull('s.delete_time')
+            ->field('s.*')
+            ->find();
+        if (!$stage) {
+            throw new ApiException('治疗阶段不存在或无权操作', 404);
+        }
+
+        return $stage;
+    }
+
+    private function assertVisibleTemplateFolder(int $doctorId, string $folderId): array
+    {
+        $folder = Db::table('sa_doctor_task_template_folder')
+            ->where('id', $folderId)
+            ->whereIn('doctor_id', [0, $doctorId])
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$folder) {
+            throw new ApiException('模板文件夹不存在或无权使用', 404);
+        }
+
+        return $folder;
+    }
+
+    private function assertDoctorOwnedTemplate(int $doctorId, string $id): array
+    {
+        if ($id === '') {
+            throw new ApiException('模板ID必须填写', 400);
+        }
+
+        $template = Db::table('sa_doctor_task_template')
+            ->where('id', $id)
+            ->where('doctor_id', $doctorId)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$template) {
+            throw new ApiException('任务模板不存在或无权操作', 404);
+        }
+
+        return $template;
+    }
+
+    private function assertDoctorOwnedAssessmentScale(int $doctorId, string $id): array
+    {
+        if ($id === '') {
+            throw new ApiException('量表ID必须填写', 400);
+        }
+
+        $scale = Db::table('sa_doctor_assessment_scale')
+            ->where('id', $id)
+            ->where('doctor_id', $doctorId)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$scale) {
+            throw new ApiException('评估量表不存在或无权操作', 404);
+        }
+
+        return $scale;
+    }
+
+    private function assertDoctorAppointment(int $doctorId, int $appointmentId, array $allowStatuses): array
+    {
+        $this->assertApprovedDoctor($doctorId);
+        if ($appointmentId <= 0) {
+            throw new ApiException('预约ID必须填写', 400);
+        }
+
+        $appointment = Db::table('sa_doctor_appointment')
+            ->where('id', $appointmentId)
+            ->where('doctor_id', $doctorId)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$appointment) {
+            throw new ApiException('预约不存在或无权操作', 404);
+        }
+        if ($allowStatuses !== [] && !in_array((int) $appointment['status'], $allowStatuses, true)) {
+            throw new ApiException('当前预约状态不可操作', 400);
+        }
+
+        return $appointment;
     }
 
     private function rowByMember(string $table, int $memberId): array

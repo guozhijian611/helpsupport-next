@@ -5,6 +5,7 @@ use plugin\help\app\api\controller\AuthController;
 use plugin\help\app\api\controller\ChatController;
 use plugin\help\app\api\controller\CommunityController;
 use plugin\help\app\api\controller\CommonController;
+use plugin\help\app\api\controller\DoctorController;
 use plugin\help\app\api\controller\HomeController;
 use plugin\help\app\api\controller\LocalModelController;
 use plugin\help\app\api\controller\MaterialController;
@@ -95,6 +96,25 @@ Route::group('/app/help', function () {
     Route::get('/appointment/list', [AppointmentController::class, 'list']);
     Route::post('/appointment', [AppointmentController::class, 'create']);
     Route::post('/appointment/cancel', [AppointmentController::class, 'cancel']);
+
+    Route::get('/doctor/patients', [DoctorController::class, 'patients']);
+    Route::post('/doctor/patient/bind', [DoctorController::class, 'bindPatient']);
+    Route::post('/doctor/patient/unbind', [DoctorController::class, 'unbindPatient']);
+    Route::get('/doctor/patient/plans', [DoctorController::class, 'patientPlans']);
+    Route::post('/doctor/treatment-plan', [DoctorController::class, 'saveTreatmentPlan']);
+    Route::get('/doctor/daily-tasks', [DoctorController::class, 'dailyTasks']);
+    Route::post('/doctor/daily-task', [DoctorController::class, 'saveDailyTask']);
+    Route::get('/doctor/task-template-folders', [DoctorController::class, 'taskTemplateFolders']);
+    Route::get('/doctor/task-templates', [DoctorController::class, 'taskTemplates']);
+    Route::post('/doctor/task-template', [DoctorController::class, 'saveTaskTemplate']);
+    Route::get('/doctor/assessment-scales', [DoctorController::class, 'assessmentScales']);
+    Route::post('/doctor/assessment-scale', [DoctorController::class, 'saveAssessmentScale']);
+    Route::post('/doctor/assessment-scale/publish', [DoctorController::class, 'publishAssessmentScale']);
+    Route::get('/doctor/appointments', [DoctorController::class, 'appointments']);
+    Route::post('/doctor/appointment/confirm', [DoctorController::class, 'confirmAppointment']);
+    Route::post('/doctor/appointment/finish', [DoctorController::class, 'finishAppointment']);
+    Route::post('/doctor/appointment/cancel', [DoctorController::class, 'cancelAppointment']);
+    Route::post('/doctor/appointment/reject', [DoctorController::class, 'rejectAppointment']);
 
     Route::get('/local-model/catalog', [LocalModelController::class, 'catalog']);
     Route::get('/local-model/prompts', [LocalModelController::class, 'prompts']);
