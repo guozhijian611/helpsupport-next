@@ -3,7 +3,10 @@
     <!-- 详情 start -->
     <div>
       <el-descriptions :column="1" label-width="100px" border>
-        <el-descriptions-item label="模式 doctor/companion/patient">
+        <el-descriptions-item label="会员ID">
+          <div v-text="formData?.member_id"></div>
+        </el-descriptions-item>
+        <el-descriptions-item label="模式">
           <div v-text="formData?.chat_mode"></div>
         </el-descriptions-item>
         <el-descriptions-item label="用户模式描述和前置提示">
@@ -50,6 +53,7 @@
    */
   const initialFormData = {
     id: null,
+    member_id: null,
     chat_mode: '',
     prompt_text: '',
   }

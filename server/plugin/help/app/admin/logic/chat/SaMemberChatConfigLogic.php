@@ -7,8 +7,6 @@
 namespace plugin\help\app\admin\logic\chat;
 
 use plugin\saiadmin\basic\think\BaseLogic;
-use plugin\saiadmin\exception\ApiException;
-use plugin\saiadmin\utils\Helper;
 use plugin\help\app\model\chat\SaMemberChatConfig;
 
 /**

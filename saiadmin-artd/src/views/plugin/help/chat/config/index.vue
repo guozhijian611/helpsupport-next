@@ -84,6 +84,8 @@
 
   // 搜索表单
   const searchForm = ref({
+    member_id: undefined,
+    chat_mode: undefined,
   })
 
   // 搜索处理
@@ -111,7 +113,9 @@
       apiFn: api.list,
       columnsFactory: () => [
         { type: 'selection' },
-        { prop: 'chat_mode', label: '模式 doctor/companion/patient' },
+        { prop: 'member_id', label: '会员ID', width: 100 },
+        { prop: 'chat_mode', label: '模式', width: 120 },
+        { prop: 'prompt_text', label: '用户模式描述和前置提示', minWidth: 260 },
         { prop: 'operation', label: '操作', width: 140, fixed: 'right', useSlot: true }
       ]
     }

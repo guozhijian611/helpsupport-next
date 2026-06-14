@@ -18,7 +18,7 @@ class SaMemberChatConfigValidate extends BaseValidate
      */
     protected $rule =   [
         'member_id' => 'require',
-        'chat_mode' => 'require',
+        'chat_mode' => 'require|in:doctor,companion,patient',
     ];
 
     /**
@@ -27,6 +27,7 @@ class SaMemberChatConfigValidate extends BaseValidate
     protected $message  =   [
         'member_id' => '会员ID必须填写',
         'chat_mode' => '模式 doctor/companion/patient必须填写',
+        'chat_mode.in' => '模式必须是 doctor、companion 或 patient',
     ];
 
     /**

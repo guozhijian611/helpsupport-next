@@ -36,4 +36,20 @@ class SaMemberChatConfig extends BaseModel
      */
     protected $table = 'sa_member_chat_config';
 
+    /**
+     * 会员ID 搜索
+     */
+    public function searchMemberIdAttr($query, $value)
+    {
+        $query->where('member_id', $value);
+    }
+
+    /**
+     * 模式 搜索
+     */
+    public function searchChatModeAttr($query, $value)
+    {
+        $query->where('chat_mode', $value);
+    }
+
 }
