@@ -850,6 +850,18 @@
                   "id_token": {
                     "type": "string",
                     "description": "Google Sign-In 返回的 ID Token"
+                  },
+                  "member_role": {
+                    "type": "string",
+                    "description": "业务身份 patient/doctor"
+                  },
+                  "locale": {
+                    "type": "string",
+                    "description": "语言"
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "description": "时区"
                   }
                 },
                 "required": [
@@ -916,6 +928,18 @@
                   "full_name": {
                     "type": "string",
                     "description": "Apple 首次授权返回的姓名"
+                  },
+                  "member_role": {
+                    "type": "string",
+                    "description": "业务身份 patient/doctor"
+                  },
+                  "locale": {
+                    "type": "string",
+                    "description": "语言"
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "description": "时区"
                   }
                 },
                 "required": [

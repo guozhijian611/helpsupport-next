@@ -146,6 +146,7 @@ class HelpAuthService
         ]);
 
         $memberId = $this->memberIdByPlatform($platformId, $openid);
+        $this->syncThirdPartyProfile($memberId, $data);
         $this->syncVerifiedEmail($memberId, (string) ($payload['email'] ?? ''), true);
 
         return $this->sessionPayload($token, $memberId);
@@ -190,6 +191,7 @@ class HelpAuthService
         ]);
 
         $memberId = $this->memberIdByPlatform($platformId, $openid);
+        $this->syncThirdPartyProfile($memberId, $data);
         $this->syncVerifiedEmail(
             $memberId,
             (string) ($payload['email'] ?? ''),
@@ -385,6 +387,54 @@ class HelpAuthService
         }
 
         $payload['member_id'] = $memberId;
+        $payload['created_by'] = $memberId;
+        $payload['updated_by'] = $memberId;
+        $payload['create_time'] = $now;
+        $payload['update_time'] = $now;
+        Db::table('sa_help_member_profile')->insert($payload);
+    }
+
+    private function syncThirdPartyProfile(int $memberId, array $data): void
+    {
+        if ($memberId <= 0) {
+            throw new ApiException('会员登录状态异常', 401);
+        }
+
+        $memberRole = trim((string) ($data['member_role'] ?? ''));
+        if ($memberRole !== '' && !in_array($memberRole, ['patient', 'doctor'], true)) {
+            throw new ApiException('会员身份参数错误', 400);
+        }
+
+        $payload = [];
+        foreach (['locale', 'timezone'] as $field) {
+            $value = trim((string) ($data[$field] ?? ''));
+            if ($value !== '') {
+                $payload[$field] = $value;
+            }
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $exists = Db::table('sa_help_member_profile')
+            ->where('member_id', $memberId)
+            ->whereNull('delete_time')
+            ->find();
+        if ($exists) {
+            if ($memberRole !== '') {
+                $payload['member_role'] = $memberRole;
+            }
+            if ($payload === []) {
+                return;
+            }
+
+            $payload['updated_by'] = $memberId;
+            $payload['update_time'] = $now;
+            Db::table('sa_help_member_profile')->where('id', $exists['id'])->update($payload);
+            return;
+        }
+
+        $payload['member_id'] = $memberId;
+        $payload['member_role'] = $memberRole !== '' ? $memberRole : 'patient';
+        $payload['status'] = 1;
         $payload['created_by'] = $memberId;
         $payload['updated_by'] = $memberId;
         $payload['create_time'] = $now;
