@@ -43,9 +43,37 @@
         @pagination:current-change="handleCurrentChange"
       >
         <!-- 操作列 -->
+        <template #audit_status="{ row }">
+          <ElTag :type="auditStatusType(row.audit_status)">
+            {{ auditStatusText(row.audit_status) }}
+          </ElTag>
+        </template>
+        <template #status="{ row }">
+          <ElTag :type="profileStatusType(row.status)">
+            {{ profileStatusText(row.status) }}
+          </ElTag>
+        </template>
         <template #operation="{ row }">
           <div class="flex gap-2">
             <SaButton type="success" @click="showViewDialog('view', row)" />
+            <ElButton
+              v-if="Number(row.audit_status) !== 1"
+              v-permission="'help:audit:profile:audit'"
+              size="small"
+              type="success"
+              @click="auditProfile(row, 1)"
+            >
+              通过
+            </ElButton>
+            <ElButton
+              v-if="Number(row.audit_status) !== 2"
+              v-permission="'help:audit:profile:audit'"
+              size="small"
+              type="warning"
+              @click="auditProfile(row, 2)"
+            >
+              拒绝
+            </ElButton>
             <SaButton
               v-permission="'help:audit:profile:update'"
               type="secondary"
@@ -75,6 +103,7 @@
 </template>
 
 <script setup lang="ts">
+  import { ElMessage, ElMessageBox } from 'element-plus'
   import { useTable } from '@/hooks/core/useTable'
   import { useSaiAdmin } from '@/composables/useSaiAdmin'
   import api from '../../api/audit/profile'
@@ -86,6 +115,8 @@
   const searchForm = ref({
     real_name: undefined,
     title: undefined,
+    audit_status: undefined,
+    status: undefined,
   })
 
   // 搜索处理
@@ -120,11 +151,13 @@
         { prop: 'specialty', label: '专业方向' },
         { prop: 'license_no', label: '执业证书编号' },
         { prop: 'certification_images', label: '证书图片数组', saiType: 'image' },
+        { prop: 'audit_status', label: '审核', width: 110, useSlot: true },
+        { prop: 'status', label: '状态', width: 90, useSlot: true },
         { prop: 'audit_remark', label: '审核备注' },
         { prop: 'audit_by', label: '审核人' },
         { prop: 'audit_time', label: '审核时间' },
         { prop: 'approved_time', label: '通过时间' },
-        { prop: 'operation', label: '操作', width: 140, fixed: 'right', useSlot: true }
+        { prop: 'operation', label: '操作', width: 260, fixed: 'right', useSlot: true }
       ]
     }
   })
@@ -148,4 +181,53 @@
     dialogData: viewDialogData
   } = useSaiAdmin()
 
+  const auditProfile = async (row: Record<string, any>, auditStatus: number) => {
+    let auditRemark = ''
+    if (auditStatus === 2) {
+      const result = await ElMessageBox.prompt('请输入拒绝原因', '拒绝医生资质', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputPlaceholder: '必填',
+        inputValidator: (value) => String(value || '').trim() !== '' || '请输入拒绝原因'
+      })
+      auditRemark = String(result.value || '').trim()
+    } else {
+      await ElMessageBox.confirm(`确定通过医生资质 #${row.id} 吗？`, '审核医生资质', {
+        type: 'warning'
+      })
+    }
+    await api.audit({ id: row.id, audit_status: auditStatus, audit_remark: auditRemark })
+    ElMessage.success('审核成功')
+    refreshData()
+  }
+
+  const auditStatusText = (status: number) => {
+    const map: Record<number, string> = {
+      0: '待审核',
+      1: '已通过',
+      2: '已拒绝'
+    }
+    return map[Number(status)] || '未知'
+  }
+
+  const auditStatusType = (status: number) => {
+    const map: Record<number, 'success' | 'warning' | 'danger' | 'info'> = {
+      0: 'warning',
+      1: 'success',
+      2: 'danger'
+    }
+    return map[Number(status)] || 'info'
+  }
+
+  const profileStatusText = (status: number) => {
+    const map: Record<number, string> = {
+      1: '正常',
+      2: '禁用'
+    }
+    return map[Number(status)] || '未知'
+  }
+
+  const profileStatusType = (status: number) => {
+    return Number(status) === 1 ? 'success' : 'info'
+  }
 </script>

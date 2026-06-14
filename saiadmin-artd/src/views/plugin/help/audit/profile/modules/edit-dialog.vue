@@ -10,6 +10,17 @@
     <el-form ref="formRef" :model="formData" :rules="rules" label-width="120px">
       <el-row :gutter="20">
         <el-col :span="24">
+          <el-form-item label="医生会员ID" prop="member_id">
+            <el-input-number
+              v-model="formData.member_id"
+              :min="1"
+              :precision="0"
+              placeholder="请输入医生会员ID"
+              class="w-full"
+            />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
           <el-form-item label="真实姓名" prop="real_name">
             <el-input v-model="formData.real_name" placeholder="请输入真实姓名" />
           </el-form-item>
@@ -45,8 +56,30 @@
           </el-form-item>
         </el-col>
         <el-col :span="24">
+          <el-form-item label="审核状态" prop="audit_status">
+            <el-select v-model="formData.audit_status" placeholder="请选择审核状态" class="w-full">
+              <el-option label="待审核" :value="0" />
+              <el-option label="已通过" :value="1" />
+              <el-option label="已拒绝" :value="2" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="状态" prop="status">
+            <el-select v-model="formData.status" placeholder="请选择状态" class="w-full">
+              <el-option label="正常" :value="1" />
+              <el-option label="禁用" :value="2" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
           <el-form-item label="审核备注" prop="audit_remark">
-            <el-input v-model="formData.audit_remark" placeholder="请输入审核备注" />
+            <el-input
+              v-model="formData.audit_remark"
+              type="textarea"
+              :rows="3"
+              placeholder="普通新增/编辑可留空；拒绝请使用审核按钮填写原因"
+            />
           </el-form-item>
         </el-col>
         <el-col :span="24">
@@ -86,7 +119,6 @@
 </template>
 
 <script setup lang="ts">
-  import commonApi from '@/api/common'
   import api from '../../../api/audit/profile'
   import { ElMessage } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
@@ -111,9 +143,6 @@
   const emit = defineEmits<Emits>()
 
   const formRef = ref<FormInstance>()
-  const optionData = reactive({
-    treeData: <any[]>[],
-  })
 
   /**
    * 弹窗显示状态双向绑定
@@ -135,7 +164,6 @@
     specialty: [{ required: true, message: '专业方向必需填写', trigger: 'blur' }],
     license_no: [{ required: true, message: '执业证书编号必需填写', trigger: 'blur' }],
     audit_status: [{ required: true, message: '审核状态 0待审核 1已通过 2已拒绝必需填写', trigger: 'blur' }],
-    audit_remark: [{ required: true, message: '审核备注必需填写', trigger: 'blur' }],
     status: [{ required: true, message: '状态 1正常 2禁用必需填写', trigger: 'blur' }],
   })
 
@@ -144,6 +172,7 @@
    */
   const initialFormData = {
     id: null,
+    member_id: null as number | null,
     real_name: '',
     title: '',
     hospital: '',
@@ -151,6 +180,8 @@
     specialty: '',
     license_no: '',
     certification_images: '',
+    audit_status: 0,
+    status: 1,
     audit_remark: '',
     audit_by: null,
     audit_time: '',

@@ -61,5 +61,17 @@ export default {
       url: '/app/help/admin/audit/SaHelpDoctorProfile/destroy',
       data: params
     })
+  },
+
+  /**
+   * 审核医生资质
+   * @param params 审核参数
+   * @returns 执行结果
+   */
+  audit(params: Record<string, any>) {
+    return request.post<any>({
+      url: '/app/help/admin/audit/SaHelpDoctorProfile/audit',
+      data: params
+    })
   }
 }
