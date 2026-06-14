@@ -58,4 +58,20 @@ class SaLocalModelCatalog extends BaseModel
         $query->where('name', 'like', '%'.$value.'%');
     }
 
+    /**
+     * 模型编码 搜索
+     */
+    public function searchCodeAttr($query, $value)
+    {
+        $query->where('code', 'like', '%'.$value.'%');
+    }
+
+    /**
+     * 状态 搜索
+     */
+    public function searchStatusAttr($query, $value)
+    {
+        $query->where('status', $value);
+    }
+
 }

@@ -6,6 +6,9 @@
         <el-descriptions-item label="模型显示名称">
           <div v-text="formData?.name"></div>
         </el-descriptions-item>
+        <el-descriptions-item label="模型编码">
+          <div v-text="formData?.code"></div>
+        </el-descriptions-item>
         <el-descriptions-item label="模型来源">
           <div v-text="formData?.provider"></div>
         </el-descriptions-item>
@@ -47,6 +50,9 @@
         </el-descriptions-item>
         <el-descriptions-item label="排序">
           <div v-text="formData?.sort"></div>
+        </el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <sa-dict :value="formData?.status" dict="data_status" render="span" />
         </el-descriptions-item>
       </el-descriptions>
     </div>
@@ -90,20 +96,22 @@
   const initialFormData = {
     id: null,
     name: '',
+    code: '',
     provider: '',
     model_family: '',
     quantization: '',
-    file_size: '0',
+    file_size: 0,
     download_url: '',
     sha256: '',
     intro: '',
     intro_i18n: '',
     license: '',
-    min_memory_mb: null,
-    context_size: null,
-    default_temperature: '0.70',
-    default_top_p: '0.90',
+    min_memory_mb: 0,
+    context_size: 2048,
+    default_temperature: 0.7,
+    default_top_p: 0.9,
     sort: 100,
+    status: 1,
   }
 
   /**

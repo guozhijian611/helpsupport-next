@@ -85,6 +85,8 @@
   // 搜索表单
   const searchForm = ref({
     name: undefined,
+    code: undefined,
+    status: undefined,
   })
 
   // 搜索处理
@@ -112,21 +114,20 @@
       apiFn: api.list,
       columnsFactory: () => [
         { type: 'selection' },
-        { prop: 'name', label: '模型显示名称' },
-        { prop: 'provider', label: '模型来源' },
-        { prop: 'model_family', label: '模型家族' },
-        { prop: 'quantization', label: '量化类型' },
-        { prop: 'file_size', label: '文件大小字节' },
-        { prop: 'download_url', label: '模型下载地址' },
-        { prop: 'sha256', label: 'SHA256校验值' },
-        { prop: 'intro', label: '默认介绍' },
-        { prop: 'intro_i18n', label: '多语言介绍' },
-        { prop: 'license', label: '许可证说明' },
-        { prop: 'min_memory_mb', label: '推荐最小内存MB' },
-        { prop: 'context_size', label: '默认上下文长度' },
-        { prop: 'default_temperature', label: '默认温度' },
-        { prop: 'default_top_p', label: '默认top_p' },
-        { prop: 'sort', label: '排序' },
+        { prop: 'name', label: '模型显示名称', minWidth: 150 },
+        { prop: 'code', label: '模型编码', minWidth: 140 },
+        { prop: 'provider', label: '模型来源', width: 120 },
+        { prop: 'model_family', label: '模型家族', width: 120 },
+        { prop: 'quantization', label: '量化类型', width: 110 },
+        { prop: 'file_size', label: '文件大小字节', width: 130 },
+        { prop: 'download_url', label: '模型下载地址', minWidth: 220 },
+        { prop: 'sha256', label: 'SHA256校验值', minWidth: 180 },
+        { prop: 'min_memory_mb', label: '推荐最小内存MB', width: 150 },
+        { prop: 'context_size', label: '默认上下文长度', width: 140 },
+        { prop: 'default_temperature', label: '默认温度', width: 110 },
+        { prop: 'default_top_p', label: '默认top_p', width: 110 },
+        { prop: 'sort', label: '排序', width: 90 },
+        { prop: 'status', label: '状态', saiType: 'dict', saiDict: 'data_status', width: 100 },
         { prop: 'operation', label: '操作', width: 140, fixed: 'right', useSlot: true }
       ]
     }

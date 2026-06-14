@@ -15,6 +15,11 @@
           </el-form-item>
         </el-col>
         <el-col :span="24">
+          <el-form-item label="模型编码" prop="code">
+            <el-input v-model="formData.code" placeholder="请输入模型编码" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
           <el-form-item label="模型来源" prop="provider">
             <el-input v-model="formData.provider" placeholder="请输入模型来源" />
           </el-form-item>
@@ -31,7 +36,12 @@
         </el-col>
         <el-col :span="24">
           <el-form-item label="文件大小字节" prop="file_size">
-            <sa-file-upload v-model="formData.file_size" :limit="1" :multiple="false" />
+            <el-input-number
+              v-model="formData.file_size"
+              :min="0"
+              controls-position="right"
+              class="w-full"
+            />
           </el-form-item>
         </el-col>
         <el-col :span="24">
@@ -51,7 +61,12 @@
         </el-col>
         <el-col :span="24">
           <el-form-item label="多语言介绍" prop="intro_i18n">
-            <el-input v-model="formData.intro_i18n" placeholder="请输入多语言介绍" />
+            <el-input
+              v-model="formData.intro_i18n"
+              type="textarea"
+              :rows="4"
+              placeholder='可留空；填写 JSON，例如 {"zh-CN":"介绍"}'
+            />
           </el-form-item>
         </el-col>
         <el-col :span="24">
@@ -61,27 +76,58 @@
         </el-col>
         <el-col :span="24">
           <el-form-item label="推荐最小内存MB" prop="min_memory_mb">
-            <el-input v-model="formData.min_memory_mb" placeholder="请输入推荐最小内存MB" />
+            <el-input-number
+              v-model="formData.min_memory_mb"
+              :min="0"
+              controls-position="right"
+              class="w-full"
+            />
           </el-form-item>
         </el-col>
         <el-col :span="24">
           <el-form-item label="默认上下文长度" prop="context_size">
-            <el-input v-model="formData.context_size" placeholder="请输入默认上下文长度" />
+            <el-input-number
+              v-model="formData.context_size"
+              :min="0"
+              controls-position="right"
+              class="w-full"
+            />
           </el-form-item>
         </el-col>
         <el-col :span="24">
           <el-form-item label="默认温度" prop="default_temperature">
-            <el-input v-model="formData.default_temperature" placeholder="请输入默认温度" />
+            <el-input-number
+              v-model="formData.default_temperature"
+              :min="0"
+              :max="2"
+              :step="0.05"
+              :precision="2"
+              controls-position="right"
+              class="w-full"
+            />
           </el-form-item>
         </el-col>
         <el-col :span="24">
           <el-form-item label="默认top_p" prop="default_top_p">
-            <el-input v-model="formData.default_top_p" placeholder="请输入默认top_p" />
+            <el-input-number
+              v-model="formData.default_top_p"
+              :min="0"
+              :max="1"
+              :step="0.05"
+              :precision="2"
+              controls-position="right"
+              class="w-full"
+            />
           </el-form-item>
         </el-col>
         <el-col :span="24">
           <el-form-item label="排序" prop="sort">
-            <el-input-number v-model="formData.sort" placeholder="请输入排序" />
+            <el-input-number v-model="formData.sort" :min="0" controls-position="right" class="w-full" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="状态" prop="status">
+            <sa-radio v-model="formData.status" dict="data_status" />
           </el-form-item>
         </el-col>
       </el-row>
@@ -94,7 +140,6 @@
 </template>
 
 <script setup lang="ts">
-  import commonApi from '@/api/common'
   import api from '../../../api/localModel/catalog'
   import { ElMessage } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
@@ -119,9 +164,6 @@
   const emit = defineEmits<Emits>()
 
   const formRef = ref<FormInstance>()
-  const optionData = reactive({
-    treeData: <any[]>[],
-  })
 
   /**
    * 弹窗显示状态双向绑定
@@ -159,20 +201,22 @@
   const initialFormData = {
     id: null,
     name: '',
+    code: '',
     provider: '',
     model_family: '',
     quantization: '',
-    file_size: '0',
+    file_size: 0,
     download_url: '',
     sha256: '',
     intro: '',
     intro_i18n: '',
     license: '',
-    min_memory_mb: null,
-    context_size: null,
-    default_temperature: '0.70',
-    default_top_p: '0.90',
+    min_memory_mb: 0,
+    context_size: 2048,
+    default_temperature: 0.7,
+    default_top_p: 0.9,
     sort: 100,
+    status: 1,
   }
 
   /**
