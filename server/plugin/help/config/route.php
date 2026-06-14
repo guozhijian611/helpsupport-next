@@ -95,6 +95,9 @@ Route::group('/app/help', function () {
     Route::get('/material/history', [MaterialController::class, 'history']);
     Route::post('/material/history/save', [MaterialController::class, 'saveHistory']);
     Route::get('/material/collections', [MaterialController::class, 'collections']);
+    Route::get('/material/comments', [MaterialController::class, 'comments']);
+    Route::post('/material/comment', [MaterialController::class, 'saveComment']);
+    Route::post('/material/comment/like', [MaterialController::class, 'toggleCommentLike']);
     Route::post('/material/like', [MaterialController::class, 'toggleLike']);
     Route::post('/material/collect', [MaterialController::class, 'toggleCollect']);
 

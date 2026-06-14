@@ -98,6 +98,44 @@ class MaterialController extends BaseController
         return ok($this->service->materialCollections($this->memberId, $request->get()));
     }
 
+    #[Apidoc\Title('素材评论列表')]
+    #[Apidoc\Url('/app/help/material/comments')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('material_id', type: 'int', require: true, desc: '素材ID')]
+    #[Apidoc\Query('parent_id', type: 'int', require: false, default: 0, desc: '父评论ID')]
+    #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
+    #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
+    #[Apidoc\Returned('list', type: 'array', desc: '评论列表')]
+    #[Apidoc\Returned('total', type: 'int', desc: '总数')]
+    public function comments(Request $request): Response
+    {
+        return ok($this->service->materialComments($this->memberId, $request->get()));
+    }
+
+    #[Apidoc\Title('发布素材评论')]
+    #[Apidoc\Url('/app/help/material/comment')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('material_id', type: 'int', require: true, desc: '素材ID')]
+    #[Apidoc\Param('parent_id', type: 'int', require: false, default: 0, desc: '父评论ID')]
+    #[Apidoc\Param('content', type: 'string', require: true, desc: '评论内容')]
+    #[Apidoc\Param('attachments', type: 'array', require: false, desc: '附件列表')]
+    #[Apidoc\Returned('id', type: 'int', desc: '评论ID')]
+    public function saveComment(Request $request): Response
+    {
+        return ok($this->service->saveMaterialComment($this->memberId, $request->post()));
+    }
+
+    #[Apidoc\Title('素材评论点赞切换')]
+    #[Apidoc\Url('/app/help/material/comment/like')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('comment_id', type: 'int', require: true, desc: '评论ID')]
+    #[Apidoc\Returned('comment_id', type: 'int', desc: '评论ID')]
+    #[Apidoc\Returned('is_liked', type: 'boolean', desc: '是否已点赞')]
+    public function toggleCommentLike(Request $request): Response
+    {
+        return ok($this->service->toggleMaterialCommentLike($this->memberId, (int) $request->post('comment_id')));
+    }
+
     #[Apidoc\Title('切换素材点赞')]
     #[Apidoc\Url('/app/help/material/like')]
     #[Apidoc\Method('POST')]

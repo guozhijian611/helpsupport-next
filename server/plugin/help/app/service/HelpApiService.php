@@ -1152,6 +1152,79 @@ class HelpApiService
             ->order('c.id', 'desc'), $params);
     }
 
+    public function materialComments(int $memberId, array $params): array
+    {
+        $materialId = (int) ($params['material_id'] ?? 0);
+        $this->assertVisibleMaterial($memberId, $materialId);
+        $parentId = max(0, (int) ($params['parent_id'] ?? 0));
+
+        $page = $this->paginate(function () use ($materialId, $parentId) {
+            return Db::table('sa_material_comment')
+                ->alias('c')
+                ->leftJoin('sa_member m', 'm.id = c.member_id AND m.delete_time IS NULL')
+                ->where('c.material_id', $materialId)
+                ->where('c.parent_id', $parentId)
+                ->where('c.status', 1)
+                ->whereNull('c.delete_time')
+                ->field('c.*, m.nickname AS author_name, m.avatar AS author_avatar')
+                ->order('c.id', 'asc');
+        }, $params);
+
+        $page['list'] = $this->decorateMaterialComments($page['list'], $memberId);
+        return $page;
+    }
+
+    public function saveMaterialComment(int $memberId, array $data): array
+    {
+        $materialId = (int) ($data['material_id'] ?? 0);
+        $this->assertVisibleMaterial($memberId, $materialId);
+        $parentId = max(0, (int) ($data['parent_id'] ?? 0));
+        if ($parentId > 0) {
+            $parent = $this->assertVisibleMaterialComment($memberId, $parentId);
+            if ((int) ($parent['material_id'] ?? 0) !== $materialId) {
+                throw new ApiException('父评论与素材不匹配', 400);
+            }
+        }
+
+        $content = trim((string) ($data['content'] ?? ''));
+        if ($content === '') {
+            throw new ApiException('评论内容必须填写', 400);
+        }
+
+        $commentId = Db::transaction(function () use ($memberId, $materialId, $parentId, $content, $data) {
+            $id = $this->saveRow('sa_material_comment', [
+                'material_id' => $materialId,
+                'member_id' => $memberId,
+                'parent_id' => $parentId,
+                'content' => $content,
+                'attachments' => $this->jsonValue($data['attachments'] ?? null),
+                'like_count' => 0,
+                'status' => 1,
+            ], $memberId);
+            $this->syncMaterialCounter($materialId, 'comment_count', true);
+
+            return $id;
+        });
+
+        $comment = Db::table('sa_material_comment')
+            ->alias('c')
+            ->leftJoin('sa_member m', 'm.id = c.member_id AND m.delete_time IS NULL')
+            ->where('c.id', $commentId)
+            ->field('c.*, m.nickname AS author_name, m.avatar AS author_avatar')
+            ->find() ?: [];
+
+        return $this->decorateMaterialComments([$comment], $memberId)[0] ?? [];
+    }
+
+    public function toggleMaterialCommentLike(int $memberId, int $commentId): array
+    {
+        $comment = $this->assertVisibleMaterialComment($memberId, $commentId);
+        $isActive = $this->toggleInteraction('sa_material_comment_like', $memberId, 'comment_id', $commentId);
+        $this->syncMaterialCommentCounter((int) $comment['id'], 'like_count', $isActive);
+
+        return ['comment_id' => $commentId, 'is_liked' => $isActive];
+    }
+
     public function toggleMaterialLike(int $memberId, int $materialId): array
     {
         $this->assertVisibleMaterial($memberId, $materialId);
@@ -2962,6 +3035,38 @@ class HelpApiService
         }
     }
 
+    private function decorateMaterialComments(array $comments, int $memberId): array
+    {
+        foreach ($comments as &$comment) {
+            $commentId = (int) ($comment['id'] ?? 0);
+            $comment['attachments'] = $this->decodeJsonArray($comment['attachments'] ?? null);
+            $comment['is_liked'] = $commentId > 0
+                && $this->activeInteractionExists('sa_material_comment_like', $memberId, 'comment_id', $commentId);
+        }
+        unset($comment);
+
+        return $comments;
+    }
+
+    private function assertVisibleMaterialComment(int $memberId, int $commentId): array
+    {
+        if ($commentId <= 0) {
+            throw new ApiException('评论ID必须填写', 400);
+        }
+
+        $comment = Db::table('sa_material_comment')
+            ->where('id', $commentId)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$comment) {
+            throw new ApiException('评论不存在或无权访问', 404);
+        }
+
+        $this->assertVisibleMaterial($memberId, (int) $comment['material_id']);
+        return $comment;
+    }
+
     private function activeInteractionExists(string $table, int $memberId, string $field, int $targetId): bool
     {
         return (bool) Db::table($table)
@@ -3022,6 +3127,21 @@ class HelpApiService
             $field,
             $operator,
             $materialId
+        ));
+    }
+
+    private function syncMaterialCommentCounter(int $commentId, string $field, bool $increase): void
+    {
+        if ($field !== 'like_count') {
+            return;
+        }
+
+        $operator = $increase ? '+' : '-';
+        Db::execute(sprintf(
+            'UPDATE `sa_material_comment` SET `%1$s` = GREATEST(`%1$s` %2$s 1, 0), `update_time` = NOW() WHERE `id` = %3$d',
+            $field,
+            $operator,
+            $commentId
         ));
     }
 
