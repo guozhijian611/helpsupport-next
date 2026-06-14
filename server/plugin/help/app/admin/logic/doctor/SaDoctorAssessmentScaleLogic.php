@@ -34,6 +34,9 @@ class SaDoctorAssessmentScaleLogic extends BaseLogic
             throw new ApiException('请选择要发布的量表');
         }
 
+        $scale = $this->scaleRow($id);
+        $this->assertPublishable($scale);
+
         return (bool) $this->edit($id, [
             'status' => 'published',
             'published_at' => date('Y-m-d H:i:s'),
@@ -62,7 +65,11 @@ class SaDoctorAssessmentScaleLogic extends BaseLogic
             'stage' => '',
             'total_score' => 0,
         ] as $field => $default) {
-            if (!array_key_exists($field, $data) || $data[$field] === '') {
+            if ($isCreate && (!array_key_exists($field, $data) || $data[$field] === '')) {
+                $data[$field] = $default;
+                continue;
+            }
+            if (!$isCreate && array_key_exists($field, $data) && $data[$field] === '') {
                 $data[$field] = $default;
             }
         }
@@ -73,14 +80,17 @@ class SaDoctorAssessmentScaleLogic extends BaseLogic
 
         foreach (['questions', 'scoring_rule'] as $field) {
             if (array_key_exists($field, $data)) {
-                $data[$field] = $this->normalizeJsonField($data[$field]);
+                $data[$field] = $this->normalizeJsonField(
+                    $data[$field],
+                    $field === 'questions' ? '题目配置' : '计分规则'
+                );
             }
         }
 
         return $data;
     }
 
-    private function normalizeJsonField(mixed $value): ?string
+    private function normalizeJsonField(mixed $value, string $label): ?string
     {
         if ($value === '' || $value === null) {
             return null;
@@ -90,6 +100,29 @@ class SaDoctorAssessmentScaleLogic extends BaseLogic
             return json_encode($value, JSON_UNESCAPED_UNICODE);
         }
 
-        return (string) $value;
+        $decoded = json_decode((string) $value, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new ApiException($label . 'JSON格式错误');
+        }
+
+        return json_encode($decoded, JSON_UNESCAPED_UNICODE);
+    }
+
+    private function scaleRow(string $id): array
+    {
+        $scale = $this->model->where('id', $id)->whereNull('delete_time')->find();
+        if (!$scale) {
+            throw new ApiException('评估量表不存在');
+        }
+
+        return is_array($scale) ? $scale : $scale->toArray();
+    }
+
+    private function assertPublishable(array $scale): void
+    {
+        $questions = json_decode((string) ($scale['questions'] ?? ''), true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($questions) || $questions === []) {
+            throw new ApiException('发布前请先配置有效的题目JSON');
+        }
     }
 }
