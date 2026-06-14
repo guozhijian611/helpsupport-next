@@ -7,6 +7,7 @@ namespace plugin\help\app\service;
 use plugin\saiai\app\service\AiFactory;
 use plugin\saiadmin\exception\ApiException;
 use think\facade\Db;
+use Throwable;
 
 class HelpApiService
 {
@@ -1260,7 +1261,17 @@ class HelpApiService
         $payload['status'] = 0;
 
         $id = $this->saveRow('sa_doctor_appointment', $payload, $memberId);
-        return Db::table('sa_doctor_appointment')->where('id', $id)->find() ?: [];
+        $appointment = Db::table('sa_doctor_appointment')->where('id', $id)->find() ?: [];
+        $this->notifyMemberSafely($doctorId, 'appointment_update', [
+            'status_text' => 'pending',
+        ], [
+            'biz_type' => 'appointment',
+            'biz_id' => $id,
+            'route' => '/pages/doctor/appointments',
+            'payload' => ['appointment_id' => $id],
+        ]);
+
+        return $appointment;
     }
 
     public function cancelAppointment(int $memberId, array $data): array
@@ -1283,7 +1294,17 @@ class HelpApiService
             'canceled_at' => date('Y-m-d H:i:s'),
         ], $memberId, $appointmentId);
 
-        return Db::table('sa_doctor_appointment')->where('id', $appointmentId)->find() ?: [];
+        $updated = Db::table('sa_doctor_appointment')->where('id', $appointmentId)->find() ?: [];
+        $this->notifyMemberSafely((int) $appointment['doctor_id'], 'appointment_update', [
+            'status_text' => 'canceled',
+        ], [
+            'biz_type' => 'appointment',
+            'biz_id' => $appointmentId,
+            'route' => '/pages/doctor/appointments',
+            'payload' => ['appointment_id' => $appointmentId],
+        ]);
+
+        return $updated;
     }
 
     public function doctorPatients(int $doctorId, array $params): array
@@ -1799,7 +1820,17 @@ class HelpApiService
             $this->upsertDoctorPatientRelation($doctorId, (int) $appointment['member_id'], 'appointment');
         });
 
-        return Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
+        $updated = Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
+        $this->notifyMemberSafely((int) $appointment['member_id'], 'appointment_update', [
+            'status_text' => 'confirmed',
+        ], [
+            'biz_type' => 'appointment',
+            'biz_id' => (int) $appointment['id'],
+            'route' => '/pages/appointment/detail',
+            'payload' => ['appointment_id' => (int) $appointment['id']],
+        ]);
+
+        return $updated;
     }
 
     public function finishDoctorAppointment(int $doctorId, array $data): array
@@ -1812,7 +1843,17 @@ class HelpApiService
             'update_time' => date('Y-m-d H:i:s'),
         ]);
 
-        return Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
+        $updated = Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
+        $this->notifyMemberSafely((int) $appointment['member_id'], 'appointment_update', [
+            'status_text' => 'finished',
+        ], [
+            'biz_type' => 'appointment',
+            'biz_id' => (int) $appointment['id'],
+            'route' => '/pages/appointment/detail',
+            'payload' => ['appointment_id' => (int) $appointment['id']],
+        ]);
+
+        return $updated;
     }
 
     public function cancelDoctorAppointment(int $doctorId, array $data): array
@@ -1827,7 +1868,17 @@ class HelpApiService
             'update_time' => date('Y-m-d H:i:s'),
         ]);
 
-        return Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
+        $updated = Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
+        $this->notifyMemberSafely((int) $appointment['member_id'], 'appointment_update', [
+            'status_text' => 'canceled',
+        ], [
+            'biz_type' => 'appointment',
+            'biz_id' => (int) $appointment['id'],
+            'route' => '/pages/appointment/detail',
+            'payload' => ['appointment_id' => (int) $appointment['id']],
+        ]);
+
+        return $updated;
     }
 
     public function rejectDoctorAppointment(int $doctorId, array $data): array
@@ -1840,7 +1891,17 @@ class HelpApiService
             'update_time' => date('Y-m-d H:i:s'),
         ]);
 
-        return Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
+        $updated = Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
+        $this->notifyMemberSafely((int) $appointment['member_id'], 'appointment_update', [
+            'status_text' => 'rejected',
+        ], [
+            'biz_type' => 'appointment',
+            'biz_id' => (int) $appointment['id'],
+            'route' => '/pages/appointment/detail',
+            'payload' => ['appointment_id' => (int) $appointment['id']],
+        ]);
+
+        return $updated;
     }
 
     public function journals(int $memberId, array $params): array
@@ -2157,6 +2218,15 @@ class HelpApiService
         }
 
         return $appointment;
+    }
+
+    private function notifyMemberSafely(int $memberId, string $templateCode, array $variables, array $options): void
+    {
+        try {
+            (new HelpPushService())->notifyMember($memberId, $templateCode, $variables, $options);
+        } catch (Throwable) {
+            // 通知失败不能影响主业务写入；具体发送结果会在消息中心记录里体现。
+        }
     }
 
     private function rowByMember(string $table, int $memberId): array

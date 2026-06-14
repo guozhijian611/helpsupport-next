@@ -6,10 +6,12 @@
 // +----------------------------------------------------------------------
 namespace plugin\help\app\admin\logic\audit;
 
+use plugin\help\app\service\HelpPushService;
 use plugin\saiadmin\basic\think\BaseLogic;
 use plugin\saiadmin\exception\ApiException;
 use plugin\help\app\model\audit\SaHelpDoctorProfile;
 use think\facade\Db;
+use Throwable;
 
 /**
  * 医生资质审核逻辑层
@@ -70,6 +72,23 @@ class SaHelpDoctorProfileLogic extends BaseLogic
                     ]);
             }
         });
+
+        try {
+            (new HelpPushService())->notifyMember((int) $profile['member_id'], 'doctor_audit_result', [
+                'audit_status_text' => $auditStatus === 1 ? 'approved' : 'rejected',
+                'audit_remark' => $remark,
+            ], [
+                'biz_type' => 'doctor_audit',
+                'biz_id' => $id,
+                'route' => '/pages/me/doctor-certification',
+                'payload' => [
+                    'audit_status' => $auditStatus,
+                    'profile_id' => $id,
+                ],
+            ]);
+        } catch (Throwable) {
+            // 审核结果已落库，通知失败不阻断后台审核动作。
+        }
 
         return true;
     }
