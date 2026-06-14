@@ -604,21 +604,25 @@ class HelpApiService
             ->whereNull('delete_time')
             ->find();
 
-        $now = date('Y-m-d H:i:s');
-        if ($exists) {
-            $payload['updated_by'] = $memberId;
-            $payload['update_time'] = $now;
-            Db::table('sa_member_push_device')->where('id', $exists['id'])->update($payload);
-            return Db::table('sa_member_push_device')->where('id', $exists['id'])->find() ?: [];
-        }
+        return Db::transaction(function () use ($memberId, $payload, $exists) {
+            $now = date('Y-m-d H:i:s');
+            if ($exists) {
+                $id = (int) $exists['id'];
+                $payload['updated_by'] = $memberId;
+                $payload['update_time'] = $now;
+                Db::table('sa_member_push_device')->where('id', $id)->update($payload);
+            } else {
+                $payload['member_id'] = $memberId;
+                $payload['created_by'] = $memberId;
+                $payload['updated_by'] = $memberId;
+                $payload['create_time'] = $now;
+                $payload['update_time'] = $now;
+                $id = (int) Db::table('sa_member_push_device')->insertGetId($payload);
+            }
 
-        $payload['member_id'] = $memberId;
-        $payload['created_by'] = $memberId;
-        $payload['updated_by'] = $memberId;
-        $payload['create_time'] = $now;
-        $payload['update_time'] = $now;
-        $id = Db::table('sa_member_push_device')->insertGetId($payload);
-        return Db::table('sa_member_push_device')->where('id', $id)->find() ?: [];
+            $this->deactivateOtherPushDevices($memberId, $id, $now);
+            return Db::table('sa_member_push_device')->where('id', $id)->find() ?: [];
+        });
     }
 
     public function unregisterDevice(int $memberId, array $data): bool
@@ -642,6 +646,25 @@ class HelpApiService
             ]);
 
         return true;
+    }
+
+    private function deactivateOtherPushDevices(int $memberId, int $activeDeviceId, string $now): void
+    {
+        if ($activeDeviceId <= 0) {
+            return;
+        }
+
+        Db::table('sa_member_push_device')
+            ->where('member_id', $memberId)
+            ->where('id', '<>', $activeDeviceId)
+            ->where('is_active', 1)
+            ->whereNull('delete_time')
+            ->update([
+                'is_active' => 2,
+                'logout_time' => $now,
+                'updated_by' => $memberId,
+                'update_time' => $now,
+            ]);
     }
 
     public function pushPreference(int $memberId): array
