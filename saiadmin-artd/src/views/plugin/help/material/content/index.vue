@@ -219,6 +219,19 @@
       table: false
     },
     {
+      prop: 'audit_by',
+      label: '审核人',
+      form: false,
+      width: 100
+    },
+    {
+      prop: 'audit_time',
+      label: '审核时间',
+      type: 'datetime',
+      form: false,
+      width: 170
+    },
+    {
       prop: 'sort',
       label: '排序',
       type: 'number',

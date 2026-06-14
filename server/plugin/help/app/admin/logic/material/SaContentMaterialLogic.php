@@ -28,7 +28,7 @@ class SaContentMaterialLogic extends BaseLogic
         return parent::edit($id, $this->normalizeFields($data));
     }
 
-    public function audit(int $id, int $auditStatus, string $remark): bool
+    public function audit(int $id, int $auditStatus, string $remark, int $adminId): bool
     {
         if (!in_array($auditStatus, [1, 2, 3], true)) {
             throw new ApiException('审核状态参数错误');
@@ -40,6 +40,8 @@ class SaContentMaterialLogic extends BaseLogic
         return (bool) $this->edit($id, [
             'audit_status' => $auditStatus,
             'audit_remark' => $remark,
+            'audit_by' => $adminId > 0 ? $adminId : null,
+            'audit_time' => date('Y-m-d H:i:s'),
             'status' => $auditStatus === 2 ? 1 : 2,
         ]);
     }

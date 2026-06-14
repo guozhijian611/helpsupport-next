@@ -95,7 +95,8 @@ class SaContentMaterialController extends BaseController
         $result = $this->logic->audit(
             $id,
             $auditStatus,
-            trim((string) $request->post('audit_remark', ''))
+            trim((string) $request->post('audit_remark', '')),
+            isset($this->adminId) ? (int) $this->adminId : 0
         );
 
         return $result ? $this->success('审核成功') : $this->fail('审核失败');
