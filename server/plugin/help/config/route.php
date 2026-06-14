@@ -16,22 +16,30 @@ use plugin\help\app\admin\controller\appointment\SaDoctorAppointmentController a
 use plugin\help\app\admin\controller\appointment\SaDoctorScheduleController as AdminDoctorScheduleController;
 use plugin\help\app\admin\controller\audit\SaHelpDoctorProfileController as AdminHelpDoctorProfileController;
 use plugin\help\app\admin\controller\chat\SaMemberChatConfigController as AdminMemberChatConfigController;
+use plugin\help\app\admin\controller\chat\SaMemberChatRecordController as AdminMemberChatRecordController;
+use plugin\help\app\admin\controller\chat\SaMemberChatSessionController as AdminMemberChatSessionController;
 use plugin\help\app\admin\controller\community\SaCommunityCommentController as AdminCommunityCommentController;
 use plugin\help\app\admin\controller\community\SaCommunityPostController as AdminCommunityPostController;
 use plugin\help\app\admin\controller\community\SaCommunityReportController as AdminCommunityReportController;
+use plugin\help\app\admin\controller\community\SaCommunityTagController as AdminCommunityTagController;
 use plugin\help\app\admin\controller\config\HelpRuntimeConfigController as AdminHelpRuntimeConfigController;
 use plugin\help\app\admin\controller\config\SaAppOnboardingPageController as AdminAppOnboardingPageController;
 use plugin\help\app\admin\controller\doctor\SaDoctorAssessmentScaleController as AdminDoctorAssessmentScaleController;
 use plugin\help\app\admin\controller\doctor\SaDoctorPatientController as AdminDoctorPatientController;
 use plugin\help\app\admin\controller\doctor\SaDoctorTaskTemplateController as AdminDoctorTaskTemplateController;
 use plugin\help\app\admin\controller\doctor\SaDoctorTaskTemplateFolderController as AdminDoctorTaskTemplateFolderController;
+use plugin\help\app\admin\controller\gamification\SaMemberBadgeController as AdminMemberBadgeController;
 use plugin\help\app\admin\controller\gamification\SaMemberBadgeRuleController as AdminMemberBadgeRuleController;
 use plugin\help\app\admin\controller\gamification\SaMemberPointLogController as AdminMemberPointLogController;
 use plugin\help\app\admin\controller\localModel\SaLocalModelCatalogController as AdminLocalModelCatalogController;
 use plugin\help\app\admin\controller\localModel\SaLocalModelPromptController as AdminLocalModelPromptController;
 use plugin\help\app\admin\controller\material\SaContentCategoryController as AdminContentCategoryController;
 use plugin\help\app\admin\controller\material\SaContentMaterialController as AdminContentMaterialController;
+use plugin\help\app\admin\controller\me\SaMemberJournalController as AdminMemberJournalController;
+use plugin\help\app\admin\controller\me\SaMemberMemoirController as AdminMemberMemoirController;
 use plugin\help\app\admin\controller\me\SaMemberMemoirConfigController as AdminMemberMemoirConfigController;
+use plugin\help\app\admin\controller\me\SaMemberRecoveryGoalLogController as AdminMemberRecoveryGoalLogController;
+use plugin\help\app\admin\controller\me\SaMemberTriggerLogController as AdminMemberTriggerLogController;
 use plugin\help\app\admin\controller\message\SaMemberMessageController as AdminMemberMessageController;
 use plugin\help\app\admin\controller\plan\SaDailyTaskController as AdminDailyTaskController;
 use plugin\help\app\admin\controller\plan\SaMemberAssessmentResultController as AdminAssessmentResultController;
@@ -148,6 +156,8 @@ Route::group('/app/help', function () {
 });
 
 Route::group('/app/help/admin/community', function () {
+    fastRoute('SaCommunityTag', AdminCommunityTagController::class);
+
     fastRoute('SaCommunityPost', AdminCommunityPostController::class);
     Route::post('/SaCommunityPost/audit', [AdminCommunityPostController::class, 'audit']);
 
@@ -171,6 +181,8 @@ Route::group('/app/help/admin/audit', function () {
 
 Route::group('/app/help/admin/chat', function () {
     fastRoute('SaMemberChatConfig', AdminMemberChatConfigController::class);
+    fastRoute('SaMemberChatSession', AdminMemberChatSessionController::class);
+    fastRoute('SaMemberChatRecord', AdminMemberChatRecordController::class);
 });
 
 Route::group('/app/help/admin/localModel', function () {
@@ -226,11 +238,16 @@ Route::group('/app/help/admin/message', function () {
 
 Route::group('/app/help/admin/gamification', function () {
     fastRoute('SaMemberBadgeRule', AdminMemberBadgeRuleController::class);
+    fastRoute('SaMemberBadge', AdminMemberBadgeController::class);
     fastRoute('SaMemberPointLog', AdminMemberPointLogController::class);
 });
 
 Route::group('/app/help/admin/me', function () {
+    fastRoute('SaMemberJournal', AdminMemberJournalController::class);
+    fastRoute('SaMemberMemoir', AdminMemberMemoirController::class);
     fastRoute('SaMemberMemoirConfig', AdminMemberMemoirConfigController::class);
+    fastRoute('SaMemberRecoveryGoalLog', AdminMemberRecoveryGoalLogController::class);
+    fastRoute('SaMemberTriggerLog', AdminMemberTriggerLogController::class);
 });
 
 Route::group('/app/help/admin/risk', function () {
