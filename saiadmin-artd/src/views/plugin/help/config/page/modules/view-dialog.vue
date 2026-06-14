@@ -3,6 +3,9 @@
     <!-- 详情 start -->
     <div>
       <el-descriptions :column="1" label-width="100px" border>
+        <el-descriptions-item label="场景">
+          <div v-text="formData?.scene"></div>
+        </el-descriptions-item>
         <el-descriptions-item label="配置版本">
           <div v-text="formData?.version"></div>
         </el-descriptions-item>
@@ -26,6 +29,9 @@
         </el-descriptions-item>
         <el-descriptions-item label="动作值">
           <div v-text="formData?.action_value"></div>
+        </el-descriptions-item>
+        <el-descriptions-item label="排序">
+          <div v-text="formData?.sort"></div>
         </el-descriptions-item>
         <el-descriptions-item label="状态 1启用 2禁用">
           <sa-dict :value="formData?.status" dict="data_status" render="span" />
@@ -77,6 +83,7 @@
    */
   const initialFormData = {
     id: null,
+    scene: 'first_launch',
     version: '',
     locale: 'en-US',
     title: '',
@@ -85,9 +92,10 @@
     button_text: '',
     action_type: 'next',
     action_value: '',
+    sort: 10,
     status: 1,
     start_time: '',
-    end_time: '',
+    end_time: ''
   }
 
   /**

@@ -85,7 +85,7 @@
   // 搜索表单
   const searchForm = ref({
     title: undefined,
-    action_type: undefined,
+    action_type: undefined
   })
 
   // 搜索处理
@@ -113,6 +113,7 @@
       apiFn: api.list,
       columnsFactory: () => [
         { type: 'selection' },
+        { prop: 'scene', label: '场景' },
         { prop: 'version', label: '配置版本' },
         { prop: 'locale', label: '语言' },
         { prop: 'title', label: '标题' },
@@ -121,6 +122,7 @@
         { prop: 'button_text', label: '按钮文案' },
         { prop: 'action_type', label: '动作类型 next/skip/route/external_url' },
         { prop: 'action_value', label: '动作值' },
+        { prop: 'sort', label: '排序', sortable: true },
         { prop: 'status', label: '状态 1启用 2禁用', saiType: 'dict', saiDict: 'data_status' },
         { prop: 'start_time', label: '生效开始时间' },
         { prop: 'end_time', label: '生效结束时间' },
@@ -147,5 +149,4 @@
     dialogVisible: viewDialogVisible,
     dialogData: viewDialogData
   } = useSaiAdmin()
-
 </script>

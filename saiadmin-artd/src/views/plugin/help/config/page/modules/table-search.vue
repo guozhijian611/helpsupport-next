@@ -14,16 +14,21 @@
       </el-form-item>
     </el-col>
     <el-col v-bind="setSpan(6)">
-      <el-form-item label="动作类型 next/skip/route/external_url" prop="action_type">
-        <el-input v-model="formData.action_type" placeholder="请输入动作类型 next/skip/route/external_url" clearable />
+      <el-form-item label="动作类型" prop="action_type">
+        <el-select v-model="formData.action_type" placeholder="请选择动作类型" clearable>
+          <el-option
+            v-for="item in actionTypeOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
       </el-form-item>
     </el-col>
   </sa-search-bar>
 </template>
 
 <script setup lang="ts">
-  import commonApi from '@/api/common'
-
   interface Props {
     modelValue: Record<string, any>
   }
@@ -37,25 +42,18 @@
 
   // 展开/收起
   const isExpanded = ref<boolean>(false)
+  const actionTypeOptions = [
+    { label: 'next', value: 'next' },
+    { label: 'skip', value: 'skip' },
+    { label: 'route', value: 'route' },
+    { label: 'external_url', value: 'external_url' }
+  ]
 
   // 表单数据双向绑定
   const searchBarRef = ref()
   const formData = computed({
     get: () => props.modelValue,
     set: (val) => emit('update:modelValue', val)
-  })
-
-  // 选项数据
-  const optionData = reactive({
-  })
-
-  // 初始化选项数据
-  const initOptions = async () => {
-  }
-
-  // 组件挂载时初始化选项数据
-  onMounted(() => {
-    initOptions()
   })
 
   // 重置

@@ -11,7 +11,12 @@
       <el-row :gutter="20">
         <el-col :span="24">
           <el-form-item label="配置版本" prop="version">
-            <el-input v-model="formData.version" placeholder="请输入配置版本" />
+            <el-input v-model="formData.version" placeholder="留空表示默认版本" clearable />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="场景" prop="scene">
+            <el-input v-model="formData.scene" placeholder="请输入场景" />
           </el-form-item>
         </el-col>
         <el-col :span="24">
@@ -40,13 +45,25 @@
           </el-form-item>
         </el-col>
         <el-col :span="24">
-          <el-form-item label="动作类型 next/skip/route/external_url" prop="action_type">
-            <el-input v-model="formData.action_type" placeholder="请输入动作类型 next/skip/route/external_url" />
+          <el-form-item label="动作类型" prop="action_type">
+            <el-select v-model="formData.action_type" placeholder="请选择动作类型">
+              <el-option
+                v-for="item in actionTypeOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
           </el-form-item>
         </el-col>
         <el-col :span="24">
           <el-form-item label="动作值" prop="action_value">
             <el-input v-model="formData.action_value" placeholder="请输入动作值" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="排序" prop="sort">
+            <el-input-number v-model="formData.sort" :min="0" :step="10" />
           </el-form-item>
         </el-col>
         <el-col :span="24">
@@ -86,7 +103,6 @@
 </template>
 
 <script setup lang="ts">
-  import commonApi from '@/api/common'
   import api from '../../../api/config/page'
   import { ElMessage } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
@@ -111,9 +127,12 @@
   const emit = defineEmits<Emits>()
 
   const formRef = ref<FormInstance>()
-  const optionData = reactive({
-    treeData: <any[]>[],
-  })
+  const actionTypeOptions = [
+    { label: 'next', value: 'next' },
+    { label: 'skip', value: 'skip' },
+    { label: 'route', value: 'route' },
+    { label: 'external_url', value: 'external_url' }
+  ]
 
   /**
    * 弹窗显示状态双向绑定
@@ -128,16 +147,14 @@
    */
   const rules = reactive<FormRules>({
     scene: [{ required: true, message: '场景必需填写', trigger: 'blur' }],
-    version: [{ required: true, message: '配置版本必需填写', trigger: 'blur' }],
     locale: [{ required: true, message: '语言必需填写', trigger: 'blur' }],
     title: [{ required: true, message: '标题必需填写', trigger: 'blur' }],
     description: [{ required: true, message: '说明必需填写', trigger: 'blur' }],
     image: [{ required: true, message: '图片URL或附件路径必需填写', trigger: 'blur' }],
     button_text: [{ required: true, message: '按钮文案必需填写', trigger: 'blur' }],
-    action_type: [{ required: true, message: '动作类型 next/skip/route/external_url必需填写', trigger: 'blur' }],
-    action_value: [{ required: true, message: '动作值必需填写', trigger: 'blur' }],
+    action_type: [{ required: true, message: '动作类型必需填写', trigger: 'change' }],
     sort: [{ required: true, message: '排序必需填写', trigger: 'blur' }],
-    status: [{ required: true, message: '状态 1启用 2禁用必需填写', trigger: 'blur' }],
+    status: [{ required: true, message: '状态 1启用 2禁用必需填写', trigger: 'blur' }]
   })
 
   /**
@@ -145,6 +162,7 @@
    */
   const initialFormData = {
     id: null,
+    scene: 'first_launch',
     version: '',
     locale: 'en-US',
     title: '',
@@ -153,9 +171,10 @@
     button_text: '',
     action_type: 'next',
     action_value: '',
+    sort: 10,
     status: 1,
     start_time: '',
-    end_time: '',
+    end_time: ''
   }
 
   /**

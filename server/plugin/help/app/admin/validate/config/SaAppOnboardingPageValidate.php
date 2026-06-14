@@ -18,14 +18,12 @@ class SaAppOnboardingPageValidate extends BaseValidate
      */
     protected $rule =   [
         'scene' => 'require',
-        'version' => 'require',
         'locale' => 'require',
         'title' => 'require',
         'description' => 'require',
         'image' => 'require',
         'button_text' => 'require',
         'action_type' => 'require',
-        'action_value' => 'require',
         'sort' => 'require',
         'status' => 'require',
     ];
@@ -35,14 +33,12 @@ class SaAppOnboardingPageValidate extends BaseValidate
      */
     protected $message  =   [
         'scene' => '场景必须填写',
-        'version' => '配置版本必须填写',
         'locale' => '语言必须填写',
         'title' => '标题必须填写',
         'description' => '说明必须填写',
         'image' => '图片URL或附件路径必须填写',
         'button_text' => '按钮文案必须填写',
         'action_type' => '动作类型 next/skip/route/external_url必须填写',
-        'action_value' => '动作值必须填写',
         'sort' => '排序必须填写',
         'status' => '状态 1启用 2禁用必须填写',
     ];
@@ -53,27 +49,23 @@ class SaAppOnboardingPageValidate extends BaseValidate
     protected $scene = [
         'save' => [
             'scene',
-            'version',
             'locale',
             'title',
             'description',
             'image',
             'button_text',
             'action_type',
-            'action_value',
             'sort',
             'status',
         ],
         'update' => [
             'scene',
-            'version',
             'locale',
             'title',
             'description',
             'image',
             'button_text',
             'action_type',
-            'action_value',
             'sort',
             'status',
         ],
