@@ -11,9 +11,12 @@ use plugin\help\app\api\controller\MaterialController;
 use plugin\help\app\api\controller\MeController;
 use plugin\help\app\api\controller\PlanController;
 use plugin\help\app\api\controller\PushController;
+use plugin\help\app\admin\controller\appointment\SaDoctorAppointmentController as AdminDoctorAppointmentController;
 use plugin\help\app\admin\controller\community\SaCommunityCommentController as AdminCommunityCommentController;
 use plugin\help\app\admin\controller\community\SaCommunityPostController as AdminCommunityPostController;
 use plugin\help\app\admin\controller\community\SaCommunityReportController as AdminCommunityReportController;
+use plugin\help\app\admin\controller\material\SaContentCategoryController as AdminContentCategoryController;
+use plugin\help\app\admin\controller\material\SaContentMaterialController as AdminContentMaterialController;
 use plugin\help\app\admin\controller\plan\SaDailyTaskController as AdminDailyTaskController;
 use plugin\help\app\admin\controller\plan\SaMemberAssessmentResultController as AdminAssessmentResultController;
 use plugin\help\app\admin\controller\plan\SaTreatmentPlanController as AdminTreatmentPlanController;
@@ -106,4 +109,18 @@ Route::group('/app/help/admin/plan', function () {
     fastRoute('SaTreatmentStage', AdminTreatmentStageController::class);
     fastRoute('SaDailyTask', AdminDailyTaskController::class);
     fastRoute('SaMemberAssessmentResult', AdminAssessmentResultController::class);
+});
+
+Route::group('/app/help/admin/material', function () {
+    fastRoute('SaContentCategory', AdminContentCategoryController::class);
+    fastRoute('SaContentMaterial', AdminContentMaterialController::class);
+    Route::post('/SaContentMaterial/audit', [AdminContentMaterialController::class, 'audit']);
+});
+
+Route::group('/app/help/admin/appointment', function () {
+    fastRoute('SaDoctorAppointment', AdminDoctorAppointmentController::class);
+    Route::post('/SaDoctorAppointment/confirm', [AdminDoctorAppointmentController::class, 'confirm']);
+    Route::post('/SaDoctorAppointment/finish', [AdminDoctorAppointmentController::class, 'finish']);
+    Route::post('/SaDoctorAppointment/cancel', [AdminDoctorAppointmentController::class, 'cancel']);
+    Route::post('/SaDoctorAppointment/reject', [AdminDoctorAppointmentController::class, 'reject']);
 });
