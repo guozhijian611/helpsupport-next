@@ -411,9 +411,19 @@ BIN_PATH="$SERVER_DIR/build/$BIN_NAME"
 
 log "准备 Docker 构建上下文"
 rm -rf "$RELEASE_DIR"
-mkdir -p "$CONTEXT_DIR/public/.release"
+mkdir -p "$CONTEXT_DIR"
 cp "$BIN_PATH" "$CONTEXT_DIR/server"
 chmod +x "$CONTEXT_DIR/server"
+
+if [[ -d "$SERVER_DIR/public" ]]; then
+  log "复制 server/public 到镜像上下文"
+  mkdir -p "$CONTEXT_DIR/public"
+  cp -R "$SERVER_DIR/public/." "$CONTEXT_DIR/public/"
+else
+  warn "server/public 不存在，镜像不会包含后端公开资源：$SERVER_DIR/public"
+fi
+
+mkdir -p "$CONTEXT_DIR/public/.release"
 
 if [[ "$INCLUDE_PRODUCTION_ENV" == "1" ]]; then
   [[ -f "$LOCAL_PRODUCTION_ENV_FILE" ]] || fail "生产环境配置不存在：$LOCAL_PRODUCTION_ENV_FILE"

@@ -19,6 +19,7 @@
 - `/app/server`：由 `server/app/command/BuildBinCommand.php` 生成的 Webman 二进制文件。
 - `/app/.env`：默认从 `server/.env.production` 复制。
 - `/app/Database`：默认复制 `Database/`，供 `b8:install` 和 `b8:migrate` 使用。
+- `/app/public`：默认复制 `server/public/`，用于后端公开资源，例如 `favicon.ico`、`apidoc/` 等。
 - `/app/public/.release/admin.tar.gz`：如果 `saiadmin-artd/dist` 存在，会压缩管理端静态资源。
 - `/app/public/.release/h5.tar.gz`：如果 `uniapp/dist/build/h5` 存在，会压缩 H5 静态资源。
 - `/usr/local/bin/docker-entrypoint`：容器入口脚本。
@@ -30,7 +31,7 @@
 /app/public/h5
 ```
 
-这样做是为了避免把大量静态文件直接放进 `.bin`，否则二进制启动和访问静态文件都会变慢。宿主机 Nginx 不能直接读取容器内目录，默认应通过容器暴露的 Webman HTTP 端口反代 `/admin/`、`/h5/` 和接口。
+`server/public/` 会在构建阶段直接同步到 `/app/public`；admin 和 H5 会以压缩包形式放入 `/app/public/.release`，再由容器启动入口释放。这样做是为了避免把大量静态文件直接放进 `.bin`，否则二进制启动和访问静态文件都会变慢。宿主机 Nginx 不能直接读取容器内目录，默认应通过容器暴露的 Webman HTTP 端口反代 `/admin/`、`/h5/` 和接口。
 
 ## 关键配置
 
