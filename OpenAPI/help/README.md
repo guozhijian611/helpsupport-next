@@ -4,7 +4,7 @@
 
 ## 文件说明
 
-- `openapi.yaml`：从本地 APIDOC `helpsupport-api` 导出的 OpenAPI 3.0.1 文档，当前覆盖 87 个接口路径。
+- `openapi.yaml`：从本地 APIDOC `helpsupport-api` 导出的 OpenAPI 3.0.1 文档，当前覆盖 93 个接口路径。
 
 ## 导出来源
 

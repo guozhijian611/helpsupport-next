@@ -157,6 +157,73 @@
             "description": "登录令牌无效"
           }
         }
+      },
+      "post": {
+        "tags": [
+          "helpsupport-api.AI聊天.ChatController"
+        ],
+        "summary": "保存聊天配置",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "chat_mode": {
+                    "type": "string",
+                    "description": "聊天模式 doctor/companion/patient"
+                  },
+                  "prompt_text": {
+                    "type": "string",
+                    "description": "用户自定义提示词"
+                  }
+                },
+                "required": [
+                  "chat_mode",
+                  "prompt_text"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "配置ID",
+                      "format": "int32"
+                    },
+                    "chat_mode": {
+                      "type": "string",
+                      "description": "聊天模式"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
       }
     },
     "/app/help/chat/sessions": {
@@ -2522,12 +2589,10 @@
                 "properties": {
                   "version": {
                     "type": "string",
-                    "description": "已看引导页版本"
+                    "description": "已看引导页版本，空值表示默认版本"
                   }
                 },
-                "required": [
-                  "version"
-                ]
+                "required": []
               }
             }
           }
@@ -3998,6 +4063,109 @@
             "description": "登录令牌无效"
           }
         }
+      },
+      "post": {
+        "tags": [
+          "helpsupport-api.推送.PushController"
+        ],
+        "summary": "保存推送偏好",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "is_push_enabled": {
+                    "type": "integer",
+                    "description": "总通知开关 1是 2否",
+                    "format": "int32"
+                  },
+                  "is_task_reminder_enabled": {
+                    "type": "integer",
+                    "description": "任务提醒 1是 2否",
+                    "format": "int32"
+                  },
+                  "is_community_enabled": {
+                    "type": "integer",
+                    "description": "社区互动 1是 2否",
+                    "format": "int32"
+                  },
+                  "is_appointment_enabled": {
+                    "type": "integer",
+                    "description": "预约提醒 1是 2否",
+                    "format": "int32"
+                  },
+                  "is_audit_notice_enabled": {
+                    "type": "integer",
+                    "description": "审核/系统通知 1是 2否",
+                    "format": "int32"
+                  },
+                  "is_local_companion_enabled": {
+                    "type": "integer",
+                    "description": "本地陪伴提醒 1是 2否",
+                    "format": "int32"
+                  },
+                  "quiet_start_time": {
+                    "type": "string",
+                    "description": "免打扰开始时间 HH:mm:ss"
+                  },
+                  "quiet_end_time": {
+                    "type": "string",
+                    "description": "免打扰结束时间 HH:mm:ss"
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "偏好记录ID",
+                      "format": "int32"
+                    },
+                    "is_push_enabled": {
+                      "type": "integer",
+                      "description": "总通知开关 1是 2否",
+                      "format": "int32"
+                    },
+                    "quiet_start_time": {
+                      "type": "string",
+                      "description": "免打扰开始时间"
+                    },
+                    "quiet_end_time": {
+                      "type": "string",
+                      "description": "免打扰结束时间"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
       }
     },
     "/app/help/local-model/catalog": {
@@ -4376,6 +4544,88 @@
                     "content": {
                       "type": "string",
                       "description": "帖子内容"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "helpsupport-api.社区.CommunityController"
+        ],
+        "summary": "发布社区帖子",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "description": "帖子内容"
+                  },
+                  "images": {
+                    "type": "array",
+                    "description": "图片URL数组",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "tags": {
+                    "type": "array",
+                    "description": "标签数组",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "is_anonymous": {
+                    "type": "integer",
+                    "description": "是否匿名 1是 2否",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "content"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "帖子ID",
+                      "format": "int32"
+                    },
+                    "audit_status": {
+                      "type": "integer",
+                      "description": "审核状态",
+                      "format": "int32"
                     }
                   }
                 }
