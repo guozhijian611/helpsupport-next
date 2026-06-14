@@ -64,7 +64,7 @@ class PushController extends BaseController
     }
 
     #[Apidoc\Title('保存推送偏好')]
-    #[Apidoc\Url('/app/help/push/preference/save')]
+    #[Apidoc\Url('/app/help/push/preference')]
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('is_push_enabled', type: 'int', require: false, desc: '总通知开关 1是 2否')]
     #[Apidoc\Param('is_task_reminder_enabled', type: 'int', require: false, desc: '任务提醒 1是 2否')]
