@@ -1213,7 +1213,8 @@ class HelpApiService
             ->where('content_type', $contentType)
             ->find();
 
-        $this->saveRow('sa_member_content_history', $payload, $memberId, $exists['id'] ?? 0);
+        $historyId = (int) $this->saveRow('sa_member_content_history', $payload, $memberId, $exists['id'] ?? 0);
+        $this->awardMaterialLearnBadges($memberId, $historyId);
 
         return Db::table('sa_member_content_history')
             ->where('member_id', $memberId)
@@ -2194,12 +2195,15 @@ class HelpApiService
     public function finishDoctorAppointment(int $doctorId, array $data): array
     {
         $appointment = $this->assertDoctorAppointment($doctorId, (int) ($data['appointment_id'] ?? 0), [1]);
-        Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->update([
-            'status' => 2,
-            'finished_at' => date('Y-m-d H:i:s'),
-            'updated_by' => $doctorId,
-            'update_time' => date('Y-m-d H:i:s'),
-        ]);
+        Db::transaction(function () use ($doctorId, $appointment) {
+            Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->update([
+                'status' => 2,
+                'finished_at' => date('Y-m-d H:i:s'),
+                'updated_by' => $doctorId,
+                'update_time' => date('Y-m-d H:i:s'),
+            ]);
+            $this->awardAppointmentDoneBadges((int) $appointment['member_id'], (int) $appointment['id']);
+        });
 
         $updated = Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
         $this->notifyMemberSafely((int) $appointment['member_id'], 'appointment_update', [
@@ -2311,6 +2315,8 @@ class HelpApiService
         }
 
         $id = $this->saveRow('sa_member_journal', $payload, $memberId, $journalId);
+        $this->awardJournalBadges($memberId, (int) $id);
+
         return Db::table('sa_member_journal')->where('id', $id)->find() ?: [];
     }
 
@@ -2778,6 +2784,35 @@ class HelpApiService
                 $this->addPointLog($memberId, $pointsReward, 'badge', $badgeId, '获得荣誉徽章', (string) $rule['name']);
             }
         }
+    }
+
+    private function awardJournalBadges(int $memberId, int $journalId): void
+    {
+        $journalCount = (int) Db::table('sa_member_journal')
+            ->where('member_id', $memberId)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->count();
+        $this->awardBadgesByTrigger($memberId, 'journal_count', $journalCount, 'journal', $journalId);
+    }
+
+    private function awardMaterialLearnBadges(int $memberId, int $historyId): void
+    {
+        $learnCount = (int) Db::table('sa_member_content_history')
+            ->where('member_id', $memberId)
+            ->whereNull('delete_time')
+            ->count();
+        $this->awardBadgesByTrigger($memberId, 'material_learn', $learnCount, 'material_history', $historyId);
+    }
+
+    private function awardAppointmentDoneBadges(int $memberId, int $appointmentId): void
+    {
+        $doneCount = (int) Db::table('sa_doctor_appointment')
+            ->where('member_id', $memberId)
+            ->where('status', 2)
+            ->whereNull('delete_time')
+            ->count();
+        $this->awardBadgesByTrigger($memberId, 'appointment_done', $doneCount, 'appointment', $appointmentId);
     }
 
     private function assertDoctorPlan(int $doctorId, int $memberId, int $planId): array
