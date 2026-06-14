@@ -12,19 +12,27 @@ use plugin\help\app\api\controller\MeController;
 use plugin\help\app\api\controller\PlanController;
 use plugin\help\app\api\controller\PushController;
 use plugin\help\app\admin\controller\appointment\SaDoctorAppointmentController as AdminDoctorAppointmentController;
+use plugin\help\app\admin\controller\audit\SaHelpDoctorProfileController as AdminHelpDoctorProfileController;
+use plugin\help\app\admin\controller\chat\SaMemberChatConfigController as AdminMemberChatConfigController;
 use plugin\help\app\admin\controller\community\SaCommunityCommentController as AdminCommunityCommentController;
 use plugin\help\app\admin\controller\community\SaCommunityPostController as AdminCommunityPostController;
 use plugin\help\app\admin\controller\community\SaCommunityReportController as AdminCommunityReportController;
+use plugin\help\app\admin\controller\config\SaAppOnboardingPageController as AdminAppOnboardingPageController;
 use plugin\help\app\admin\controller\doctor\SaDoctorAssessmentScaleController as AdminDoctorAssessmentScaleController;
 use plugin\help\app\admin\controller\doctor\SaDoctorPatientController as AdminDoctorPatientController;
 use plugin\help\app\admin\controller\doctor\SaDoctorTaskTemplateController as AdminDoctorTaskTemplateController;
 use plugin\help\app\admin\controller\doctor\SaDoctorTaskTemplateFolderController as AdminDoctorTaskTemplateFolderController;
+use plugin\help\app\admin\controller\localModel\SaLocalModelCatalogController as AdminLocalModelCatalogController;
+use plugin\help\app\admin\controller\localModel\SaLocalModelPromptController as AdminLocalModelPromptController;
 use plugin\help\app\admin\controller\material\SaContentCategoryController as AdminContentCategoryController;
 use plugin\help\app\admin\controller\material\SaContentMaterialController as AdminContentMaterialController;
+use plugin\help\app\admin\controller\message\SaMemberMessageController as AdminMemberMessageController;
 use plugin\help\app\admin\controller\plan\SaDailyTaskController as AdminDailyTaskController;
 use plugin\help\app\admin\controller\plan\SaMemberAssessmentResultController as AdminAssessmentResultController;
 use plugin\help\app\admin\controller\plan\SaTreatmentPlanController as AdminTreatmentPlanController;
 use plugin\help\app\admin\controller\plan\SaTreatmentStageController as AdminTreatmentStageController;
+use plugin\help\app\admin\controller\push\SaMemberPushDeviceController as AdminMemberPushDeviceController;
+use plugin\help\app\admin\controller\push\SaMemberPushPreferenceController as AdminMemberPushPreferenceController;
 use Webman\Route;
 
 Route::group('/app/help', function () {
@@ -108,6 +116,23 @@ Route::group('/app/help/admin/community', function () {
     Route::post('/SaCommunityReport/handle', [AdminCommunityReportController::class, 'handle']);
 });
 
+Route::group('/app/help/admin/config', function () {
+    fastRoute('SaAppOnboardingPage', AdminAppOnboardingPageController::class);
+});
+
+Route::group('/app/help/admin/audit', function () {
+    fastRoute('SaHelpDoctorProfile', AdminHelpDoctorProfileController::class);
+});
+
+Route::group('/app/help/admin/chat', function () {
+    fastRoute('SaMemberChatConfig', AdminMemberChatConfigController::class);
+});
+
+Route::group('/app/help/admin/localModel', function () {
+    fastRoute('SaLocalModelCatalog', AdminLocalModelCatalogController::class);
+    fastRoute('SaLocalModelPrompt', AdminLocalModelPromptController::class);
+});
+
 Route::group('/app/help/admin/plan', function () {
     fastRoute('SaTreatmentPlan', AdminTreatmentPlanController::class);
     fastRoute('SaTreatmentStage', AdminTreatmentStageController::class);
@@ -136,4 +161,18 @@ Route::group('/app/help/admin/doctor', function () {
     fastRoute('SaDoctorAssessmentScale', AdminDoctorAssessmentScaleController::class);
     Route::post('/SaDoctorAssessmentScale/publish', [AdminDoctorAssessmentScaleController::class, 'publish']);
     Route::post('/SaDoctorAssessmentScale/disable', [AdminDoctorAssessmentScaleController::class, 'disable']);
+});
+
+Route::group('/app/help/admin/push', function () {
+    fastRoute('SaMemberPushDevice', AdminMemberPushDeviceController::class);
+    fastRoute('SaMemberPushPreference', AdminMemberPushPreferenceController::class);
+    Route::post('/SaMemberPushPreference/enable', [AdminMemberPushPreferenceController::class, 'enable']);
+    Route::post('/SaMemberPushPreference/disable', [AdminMemberPushPreferenceController::class, 'disable']);
+});
+
+Route::group('/app/help/admin/message', function () {
+    fastRoute('SaMemberMessage', AdminMemberMessageController::class);
+    Route::post('/SaMemberMessage/markRead', [AdminMemberMessageController::class, 'markRead']);
+    Route::post('/SaMemberMessage/markPushed', [AdminMemberMessageController::class, 'markPushed']);
+    Route::post('/SaMemberMessage/markFailed', [AdminMemberMessageController::class, 'markFailed']);
 });
