@@ -49,4 +49,28 @@ class SaLocalModelPrompt extends BaseModel
         $query->where('title', 'like', '%'.$value.'%');
     }
 
+    /**
+     * 聊天模式 搜索
+     */
+    public function searchChatModeAttr($query, $value)
+    {
+        $query->where('chat_mode', $value);
+    }
+
+    /**
+     * 语言 搜索
+     */
+    public function searchLocaleAttr($query, $value)
+    {
+        $query->where('locale', $value);
+    }
+
+    /**
+     * 状态 搜索
+     */
+    public function searchStatusAttr($query, $value)
+    {
+        $query->where('status', $value);
+    }
+
 }

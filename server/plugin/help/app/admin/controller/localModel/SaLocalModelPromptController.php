@@ -37,7 +37,10 @@ class SaLocalModelPromptController extends BaseController
     public function index(Request $request): Response
     {
         $where = $request->more([
+            ['chat_mode', ''],
+            ['locale', ''],
             ['title', ''],
+            ['status', ''],
         ]);
         $query = $this->logic->search($where);
         $data = $this->logic->getList($query);

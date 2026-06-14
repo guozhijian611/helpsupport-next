@@ -9,16 +9,33 @@
     @expand="handleExpand"
   >
     <el-col v-bind="setSpan(6)">
+      <el-form-item label="聊天模式" prop="chat_mode">
+        <el-select v-model="formData.chat_mode" placeholder="请选择聊天模式" clearable class="w-full">
+          <el-option label="医生模式" value="doctor" />
+          <el-option label="陪伴模式" value="companion" />
+          <el-option label="患者模式" value="patient" />
+        </el-select>
+      </el-form-item>
+    </el-col>
+    <el-col v-bind="setSpan(6)">
+      <el-form-item label="语言" prop="locale">
+        <el-input v-model="formData.locale" placeholder="请输入语言" clearable />
+      </el-form-item>
+    </el-col>
+    <el-col v-bind="setSpan(6)">
       <el-form-item label="提示词标题" prop="title">
         <el-input v-model="formData.title" placeholder="请输入提示词标题" clearable />
+      </el-form-item>
+    </el-col>
+    <el-col v-bind="setSpan(6)">
+      <el-form-item label="状态" prop="status">
+        <sa-select v-model="formData.status" dict="data_status" placeholder="请选择状态" />
       </el-form-item>
     </el-col>
   </sa-search-bar>
 </template>
 
 <script setup lang="ts">
-  import commonApi from '@/api/common'
-
   interface Props {
     modelValue: Record<string, any>
   }
@@ -38,19 +55,6 @@
   const formData = computed({
     get: () => props.modelValue,
     set: (val) => emit('update:modelValue', val)
-  })
-
-  // 选项数据
-  const optionData = reactive({
-  })
-
-  // 初始化选项数据
-  const initOptions = async () => {
-  }
-
-  // 组件挂载时初始化选项数据
-  onMounted(() => {
-    initOptions()
   })
 
   // 重置

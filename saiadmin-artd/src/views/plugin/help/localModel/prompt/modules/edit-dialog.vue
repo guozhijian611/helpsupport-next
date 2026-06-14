@@ -10,8 +10,23 @@
     <el-form ref="formRef" :model="formData" :rules="rules" label-width="120px">
       <el-row :gutter="20">
         <el-col :span="24">
-          <el-form-item label="聊天模式 doctor/companion/patient" prop="chat_mode">
-            <el-input v-model="formData.chat_mode" placeholder="请输入聊天模式 doctor/companion/patient" />
+          <el-form-item label="关联模型ID" prop="model_id">
+            <el-input-number
+              v-model="formData.model_id"
+              :min="0"
+              controls-position="right"
+              class="w-full"
+              placeholder="留空表示通用提示词"
+            />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="聊天模式" prop="chat_mode">
+            <el-select v-model="formData.chat_mode" placeholder="请选择聊天模式" class="w-full">
+              <el-option label="医生模式" value="doctor" />
+              <el-option label="陪伴模式" value="companion" />
+              <el-option label="患者模式" value="patient" />
+            </el-select>
           </el-form-item>
         </el-col>
         <el-col :span="24">
@@ -39,6 +54,11 @@
             <sa-editor v-model="formData.safety_prompt" height="400px" />
           </el-form-item>
         </el-col>
+        <el-col :span="24">
+          <el-form-item label="状态" prop="status">
+            <sa-radio v-model="formData.status" dict="data_status" />
+          </el-form-item>
+        </el-col>
       </el-row>
     </el-form>
     <template #footer>
@@ -49,7 +69,6 @@
 </template>
 
 <script setup lang="ts">
-  import commonApi from '@/api/common'
   import api from '../../../api/localModel/prompt'
   import { ElMessage } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
@@ -74,9 +93,6 @@
   const emit = defineEmits<Emits>()
 
   const formRef = ref<FormInstance>()
-  const optionData = reactive({
-    treeData: <any[]>[],
-  })
 
   /**
    * 弹窗显示状态双向绑定
@@ -90,7 +106,7 @@
    * 表单验证规则
    */
   const rules = reactive<FormRules>({
-    chat_mode: [{ required: true, message: '聊天模式 doctor/companion/patient必需填写', trigger: 'blur' }],
+    chat_mode: [{ required: true, message: '聊天模式必需选择', trigger: 'change' }],
     locale: [{ required: true, message: '语言必需填写', trigger: 'blur' }],
     title: [{ required: true, message: '提示词标题必需填写', trigger: 'blur' }],
     first_message: [{ required: true, message: '默认开场白必需填写', trigger: 'blur' }],
@@ -102,12 +118,14 @@
    */
   const initialFormData = {
     id: null,
+    model_id: null,
     chat_mode: '',
     locale: 'en-US',
     title: '',
     system_prompt: '',
     first_message: '',
     safety_prompt: '',
+    status: 1,
   }
 
   /**

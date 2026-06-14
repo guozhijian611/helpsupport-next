@@ -84,7 +84,10 @@
 
   // 搜索表单
   const searchForm = ref({
+    chat_mode: undefined,
+    locale: undefined,
     title: undefined,
+    status: undefined,
   })
 
   // 搜索处理
@@ -112,10 +115,12 @@
       apiFn: api.list,
       columnsFactory: () => [
         { type: 'selection' },
-        { prop: 'chat_mode', label: '聊天模式 doctor/companion/patient' },
-        { prop: 'locale', label: '语言' },
-        { prop: 'title', label: '提示词标题' },
-        { prop: 'first_message', label: '默认开场白' },
+        { prop: 'model_id', label: '模型ID', width: 100 },
+        { prop: 'chat_mode', label: '聊天模式', width: 120 },
+        { prop: 'locale', label: '语言', width: 100 },
+        { prop: 'title', label: '提示词标题', minWidth: 180 },
+        { prop: 'first_message', label: '默认开场白', minWidth: 220 },
+        { prop: 'status', label: '状态', saiType: 'dict', saiDict: 'data_status', width: 100 },
         { prop: 'operation', label: '操作', width: 140, fixed: 'right', useSlot: true }
       ]
     }

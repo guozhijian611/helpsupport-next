@@ -3,7 +3,10 @@
     <!-- 详情 start -->
     <div>
       <el-descriptions :column="1" label-width="100px" border>
-        <el-descriptions-item label="聊天模式 doctor/companion/patient">
+        <el-descriptions-item label="关联模型ID">
+          <div v-text="formData?.model_id || '通用'"></div>
+        </el-descriptions-item>
+        <el-descriptions-item label="聊天模式">
           <div v-text="formData?.chat_mode"></div>
         </el-descriptions-item>
         <el-descriptions-item label="语言">
@@ -20,6 +23,9 @@
         </el-descriptions-item>
         <el-descriptions-item label="安全边界提示">
           <div v-html="formData?.safety_prompt"></div>
+        </el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <sa-dict :value="formData?.status" dict="data_status" render="span" />
         </el-descriptions-item>
       </el-descriptions>
     </div>
@@ -62,12 +68,14 @@
    */
   const initialFormData = {
     id: null,
+    model_id: null,
     chat_mode: '',
     locale: 'en-US',
     title: '',
     system_prompt: '',
     first_message: '',
     safety_prompt: '',
+    status: 1,
   }
 
   /**
