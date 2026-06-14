@@ -15,6 +15,10 @@ use plugin\help\app\admin\controller\appointment\SaDoctorAppointmentController a
 use plugin\help\app\admin\controller\community\SaCommunityCommentController as AdminCommunityCommentController;
 use plugin\help\app\admin\controller\community\SaCommunityPostController as AdminCommunityPostController;
 use plugin\help\app\admin\controller\community\SaCommunityReportController as AdminCommunityReportController;
+use plugin\help\app\admin\controller\doctor\SaDoctorAssessmentScaleController as AdminDoctorAssessmentScaleController;
+use plugin\help\app\admin\controller\doctor\SaDoctorPatientController as AdminDoctorPatientController;
+use plugin\help\app\admin\controller\doctor\SaDoctorTaskTemplateController as AdminDoctorTaskTemplateController;
+use plugin\help\app\admin\controller\doctor\SaDoctorTaskTemplateFolderController as AdminDoctorTaskTemplateFolderController;
 use plugin\help\app\admin\controller\material\SaContentCategoryController as AdminContentCategoryController;
 use plugin\help\app\admin\controller\material\SaContentMaterialController as AdminContentMaterialController;
 use plugin\help\app\admin\controller\plan\SaDailyTaskController as AdminDailyTaskController;
@@ -123,4 +127,13 @@ Route::group('/app/help/admin/appointment', function () {
     Route::post('/SaDoctorAppointment/finish', [AdminDoctorAppointmentController::class, 'finish']);
     Route::post('/SaDoctorAppointment/cancel', [AdminDoctorAppointmentController::class, 'cancel']);
     Route::post('/SaDoctorAppointment/reject', [AdminDoctorAppointmentController::class, 'reject']);
+});
+
+Route::group('/app/help/admin/doctor', function () {
+    fastRoute('SaDoctorPatient', AdminDoctorPatientController::class);
+    fastRoute('SaDoctorTaskTemplateFolder', AdminDoctorTaskTemplateFolderController::class);
+    fastRoute('SaDoctorTaskTemplate', AdminDoctorTaskTemplateController::class);
+    fastRoute('SaDoctorAssessmentScale', AdminDoctorAssessmentScaleController::class);
+    Route::post('/SaDoctorAssessmentScale/publish', [AdminDoctorAssessmentScaleController::class, 'publish']);
+    Route::post('/SaDoctorAssessmentScale/disable', [AdminDoctorAssessmentScaleController::class, 'disable']);
 });
