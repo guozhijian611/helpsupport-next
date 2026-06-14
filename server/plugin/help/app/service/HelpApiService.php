@@ -904,11 +904,10 @@ class HelpApiService
     public function saveCommunityComment(int $memberId, array $data): array
     {
         $postId = (int) ($data['post_id'] ?? 0);
-        $post = $this->assertVisibleCommunityPost($memberId, $postId);
+        $this->assertVisibleCommunityPost($memberId, $postId);
         $parentId = max(0, (int) ($data['parent_id'] ?? 0));
-        $parentComment = [];
         if ($parentId > 0) {
-            $parentComment = $this->assertVisibleCommunityComment($memberId, $parentId);
+            $this->assertVisibleCommunityComment($memberId, $parentId);
         }
 
         $content = trim((string) ($data['content'] ?? ''));
@@ -916,22 +915,17 @@ class HelpApiService
             throw new ApiException('评论内容必须填写', 400);
         }
 
-        $commentId = Db::transaction(function () use ($memberId, $postId, $parentId, $content, $data) {
-            $id = $this->saveRow('sa_community_comment', [
-                'post_id' => $postId,
-                'member_id' => $memberId,
-                'parent_id' => $parentId,
-                'reply_to_member_id' => (int) ($data['reply_to_member_id'] ?? 0) ?: null,
-                'content' => $content,
-                'attachments' => $this->jsonValue($data['attachments'] ?? null),
-                'is_anonymous' => $this->intIn($data['is_anonymous'] ?? 2, [1, 2], '匿名参数错误'),
-                'audit_status' => 1,
-                'status' => 1,
-            ], $memberId);
-            $this->syncCommunityCounter('post', $postId, 'comment_count', true);
-
-            return $id;
-        });
+        $commentId = $this->saveRow('sa_community_comment', [
+            'post_id' => $postId,
+            'member_id' => $memberId,
+            'parent_id' => $parentId,
+            'reply_to_member_id' => (int) ($data['reply_to_member_id'] ?? 0) ?: null,
+            'content' => $content,
+            'attachments' => $this->jsonValue($data['attachments'] ?? null),
+            'is_anonymous' => $this->intIn($data['is_anonymous'] ?? 2, [1, 2], '匿名参数错误'),
+            'audit_status' => 0,
+            'status' => 1,
+        ], $memberId);
 
         $comment = Db::table('sa_community_comment')
             ->alias('c')
@@ -939,8 +933,6 @@ class HelpApiService
             ->where('c.id', $commentId)
             ->field('c.*, m.nickname AS author_name, m.avatar AS author_avatar')
             ->find() ?: [];
-
-        $this->notifyCommunityReply($memberId, $post, $parentComment, $comment);
 
         return $this->decorateCommunityComments([$comment], $memberId)[0] ?? [];
     }
@@ -2711,39 +2703,6 @@ class HelpApiService
         } catch (Throwable) {
             // 通知失败不能影响主业务写入；具体发送结果会在消息中心记录里体现。
         }
-    }
-
-    private function notifyCommunityReply(int $memberId, array $post, array $parentComment, array $comment): void
-    {
-        $replyToMemberId = (int) ($comment['reply_to_member_id'] ?? 0);
-        if ($replyToMemberId <= 0 && $parentComment !== []) {
-            $replyToMemberId = (int) ($parentComment['member_id'] ?? 0);
-        }
-
-        $receiverId = $replyToMemberId > 0 ? $replyToMemberId : (int) ($post['member_id'] ?? 0);
-        if ($receiverId <= 0 || $receiverId === $memberId) {
-            return;
-        }
-
-        $nickname = trim((string) ($comment['author_name'] ?? ''));
-        if ((int) ($comment['is_anonymous'] ?? 2) === 1) {
-            $nickname = 'Anonymous';
-        } elseif ($nickname === '') {
-            $nickname = 'Member #' . $memberId;
-        }
-
-        $this->notifyMemberSafely($receiverId, 'community_reply', [
-            'nickname' => $nickname,
-        ], [
-            'biz_type' => 'community_comment',
-            'biz_id' => (int) ($comment['id'] ?? 0),
-            'route' => '/pages/community/detail',
-            'payload' => [
-                'post_id' => (int) ($post['id'] ?? 0),
-                'comment_id' => (int) ($comment['id'] ?? 0),
-                'reply_to_member_id' => $replyToMemberId,
-            ],
-        ]);
     }
 
     private function notifyCommunityFollow(int $memberId, int $targetMemberId): void
