@@ -350,10 +350,33 @@
   const rules = computed<FormRules>(() => {
     const nextRules: FormRules = {}
     formFields.value.forEach((field) => {
+      const fieldRules: NonNullable<FormRules[string]> = []
       if (field.required) {
-        nextRules[field.prop] = [
-          { required: true, message: field.label + '必须填写', trigger: 'blur' }
-        ]
+        fieldRules.push({ required: true, message: field.label + '必须填写', trigger: 'blur' })
+      }
+      if (field.type === 'json') {
+        fieldRules.push({
+          validator: (_rule, value, callback) => {
+            if (value === undefined || value === null || value === '') {
+              callback()
+              return
+            }
+            if (typeof value !== 'string') {
+              callback()
+              return
+            }
+            try {
+              JSON.parse(value)
+              callback()
+            } catch {
+              callback(new Error(field.label + '必须是合法 JSON'))
+            }
+          },
+          trigger: 'blur'
+        })
+      }
+      if (fieldRules.length > 0) {
+        nextRules[field.prop] = fieldRules
       }
     })
     return nextRules

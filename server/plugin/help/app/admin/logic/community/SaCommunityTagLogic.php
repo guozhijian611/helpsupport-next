@@ -4,6 +4,7 @@ namespace plugin\help\app\admin\logic\community;
 
 use plugin\help\app\model\community\SaCommunityTag;
 use plugin\saiadmin\basic\think\BaseLogic;
+use plugin\saiadmin\exception\ApiException;
 
 /**
  * 社区标签逻辑层
@@ -30,10 +31,8 @@ class SaCommunityTagLogic extends BaseLogic
     private function normalizeFields(array $data): array
     {
         foreach (['tag_name_i18n'] as $field) {
-            if (!array_key_exists($field, $data) || $data[$field] === '') {
-                $data[$field] = null;
-            } elseif (is_array($data[$field]) || is_object($data[$field])) {
-                $data[$field] = json_encode($data[$field], JSON_UNESCAPED_UNICODE);
+            if (array_key_exists($field, $data)) {
+                $data[$field] = $this->normalizeJsonField($data[$field]);
             }
         }
         foreach (['sort' => 100, 'status' => 1] as $field => $default) {
@@ -43,5 +42,23 @@ class SaCommunityTagLogic extends BaseLogic
         }
 
         return $data;
+    }
+
+    private function normalizeJsonField(mixed $value): ?string
+    {
+        if ($value === '' || $value === null) {
+            return null;
+        }
+
+        if (is_array($value) || is_object($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
+
+        $decoded = json_decode((string) $value, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new ApiException('多语言标签JSON格式错误');
+        }
+
+        return json_encode($decoded, JSON_UNESCAPED_UNICODE);
     }
 }

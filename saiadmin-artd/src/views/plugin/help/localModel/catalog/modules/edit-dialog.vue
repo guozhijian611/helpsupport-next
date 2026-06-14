@@ -176,6 +176,27 @@
   /**
    * 表单验证规则
    */
+  const validateOptionalJson = (
+    _rule: unknown,
+    value: unknown,
+    callback: (error?: Error) => void
+  ) => {
+    if (value === undefined || value === null || value === '') {
+      callback()
+      return
+    }
+    if (typeof value !== 'string') {
+      callback()
+      return
+    }
+    try {
+      JSON.parse(value)
+      callback()
+    } catch {
+      callback(new Error('多语言介绍必须是合法 JSON'))
+    }
+  }
+
   const rules = reactive<FormRules>({
     name: [{ required: true, message: '模型显示名称必需填写', trigger: 'blur' }],
     code: [{ required: true, message: '模型编码必需填写', trigger: 'blur' }],
@@ -186,6 +207,7 @@
     download_url: [{ required: true, message: '模型下载地址必需填写', trigger: 'blur' }],
     sha256: [{ required: true, message: 'SHA256校验值必需填写', trigger: 'blur' }],
     intro: [{ required: true, message: '默认介绍必需填写', trigger: 'blur' }],
+    intro_i18n: [{ validator: validateOptionalJson, trigger: 'blur' }],
     license: [{ required: true, message: '许可证说明必需填写', trigger: 'blur' }],
     min_memory_mb: [{ required: true, message: '推荐最小内存MB必需填写', trigger: 'blur' }],
     context_size: [{ required: true, message: '默认上下文长度必需填写', trigger: 'blur' }],

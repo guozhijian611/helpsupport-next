@@ -4,6 +4,7 @@ namespace plugin\help\app\admin\logic\material;
 
 use plugin\help\app\model\material\SaContentCategory;
 use plugin\saiadmin\basic\think\BaseLogic;
+use plugin\saiadmin\exception\ApiException;
 
 /**
  * 内容分类逻辑层
@@ -54,6 +55,11 @@ class SaContentCategoryLogic extends BaseLogic
             return json_encode($value, JSON_UNESCAPED_UNICODE);
         }
 
-        return (string) $value;
+        $decoded = json_decode((string) $value, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new ApiException('多语言分类名称JSON格式错误');
+        }
+
+        return json_encode($decoded, JSON_UNESCAPED_UNICODE);
     }
 }

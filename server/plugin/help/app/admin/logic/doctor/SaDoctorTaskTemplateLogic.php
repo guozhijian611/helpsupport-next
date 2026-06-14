@@ -4,6 +4,7 @@ namespace plugin\help\app\admin\logic\doctor;
 
 use plugin\help\app\model\doctor\SaDoctorTaskTemplate;
 use plugin\saiadmin\basic\think\BaseLogic;
+use plugin\saiadmin\exception\ApiException;
 
 /**
  * 医生任务模板逻辑层
@@ -49,14 +50,17 @@ class SaDoctorTaskTemplateLogic extends BaseLogic
 
         foreach (['reminder_rule', 'attachments'] as $field) {
             if (array_key_exists($field, $data)) {
-                $data[$field] = $this->normalizeJsonField($data[$field]);
+                $data[$field] = $this->normalizeJsonField(
+                    $data[$field],
+                    $field === 'reminder_rule' ? '提醒规则' : '附件'
+                );
             }
         }
 
         return $data;
     }
 
-    private function normalizeJsonField(mixed $value): ?string
+    private function normalizeJsonField(mixed $value, string $label): ?string
     {
         if ($value === '' || $value === null) {
             return null;
@@ -66,6 +70,11 @@ class SaDoctorTaskTemplateLogic extends BaseLogic
             return json_encode($value, JSON_UNESCAPED_UNICODE);
         }
 
-        return (string) $value;
+        $decoded = json_decode((string) $value, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new ApiException($label . 'JSON格式错误');
+        }
+
+        return json_encode($decoded, JSON_UNESCAPED_UNICODE);
     }
 }
