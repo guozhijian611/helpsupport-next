@@ -1166,12 +1166,18 @@ class HelpApiService
         }
 
         $risk = new HelpRiskService();
-        $title = $risk->filterText('material', $title);
-        $summary = $risk->filterText('material', (string) ($data['summary'] ?? ''));
-        $contentText = $risk->filterText('material', (string) ($data['content_text'] ?? ''));
+        $titleRisk = $risk->filter('material', $title);
+        $summaryRisk = $risk->filter('material', (string) ($data['summary'] ?? ''));
+        $contentRisk = $risk->filter('material', (string) ($data['content_text'] ?? ''));
+        $title = (string) $titleRisk['text'];
+        $summary = (string) $summaryRisk['text'];
+        $contentText = (string) $contentRisk['text'];
         if ($title === '') {
             throw new ApiException('素材标题必须填写', 400);
         }
+        $reviewRequired = (bool) ($titleRisk['review_required'] ?? false)
+            || (bool) ($summaryRisk['review_required'] ?? false)
+            || (bool) ($contentRisk['review_required'] ?? false);
 
         $payload = [
             'member_id' => $memberId,
@@ -1188,7 +1194,7 @@ class HelpApiService
             'is_public' => 2,
             'is_recommended' => 2,
             'audit_status' => 1,
-            'audit_remark' => '',
+            'audit_remark' => $reviewRequired ? self::RISK_REVIEW_REMARK : '',
             'status' => 1,
             'sort' => max(0, (int) ($data['sort'] ?? 100)),
         ];
