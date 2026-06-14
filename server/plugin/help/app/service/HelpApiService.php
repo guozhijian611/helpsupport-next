@@ -1664,13 +1664,15 @@ class HelpApiService
             throw new ApiException('预约不存在或当前状态不可取消', 404);
         }
 
-        $this->saveRow('sa_doctor_appointment', [
-            'status' => 3,
-            'cancel_by' => 'member',
-            'cancel_reason' => (string) ($data['cancel_reason'] ?? ''),
-            'canceled_at' => date('Y-m-d H:i:s'),
-        ], $memberId, $appointmentId);
-        $this->releaseAppointmentSchedule($appointment);
+        Db::transaction(function () use ($memberId, $appointmentId, $appointment, $data) {
+            $this->saveRow('sa_doctor_appointment', [
+                'status' => 3,
+                'cancel_by' => 'member',
+                'cancel_reason' => (string) ($data['cancel_reason'] ?? ''),
+                'canceled_at' => date('Y-m-d H:i:s'),
+            ], $memberId, $appointmentId);
+            $this->releaseAppointmentSchedule($appointment);
+        });
 
         $updated = Db::table('sa_doctor_appointment')->where('id', $appointmentId)->find() ?: [];
         $this->notifyMemberSafely((int) $appointment['doctor_id'], 'appointment_update', [
@@ -2253,15 +2255,17 @@ class HelpApiService
     public function cancelDoctorAppointment(int $doctorId, array $data): array
     {
         $appointment = $this->assertDoctorAppointment($doctorId, (int) ($data['appointment_id'] ?? 0), [0, 1]);
-        Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->update([
-            'status' => 3,
-            'cancel_by' => 'doctor',
-            'cancel_reason' => (string) ($data['cancel_reason'] ?? ''),
-            'canceled_at' => date('Y-m-d H:i:s'),
-            'updated_by' => $doctorId,
-            'update_time' => date('Y-m-d H:i:s'),
-        ]);
-        $this->releaseAppointmentSchedule($appointment);
+        Db::transaction(function () use ($doctorId, $data, $appointment) {
+            Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->update([
+                'status' => 3,
+                'cancel_by' => 'doctor',
+                'cancel_reason' => (string) ($data['cancel_reason'] ?? ''),
+                'canceled_at' => date('Y-m-d H:i:s'),
+                'updated_by' => $doctorId,
+                'update_time' => date('Y-m-d H:i:s'),
+            ]);
+            $this->releaseAppointmentSchedule($appointment);
+        });
 
         $updated = Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
         $this->notifyMemberSafely((int) $appointment['member_id'], 'appointment_update', [
@@ -2279,13 +2283,15 @@ class HelpApiService
     public function rejectDoctorAppointment(int $doctorId, array $data): array
     {
         $appointment = $this->assertDoctorAppointment($doctorId, (int) ($data['appointment_id'] ?? 0), [0]);
-        Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->update([
-            'status' => 4,
-            'confirm_remark' => (string) ($data['confirm_remark'] ?? ''),
-            'updated_by' => $doctorId,
-            'update_time' => date('Y-m-d H:i:s'),
-        ]);
-        $this->releaseAppointmentSchedule($appointment);
+        Db::transaction(function () use ($doctorId, $data, $appointment) {
+            Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->update([
+                'status' => 4,
+                'confirm_remark' => (string) ($data['confirm_remark'] ?? ''),
+                'updated_by' => $doctorId,
+                'update_time' => date('Y-m-d H:i:s'),
+            ]);
+            $this->releaseAppointmentSchedule($appointment);
+        });
 
         $updated = Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
         $this->notifyMemberSafely((int) $appointment['member_id'], 'appointment_update', [
