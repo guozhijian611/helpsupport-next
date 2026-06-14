@@ -34,6 +34,7 @@ use plugin\help\app\admin\controller\plan\SaTreatmentPlanController as AdminTrea
 use plugin\help\app\admin\controller\plan\SaTreatmentStageController as AdminTreatmentStageController;
 use plugin\help\app\admin\controller\push\SaMemberPushDeviceController as AdminMemberPushDeviceController;
 use plugin\help\app\admin\controller\push\SaMemberPushPreferenceController as AdminMemberPushPreferenceController;
+use plugin\help\app\admin\controller\push\SaPushTemplateController as AdminPushTemplateController;
 use Webman\Route;
 
 Route::group('/app/help', function () {
@@ -189,6 +190,7 @@ Route::group('/app/help/admin/push', function () {
     fastRoute('SaMemberPushPreference', AdminMemberPushPreferenceController::class);
     Route::post('/SaMemberPushPreference/enable', [AdminMemberPushPreferenceController::class, 'enable']);
     Route::post('/SaMemberPushPreference/disable', [AdminMemberPushPreferenceController::class, 'disable']);
+    fastRoute('SaPushTemplate', AdminPushTemplateController::class);
 });
 
 Route::group('/app/help/admin/message', function () {
