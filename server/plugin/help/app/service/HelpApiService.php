@@ -3030,6 +3030,8 @@ class HelpApiService
 
     private function queryOnboarding(string $scene, string $version, string $locale): array
     {
+        $now = date('Y-m-d H:i:s');
+
         return Db::table('sa_app_onboarding_page')
             ->where('scene', $scene !== '' ? $scene : 'first_launch')
             ->where('status', 1)
@@ -3038,6 +3040,16 @@ class HelpApiService
                 $query->where('version', $version)->whereOr('version', '');
             })
             ->where('locale', $locale)
+            ->where(function ($query) use ($now) {
+                $query->whereNull('start_time')
+                    ->whereOr('start_time', '0000-00-00 00:00:00')
+                    ->whereOr('start_time', '<=', $now);
+            })
+            ->where(function ($query) use ($now) {
+                $query->whereNull('end_time')
+                    ->whereOr('end_time', '0000-00-00 00:00:00')
+                    ->whereOr('end_time', '>=', $now);
+            })
             ->order('sort', 'asc')
             ->order('id', 'asc')
             ->select()
