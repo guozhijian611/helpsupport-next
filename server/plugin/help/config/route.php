@@ -13,6 +13,7 @@ use plugin\help\app\api\controller\MeController;
 use plugin\help\app\api\controller\PlanController;
 use plugin\help\app\api\controller\PushController;
 use plugin\help\app\admin\controller\appointment\SaDoctorAppointmentController as AdminDoctorAppointmentController;
+use plugin\help\app\admin\controller\appointment\SaDoctorScheduleController as AdminDoctorScheduleController;
 use plugin\help\app\admin\controller\audit\SaHelpDoctorProfileController as AdminHelpDoctorProfileController;
 use plugin\help\app\admin\controller\chat\SaMemberChatConfigController as AdminMemberChatConfigController;
 use plugin\help\app\admin\controller\community\SaCommunityCommentController as AdminCommunityCommentController;
@@ -94,6 +95,7 @@ Route::group('/app/help', function () {
     Route::post('/plan/assessment-result', [PlanController::class, 'saveAssessmentResult']);
 
     Route::get('/appointment/doctors', [AppointmentController::class, 'doctors']);
+    Route::get('/appointment/slots', [AppointmentController::class, 'slots']);
     Route::get('/appointment/list', [AppointmentController::class, 'list']);
     Route::post('/appointment', [AppointmentController::class, 'create']);
     Route::post('/appointment/cancel', [AppointmentController::class, 'cancel']);
@@ -174,6 +176,7 @@ Route::group('/app/help/admin/appointment', function () {
     Route::post('/SaDoctorAppointment/finish', [AdminDoctorAppointmentController::class, 'finish']);
     Route::post('/SaDoctorAppointment/cancel', [AdminDoctorAppointmentController::class, 'cancel']);
     Route::post('/SaDoctorAppointment/reject', [AdminDoctorAppointmentController::class, 'reject']);
+    fastRoute('SaDoctorSchedule', AdminDoctorScheduleController::class);
 });
 
 Route::group('/app/help/admin/doctor', function () {

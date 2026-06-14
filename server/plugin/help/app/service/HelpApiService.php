@@ -1221,6 +1221,51 @@ class HelpApiService
         }, $params);
     }
 
+    public function appointmentSlots(array $params): array
+    {
+        $doctorId = (int) ($params['doctor_id'] ?? 0);
+        if ($doctorId <= 0) {
+            throw new ApiException('医生会员ID必须填写', 400);
+        }
+
+        $doctor = Db::table('sa_help_doctor_profile')
+            ->where('member_id', $doctorId)
+            ->where('audit_status', 1)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$doctor) {
+            throw new ApiException('医生不存在或未通过审核', 404);
+        }
+
+        $date = trim((string) ($params['date'] ?? ''));
+        $query = Db::table('sa_doctor_schedule')
+            ->where('doctor_id', $doctorId)
+            ->where('status', 1)
+            ->whereRaw('`booked_count` < `capacity`')
+            ->whereNull('delete_time');
+        if ($date !== '') {
+            $query->where('schedule_date', $date);
+        } else {
+            $query->where('schedule_date', '>=', date('Y-m-d'));
+        }
+
+        $rows = $query
+            ->order('schedule_date', 'asc')
+            ->order('start_time', 'asc')
+            ->order('id', 'asc')
+            ->limit(60)
+            ->select()
+            ->toArray();
+
+        foreach ($rows as &$row) {
+            $row['available_count'] = max(0, (int) ($row['capacity'] ?? 0) - (int) ($row['booked_count'] ?? 0));
+        }
+        unset($row);
+
+        return $rows;
+    }
+
     public function appointments(int $memberId, array $params): array
     {
         return $this->paginate(function () use ($memberId, $params) {
@@ -1237,33 +1282,32 @@ class HelpApiService
 
     public function createAppointment(int $memberId, array $data): array
     {
-        $doctorId = (int) ($data['doctor_id'] ?? 0);
-        $appointDate = trim((string) ($data['appoint_date'] ?? ''));
-        $timeSlot = trim((string) ($data['appoint_time_slot'] ?? ''));
-        if ($doctorId <= 0 || $appointDate === '' || $timeSlot === '') {
-            throw new ApiException('医生、预约日期和时间段必须填写', 400);
-        }
-        if ($doctorId === $memberId) {
-            throw new ApiException('不能预约自己', 400);
-        }
-        $doctor = Db::table('sa_help_doctor_profile')
-            ->where('member_id', $doctorId)
-            ->where('audit_status', 1)
-            ->where('status', 1)
-            ->whereNull('delete_time')
-            ->find();
-        if (!$doctor) {
-            throw new ApiException('医生不存在或未通过审核', 404);
-        }
+        $id = Db::transaction(function () use ($memberId, $data) {
+            $schedule = $this->lockAvailableSchedule($data);
+            $doctorId = (int) $schedule['doctor_id'];
+            if ($doctorId === $memberId) {
+                throw new ApiException('不能预约自己', 400);
+            }
 
-        $payload = $this->only($data, ['meet_type', 'meet_link', 'remark']);
-        $payload['member_id'] = $memberId;
-        $payload['doctor_id'] = $doctorId;
-        $payload['appoint_date'] = $appointDate;
-        $payload['appoint_time_slot'] = $timeSlot;
-        $payload['status'] = 0;
+            $payload = $this->only($data, ['meet_type', 'meet_link', 'remark']);
+            $payload['member_id'] = $memberId;
+            $payload['doctor_id'] = $doctorId;
+            $payload['schedule_id'] = (int) $schedule['id'];
+            $payload['appoint_date'] = (string) $schedule['schedule_date'];
+            $payload['appoint_time_slot'] = (string) $schedule['time_slot'];
+            $payload['meet_type'] = trim((string) ($payload['meet_type'] ?? '')) !== '' ? $payload['meet_type'] : $schedule['meet_type'];
+            $payload['meet_link'] = trim((string) ($payload['meet_link'] ?? '')) !== '' ? $payload['meet_link'] : $schedule['meet_link'];
+            $payload['price'] = (string) $schedule['price'];
+            $payload['currency'] = (string) $schedule['currency'];
+            $payload['status'] = 0;
 
-        $id = $this->saveRow('sa_doctor_appointment', $payload, $memberId);
+            $appointmentId = $this->saveRow('sa_doctor_appointment', $payload, $memberId);
+            Db::execute('UPDATE `sa_doctor_schedule` SET `booked_count` = `booked_count` + 1, `update_time` = NOW() WHERE `id` = ' . (int) $schedule['id']);
+
+            return $appointmentId;
+        });
+
+        $doctorId = (int) Db::table('sa_doctor_appointment')->where('id', $id)->value('doctor_id');
         $appointment = Db::table('sa_doctor_appointment')->where('id', $id)->find() ?: [];
         $this->notifyMemberSafely($doctorId, 'appointment_update', [
             'status_text' => 'pending',
@@ -1296,6 +1340,7 @@ class HelpApiService
             'cancel_reason' => (string) ($data['cancel_reason'] ?? ''),
             'canceled_at' => date('Y-m-d H:i:s'),
         ], $memberId, $appointmentId);
+        $this->releaseAppointmentSchedule($appointment);
 
         $updated = Db::table('sa_doctor_appointment')->where('id', $appointmentId)->find() ?: [];
         $this->notifyMemberSafely((int) $appointment['doctor_id'], 'appointment_update', [
@@ -1870,6 +1915,7 @@ class HelpApiService
             'updated_by' => $doctorId,
             'update_time' => date('Y-m-d H:i:s'),
         ]);
+        $this->releaseAppointmentSchedule($appointment);
 
         $updated = Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
         $this->notifyMemberSafely((int) $appointment['member_id'], 'appointment_update', [
@@ -1893,6 +1939,7 @@ class HelpApiService
             'updated_by' => $doctorId,
             'update_time' => date('Y-m-d H:i:s'),
         ]);
+        $this->releaseAppointmentSchedule($appointment);
 
         $updated = Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
         $this->notifyMemberSafely((int) $appointment['member_id'], 'appointment_update', [
@@ -2221,6 +2268,65 @@ class HelpApiService
         }
 
         return $appointment;
+    }
+
+    private function lockAvailableSchedule(array $data): array
+    {
+        $scheduleId = (int) ($data['schedule_id'] ?? 0);
+        $doctorId = (int) ($data['doctor_id'] ?? 0);
+        $appointDate = trim((string) ($data['appoint_date'] ?? ''));
+        $timeSlot = trim((string) ($data['appoint_time_slot'] ?? ''));
+
+        $query = Db::table('sa_doctor_schedule')
+            ->where('status', 1)
+            ->whereRaw('`booked_count` < `capacity`')
+            ->whereNull('delete_time')
+            ->lock(true);
+
+        if ($scheduleId > 0) {
+            $query->where('id', $scheduleId);
+        } else {
+            if ($doctorId <= 0 || $appointDate === '' || $timeSlot === '') {
+                throw new ApiException('医生、预约日期和时间段必须填写', 400);
+            }
+            $query->where('doctor_id', $doctorId)
+                ->where('schedule_date', $appointDate)
+                ->where('time_slot', $timeSlot);
+        }
+
+        $schedule = $query->find();
+        if (!$schedule) {
+            throw new ApiException('排班不存在或当前时段不可预约', 404);
+        }
+        if ($doctorId > 0 && (int) $schedule['doctor_id'] !== $doctorId) {
+            throw new ApiException('预约医生与排班不一致', 400);
+        }
+
+        $doctor = Db::table('sa_help_doctor_profile')
+            ->where('member_id', (int) $schedule['doctor_id'])
+            ->where('audit_status', 1)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$doctor) {
+            throw new ApiException('医生不存在或未通过审核', 404);
+        }
+
+        return $schedule;
+    }
+
+    private function releaseAppointmentSchedule(array $appointment): void
+    {
+        $scheduleId = (int) ($appointment['schedule_id'] ?? 0);
+        if ($scheduleId <= 0 || !in_array((int) ($appointment['status'] ?? -1), [0, 1], true)) {
+            return;
+        }
+
+        Db::execute(
+            'UPDATE `sa_doctor_schedule`
+            SET `booked_count` = IF(`booked_count` > 0, `booked_count` - 1, 0), `update_time` = NOW()
+            WHERE `id` = ' . $scheduleId
+        );
     }
 
     private function notifyMemberSafely(int $memberId, string $templateCode, array $variables, array $options): void

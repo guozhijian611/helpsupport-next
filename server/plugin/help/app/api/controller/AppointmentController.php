@@ -34,6 +34,17 @@ class AppointmentController extends BaseController
         return ok($this->service->appointmentDoctors($request->get()));
     }
 
+    #[Apidoc\Title('医生可预约时段')]
+    #[Apidoc\Url('/app/help/appointment/slots')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('doctor_id', type: 'int', require: true, desc: '医生会员ID')]
+    #[Apidoc\Query('date', type: 'string', require: false, desc: '预约日期 YYYY-MM-DD')]
+    #[Apidoc\Returned('list', type: 'array', desc: '可预约时段列表')]
+    public function slots(Request $request): Response
+    {
+        return ok($this->service->appointmentSlots($request->get()));
+    }
+
     #[Apidoc\Title('我的预约列表')]
     #[Apidoc\Url('/app/help/appointment/list')]
     #[Apidoc\Method('GET')]
@@ -52,9 +63,10 @@ class AppointmentController extends BaseController
     #[Apidoc\Title('创建预约')]
     #[Apidoc\Url('/app/help/appointment')]
     #[Apidoc\Method('POST')]
-    #[Apidoc\Param('doctor_id', type: 'int', require: true, desc: '医生会员ID')]
-    #[Apidoc\Param('appoint_date', type: 'string', require: true, desc: '预约日期 YYYY-MM-DD')]
-    #[Apidoc\Param('appoint_time_slot', type: 'string', require: true, desc: '预约时间段')]
+    #[Apidoc\Param('doctor_id', type: 'int', require: false, desc: '医生会员ID；无schedule_id时必填')]
+    #[Apidoc\Param('schedule_id', type: 'int', require: false, desc: '排班ID，优先使用')]
+    #[Apidoc\Param('appoint_date', type: 'string', require: false, desc: '预约日期 YYYY-MM-DD；无schedule_id时必填')]
+    #[Apidoc\Param('appoint_time_slot', type: 'string', require: false, desc: '预约时间段；无schedule_id时必填')]
     #[Apidoc\Param('remark', type: 'string', require: false, desc: '预约备注')]
     #[Apidoc\Returned('id', type: 'int', desc: '预约ID')]
     #[Apidoc\Returned('status', type: 'int', desc: '预约状态')]
