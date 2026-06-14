@@ -56,6 +56,26 @@ class MaterialController extends BaseController
         return ok($this->service->materialDetail($this->memberId, (int) $request->get('id')));
     }
 
+    #[Apidoc\Title('保存私人素材')]
+    #[Apidoc\Url('/app/help/material/private')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('id', type: 'int', require: false, desc: '素材ID，空为新增')]
+    #[Apidoc\Param('category_id', type: 'int', require: false, desc: '私人素材分类ID')]
+    #[Apidoc\Param('media_type', type: 'string', require: false, default: 'article', desc: '素材类型 article/video/audio/pdf/epub/link')]
+    #[Apidoc\Param('title', type: 'string', require: true, desc: '素材标题')]
+    #[Apidoc\Param('summary', type: 'string', require: false, desc: '摘要')]
+    #[Apidoc\Param('cover_url', type: 'string', require: false, desc: '封面图')]
+    #[Apidoc\Param('content_url', type: 'string', require: false, desc: '内容地址')]
+    #[Apidoc\Param('content_text', type: 'string', require: false, desc: '富文本内容')]
+    #[Apidoc\Param('tags', type: 'array', require: false, desc: '标签')]
+    #[Apidoc\Param('duration_seconds', type: 'int', require: false, desc: '时长秒')]
+    #[Apidoc\Returned('id', type: 'int', desc: '素材ID')]
+    #[Apidoc\Returned('audit_status', type: 'int', desc: '审核状态 1待审 2通过 3拒绝')]
+    public function savePrivate(Request $request): Response
+    {
+        return ok($this->service->savePrivateMaterial($this->memberId, $request->post()));
+    }
+
     #[Apidoc\Title('浏览历史')]
     #[Apidoc\Url('/app/help/material/history')]
     #[Apidoc\Method('GET')]

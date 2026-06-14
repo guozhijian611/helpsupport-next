@@ -110,6 +110,7 @@ Route::group('/app/help', function () {
     Route::get('/material/categories', [MaterialController::class, 'categories']);
     Route::get('/material/list', [MaterialController::class, 'list']);
     Route::get('/material/detail', [MaterialController::class, 'detail']);
+    Route::post('/material/private', [MaterialController::class, 'savePrivate']);
     Route::get('/material/history', [MaterialController::class, 'history']);
     Route::post('/material/history/save', [MaterialController::class, 'saveHistory']);
     Route::get('/material/collections', [MaterialController::class, 'collections']);

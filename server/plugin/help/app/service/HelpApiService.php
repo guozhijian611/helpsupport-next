@@ -1114,6 +1114,77 @@ class HelpApiService
         return $material;
     }
 
+    public function savePrivateMaterial(int $memberId, array $data): array
+    {
+        $materialId = (int) ($data['id'] ?? 0);
+        $mediaType = trim((string) ($data['media_type'] ?? 'article'));
+        if (!in_array($mediaType, ['article', 'video', 'audio', 'pdf', 'epub', 'link'], true)) {
+            throw new ApiException('素材类型参数错误', 400);
+        }
+
+        $title = trim((string) ($data['title'] ?? ''));
+        if ($title === '') {
+            throw new ApiException('素材标题必须填写', 400);
+        }
+
+        if ($materialId > 0) {
+            $exists = Db::table('sa_content_material')
+                ->where('id', $materialId)
+                ->where('member_id', $memberId)
+                ->where('material_type', 'private')
+                ->whereNull('delete_time')
+                ->find();
+            if (!$exists) {
+                throw new ApiException('私人素材不存在或无权操作', 404);
+            }
+        }
+
+        $categoryId = max(0, (int) ($data['category_id'] ?? 0));
+        if ($categoryId > 0) {
+            $category = Db::table('sa_content_category')
+                ->where('id', $categoryId)
+                ->where('type', 'private')
+                ->where('status', 1)
+                ->whereNull('delete_time')
+                ->find();
+            if (!$category) {
+                throw new ApiException('私人素材分类不存在或已禁用', 404);
+            }
+        }
+
+        $risk = new HelpRiskService();
+        $title = $risk->filterText('material', $title);
+        $summary = $risk->filterText('material', (string) ($data['summary'] ?? ''));
+        $contentText = $risk->filterText('material', (string) ($data['content_text'] ?? ''));
+        if ($title === '') {
+            throw new ApiException('素材标题必须填写', 400);
+        }
+
+        $payload = [
+            'member_id' => $memberId,
+            'category_id' => $categoryId,
+            'media_type' => $mediaType,
+            'material_type' => 'private',
+            'title' => $title,
+            'summary' => $summary,
+            'cover_url' => (string) ($data['cover_url'] ?? ''),
+            'content_url' => (string) ($data['content_url'] ?? ''),
+            'content_text' => $contentText,
+            'tags' => $this->jsonValue($data['tags'] ?? null),
+            'duration_seconds' => max(0, (int) ($data['duration_seconds'] ?? 0)),
+            'is_public' => 2,
+            'is_recommended' => 2,
+            'audit_status' => 1,
+            'audit_remark' => '',
+            'status' => 1,
+            'sort' => max(0, (int) ($data['sort'] ?? 100)),
+        ];
+
+        $id = $this->saveRow('sa_content_material', $payload, $memberId, $materialId);
+
+        return Db::table('sa_content_material')->where('id', $id)->find() ?: [];
+    }
+
     public function saveMaterialHistory(int $memberId, array $data): array
     {
         $contentId = (int) ($data['content_id'] ?? 0);
@@ -2971,7 +3042,12 @@ class HelpApiService
         return Db::table('sa_content_material')
             ->where('status', 1)
             ->whereNull('delete_time')
-            ->whereRaw('(is_public = 1 OR member_id = ' . $memberId . ')');
+            ->where(function ($query) use ($memberId) {
+                $query->where('is_public', 1)->whereOr('member_id', $memberId);
+            })
+            ->where(function ($query) use ($memberId) {
+                $query->where('audit_status', 2)->whereOr('member_id', $memberId);
+            });
     }
 
     private function visibleCommunityPostQuery(int $memberId)

@@ -5066,6 +5066,113 @@
         }
       }
     },
+    "/app/help/material/private": {
+      "post": {
+        "tags": [
+          "helpsupport-api.素材.MaterialController"
+        ],
+        "summary": "保存私人素材",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "素材ID，空为新增",
+                    "format": "int32"
+                  },
+                  "category_id": {
+                    "type": "integer",
+                    "description": "私人素材分类ID",
+                    "format": "int32"
+                  },
+                  "media_type": {
+                    "type": "string",
+                    "description": "素材类型 article/video/audio/pdf/epub/link"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "素材标题"
+                  },
+                  "summary": {
+                    "type": "string",
+                    "description": "摘要"
+                  },
+                  "cover_url": {
+                    "type": "string",
+                    "description": "封面图"
+                  },
+                  "content_url": {
+                    "type": "string",
+                    "description": "内容地址"
+                  },
+                  "content_text": {
+                    "type": "string",
+                    "description": "富文本内容"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "description": "标签",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "duration_seconds": {
+                    "type": "integer",
+                    "description": "时长秒",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "title"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "素材ID",
+                      "format": "int32"
+                    },
+                    "audit_status": {
+                      "type": "integer",
+                      "description": "审核状态 1待审 2通过 3拒绝",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
     "/app/help/material/history": {
       "get": {
         "tags": [
