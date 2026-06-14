@@ -1448,7 +1448,7 @@ class HelpApiService
 
             return $query->order('id', 'desc');
         }, $params);
-        $page['balance'] = $this->memberPointBalance($memberId);
+        $page['balance'] = (new HelpPointService())->balance($memberId);
 
         return $page;
     }
@@ -2716,21 +2716,11 @@ class HelpApiService
 
     private function addPointLog(int $memberId, int $points, string $sourceType, int $sourceId, string $title, string $remark = ''): void
     {
-        if ($memberId <= 0 || $points === 0 || $sourceType === '') {
-            return;
-        }
-        if ($sourceId > 0 && Db::table('sa_member_point_log')
-            ->where('member_id', $memberId)
-            ->where('source_type', $sourceType)
-            ->where('source_id', $sourceId)
-            ->whereNull('delete_time')
-            ->find()) {
+        if ($memberId <= 0 || $points === 0) {
             return;
         }
 
-        $balanceAfter = $this->memberPointBalance($memberId) + $points;
-        $now = date('Y-m-d H:i:s');
-        Db::table('sa_member_point_log')->insert([
+        (new HelpPointService())->addLog([
             'member_id' => $memberId,
             'points' => $points,
             'change_type' => $points > 0 ? 'income' : 'expense',
@@ -2738,12 +2728,7 @@ class HelpApiService
             'source_id' => $sourceId,
             'title' => $title,
             'remark' => $remark,
-            'balance_after' => $balanceAfter,
-            'created_by' => $memberId,
-            'updated_by' => $memberId,
-            'create_time' => $now,
-            'update_time' => $now,
-        ]);
+        ], $memberId);
     }
 
     private function awardBadgesByTrigger(int $memberId, string $triggerType, int $triggerValue, string $sourceType, int $sourceId): void
@@ -2793,14 +2778,6 @@ class HelpApiService
                 $this->addPointLog($memberId, $pointsReward, 'badge', $badgeId, '获得荣誉徽章', (string) $rule['name']);
             }
         }
-    }
-
-    private function memberPointBalance(int $memberId): int
-    {
-        return (int) Db::table('sa_member_point_log')
-            ->where('member_id', $memberId)
-            ->whereNull('delete_time')
-            ->sum('points');
     }
 
     private function assertDoctorPlan(int $doctorId, int $memberId, int $planId): array
