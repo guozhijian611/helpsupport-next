@@ -22,7 +22,7 @@ class SaContentMaterialLogic extends BaseLogic
 
     public function add(array $data): mixed
     {
-        return parent::add($this->normalizeFields($data));
+        return parent::add($this->normalizeFields($data, true));
     }
 
     public function edit($id, array $data): mixed
@@ -71,11 +71,11 @@ class SaContentMaterialLogic extends BaseLogic
         });
     }
 
-    private function normalizeFields(array $data): array
+    private function normalizeFields(array $data, bool $isCreate = false): array
     {
         foreach (['title_i18n', 'tags'] as $field) {
             if (array_key_exists($field, $data)) {
-                $data[$field] = $this->normalizeJsonField($data[$field]);
+                $data[$field] = $this->normalizeJsonField($data[$field], $field === 'title_i18n' ? '多语言标题' : '标签');
             }
         }
 
@@ -89,7 +89,11 @@ class SaContentMaterialLogic extends BaseLogic
             'comment_count' => 0,
             'sort' => 100,
         ] as $field => $default) {
-            if (!array_key_exists($field, $data) || $data[$field] === '') {
+            if ($isCreate && (!array_key_exists($field, $data) || $data[$field] === '')) {
+                $data[$field] = $default;
+                continue;
+            }
+            if (!$isCreate && array_key_exists($field, $data) && $data[$field] === '') {
                 $data[$field] = $default;
             }
         }
@@ -97,7 +101,7 @@ class SaContentMaterialLogic extends BaseLogic
         return $data;
     }
 
-    private function normalizeJsonField(mixed $value): ?string
+    private function normalizeJsonField(mixed $value, string $label): ?string
     {
         if ($value === '' || $value === null) {
             return null;
@@ -107,6 +111,11 @@ class SaContentMaterialLogic extends BaseLogic
             return json_encode($value, JSON_UNESCAPED_UNICODE);
         }
 
-        return (string) $value;
+        $decoded = json_decode((string) $value, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new ApiException($label . 'JSON格式错误');
+        }
+
+        return json_encode($decoded, JSON_UNESCAPED_UNICODE);
     }
 }
