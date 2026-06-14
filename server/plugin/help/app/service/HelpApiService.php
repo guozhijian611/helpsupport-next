@@ -41,6 +41,8 @@ class HelpApiService
                     'web_client_id' => $groups['help_google_oauth']['web_client_id'] ?? '',
                     'ios_client_id' => $groups['help_google_oauth']['ios_client_id'] ?? '',
                     'android_client_id' => $groups['help_google_oauth']['android_client_id'] ?? '',
+                    'callback_strategy' => $groups['help_google_oauth']['callback_strategy'] ?? 'id_token',
+                    'binding_strategy' => $groups['help_google_oauth']['binding_strategy'] ?? 'verified_email_or_create',
                 ],
                 'apple' => [
                     'enabled' => ($groups['help_apple_oauth']['enabled'] ?? '2') === '1',
@@ -48,6 +50,8 @@ class HelpApiService
                     'bundle_id' => $groups['help_apple_oauth']['bundle_id'] ?? '',
                     'service_id' => $groups['help_apple_oauth']['service_id'] ?? '',
                     'key_id' => $groups['help_apple_oauth']['key_id'] ?? '',
+                    'callback_strategy' => $groups['help_apple_oauth']['callback_strategy'] ?? 'id_token',
+                    'binding_strategy' => $groups['help_apple_oauth']['binding_strategy'] ?? 'verified_email_or_create',
                 ],
             ],
             'push' => [

@@ -56,6 +56,20 @@
                   :autosize="{ minRows: item.is_secret ? 6 : 4, maxRows: 12 }"
                   :placeholder="secretPlaceholder(item)"
                 />
+                <ElSelect
+                  v-else-if="item.options?.length"
+                  v-model="formValues[group.code][item.key]"
+                  filterable
+                  class="runtime-select"
+                  :placeholder="'请选择' + item.name"
+                >
+                  <ElOption
+                    v-for="option in item.options"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </ElSelect>
                 <ElInput
                   v-else
                   v-model="formValues[group.code][item.key]"
@@ -146,6 +160,10 @@
 
   .runtime-form {
     padding-top: 12px;
+  }
+
+  .runtime-select {
+    width: 100%;
   }
 
   .runtime-help {

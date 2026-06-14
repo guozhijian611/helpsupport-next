@@ -17,6 +17,10 @@ class HelpAuthService
 {
     private const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
     private const APPLE_JWKS_URL = 'https://appleid.apple.com/auth/keys';
+    private const CALLBACK_STRATEGY_ID_TOKEN = 'id_token';
+    private const BINDING_STRATEGY_VERIFIED_OR_CREATE = 'verified_email_or_create';
+    private const BINDING_STRATEGY_CREATE_NEW = 'create_new';
+    private const BINDING_STRATEGY_VERIFIED_ONLY = 'verified_email_only';
 
     public function accountLogin(array $data): array
     {
@@ -114,6 +118,7 @@ class HelpAuthService
         if (($config['enabled'] ?? '2') !== '1') {
             throw new ApiException('Google 登录未启用', 400);
         }
+        $this->assertIdTokenCallbackStrategy($config, 'Google');
 
         $audiences = $this->nonEmptyValues($config, ['web_client_id', 'ios_client_id', 'android_client_id']);
         if ($audiences === []) {
@@ -138,7 +143,7 @@ class HelpAuthService
         }
 
         $platformId = $this->platformId('GOOGLE');
-        $this->ensureVerifiedEmailBinding($platformId, $openid, (string) ($payload['email'] ?? ''), true);
+        $this->applyOauthBindingStrategy($platformId, $openid, (string) ($payload['email'] ?? ''), true, $config, 'Google');
         $token = (new MemberLogic())->thirdPlatform([
             'platform_id' => $platformId,
             'openid' => $openid,
@@ -164,6 +169,7 @@ class HelpAuthService
         if (($config['enabled'] ?? '2') !== '1') {
             throw new ApiException('Apple 登录未启用', 400);
         }
+        $this->assertIdTokenCallbackStrategy($config, 'Apple');
 
         $audiences = $this->nonEmptyValues($config, ['bundle_id', 'service_id']);
         if ($audiences === []) {
@@ -184,11 +190,13 @@ class HelpAuthService
         }
 
         $platformId = $this->platformId('APPLE');
-        $this->ensureVerifiedEmailBinding(
+        $this->applyOauthBindingStrategy(
             $platformId,
             $openid,
             (string) ($payload['email'] ?? ''),
-            $this->truthy($payload['email_verified'] ?? false)
+            $this->truthy($payload['email_verified'] ?? false),
+            $config,
+            'Apple'
         );
         $token = (new MemberLogic())->thirdPlatform([
             'platform_id' => $platformId,
@@ -339,20 +347,73 @@ class HelpAuthService
         return $memberId;
     }
 
-    private function ensureVerifiedEmailBinding(int $platformId, string $openid, string $email, bool $verified): void
+    private function assertIdTokenCallbackStrategy(array $config, string $provider): void
     {
-        $email = trim($email);
-        if (!$verified || $email === '' || $openid === '') {
+        $strategy = trim((string) ($config['callback_strategy'] ?? self::CALLBACK_STRATEGY_ID_TOKEN));
+        if ($strategy === '') {
+            $strategy = self::CALLBACK_STRATEGY_ID_TOKEN;
+        }
+        if ($strategy !== self::CALLBACK_STRATEGY_ID_TOKEN) {
+            throw new ApiException($provider . ' 登录暂仅支持 ID Token 直连模式', 400);
+        }
+    }
+
+    private function applyOauthBindingStrategy(
+        int $platformId,
+        string $openid,
+        string $email,
+        bool $verified,
+        array $config,
+        string $provider
+    ): void {
+        if ($this->platformRelExists($platformId, $openid)) {
             return;
         }
 
-        $existingRel = Db::table('sa_member_platform_rel')
+        $strategy = trim((string) ($config['binding_strategy'] ?? self::BINDING_STRATEGY_VERIFIED_OR_CREATE));
+        if ($strategy === '') {
+            $strategy = self::BINDING_STRATEGY_VERIFIED_OR_CREATE;
+        }
+        if (!in_array($strategy, [
+            self::BINDING_STRATEGY_VERIFIED_OR_CREATE,
+            self::BINDING_STRATEGY_CREATE_NEW,
+            self::BINDING_STRATEGY_VERIFIED_ONLY,
+        ], true)) {
+            throw new ApiException($provider . ' 登录绑定策略配置错误', 400);
+        }
+        if ($strategy === self::BINDING_STRATEGY_CREATE_NEW) {
+            return;
+        }
+
+        $bound = $this->ensureVerifiedEmailBinding($platformId, $openid, $email, $verified);
+        if ($strategy === self::BINDING_STRATEGY_VERIFIED_ONLY && !$bound) {
+            throw new ApiException($provider . ' 登录未找到可绑定的已验证邮箱账号', 401);
+        }
+    }
+
+    private function platformRelExists(int $platformId, string $openid): bool
+    {
+        if ($openid === '') {
+            return false;
+        }
+
+        return Db::table('sa_member_platform_rel')
             ->where('platform_id', $platformId)
             ->where('platform_openid', $openid)
+            ->where('is_bind', 1)
             ->whereNull('delete_time')
-            ->find();
-        if ($existingRel) {
-            return;
+            ->find() !== null;
+    }
+
+    private function ensureVerifiedEmailBinding(int $platformId, string $openid, string $email, bool $verified): bool
+    {
+        $email = trim($email);
+        if (!$verified || $email === '' || $openid === '') {
+            return false;
+        }
+
+        if ($this->platformRelExists($platformId, $openid)) {
+            return true;
         }
 
         $members = Db::table('sa_member')
@@ -364,7 +425,7 @@ class HelpAuthService
             ->select()
             ->toArray();
         if (count($members) !== 1) {
-            return;
+            return false;
         }
 
         $now = date('Y-m-d H:i:s');
@@ -381,6 +442,8 @@ class HelpAuthService
         } catch (Throwable) {
             // 并发登录时可能已有请求完成绑定，后续 thirdPlatform 会按已存在关系登录。
         }
+
+        return $this->platformRelExists($platformId, $openid);
     }
 
     private function syncVerifiedEmail(int $memberId, string $email, bool $verified): void

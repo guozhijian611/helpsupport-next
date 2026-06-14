@@ -92,11 +92,13 @@ class HelpRuntimeConfigLogic
                     if ($this->isSecretKey($groupCode, (string) $key) && $this->isBlank($value)) {
                         continue;
                     }
+                    $value = $this->stringValue($value);
+                    $this->assertAllowedOption($items[$key], $value);
 
                     Db::table('sa_system_config')
                         ->where('id', $items[$key]->id)
                         ->update([
-                            'value' => $this->stringValue($value),
+                            'value' => $value,
                             'updated_by' => $adminId,
                             'update_time' => date('Y-m-d H:i:s'),
                         ]);
@@ -145,6 +147,22 @@ class HelpRuntimeConfigLogic
         }
 
         return [];
+    }
+
+    private function assertAllowedOption(object $item, string $value): void
+    {
+        $options = $this->optionsFor($item);
+        if ($options === []) {
+            return;
+        }
+
+        $allowedValues = array_map(
+            static fn (array $option) => (string) ($option['value'] ?? ''),
+            $options
+        );
+        if (!in_array($value, $allowedValues, true)) {
+            throw new ApiException((string) ($item->name ?? '配置项') . '参数错误');
+        }
     }
 
     private function isSecretKey(string $groupCode, string $key): bool
