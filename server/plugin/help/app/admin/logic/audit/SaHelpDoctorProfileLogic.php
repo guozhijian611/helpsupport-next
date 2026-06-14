@@ -7,6 +7,7 @@
 namespace plugin\help\app\admin\logic\audit;
 
 use plugin\help\app\service\HelpPushService;
+use plugin\help\app\service\HelpAuditLogService;
 use plugin\saiadmin\basic\think\BaseLogic;
 use plugin\saiadmin\exception\ApiException;
 use plugin\help\app\model\audit\SaHelpDoctorProfile;
@@ -71,6 +72,16 @@ class SaHelpDoctorProfileLogic extends BaseLogic
                         'update_time' => $now,
                     ]);
             }
+
+            (new HelpAuditLogService())->record(
+                'doctor_profile',
+                $id,
+                'audit',
+                $profile['audit_status'] ?? null,
+                $auditStatus,
+                $remark,
+                $adminId
+            );
         });
 
         try {

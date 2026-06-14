@@ -4,6 +4,7 @@ namespace plugin\help\app\admin\controller\community;
 
 use plugin\help\app\admin\logic\community\SaCommunityCommentLogic;
 use plugin\help\app\admin\validate\community\SaCommunityCommentValidate;
+use plugin\help\app\service\HelpAuditLogService;
 use plugin\saiadmin\basic\BaseController;
 use plugin\saiadmin\service\Permission;
 use support\Request;
@@ -41,6 +42,7 @@ class SaCommunityCommentController extends BaseController
     {
         $model = $this->logic->read($request->input('id', ''));
         $data = is_array($model) ? $model : $model->toArray();
+        $data['audit_logs'] = (new HelpAuditLogService())->list('community_comment', (int) ($data['id'] ?? 0));
 
         return $this->success($data);
     }

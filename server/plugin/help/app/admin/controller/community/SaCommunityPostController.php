@@ -9,6 +9,7 @@ namespace plugin\help\app\admin\controller\community;
 use plugin\saiadmin\basic\BaseController;
 use plugin\help\app\admin\logic\community\SaCommunityPostLogic;
 use plugin\help\app\admin\validate\community\SaCommunityPostValidate;
+use plugin\help\app\service\HelpAuditLogService;
 use plugin\saiadmin\service\Permission;
 use support\Request;
 use support\Response;
@@ -59,6 +60,7 @@ class SaCommunityPostController extends BaseController
         $model = $this->logic->read($id);
         if ($model) {
             $data = is_array($model) ? $model : $model->toArray();
+            $data['audit_logs'] = (new HelpAuditLogService())->list('community_post', (int) $id);
             return $this->success($data);
         } else {
             return $this->fail('未查找到信息');

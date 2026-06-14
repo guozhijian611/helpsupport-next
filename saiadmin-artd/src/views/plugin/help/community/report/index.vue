@@ -108,6 +108,9 @@
           {{ handleStatusText(detail.handle_status) }}
         </ElDescriptionsItem>
         <ElDescriptionsItem label="处理备注">{{ detail.handle_remark || '无' }}</ElDescriptionsItem>
+        <ElDescriptionsItem label="处理日志">
+          <AuditLogTimeline :logs="detail.audit_logs || []" />
+        </ElDescriptionsItem>
         <ElDescriptionsItem label="举报时间">{{ detail.create_time }}</ElDescriptionsItem>
       </ElDescriptions>
     </ElDrawer>
@@ -125,6 +128,7 @@
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { useTable } from '@/hooks/core/useTable'
   import { useSaiAdmin } from '@/composables/useSaiAdmin'
+  import AuditLogTimeline from '../../components/AuditLogTimeline.vue'
   import api from '../../api/community/report'
   import TableSearch from './modules/table-search.vue'
   import EditDialog from './modules/edit-dialog.vue'

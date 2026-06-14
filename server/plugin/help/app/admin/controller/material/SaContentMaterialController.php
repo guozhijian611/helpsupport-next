@@ -4,6 +4,7 @@ namespace plugin\help\app\admin\controller\material;
 
 use plugin\help\app\admin\logic\material\SaContentMaterialLogic;
 use plugin\help\app\admin\validate\material\SaContentMaterialValidate;
+use plugin\help\app\service\HelpAuditLogService;
 use plugin\saiadmin\basic\BaseController;
 use plugin\saiadmin\service\Permission;
 use support\Request;
@@ -48,6 +49,7 @@ class SaContentMaterialController extends BaseController
             return $this->fail('未查找到信息');
         }
         $data = is_array($model) ? $model : $model->toArray();
+        $data['audit_logs'] = (new HelpAuditLogService())->list('content_material', (int) ($data['id'] ?? 0));
 
         return $this->success($data);
     }

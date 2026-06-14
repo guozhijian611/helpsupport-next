@@ -92,6 +92,9 @@
         <ElDescriptionsItem label="审核备注">{{ detail.audit_remark || '无' }}</ElDescriptionsItem>
         <ElDescriptionsItem label="审核人">{{ detail.audit_by || '无' }}</ElDescriptionsItem>
         <ElDescriptionsItem label="审核时间">{{ detail.audit_time || '无' }}</ElDescriptionsItem>
+        <ElDescriptionsItem label="审核日志">
+          <AuditLogTimeline :logs="detail.audit_logs || []" />
+        </ElDescriptionsItem>
         <ElDescriptionsItem label="创建时间">{{ detail.create_time }}</ElDescriptionsItem>
       </ElDescriptions>
     </ElDrawer>
@@ -102,6 +105,7 @@
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { useTable } from '@/hooks/core/useTable'
   import { useSaiAdmin } from '@/composables/useSaiAdmin'
+  import AuditLogTimeline from '../../components/AuditLogTimeline.vue'
   import api from '../../api/community/comment'
   import TableSearch from './modules/table-search.vue'
 

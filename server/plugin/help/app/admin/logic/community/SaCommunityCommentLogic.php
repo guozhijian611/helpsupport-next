@@ -3,6 +3,7 @@
 namespace plugin\help\app\admin\logic\community;
 
 use plugin\help\app\model\community\SaCommunityComment;
+use plugin\help\app\service\HelpAuditLogService;
 use plugin\help\app\service\HelpPushService;
 use plugin\saiadmin\basic\think\BaseLogic;
 use plugin\saiadmin\exception\ApiException;
@@ -61,6 +62,16 @@ class SaCommunityCommentLogic extends BaseLogic
             } elseif ($wasApproved && !$willApprove) {
                 $this->syncPostCommentCount((int) ($comment['post_id'] ?? 0), false);
             }
+
+            (new HelpAuditLogService())->record(
+                'community_comment',
+                $id,
+                'audit',
+                $comment['audit_status'] ?? null,
+                $auditStatus,
+                $remark,
+                $adminId
+            );
         });
 
         if (!$wasApproved && $willApprove) {

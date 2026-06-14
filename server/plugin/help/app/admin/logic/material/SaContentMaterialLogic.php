@@ -3,8 +3,10 @@
 namespace plugin\help\app\admin\logic\material;
 
 use plugin\help\app\model\material\SaContentMaterial;
+use plugin\help\app\service\HelpAuditLogService;
 use plugin\saiadmin\basic\think\BaseLogic;
 use plugin\saiadmin\exception\ApiException;
+use think\facade\Db;
 
 /**
  * 内容素材逻辑层
@@ -37,13 +39,36 @@ class SaContentMaterialLogic extends BaseLogic
             throw new ApiException('拒绝原因必须填写');
         }
 
-        return (bool) $this->edit($id, [
-            'audit_status' => $auditStatus,
-            'audit_remark' => $remark,
-            'audit_by' => $adminId > 0 ? $adminId : null,
-            'audit_time' => date('Y-m-d H:i:s'),
-            'status' => $auditStatus === 2 ? 1 : 2,
-        ]);
+        $material = Db::table('sa_content_material')
+            ->where('id', $id)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$material) {
+            throw new ApiException('内容素材不存在');
+        }
+
+        return Db::transaction(function () use ($id, $auditStatus, $remark, $adminId, $material) {
+            $result = (bool) $this->edit($id, [
+                'audit_status' => $auditStatus,
+                'audit_remark' => $remark,
+                'audit_by' => $adminId > 0 ? $adminId : null,
+                'audit_time' => date('Y-m-d H:i:s'),
+                'status' => $auditStatus === 2 ? 1 : 2,
+            ]);
+            if ($result) {
+                (new HelpAuditLogService())->record(
+                    'content_material',
+                    $id,
+                    'audit',
+                    $material['audit_status'] ?? null,
+                    $auditStatus,
+                    $remark,
+                    $adminId
+                );
+            }
+
+            return $result;
+        });
     }
 
     private function normalizeFields(array $data): array

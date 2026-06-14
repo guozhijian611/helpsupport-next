@@ -232,6 +232,13 @@
       width: 170
     },
     {
+      prop: 'audit_logs',
+      label: '审核日志',
+      type: 'json',
+      form: false,
+      table: false
+    },
+    {
       prop: 'sort',
       label: '排序',
       type: 'number',

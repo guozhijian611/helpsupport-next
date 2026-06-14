@@ -48,6 +48,9 @@
         <el-descriptions-item label="审核时间">
           <div v-text="formData?.audit_time"></div>
         </el-descriptions-item>
+        <el-descriptions-item label="审核日志">
+          <AuditLogTimeline :logs="formData.audit_logs" />
+        </el-descriptions-item>
       </el-descriptions>
     </div>
     <!-- 详情 end -->
@@ -56,6 +59,7 @@
 
 <script setup lang="ts">
   import { computed } from 'vue'
+  import AuditLogTimeline from '../../../components/AuditLogTimeline.vue'
   import api from '../../../api/community/post'
 
   interface Props {
@@ -103,7 +107,8 @@
     is_top: 2,
     audit_remark: '',
     audit_by: null,
-    audit_time: ''
+    audit_time: '',
+    audit_logs: []
   }
 
   /**

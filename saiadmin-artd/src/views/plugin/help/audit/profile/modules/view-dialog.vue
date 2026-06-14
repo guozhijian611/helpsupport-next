@@ -49,6 +49,9 @@
         <el-descriptions-item label="通过时间">
           <div v-text="formData?.approved_time"></div>
         </el-descriptions-item>
+        <el-descriptions-item label="审核日志">
+          <AuditLogTimeline :logs="formData.audit_logs" />
+        </el-descriptions-item>
       </el-descriptions>
     </div>
     <!-- 详情 end -->
@@ -56,6 +59,7 @@
 </template>
 
 <script setup lang="ts">
+  import AuditLogTimeline from '../../../components/AuditLogTimeline.vue'
   import api from '../../../api/audit/profile'
 
   interface Props {
@@ -104,6 +108,7 @@
     audit_by: null,
     audit_time: '',
     approved_time: '',
+    audit_logs: []
   }
 
   /**
