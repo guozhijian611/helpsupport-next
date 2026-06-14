@@ -15,6 +15,14 @@ use Throwable;
  */
 class SaDoctorAppointmentLogic extends BaseLogic
 {
+    private const IMMUTABLE_EDIT_FIELDS = [
+        'member_id' => '患者会员ID',
+        'doctor_id' => '医生会员ID',
+        'schedule_id' => '排班ID',
+        'appoint_date' => '预约日期',
+        'appoint_time_slot' => '预约时间段',
+    ];
+
     public function __construct()
     {
         $this->model = new SaDoctorAppointment();
@@ -28,6 +36,7 @@ class SaDoctorAppointmentLogic extends BaseLogic
         $data['status'] = 0;
 
         return Db::transaction(function () use ($data) {
+            $data = $this->applyScheduleSnapshotForCreate($data);
             $this->assertNoActiveAppointmentForSchedule(
                 (int) ($data['member_id'] ?? 0),
                 (int) ($data['schedule_id'] ?? 0)
@@ -41,6 +50,12 @@ class SaDoctorAppointmentLogic extends BaseLogic
 
     public function edit($id, array $data): mixed
     {
+        $appointment = $this->appointmentRow((int) $id);
+        if (!$appointment) {
+            throw new ApiException('预约不存在');
+        }
+        $this->assertImmutableEditFields($appointment, $data);
+
         if (array_key_exists('status', $data)) {
             $this->assertUnchangedStatus((int) $id, $data['status']);
         }
@@ -162,6 +177,87 @@ class SaDoctorAppointmentLogic extends BaseLogic
         }
 
         return $data;
+    }
+
+    private function applyScheduleSnapshotForCreate(array $data): array
+    {
+        $scheduleId = (int) ($data['schedule_id'] ?? 0);
+        if ($scheduleId <= 0) {
+            return $data;
+        }
+
+        $schedule = $this->lockAvailableSchedule($scheduleId);
+        $this->assertScheduleSnapshotMatches($data, $schedule);
+
+        $data['doctor_id'] = (int) $schedule['doctor_id'];
+        $data['appoint_date'] = (string) $schedule['schedule_date'];
+        $data['appoint_time_slot'] = (string) $schedule['time_slot'];
+        $data['price'] = (string) $schedule['price'];
+        $data['currency'] = (string) $schedule['currency'];
+
+        if (empty($data['meet_type'])) {
+            $data['meet_type'] = (string) $schedule['meet_type'];
+        }
+        if (empty($data['meet_link']) && !empty($schedule['meet_link'])) {
+            $data['meet_link'] = (string) $schedule['meet_link'];
+        }
+
+        return $data;
+    }
+
+    private function lockAvailableSchedule(int $scheduleId): array
+    {
+        $schedule = Db::table('sa_doctor_schedule')
+            ->where('id', $scheduleId)
+            ->where('status', 1)
+            ->whereRaw('`booked_count` < `capacity`')
+            ->whereNull('delete_time')
+            ->lock(true)
+            ->find();
+        if (!$schedule) {
+            throw new ApiException('排班不存在或容量已满');
+        }
+
+        return $schedule;
+    }
+
+    private function assertScheduleSnapshotMatches(array $data, array $schedule): void
+    {
+        $checks = [
+            'doctor_id' => [(int) ($data['doctor_id'] ?? 0), (int) $schedule['doctor_id'], '预约医生与排班不一致'],
+            'appoint_date' => [trim((string) ($data['appoint_date'] ?? '')), (string) $schedule['schedule_date'], '预约日期与排班不一致'],
+            'appoint_time_slot' => [trim((string) ($data['appoint_time_slot'] ?? '')), (string) $schedule['time_slot'], '预约时间段与排班不一致'],
+        ];
+
+        foreach ($checks as [$input, $expected, $message]) {
+            if ($input !== '' && $input !== 0 && $input !== $expected) {
+                throw new ApiException($message);
+            }
+        }
+    }
+
+    private function assertImmutableEditFields(array $appointment, array $data): void
+    {
+        foreach (self::IMMUTABLE_EDIT_FIELDS as $field => $label) {
+            if (!array_key_exists($field, $data)) {
+                continue;
+            }
+
+            $input = $this->normalizeImmutableValue($field, $data[$field]);
+            $current = $this->normalizeImmutableValue($field, $appointment[$field] ?? null);
+            if ($input !== $current) {
+                throw new ApiException($label . '不可直接编辑，请取消后重新预约');
+            }
+        }
+    }
+
+    private function normalizeImmutableValue(string $field, mixed $value): int|string
+    {
+        if (in_array($field, ['member_id', 'doctor_id', 'schedule_id'], true)) {
+            return (int) $value;
+        }
+
+        return trim((string) $value);
     }
 
     private function appointmentRow(int $id): array

@@ -27,6 +27,7 @@
       form: true,
       search: true,
       required: true,
+      editReadonly: true,
       width: 110
     },
     {
@@ -36,6 +37,7 @@
       form: true,
       search: true,
       required: true,
+      editReadonly: true,
       width: 110
     },
     {
@@ -44,6 +46,7 @@
       type: 'number',
       form: true,
       default: 0,
+      editReadonly: true,
       width: 90
     },
     {
@@ -53,6 +56,7 @@
       form: true,
       search: true,
       required: true,
+      editReadonly: true,
       width: 120
     },
     {
@@ -60,6 +64,7 @@
       label: '时间段',
       form: true,
       required: true,
+      editReadonly: true,
       minWidth: 130
     },
     {

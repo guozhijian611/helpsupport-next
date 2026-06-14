@@ -159,6 +159,7 @@
                 clearable
                 filterable
                 :placeholder="field.placeholder || '请选择' + field.label"
+                :disabled="isFieldDisabled(field)"
                 class="help-form-control"
               >
                 <ElOption
@@ -173,6 +174,7 @@
                 v-model="formData[field.prop]"
                 :min="field.min"
                 :precision="field.precision"
+                :disabled="isFieldDisabled(field)"
                 class="help-form-control"
               />
               <ElDatePicker
@@ -181,6 +183,7 @@
                 type="date"
                 value-format="YYYY-MM-DD"
                 :placeholder="field.placeholder || '请选择' + field.label"
+                :disabled="isFieldDisabled(field)"
                 class="help-form-control"
               />
               <ElTimePicker
@@ -188,6 +191,7 @@
                 v-model="formData[field.prop]"
                 value-format="HH:mm:ss"
                 :placeholder="field.placeholder || '请选择' + field.label"
+                :disabled="isFieldDisabled(field)"
                 class="help-form-control"
               />
               <ElDatePicker
@@ -196,6 +200,7 @@
                 type="datetime"
                 value-format="YYYY-MM-DD HH:mm:ss"
                 :placeholder="field.placeholder || '请选择' + field.label"
+                :disabled="isFieldDisabled(field)"
                 class="help-form-control"
               />
               <ElInput
@@ -204,12 +209,14 @@
                 type="textarea"
                 :rows="field.rows || 4"
                 :placeholder="field.placeholder || '请输入' + field.label"
+                :disabled="isFieldDisabled(field)"
               />
               <ElInput
                 v-else
                 v-model="formData[field.prop]"
                 clearable
                 :placeholder="field.placeholder || '请输入' + field.label"
+                :disabled="isFieldDisabled(field)"
               />
             </ElFormItem>
           </ElCol>
@@ -336,6 +343,9 @@
   const submitLoading = ref(false)
   const detailVisible = ref(false)
   const detailData = ref<Record<string, any>>({})
+
+  const isFieldDisabled = (field: HelpCrudField) =>
+    dialogType.value === 'edit' && field.editReadonly === true
 
   const rules = computed<FormRules>(() => {
     const nextRules: FormRules = {}

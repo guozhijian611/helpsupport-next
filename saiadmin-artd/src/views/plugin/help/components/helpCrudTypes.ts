@@ -14,6 +14,7 @@ export interface HelpCrudField {
   detail?: boolean
   required?: boolean
   readonly?: boolean
+  editReadonly?: boolean
   width?: number | string
   minWidth?: number | string
   span?: number

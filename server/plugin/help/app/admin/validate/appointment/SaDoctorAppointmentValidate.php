@@ -12,6 +12,7 @@ class SaDoctorAppointmentValidate extends BaseValidate
     protected $rule = [
         'member_id' => 'require|integer',
         'doctor_id' => 'require|integer',
+        'schedule_id' => 'integer|egt:0',
         'appoint_date' => 'require|dateFormat:Y-m-d',
         'appoint_time_slot' => 'require|max:50',
         'status' => 'require|in:0,1,2,3,4',
@@ -22,6 +23,8 @@ class SaDoctorAppointmentValidate extends BaseValidate
         'member_id.integer' => '患者会员ID必须为整数',
         'doctor_id.require' => '医生会员ID必须填写',
         'doctor_id.integer' => '医生会员ID必须为整数',
+        'schedule_id.integer' => '排班ID必须为整数',
+        'schedule_id.egt' => '排班ID不能小于0',
         'appoint_date.require' => '预约日期必须填写',
         'appoint_date.dateFormat' => '预约日期格式必须为YYYY-MM-DD',
         'appoint_time_slot.require' => '预约时间段必须填写',
@@ -31,7 +34,7 @@ class SaDoctorAppointmentValidate extends BaseValidate
     ];
 
     protected $scene = [
-        'save' => ['member_id', 'doctor_id', 'appoint_date', 'appoint_time_slot'],
-        'update' => ['member_id', 'doctor_id', 'appoint_date', 'appoint_time_slot'],
+        'save' => ['member_id', 'doctor_id', 'schedule_id', 'appoint_date', 'appoint_time_slot'],
+        'update' => ['member_id', 'doctor_id', 'schedule_id', 'appoint_date', 'appoint_time_slot'],
     ];
 }

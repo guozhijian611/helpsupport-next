@@ -117,6 +117,7 @@
       type: 'number',
       form: true,
       default: 0,
+      editReadonly: true,
       width: 90
     },
     {

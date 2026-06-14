@@ -5,6 +5,7 @@ namespace plugin\help\app\admin\logic\appointment;
 use plugin\help\app\model\appointment\SaDoctorSchedule;
 use plugin\saiadmin\basic\think\BaseLogic;
 use plugin\saiadmin\exception\ApiException;
+use think\facade\Db;
 
 /**
  * 医生排班逻辑层
@@ -25,6 +26,12 @@ class SaDoctorScheduleLogic extends BaseLogic
 
     public function edit($id, array $data): mixed
     {
+        $schedule = $this->scheduleRow((int) $id);
+        $this->assertUnchangedBookedCount($schedule, $data);
+        if (!array_key_exists('booked_count', $data)) {
+            $data['booked_count'] = (int) $schedule['booked_count'];
+        }
+
         return parent::edit($id, $this->normalizeFields($data));
     }
 
@@ -52,5 +59,29 @@ class SaDoctorScheduleLogic extends BaseLogic
         $data['currency'] = strtoupper(trim((string) ($data['currency'] ?? 'USD'))) ?: 'USD';
 
         return $data;
+    }
+
+    private function scheduleRow(int $id): array
+    {
+        $schedule = Db::table('sa_doctor_schedule')
+            ->where('id', $id)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$schedule) {
+            throw new ApiException('排班不存在');
+        }
+
+        return $schedule;
+    }
+
+    private function assertUnchangedBookedCount(array $schedule, array $data): void
+    {
+        if (!array_key_exists('booked_count', $data)) {
+            return;
+        }
+
+        if ((int) $data['booked_count'] !== (int) $schedule['booked_count']) {
+            throw new ApiException('已预约人数由预约操作自动维护，不能直接编辑');
+        }
     }
 }
