@@ -7,6 +7,7 @@ namespace plugin\help\app\service;
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
 use plugin\saiadmin\exception\ApiException;
+use plugin\saiuser\app\api\logic\common\IndexLogic;
 use plugin\saiuser\app\admin\logic\member\MemberLogic;
 use think\facade\Db;
 use Tinywan\Jwt\JwtToken;
@@ -31,6 +32,65 @@ class HelpAuthService
             ->whereNull('delete_time')
             ->value('id');
 
+        return $this->sessionPayload($token, $memberId);
+    }
+
+    public function sendRegisterEmail(array $data): array
+    {
+        $email = trim((string) ($data['email'] ?? ''));
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new ApiException('请输入正确的邮箱格式', 400);
+        }
+
+        (new IndexLogic())->emailSend($email, 1);
+
+        return [
+            'sent' => true,
+            'email' => $this->maskEmail($email),
+            'expires_in' => 600,
+            'resend_after' => 120,
+        ];
+    }
+
+    public function accountRegister(array $data): array
+    {
+        $username = trim((string) ($data['username'] ?? ''));
+        $email = trim((string) ($data['email'] ?? ''));
+        $password = (string) ($data['password'] ?? '');
+        $emailCode = trim((string) ($data['email_code'] ?? ''));
+        if ($username === '' || $email === '' || $password === '' || $emailCode === '') {
+            throw new ApiException('账号、邮箱、密码和邮箱验证码必须填写', 400);
+        }
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new ApiException('请输入正确的邮箱格式', 400);
+        }
+        if (mb_strlen($username) < 3 || mb_strlen($username) > 32) {
+            throw new ApiException('账号长度需为 3-32 个字符', 400);
+        }
+        if (strlen($password) < 6) {
+            throw new ApiException('密码长度不能少于 6 位', 400);
+        }
+        $memberRole = trim((string) ($data['member_role'] ?? 'patient'));
+        if (!in_array($memberRole, ['patient', 'doctor'], true)) {
+            throw new ApiException('会员身份参数错误', 400);
+        }
+
+        (new MemberLogic())->emailReg([
+            'username' => $username,
+            'email' => $email,
+            'password' => $password,
+            'email_code' => $emailCode,
+        ]);
+
+        $memberId = (int) Db::table('sa_member')
+            ->where('username', $username)
+            ->whereNull('delete_time')
+            ->value('id');
+        $data['member_role'] = $memberRole;
+        $this->syncRegisterProfile($memberId, $data);
+        $this->syncNickname($memberId, (string) ($data['nickname'] ?? ''));
+
+        $token = (new MemberLogic())->login($username, $password, '1');
         return $this->sessionPayload($token, $memberId);
     }
 
@@ -288,6 +348,73 @@ class HelpAuthService
                 'email' => $email,
                 'update_time' => date('Y-m-d H:i:s'),
             ]);
+    }
+
+    private function syncRegisterProfile(int $memberId, array $data): void
+    {
+        if ($memberId <= 0) {
+            throw new ApiException('会员注册状态异常', 401);
+        }
+
+        $memberRole = trim((string) ($data['member_role'] ?? 'patient'));
+        if (!in_array($memberRole, ['patient', 'doctor'], true)) {
+            throw new ApiException('会员身份参数错误', 400);
+        }
+
+        $payload = [
+            'member_role' => $memberRole,
+            'status' => 1,
+        ];
+        foreach (['locale', 'timezone'] as $field) {
+            $value = trim((string) ($data[$field] ?? ''));
+            if ($value !== '') {
+                $payload[$field] = $value;
+            }
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $exists = Db::table('sa_help_member_profile')
+            ->where('member_id', $memberId)
+            ->whereNull('delete_time')
+            ->find();
+        if ($exists) {
+            $payload['updated_by'] = $memberId;
+            $payload['update_time'] = $now;
+            Db::table('sa_help_member_profile')->where('id', $exists['id'])->update($payload);
+            return;
+        }
+
+        $payload['member_id'] = $memberId;
+        $payload['created_by'] = $memberId;
+        $payload['updated_by'] = $memberId;
+        $payload['create_time'] = $now;
+        $payload['update_time'] = $now;
+        Db::table('sa_help_member_profile')->insert($payload);
+    }
+
+    private function syncNickname(int $memberId, string $nickname): void
+    {
+        $nickname = trim($nickname);
+        if ($memberId <= 0 || $nickname === '') {
+            return;
+        }
+
+        Db::table('sa_member')
+            ->where('id', $memberId)
+            ->update([
+                'nickname' => mb_substr($nickname, 0, 80),
+                'update_time' => date('Y-m-d H:i:s'),
+            ]);
+    }
+
+    private function maskEmail(string $email): string
+    {
+        [$name, $domain] = array_pad(explode('@', $email, 2), 2, '');
+        if ($name === '' || $domain === '') {
+            return '';
+        }
+
+        return mb_substr($name, 0, 1) . '***@' . $domain;
     }
 
     private function nonEmptyValues(array $data, array $keys): array

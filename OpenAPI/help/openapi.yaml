@@ -684,6 +684,181 @@
         }
       }
     },
+    "/app/help/auth/register-email-code": {
+      "post": {
+        "tags": [
+          "helpsupport-api.会员认证.AuthController"
+        ],
+        "summary": "发送注册邮箱验证码",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "description": "注册邮箱"
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sent": {
+                      "type": "string",
+                      "description": "是否发送成功"
+                    },
+                    "email": {
+                      "type": "string",
+                      "description": "脱敏邮箱"
+                    },
+                    "expires_in": {
+                      "type": "integer",
+                      "description": "验证码有效期秒数",
+                      "format": "int32"
+                    },
+                    "resend_after": {
+                      "type": "integer",
+                      "description": "再次发送等待秒数",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/auth/account-register": {
+      "post": {
+        "tags": [
+          "helpsupport-api.会员认证.AuthController"
+        ],
+        "summary": "邮箱账号注册",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "description": "会员用户名"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "注册邮箱"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "登录密码"
+                  },
+                  "email_code": {
+                    "type": "string",
+                    "description": "邮箱验证码"
+                  },
+                  "nickname": {
+                    "type": "string",
+                    "description": "会员昵称"
+                  },
+                  "member_role": {
+                    "type": "string",
+                    "description": "业务身份 patient/doctor"
+                  },
+                  "locale": {
+                    "type": "string",
+                    "description": "语言"
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "description": "时区"
+                  }
+                },
+                "required": [
+                  "username",
+                  "email",
+                  "password",
+                  "email_code"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "object",
+                      "description": "Bearer access_token 与 refresh_token"
+                    },
+                    "member": {
+                      "type": "object",
+                      "description": "会员基础资料"
+                    },
+                    "profile": {
+                      "type": "object",
+                      "description": "HelpSupport会员扩展资料"
+                    },
+                    "doctor_profile": {
+                      "type": "object",
+                      "description": "医生认证资料"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
     "/app/help/auth/google": {
       "post": {
         "tags": [
