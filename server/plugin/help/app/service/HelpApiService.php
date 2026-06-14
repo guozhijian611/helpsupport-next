@@ -2718,6 +2718,10 @@ class HelpApiService
             ->whereNull('delete_time')
             ->count();
         $this->awardBadgesByTrigger($memberId, 'task_count', $taskCount, 'daily_task', $taskId);
+
+        if ((string) ($task['task_type'] ?? '') === 'checkin') {
+            $this->awardCheckinStreakBadges($memberId, $taskId, (string) ($task['task_date'] ?? ''));
+        }
     }
 
     private function addPointLog(int $memberId, int $points, string $sourceType, int $sourceId, string $title, string $remark = ''): void
@@ -2813,6 +2817,37 @@ class HelpApiService
             ->whereNull('delete_time')
             ->count();
         $this->awardBadgesByTrigger($memberId, 'appointment_done', $doneCount, 'appointment', $appointmentId);
+    }
+
+    private function awardCheckinStreakBadges(int $memberId, int $taskId, string $taskDate): void
+    {
+        if ($taskDate === '') {
+            return;
+        }
+
+        $dates = Db::table('sa_daily_task')
+            ->where('member_id', $memberId)
+            ->where('task_type', 'checkin')
+            ->where('status', 1)
+            ->where('task_date', '<=', $taskDate)
+            ->whereNull('delete_time')
+            ->distinct(true)
+            ->order('task_date', 'desc')
+            ->column('task_date');
+
+        $expectedDate = new \DateTimeImmutable($taskDate);
+        $streak = 0;
+        foreach ($dates as $date) {
+            $date = (string) $date;
+            if ($date !== $expectedDate->format('Y-m-d')) {
+                break;
+            }
+
+            $streak++;
+            $expectedDate = $expectedDate->modify('-1 day');
+        }
+
+        $this->awardBadgesByTrigger($memberId, 'checkin_streak', $streak, 'daily_task', $taskId);
     }
 
     private function assertDoctorPlan(int $doctorId, int $memberId, int $planId): array
