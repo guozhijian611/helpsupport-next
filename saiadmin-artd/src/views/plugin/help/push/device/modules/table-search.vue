@@ -8,12 +8,27 @@
     @search="handleSearch"
     @expand="handleExpand"
   >
+    <template #default>
+      <ElFormItem label="会员ID" prop="member_id">
+        <ElInput v-model="formData.member_id" placeholder="请输入会员ID" clearable />
+      </ElFormItem>
+      <ElFormItem label="设备标识" prop="device_id">
+        <ElInput v-model="formData.device_id" placeholder="请输入设备标识" clearable />
+      </ElFormItem>
+      <ElFormItem label="平台" prop="platform">
+        <ElSelect v-model="formData.platform" placeholder="请选择平台" clearable class="w-full">
+          <ElOption label="iOS" value="ios" />
+          <ElOption label="Android" value="android" />
+        </ElSelect>
+      </ElFormItem>
+      <ElFormItem label="状态" prop="is_active">
+        <sa-select v-model="formData.is_active" dict="yes_or_no" placeholder="请选择状态" />
+      </ElFormItem>
+    </template>
   </sa-search-bar>
 </template>
 
 <script setup lang="ts">
-  import commonApi from '@/api/common'
-
   interface Props {
     modelValue: Record<string, any>
   }
@@ -35,19 +50,6 @@
     set: (val) => emit('update:modelValue', val)
   })
 
-  // 选项数据
-  const optionData = reactive({
-  })
-
-  // 初始化选项数据
-  const initOptions = async () => {
-  }
-
-  // 组件挂载时初始化选项数据
-  onMounted(() => {
-    initOptions()
-  })
-
   // 重置
   function handleReset() {
     searchBarRef.value?.ref.resetFields()
@@ -64,15 +66,4 @@
     isExpanded.value = expanded
   }
 
-  // 栅格占据的列数
-  const setSpan = (span: number) => {
-    return {
-      span: span,
-      xs: 24, // 手机：满宽显示
-      sm: span >= 12 ? span : 12, // 平板：大于等于12保持，否则用半宽
-      md: span >= 8 ? span : 8, // 中等屏幕：大于等于8保持，否则用三分之一宽
-      lg: span,
-      xl: span
-    }
-  }
 </script>

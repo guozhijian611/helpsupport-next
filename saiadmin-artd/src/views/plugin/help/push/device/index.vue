@@ -111,15 +111,16 @@
       apiFn: api.list,
       columnsFactory: () => [
         { type: 'selection' },
-        { prop: 'device_id', label: '设备标识' },
-        { prop: 'platform', label: '平台 ios/android' },
-        { prop: 'apns_token', label: 'APNs Token' },
-        { prop: 'app_version', label: 'App版本' },
-        { prop: 'locale', label: '当前语言' },
-        { prop: 'timezone', label: '当前时区' },
-        { prop: 'is_active', label: '是否有效 1是 2否', saiType: 'dict', saiDict: 'yes_or_no' },
-        { prop: 'last_active_time', label: '最近活跃时间' },
-        { prop: 'logout_time', label: '退出或踢下线时间' },
+        { prop: 'member_id', label: '会员ID', width: 100 },
+        { prop: 'device_id', label: '设备标识', minWidth: 180 },
+        { prop: 'platform', label: '平台', width: 100 },
+        { prop: 'fcm_token', label: 'FCM Token', minWidth: 220 },
+        { prop: 'app_version', label: 'App版本', width: 110 },
+        { prop: 'locale', label: '当前语言', width: 110 },
+        { prop: 'timezone', label: '当前时区', width: 140 },
+        { prop: 'is_active', label: '是否有效', saiType: 'dict', saiDict: 'yes_or_no', width: 110 },
+        { prop: 'last_active_time', label: '最近活跃时间', width: 170 },
+        { prop: 'logout_time', label: '退出或踢下线时间', width: 170 },
         { prop: 'operation', label: '操作', width: 140, fixed: 'right', useSlot: true }
       ]
     }

@@ -3,14 +3,20 @@
     <!-- 详情 start -->
     <div>
       <el-descriptions :column="1" label-width="100px" border>
+        <el-descriptions-item label="会员ID">
+          <div v-text="formData?.member_id"></div>
+        </el-descriptions-item>
         <el-descriptions-item label="设备标识">
           <div v-text="formData?.device_id"></div>
         </el-descriptions-item>
-        <el-descriptions-item label="平台 ios/android">
+        <el-descriptions-item label="平台">
           <div v-text="formData?.platform"></div>
         </el-descriptions-item>
+        <el-descriptions-item label="FCM Token">
+          <div class="token-text" v-text="formData?.fcm_token"></div>
+        </el-descriptions-item>
         <el-descriptions-item label="APNs Token">
-          <div v-text="formData?.apns_token"></div>
+          <div class="token-text" v-text="formData?.apns_token"></div>
         </el-descriptions-item>
         <el-descriptions-item label="App版本">
           <div v-text="formData?.app_version"></div>
@@ -71,8 +77,10 @@
    */
   const initialFormData = {
     id: null,
+    member_id: null,
     device_id: '',
     platform: '',
+    fcm_token: '',
     apns_token: '',
     app_version: '',
     locale: 'en-US',
@@ -126,3 +134,10 @@
     }
   }
 </script>
+
+<style scoped>
+  .token-text {
+    word-break: break-all;
+    white-space: pre-wrap;
+  }
+</style>

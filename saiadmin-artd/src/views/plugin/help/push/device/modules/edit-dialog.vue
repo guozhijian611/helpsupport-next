@@ -10,18 +10,47 @@
     <el-form ref="formRef" :model="formData" :rules="rules" label-width="120px">
       <el-row :gutter="20">
         <el-col :span="24">
+          <el-form-item label="会员ID" prop="member_id">
+            <el-input-number
+              v-model="formData.member_id"
+              :min="1"
+              controls-position="right"
+              class="w-full"
+              placeholder="请输入会员ID"
+            />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
           <el-form-item label="设备标识" prop="device_id">
             <el-input v-model="formData.device_id" placeholder="请输入设备标识" />
           </el-form-item>
         </el-col>
         <el-col :span="24">
-          <el-form-item label="平台 ios/android" prop="platform">
-            <el-input v-model="formData.platform" placeholder="请输入平台 ios/android" />
+          <el-form-item label="平台" prop="platform">
+            <el-select v-model="formData.platform" placeholder="请选择平台" class="w-full">
+              <el-option label="iOS" value="ios" />
+              <el-option label="Android" value="android" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="FCM Token" prop="fcm_token">
+            <el-input
+              v-model="formData.fcm_token"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入FCM Token"
+            />
           </el-form-item>
         </el-col>
         <el-col :span="24">
           <el-form-item label="APNs Token" prop="apns_token">
-            <el-input v-model="formData.apns_token" placeholder="请输入APNs Token" />
+            <el-input
+              v-model="formData.apns_token"
+              type="textarea"
+              :rows="3"
+              placeholder="iOS 可填写 APNs Token，Android 可留空"
+            />
           </el-form-item>
         </el-col>
         <el-col :span="24">
@@ -76,7 +105,6 @@
 </template>
 
 <script setup lang="ts">
-  import commonApi from '@/api/common'
   import api from '../../../api/push/device'
   import { ElMessage } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
@@ -101,9 +129,6 @@
   const emit = defineEmits<Emits>()
 
   const formRef = ref<FormInstance>()
-  const optionData = reactive({
-    treeData: <any[]>[],
-  })
 
   /**
    * 弹窗显示状态双向绑定
@@ -119,9 +144,8 @@
   const rules = reactive<FormRules>({
     member_id: [{ required: true, message: '会员ID必需填写', trigger: 'blur' }],
     device_id: [{ required: true, message: '设备标识必需填写', trigger: 'blur' }],
-    platform: [{ required: true, message: '平台 ios/android必需填写', trigger: 'blur' }],
+    platform: [{ required: true, message: '平台必需选择', trigger: 'change' }],
     fcm_token: [{ required: true, message: 'FCM Token必需填写', trigger: 'blur' }],
-    apns_token: [{ required: true, message: 'APNs Token必需填写', trigger: 'blur' }],
     app_version: [{ required: true, message: 'App版本必需填写', trigger: 'blur' }],
     locale: [{ required: true, message: '当前语言必需填写', trigger: 'blur' }],
     timezone: [{ required: true, message: '当前时区必需填写', trigger: 'blur' }],
@@ -133,8 +157,10 @@
    */
   const initialFormData = {
     id: null,
+    member_id: null,
     device_id: '',
     platform: '',
+    fcm_token: '',
     apns_token: '',
     app_version: '',
     locale: 'en-US',

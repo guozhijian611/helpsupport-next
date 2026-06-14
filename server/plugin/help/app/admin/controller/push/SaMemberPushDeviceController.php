@@ -37,6 +37,10 @@ class SaMemberPushDeviceController extends BaseController
     public function index(Request $request): Response
     {
         $where = $request->more([
+            ['member_id', ''],
+            ['device_id', ''],
+            ['platform', ''],
+            ['is_active', ''],
         ]);
         $query = $this->logic->search($where);
         $data = $this->logic->getList($query);
