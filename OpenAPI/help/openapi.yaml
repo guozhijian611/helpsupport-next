@@ -1042,15 +1042,6 @@
         ],
         "summary": "App运行配置",
         "description": "",
-        "parameters": [
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": true,
-            "type": "string",
-            "description": "身份令牌Token"
-          }
-        ],
         "responses": {
           "200": {
             "description": "请求成功",
@@ -1097,13 +1088,6 @@
         "summary": "App引导页",
         "description": "",
         "parameters": [
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": true,
-            "type": "string",
-            "description": "身份令牌Token"
-          },
           {
             "name": "scene",
             "in": "query",
