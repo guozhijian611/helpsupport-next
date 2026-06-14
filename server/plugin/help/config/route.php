@@ -35,6 +35,7 @@ use plugin\help\app\admin\controller\localModel\SaLocalModelCatalogController as
 use plugin\help\app\admin\controller\localModel\SaLocalModelPromptController as AdminLocalModelPromptController;
 use plugin\help\app\admin\controller\material\SaContentCategoryController as AdminContentCategoryController;
 use plugin\help\app\admin\controller\material\SaContentMaterialController as AdminContentMaterialController;
+use plugin\help\app\admin\controller\material\SaPrivateMaterialController as AdminPrivateMaterialController;
 use plugin\help\app\admin\controller\me\SaMemberJournalController as AdminMemberJournalController;
 use plugin\help\app\admin\controller\me\SaMemberMemoirController as AdminMemberMemoirController;
 use plugin\help\app\admin\controller\me\SaMemberMemoirConfigController as AdminMemberMemoirConfigController;
@@ -207,6 +208,8 @@ Route::group('/app/help/admin/material', function () {
     fastRoute('SaContentCategory', AdminContentCategoryController::class);
     fastRoute('SaContentMaterial', AdminContentMaterialController::class);
     Route::post('/SaContentMaterial/audit', [AdminContentMaterialController::class, 'audit']);
+    fastRoute('SaPrivateMaterial', AdminPrivateMaterialController::class);
+    Route::post('/SaPrivateMaterial/audit', [AdminPrivateMaterialController::class, 'audit']);
 });
 
 Route::group('/app/help/admin/appointment', function () {
