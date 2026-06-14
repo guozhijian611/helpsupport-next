@@ -3002,6 +3002,69 @@
         }
       }
     },
+    "/app/help/me/memoir-configs": {
+      "get": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "回忆录生成配置",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "配置编码"
+          },
+          {
+            "name": "generation_cycle",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "生成周期 weekly/monthly/quarterly"
+          },
+          {
+            "name": "source_type",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "来源类型 journal/task/mixed"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "启用的回忆录生成配置",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
     "/app/help/me/badges": {
       "get": {
         "tags": [

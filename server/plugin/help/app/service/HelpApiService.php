@@ -2290,6 +2290,32 @@ class HelpApiService
         return $memoir;
     }
 
+    public function memoirConfigs(array $params): array
+    {
+        $query = Db::table('sa_member_memoir_config')
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->field('id, name, code, generation_cycle, source_type, prompt_template, min_journal_count, start_day, sort');
+
+        if (!empty($params['code'])) {
+            $query->where('code', trim((string) $params['code']));
+        }
+        if (!empty($params['generation_cycle'])) {
+            $query->where('generation_cycle', trim((string) $params['generation_cycle']));
+        }
+        if (!empty($params['source_type'])) {
+            $query->where('source_type', trim((string) $params['source_type']));
+        }
+
+        return [
+            'list' => $query
+                ->order('sort', 'asc')
+                ->order('id', 'asc')
+                ->select()
+                ->toArray(),
+        ];
+    }
+
     public function recoveryGoals(int $memberId, array $params): array
     {
         return $this->paginate(function () use ($memberId, $params) {

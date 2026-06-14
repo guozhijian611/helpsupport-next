@@ -140,6 +140,18 @@ class MeController extends BaseController
         return ok($this->service->memoirDetail($this->memberId, (int) $request->get('id')));
     }
 
+    #[Apidoc\Title('回忆录生成配置')]
+    #[Apidoc\Url('/app/help/me/memoir-configs')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('code', type: 'string', require: false, desc: '配置编码')]
+    #[Apidoc\Query('generation_cycle', type: 'string', require: false, desc: '生成周期 weekly/monthly/quarterly')]
+    #[Apidoc\Query('source_type', type: 'string', require: false, desc: '来源类型 journal/task/mixed')]
+    #[Apidoc\Returned('list', type: 'array', desc: '启用的回忆录生成配置')]
+    public function memoirConfigs(Request $request): Response
+    {
+        return ok($this->service->memoirConfigs($request->get()));
+    }
+
     #[Apidoc\Title('我的荣誉徽章')]
     #[Apidoc\Url('/app/help/me/badges')]
     #[Apidoc\Method('GET')]
