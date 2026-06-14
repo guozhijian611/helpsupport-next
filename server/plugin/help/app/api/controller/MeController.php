@@ -114,6 +114,106 @@ class MeController extends BaseController
         return ok($this->service->deleteJournal($this->memberId, (int) $request->post('id')));
     }
 
+    #[Apidoc\Title('我的回忆录列表')]
+    #[Apidoc\Url('/app/help/me/memoirs')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('source_month', type: 'string', require: false, desc: '来源月份 YYYY-MM')]
+    #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
+    #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
+    #[Apidoc\Returned('list', type: 'array', desc: '回忆录列表')]
+    #[Apidoc\Returned('total', type: 'int', desc: '总数')]
+    #[Apidoc\Returned('page', type: 'int', desc: '当前页码')]
+    #[Apidoc\Returned('page_size', type: 'int', desc: '每页数量')]
+    public function memoirs(Request $request): Response
+    {
+        return ok($this->service->memoirs($this->memberId, $request->get()));
+    }
+
+    #[Apidoc\Title('我的回忆录详情')]
+    #[Apidoc\Url('/app/help/me/memoir')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('id', type: 'int', require: true, desc: '回忆录ID')]
+    #[Apidoc\Returned('id', type: 'int', desc: '回忆录ID')]
+    #[Apidoc\Returned('title', type: 'string', desc: '回忆录标题')]
+    public function memoirDetail(Request $request): Response
+    {
+        return ok($this->service->memoirDetail($this->memberId, (int) $request->get('id')));
+    }
+
+    #[Apidoc\Title('康复目标记录列表')]
+    #[Apidoc\Url('/app/help/me/recovery-goals')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('status', type: 'int', require: false, desc: '状态 1进行中 2已完成 3已放弃')]
+    #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
+    #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
+    #[Apidoc\Returned('list', type: 'array', desc: '康复目标记录')]
+    public function recoveryGoals(Request $request): Response
+    {
+        return ok($this->service->recoveryGoals($this->memberId, $request->get()));
+    }
+
+    #[Apidoc\Title('保存康复目标记录')]
+    #[Apidoc\Url('/app/help/me/recovery-goal')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('id', type: 'int', require: false, desc: '记录ID，空为新增')]
+    #[Apidoc\Param('goal_text', type: 'string', require: true, desc: '恢复目标')]
+    #[Apidoc\Param('goal_type', type: 'string', require: false, default: 'custom', desc: '目标类型 custom/weekly/monthly')]
+    #[Apidoc\Param('target_date', type: 'string', require: false, desc: '目标日期 YYYY-MM-DD')]
+    #[Apidoc\Param('status', type: 'int', require: false, default: 1, desc: '状态 1进行中 2已完成 3已放弃')]
+    #[Apidoc\Returned('id', type: 'int', desc: '记录ID')]
+    public function saveRecoveryGoal(Request $request): Response
+    {
+        return ok($this->service->saveRecoveryGoal($this->memberId, $request->post()));
+    }
+
+    #[Apidoc\Title('删除康复目标记录')]
+    #[Apidoc\Url('/app/help/me/recovery-goal/delete')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('id', type: 'int', require: true, desc: '记录ID')]
+    #[Apidoc\Returned('deleted', type: 'boolean', desc: '是否删除成功')]
+    public function deleteRecoveryGoal(Request $request): Response
+    {
+        return ok($this->service->deleteRecoveryGoal($this->memberId, (int) $request->post('id')));
+    }
+
+    #[Apidoc\Title('触发因素记录列表')]
+    #[Apidoc\Url('/app/help/me/triggers')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('trigger_type', type: 'string', require: false, desc: '触发类型 emotion/place/person/custom')]
+    #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
+    #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
+    #[Apidoc\Returned('list', type: 'array', desc: '触发因素记录')]
+    public function triggerLogs(Request $request): Response
+    {
+        return ok($this->service->triggerLogs($this->memberId, $request->get()));
+    }
+
+    #[Apidoc\Title('保存触发因素记录')]
+    #[Apidoc\Url('/app/help/me/trigger')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('id', type: 'int', require: false, desc: '记录ID，空为新增')]
+    #[Apidoc\Param('trigger_name', type: 'string', require: true, desc: '触发因素名称')]
+    #[Apidoc\Param('trigger_type', type: 'string', require: false, default: 'custom', desc: '触发类型 emotion/place/person/custom')]
+    #[Apidoc\Param('intensity', type: 'int', require: false, default: 0, desc: '强度 0-10')]
+    #[Apidoc\Param('occurred_at', type: 'string', require: false, desc: '发生时间，空为当前时间')]
+    #[Apidoc\Param('response_action', type: 'string', require: false, desc: '应对动作')]
+    #[Apidoc\Param('note', type: 'string', require: false, desc: '记录说明')]
+    #[Apidoc\Returned('id', type: 'int', desc: '记录ID')]
+    public function saveTriggerLog(Request $request): Response
+    {
+        return ok($this->service->saveTriggerLog($this->memberId, $request->post()));
+    }
+
+    #[Apidoc\Title('删除触发因素记录')]
+    #[Apidoc\Url('/app/help/me/trigger/delete')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('id', type: 'int', require: true, desc: '记录ID')]
+    #[Apidoc\Returned('deleted', type: 'boolean', desc: '是否删除成功')]
+    public function deleteTriggerLog(Request $request): Response
+    {
+        return ok($this->service->deleteTriggerLog($this->memberId, (int) $request->post('id')));
+    }
+
     #[Apidoc\Title('我的消息列表')]
     #[Apidoc\Url('/app/help/me/messages')]
     #[Apidoc\Method('GET')]

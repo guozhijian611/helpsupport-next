@@ -78,6 +78,14 @@ Route::group('/app/help', function () {
     Route::get('/me/journals', [MeController::class, 'journals']);
     Route::post('/me/journal', [MeController::class, 'saveJournal']);
     Route::post('/me/journal/delete', [MeController::class, 'deleteJournal']);
+    Route::get('/me/memoirs', [MeController::class, 'memoirs']);
+    Route::get('/me/memoir', [MeController::class, 'memoirDetail']);
+    Route::get('/me/recovery-goals', [MeController::class, 'recoveryGoals']);
+    Route::post('/me/recovery-goal', [MeController::class, 'saveRecoveryGoal']);
+    Route::post('/me/recovery-goal/delete', [MeController::class, 'deleteRecoveryGoal']);
+    Route::get('/me/triggers', [MeController::class, 'triggerLogs']);
+    Route::post('/me/trigger', [MeController::class, 'saveTriggerLog']);
+    Route::post('/me/trigger/delete', [MeController::class, 'deleteTriggerLog']);
     Route::get('/me/messages', [MeController::class, 'messages']);
     Route::put('/me/message/read', [MeController::class, 'readMessage']);
 

@@ -2068,6 +2068,171 @@ class HelpApiService
         return ['id' => $journalId, 'deleted' => $affected > 0];
     }
 
+    public function memoirs(int $memberId, array $params): array
+    {
+        return $this->paginate(function () use ($memberId, $params) {
+            $query = Db::table('sa_member_memoir')
+                ->where('member_id', $memberId)
+                ->where('status', 1)
+                ->whereNull('delete_time');
+
+            if (!empty($params['source_month'])) {
+                $query->where('source_month', trim((string) $params['source_month']));
+            }
+
+            return $query
+                ->order('grant_level_rank', 'desc')
+                ->order('source_month', 'desc')
+                ->order('id', 'desc');
+        }, $params);
+    }
+
+    public function memoirDetail(int $memberId, int $memoirId): array
+    {
+        $memoir = $this->assertOwnedRow('sa_member_memoir', $memberId, $memoirId, '回忆录不存在或无权访问');
+        if ((int) ($memoir['status'] ?? 0) !== 1) {
+            throw new ApiException('回忆录不存在或无权访问', 404);
+        }
+
+        return $memoir;
+    }
+
+    public function recoveryGoals(int $memberId, array $params): array
+    {
+        return $this->paginate(function () use ($memberId, $params) {
+            $query = Db::table('sa_member_recovery_goal_log')
+                ->where('member_id', $memberId)
+                ->whereNull('delete_time');
+
+            if (isset($params['status']) && $params['status'] !== '') {
+                $query->where('status', (int) $params['status']);
+            }
+            if (!empty($params['goal_type'])) {
+                $query->where('goal_type', trim((string) $params['goal_type']));
+            }
+
+            return $query
+                ->orderRaw('target_date IS NULL ASC')
+                ->order('target_date', 'asc')
+                ->order('id', 'desc');
+        }, $params);
+    }
+
+    public function saveRecoveryGoal(int $memberId, array $data): array
+    {
+        $goalText = trim((string) ($data['goal_text'] ?? ''));
+        if ($goalText === '') {
+            throw new ApiException('康复目标必须填写', 400);
+        }
+
+        $id = (int) ($data['id'] ?? 0);
+        if ($id > 0) {
+            $this->assertOwnedRow('sa_member_recovery_goal_log', $memberId, $id, '康复目标不存在或无权操作');
+        }
+
+        $payload = $this->only($data, [
+            'goal_text',
+            'goal_type',
+            'target_date',
+            'completed_time',
+            'status',
+            'remark',
+        ]);
+        $payload['goal_text'] = $goalText;
+        $payload['goal_type'] = trim((string) ($payload['goal_type'] ?? '')) !== ''
+            ? trim((string) $payload['goal_type'])
+            : 'custom';
+        if (!in_array($payload['goal_type'], ['custom', 'weekly', 'monthly'], true)) {
+            throw new ApiException('康复目标类型参数错误', 400);
+        }
+        $payload['status'] = isset($payload['status']) && $payload['status'] !== ''
+            ? $this->intIn($payload['status'], [1, 2, 3], '康复目标状态参数错误')
+            : 1;
+        foreach (['target_date', 'completed_time'] as $field) {
+            if (array_key_exists($field, $payload) && trim((string) $payload[$field]) === '') {
+                $payload[$field] = null;
+            }
+        }
+        if ($payload['status'] === 2 && empty($payload['completed_time'])) {
+            $payload['completed_time'] = date('Y-m-d H:i:s');
+        }
+
+        $rowId = $this->saveRow('sa_member_recovery_goal_log', $payload, $memberId, $id);
+        return Db::table('sa_member_recovery_goal_log')->where('id', $rowId)->find() ?: [];
+    }
+
+    public function deleteRecoveryGoal(int $memberId, int $goalId): array
+    {
+        return $this->softDeleteOwnedRow('sa_member_recovery_goal_log', $memberId, $goalId, '康复目标ID必须填写');
+    }
+
+    public function triggerLogs(int $memberId, array $params): array
+    {
+        return $this->paginate(function () use ($memberId, $params) {
+            $query = Db::table('sa_member_trigger_log')
+                ->where('member_id', $memberId)
+                ->whereNull('delete_time');
+
+            if (!empty($params['trigger_type'])) {
+                $query->where('trigger_type', trim((string) $params['trigger_type']));
+            }
+            if (isset($params['status']) && $params['status'] !== '') {
+                $query->where('status', (int) $params['status']);
+            }
+
+            return $query->order('occurred_at', 'desc')->order('id', 'desc');
+        }, $params);
+    }
+
+    public function saveTriggerLog(int $memberId, array $data): array
+    {
+        $triggerName = trim((string) ($data['trigger_name'] ?? ''));
+        if ($triggerName === '') {
+            throw new ApiException('触发因素名称必须填写', 400);
+        }
+
+        $id = (int) ($data['id'] ?? 0);
+        if ($id > 0) {
+            $this->assertOwnedRow('sa_member_trigger_log', $memberId, $id, '触发因素记录不存在或无权操作');
+        }
+
+        $payload = $this->only($data, [
+            'trigger_name',
+            'trigger_type',
+            'intensity',
+            'occurred_at',
+            'response_action',
+            'note',
+            'status',
+            'remark',
+        ]);
+        $payload['trigger_name'] = $triggerName;
+        $payload['trigger_type'] = trim((string) ($payload['trigger_type'] ?? '')) !== ''
+            ? trim((string) $payload['trigger_type'])
+            : 'custom';
+        if (!in_array($payload['trigger_type'], ['emotion', 'place', 'person', 'custom'], true)) {
+            throw new ApiException('触发因素类型参数错误', 400);
+        }
+        $payload['intensity'] = (int) ($payload['intensity'] ?? 0);
+        if ($payload['intensity'] < 0 || $payload['intensity'] > 10) {
+            throw new ApiException('触发因素强度必须在0到10之间', 400);
+        }
+        $payload['occurred_at'] = trim((string) ($payload['occurred_at'] ?? '')) !== ''
+            ? trim((string) $payload['occurred_at'])
+            : date('Y-m-d H:i:s');
+        $payload['status'] = isset($payload['status']) && $payload['status'] !== ''
+            ? $this->intIn($payload['status'], [1, 2], '触发因素状态参数错误')
+            : 1;
+
+        $rowId = $this->saveRow('sa_member_trigger_log', $payload, $memberId, $id);
+        return Db::table('sa_member_trigger_log')->where('id', $rowId)->find() ?: [];
+    }
+
+    public function deleteTriggerLog(int $memberId, int $triggerId): array
+    {
+        return $this->softDeleteOwnedRow('sa_member_trigger_log', $memberId, $triggerId, '触发因素记录ID必须填写');
+    }
+
     public function messages(int $memberId, array $params): array
     {
         return $this->paginate(function () use ($memberId, $params) {
@@ -2140,6 +2305,43 @@ class HelpApiService
         }
 
         return $member;
+    }
+
+    private function assertOwnedRow(string $table, int $memberId, int $id, string $message): array
+    {
+        if ($id <= 0) {
+            throw new ApiException('ID参数错误', 400);
+        }
+
+        $row = Db::table($table)
+            ->where('id', $id)
+            ->where('member_id', $memberId)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$row) {
+            throw new ApiException($message, 404);
+        }
+
+        return $row;
+    }
+
+    private function softDeleteOwnedRow(string $table, int $memberId, int $id, string $emptyMessage): array
+    {
+        if ($id <= 0) {
+            throw new ApiException($emptyMessage, 400);
+        }
+
+        $affected = Db::table($table)
+            ->where('id', $id)
+            ->where('member_id', $memberId)
+            ->whereNull('delete_time')
+            ->update([
+                'delete_time' => date('Y-m-d H:i:s'),
+                'updated_by' => $memberId,
+                'update_time' => date('Y-m-d H:i:s'),
+            ]);
+
+        return ['id' => $id, 'deleted' => $affected > 0];
     }
 
     private function upsertDoctorPatientRelation(int $doctorId, int $memberId, string $bindSource): array
