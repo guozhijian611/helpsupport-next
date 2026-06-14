@@ -253,3 +253,5 @@ Route::group('/app/help/admin/me', function () {
 Route::group('/app/help/admin/risk', function () {
     fastRoute('SaSensitiveWordRule', AdminSensitiveWordRuleController::class);
 });
+
+Route::disableDefaultRoute('help');
