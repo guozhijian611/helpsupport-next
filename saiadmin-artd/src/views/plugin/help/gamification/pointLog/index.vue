@@ -4,6 +4,8 @@
     :api="api"
     permission-prefix="help:gamification:pointLog"
     :fields="fields"
+    :allow-edit="false"
+    :allow-delete="false"
   />
 </template>
 
@@ -48,6 +50,7 @@
       search: true,
       form: true,
       required: true,
+      default: 'manual',
       width: 120
     },
     { prop: 'source_id', label: '来源ID', type: 'number', form: true, default: 0, width: 100 },
@@ -57,7 +60,7 @@
       prop: 'balance_after',
       label: '变动后余额',
       type: 'number',
-      form: true,
+      form: false,
       default: 0,
       width: 120
     },

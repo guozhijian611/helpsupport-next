@@ -57,13 +57,19 @@
       <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData">
         <template #left>
           <ElSpace wrap>
-            <ElButton v-permission="permission('save')" @click="openForm('add')" v-ripple>
+            <ElButton
+              v-if="allowCreate"
+              v-permission="permission('save')"
+              @click="openForm('add')"
+              v-ripple
+            >
               <template #icon>
                 <ArtSvgIcon icon="ri:add-fill" />
               </template>
               新增
             </ElButton>
             <ElButton
+              v-if="allowDelete"
               v-permission="permission('destroy')"
               :disabled="selectedRows.length === 0"
               @click="deleteSelectedRows(api.delete, refreshData)"
@@ -107,6 +113,7 @@
           <div class="help-row-actions">
             <ElButton size="small" @click="openDetail(row)">查看</ElButton>
             <ElButton
+              v-if="allowEdit"
               v-permission="permission('update')"
               size="small"
               type="primary"
@@ -125,6 +132,7 @@
               {{ action.label }}
             </ElButton>
             <SaButton
+              v-if="allowDelete"
               v-permission="permission('destroy')"
               type="error"
               @click="deleteRow(row, api.delete, refreshData)"
@@ -241,10 +249,16 @@
       fields: HelpCrudField[]
       actions?: HelpCrudAction[]
       drawerSize?: string | number
+      allowCreate?: boolean
+      allowEdit?: boolean
+      allowDelete?: boolean
     }>(),
     {
       actions: () => [],
-      drawerSize: '720px'
+      drawerSize: '720px',
+      allowCreate: true,
+      allowEdit: true,
+      allowDelete: true
     }
   )
 

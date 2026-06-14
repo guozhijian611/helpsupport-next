@@ -35,7 +35,7 @@ class SaMemberPointLogValidate extends BaseValidate
     ];
 
     protected $scene = [
-        'save' => ['member_id', 'points', 'change_type', 'source_type', 'source_id', 'title', 'balance_after'],
-        'update' => ['member_id', 'points', 'change_type', 'source_type', 'source_id', 'title', 'balance_after'],
+        'save' => ['member_id', 'points', 'change_type', 'source_type', 'source_id', 'title'],
+        'update' => ['member_id', 'points', 'change_type', 'source_type', 'source_id', 'title'],
     ];
 }
