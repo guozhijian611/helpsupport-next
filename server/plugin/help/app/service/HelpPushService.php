@@ -18,6 +18,7 @@ class HelpPushService
 {
     private const DEFAULT_LOCALE = 'en-US';
     private const FCM_SCOPE = 'https://www.googleapis.com/auth/firebase.messaging';
+    private const INVALID_FCM_ERROR_CODES = ['UNREGISTERED', 'INVALID_ARGUMENT', 'SENDER_ID_MISMATCH'];
 
     public function notifyMember(int $memberId, string $templateCode, array $variables = [], array $options = []): array
     {
@@ -61,21 +62,33 @@ class HelpPushService
         }
 
         $results = [];
+        $invalidDeviceIds = [];
         foreach ($devices as $device) {
+            $result = [
+                'device_id' => (int) ($device['id'] ?? 0),
+                'platform' => (string) ($device['platform'] ?? ''),
+                'success' => false,
+            ];
             try {
-                $results[] = $this->sendFcm(
+                $result = array_merge($result, $this->sendFcm(
                     (string) $device['fcm_token'],
                     (string) $message['title'],
                     (string) $message['content'],
                     $this->fcmData($message, $templateCode, (string) $template['scene'], $payload)
-                );
+                ));
             } catch (Throwable $throwable) {
-                $results[] = [
-                    'success' => false,
+                $result = array_merge($result, [
                     'error' => $this->publicError($throwable->getMessage()),
-                ];
+                ]);
             }
+
+            if ($this->shouldDeactivateDevice($result)) {
+                $invalidDeviceIds[] = (int) ($device['id'] ?? 0);
+            }
+            $results[] = $result;
         }
+
+        $this->deactivateInvalidDevices($memberId, $invalidDeviceIds);
 
         $successCount = count(array_filter($results, static fn (array $row) => $row['success'] === true));
         Db::table('sa_member_message')->where('id', $messageId)->update([
@@ -215,10 +228,21 @@ class HelpPushService
         ]);
 
         $statusCode = $response->getStatusCode();
-        return [
+        $body = json_decode((string) $response->getBody(), true);
+        $error = is_array($body) && isset($body['error']) && is_array($body['error']) ? $body['error'] : [];
+
+        $result = [
             'success' => $statusCode >= 200 && $statusCode < 300,
             'status_code' => $statusCode,
         ];
+
+        if ($result['success'] === false) {
+            $result['error_status'] = (string) ($error['status'] ?? '');
+            $result['fcm_error_code'] = $this->fcmErrorCode($error['details'] ?? []);
+            $result['error'] = $this->publicError((string) ($error['message'] ?? 'fcm_send_failed'));
+        }
+
+        return $result;
     }
 
     private function accessToken(array $config): string
@@ -318,6 +342,59 @@ class HelpPushService
         }
 
         return $data;
+    }
+
+    private function shouldDeactivateDevice(array $result): bool
+    {
+        if (($result['success'] ?? false) === true) {
+            return false;
+        }
+
+        $fcmErrorCode = (string) ($result['fcm_error_code'] ?? '');
+        if ($fcmErrorCode !== '' && in_array($fcmErrorCode, self::INVALID_FCM_ERROR_CODES, true)) {
+            return true;
+        }
+
+        return (string) ($result['error_status'] ?? '') === 'NOT_FOUND';
+    }
+
+    private function deactivateInvalidDevices(int $memberId, array $deviceIds): void
+    {
+        $deviceIds = array_values(array_unique(array_filter(array_map('intval', $deviceIds))));
+        if ($deviceIds === []) {
+            return;
+        }
+
+        $now = date('Y-m-d H:i:s');
+        Db::table('sa_member_push_device')
+            ->where('member_id', $memberId)
+            ->whereIn('id', $deviceIds)
+            ->where('is_active', 1)
+            ->whereNull('delete_time')
+            ->update([
+                'is_active' => 2,
+                'logout_time' => $now,
+                'updated_by' => $memberId,
+                'update_time' => $now,
+            ]);
+    }
+
+    private function fcmErrorCode(mixed $details): string
+    {
+        if (!is_array($details)) {
+            return '';
+        }
+
+        foreach ($details as $detail) {
+            if (!is_array($detail)) {
+                continue;
+            }
+            if ((string) ($detail['@type'] ?? '') === 'type.googleapis.com/google.firebase.fcm.v1.FcmError') {
+                return (string) ($detail['errorCode'] ?? '');
+            }
+        }
+
+        return '';
     }
 
     private function inQuietHours(array $preference): bool
