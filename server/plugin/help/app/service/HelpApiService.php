@@ -104,6 +104,11 @@ class HelpApiService
         if (array_key_exists('trigger_tags', $payload)) {
             $payload['trigger_tags'] = $this->jsonValue($payload['trigger_tags']);
         }
+        foreach (['bio', 'recovery_goal'] as $field) {
+            if (array_key_exists($field, $payload)) {
+                $payload[$field] = (new HelpRiskService())->filterText('profile', (string) $payload[$field]);
+            }
+        }
 
         $this->upsertByMember('sa_help_member_profile', $memberId, $payload);
         return $this->rowByMember('sa_help_member_profile', $memberId);
@@ -489,6 +494,10 @@ class HelpApiService
         if ($content === '') {
             throw new ApiException('消息内容必须填写', 400);
         }
+        $content = (new HelpRiskService())->filterText('chat', $content);
+        if ($content === '') {
+            throw new ApiException('消息内容必须填写', 400);
+        }
         if (!in_array($contentType, ['text', 'image', 'file', 'voice'], true)) {
             throw new ApiException('消息类型参数错误', 400);
         }
@@ -535,6 +544,10 @@ class HelpApiService
         $contentType = trim((string) ($data['content_type'] ?? 'text'));
         $configId = max(0, (int) ($data['config_id'] ?? 0));
 
+        if ($content === '') {
+            throw new ApiException('消息内容必须填写', 400);
+        }
+        $content = (new HelpRiskService())->filterText('chat', $content);
         if ($content === '') {
             throw new ApiException('消息内容必须填写', 400);
         }
@@ -859,6 +872,10 @@ class HelpApiService
         if ($content === '') {
             throw new ApiException('帖子内容必须填写', 400);
         }
+        $content = (new HelpRiskService())->filterText('community', $content);
+        if ($content === '') {
+            throw new ApiException('帖子内容必须填写', 400);
+        }
 
         $payload = [
             'member_id' => $memberId,
@@ -911,6 +928,10 @@ class HelpApiService
         }
 
         $content = trim((string) ($data['content'] ?? ''));
+        if ($content === '') {
+            throw new ApiException('评论内容必须填写', 400);
+        }
+        $content = (new HelpRiskService())->filterText('community', $content);
         if ($content === '') {
             throw new ApiException('评论内容必须填写', 400);
         }
@@ -1006,13 +1027,19 @@ class HelpApiService
         if ($reason === '') {
             throw new ApiException('举报原因必须填写', 400);
         }
+        $risk = new HelpRiskService();
+        $reason = $risk->filterText('community', $reason);
+        $description = $risk->filterText('community', (string) ($data['description'] ?? ''));
+        if ($reason === '') {
+            throw new ApiException('举报原因必须填写', 400);
+        }
 
         $id = $this->saveRow('sa_community_report', [
             'member_id' => $memberId,
             'target_type' => $targetType,
             'target_id' => $targetId,
             'reason' => $reason,
-            'description' => trim((string) ($data['description'] ?? '')),
+            'description' => $description,
             'handle_status' => 0,
         ], $memberId);
 
@@ -1179,6 +1206,10 @@ class HelpApiService
         }
 
         $content = trim((string) ($data['content'] ?? ''));
+        if ($content === '') {
+            throw new ApiException('评论内容必须填写', 400);
+        }
+        $content = (new HelpRiskService())->filterText('material', $content);
         if ($content === '') {
             throw new ApiException('评论内容必须填写', 400);
         }
