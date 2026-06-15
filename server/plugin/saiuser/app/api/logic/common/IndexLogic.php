@@ -29,6 +29,9 @@ class IndexLogic extends BaseLogic
 {
     private const DEFAULT_LOCALE = 'en-US';
     private const DEFAULT_PROTOCOL_LOCALE = 'zh-CN';
+    private const EMAIL_CODE_EXPIRE_MINUTES = 10;
+    private const EMAIL_TEMPLATE_REGISTER = 'register_code';
+    private const EMAIL_TEMPLATE_PASSWORD_RESET = 'password_reset_code';
 
     /**
      * 协议信息
@@ -145,19 +148,12 @@ class IndexLogic extends BaseLogic
                 'code' => $code,
             ]);
         }
-        $subject = config('plugin.saiuser.saithink.email.subject', 'saiadmin移动端');
-        $content = config('plugin.saiuser.saithink.email.content', '如您未发起过此邮件，请忽略！');
-        if ($type == 1) {
-            $subject = $subject . "-注册平台账号";
-        } else {
-            $subject = $subject . "-平台密码找回";
-        }
-        $content = "<h1>验证码：{code}</h1><p>$content</p>";
         $template = [
-            'code' => $code
+            'code' => $code,
+            'expire_minutes' => (string) self::EMAIL_CODE_EXPIRE_MINUTES,
         ];
         try {
-            $result = EmailService::sendByTemplate($email, $subject, $content, $template);
+            $result = EmailService::sendByTemplateCode($email, $this->emailTemplateCode($type), $template);
             if (!empty($result)) {
                 $model->status = 'failure';
                 $model->response = $result;
@@ -174,6 +170,11 @@ class IndexLogic extends BaseLogic
             $model->save();
             throw new SystemException($e->getMessage());
         }
+    }
+
+    private function emailTemplateCode($type): string
+    {
+        return ((int) $type) === 1 ? self::EMAIL_TEMPLATE_REGISTER : self::EMAIL_TEMPLATE_PASSWORD_RESET;
     }
 
     /**
