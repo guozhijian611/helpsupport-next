@@ -23,6 +23,16 @@
 - `.codex/skills/`：本项目沉淀的开发技能和参考手册；涉及对应技术时优先读取相关 `SKILL.md`。
 - `Doc/`、`OpenAPI/`、`Database/`：项目文档、接口文档和数据库资料，更新时以实际路由、控制器、数据库结构、安装 SQL 或 Phinx 迁移为准。
 
+## Flutter 用户端视觉规范
+- 用户端视觉基准以当前已完成页面为准，参考 `flutter_app/lib/features/auth/presentation/auth_page_frame.dart`、`flutter_app/lib/features/me/presentation/me_screen.dart`、`flutter_app/lib/features/me/presentation/settings_screen.dart`；不要把 Flutter 默认绿色或当前 `ColorScheme.fromSeed` 生成的绿色系当作用户端品牌主色。
+- 用户端主强调色使用珊瑚橙体系：主色 `#FF9585`，浅色近邻可用 `#FF8D7F`，深色模式高亮使用 `#FFB4A8`；主按钮、选中态、关键图标、进度强调和品牌识别统一围绕这组颜色，不再引入绿色作为 CTA 主色。
+- 引导页与登录页头部渐变沿用 `#FF9585 -> #FCB08E`；页面背景、输入框与浅色容器延续 `#F3F5FA`、`#F4F5F9`、`#F7F7FA` 和白色的暖灰体系；分隔线和弱边框使用 `#ECE7E4`、`#E4E7EC`；主文案优先使用 `#303236` / `#343437`，次级文案使用 `#96999F`、`#A5A9B0`、`#7D828A`。
+- 功能辅助色只用于局部信息分层，不替代品牌主色：数据/目标可用蓝色 `#5A81DA`，提醒/任务可用橙色 `#FFAE4D`，隐私或社区辅助可用灰青 `#A4C3CC`，标签点缀可用紫色 `#986FF5`；新增页面优先复用这些既有辅助色，不要无约束扩散新的主色系统。
+- 暗黑模式必须与浅色模式同时设计，并至少支持 `跟随系统 / 浅色 / 深色` 三档；深色态继续保留珊瑚橙品牌识别，背景、卡片、分隔和开关轨道优先从暗色 `ColorScheme` 推导，再叠加暖色强调，避免直接搬运浅色硬编码导致对比度不足或眩光。
+- 字体大小必须支持现有 `小 / 标准 / 大` 三档缩放，也就是 `0.92 / 1.0 / 1.08`；新增页面和自定义组件要确保在 `MediaQuery.textScaler` 放大后不出现标题截断、按钮溢出、表单压缩或固定高度文字错位。
+- 多语言必须默认支持现有 `简体中文 / English` 双语切换；标题、按钮、提示语、空状态、错误文案、设置项和弹窗文案都不能写死单语字符串，新增页面要接入 `AppLocalizations` 和现有语言控制器。
+- 新增 Flutter 页面如果依赖 `Theme.of(context).colorScheme`，必须先把颜色映射回上述暖灰底加珊瑚橙强调的体系，再落地到界面；后续如统一重构全局主题，也要以这套用户端现状色板为准，而不是回到默认绿色方案。
+
 ## 开发工作流
 - 先确认真实运行入口：Webman 插件以 `server/config/plugin/...`、`server/plugin/...`、`server/vendor/...` 和路由配置为准，不能只看复制来的参考目录。
 - 涉及 SaiAdmin/Webman、unibest、RabbitMQ、宝塔等任务时，先查看 `.codex/skills/` 中对应技能，再动手修改。
