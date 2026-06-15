@@ -21,6 +21,7 @@ Environment:
   IOS_BUNDLE_ID            Bundle id override. Default is read from Runner.app.
   HELP_SUPPORT_API_BASE_URL API base URL. Default: http://10.0.0.6:8787
   HELP_SUPPORT_LLAMA_LIBRARY_PATH Optional dart-define override for llama runtime.
+  HELP_SUPPORT_LLAMA_GPU_LAYERS Optional dart-define override for llama GPU layers.
   HELP_SUPPORT_LLAMA_IOS_RUNTIME_DIR Optional directory containing iOS llama dylibs.
   IOS_DEPLOYMENT_TARGET    iOS deployment target for generated Swift package. Default: 15.0
   REFRESH_IOS_SPM=1        Repair Swift Package cache and dependency resolution.
@@ -171,6 +172,9 @@ dart_define_value() {
   )
   if [[ -n "${HELP_SUPPORT_LLAMA_LIBRARY_PATH:-}" ]]; then
     defines+=("HELP_SUPPORT_LLAMA_LIBRARY_PATH=${HELP_SUPPORT_LLAMA_LIBRARY_PATH}")
+  fi
+  if [[ -n "${HELP_SUPPORT_LLAMA_GPU_LAYERS:-}" ]]; then
+    defines+=("HELP_SUPPORT_LLAMA_GPU_LAYERS=${HELP_SUPPORT_LLAMA_GPU_LAYERS}")
   fi
 
   local encoded=() define

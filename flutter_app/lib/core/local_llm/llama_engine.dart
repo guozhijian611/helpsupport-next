@@ -37,6 +37,10 @@ class LlamaEngine {
     'HELP_SUPPORT_LLAMA_LIBRARY_PATH',
     defaultValue: '',
   );
+  static const _gpuLayers = String.fromEnvironment(
+    'HELP_SUPPORT_LLAMA_GPU_LAYERS',
+    defaultValue: '',
+  );
 
   Future<LlamaRuntimeStatus> inspectRuntime() async {
     final path = _resolvedLibraryPath();
@@ -98,9 +102,17 @@ class LlamaEngine {
       ..topP = model.defaultTopP > 0 ? model.defaultTopP : 0.95
       ..penaltyRepeat = 1.1;
 
+    final modelParams = ModelParams();
+    final configuredGpuLayers = int.tryParse(_gpuLayers);
+    if (configuredGpuLayers != null) {
+      modelParams.nGpuLayers = configuredGpuLayers;
+    } else if (Platform.isIOS) {
+      modelParams.nGpuLayers = 0;
+    }
+
     return LlamaLoad(
       path: modelPath,
-      modelParams: ModelParams(),
+      modelParams: modelParams,
       contextParams: contextParams,
       samplingParams: samplerParams,
     );

@@ -58,6 +58,12 @@ GET /app/help/common/onboarding?scene=first_launch&version=&locale={locale}
 - iOS 真机：默认同样会尝试复制 `llama_cpp_dart` 的 `OS64` 产物；发布前仍需确认签名、嵌入方式和 App Store 分发要求。
 - 桌面或本机调试：可用 `--dart-define=HELP_SUPPORT_LLAMA_LIBRARY_PATH=/absolute/path/libllama.dylib` 指定动态库路径。
 
+iOS 默认使用 CPU 加载本地模型，避免模拟器 Metal 后端导致 `Could not load model`。如需在真机或自定义运行时验证 GPU offload，可显式传入：
+
+```bash
+HELP_SUPPORT_LLAMA_GPU_LAYERS=99 ./tool/build_ios_simulator.sh
+```
+
 Android 默认加载 `libmtmd.so`。如需额外构建 x86_64 模拟器库，可运行：
 
 ```bash
