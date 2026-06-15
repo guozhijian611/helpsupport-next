@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
+import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../material/application/material_controller.dart';
 import '../../material/data/material_models.dart';
@@ -24,6 +25,7 @@ class MaterialLibraryScreen extends ConsumerStatefulWidget {
 
 class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
   final _searchController = TextEditingController();
+  final Set<int> _submittingCollectionIds = <int>{};
   String _keyword = '';
   int _categoryId = 0;
 
@@ -65,6 +67,10 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
       appBar: AppBar(
         title: Text(_screenTitle(context)),
         centerTitle: true,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF303236),
+        surfaceTintColor: Colors.white,
+        scrolledUnderElevation: 0,
         actions: widget.source == MaterialLibrarySource.browse
             ? [
                 IconButton(
@@ -107,12 +113,6 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
                   loading: () => const _CategoryStripSkeleton(),
                 ),
                 const SizedBox(height: 18),
-              ] else ...[
-                _SourceSummaryBanner(
-                  source: widget.source,
-                  materialType: widget.materialType,
-                ),
-                const SizedBox(height: 18),
               ],
               items.when(
                 data: (page) {
@@ -123,15 +123,8 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
                     );
                   }
                   if (widget.source == MaterialLibrarySource.history) {
-                    return Column(
-                      children: [
-                        for (final entry
-                            in page.list.cast<MaterialHistoryEntry>())
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _HistoryCard(entry: entry),
-                          ),
-                      ],
+                    return _HistoryTimeline(
+                      entries: page.list.cast<MaterialHistoryEntry>(),
                     );
                   }
                   return Column(
@@ -139,13 +132,31 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
                       for (final item in page.list.cast<MaterialItem>())
                         Padding(
                           padding: const EdgeInsets.only(bottom: 14),
-                          child: _MaterialCard(
-                            item: item,
-                            categoryName: categoryLookup[item.categoryId] ?? '',
-                            isCollectionView:
-                                widget.source ==
-                                MaterialLibrarySource.collections,
-                          ),
+                          child:
+                              widget.source == MaterialLibrarySource.collections
+                              ? Dismissible(
+                                  key: ValueKey('collection-${item.id}'),
+                                  direction: DismissDirection.endToStart,
+                                  confirmDismiss: (_) =>
+                                      _removeCollection(context, item),
+                                  background:
+                                      const _CollectionDismissBackground(),
+                                  child: _MaterialCard(
+                                    item: item,
+                                    categoryName:
+                                        categoryLookup[item.categoryId] ?? '',
+                                    isCollectionView: true,
+                                    dismissing: _submittingCollectionIds
+                                        .contains(item.id),
+                                  ),
+                                )
+                              : _MaterialCard(
+                                  item: item,
+                                  categoryName:
+                                      categoryLookup[item.categoryId] ?? '',
+                                  isCollectionView: false,
+                                  dismissing: false,
+                                ),
                         ),
                     ],
                   );
@@ -205,7 +216,7 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
 
   String _screenTitle(BuildContext context) {
     return switch (widget.source) {
-      MaterialLibrarySource.history => _t(context, '浏览历史', 'History'),
+      MaterialLibrarySource.history => _t(context, '历史记录', 'History'),
       MaterialLibrarySource.collections => _t(context, '我的收藏', 'Collections'),
       MaterialLibrarySource.browse =>
         widget.materialType == 'entertainment'
@@ -244,6 +255,40 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
         'Try another category or keyword to explore real published content.',
       ),
     };
+  }
+
+  Future<bool> _removeCollection(
+    BuildContext context,
+    MaterialItem item,
+  ) async {
+    if (_submittingCollectionIds.contains(item.id)) {
+      return false;
+    }
+    setState(() => _submittingCollectionIds.add(item.id));
+    try {
+      final isCollected = await ref
+          .read(materialRepositoryProvider)
+          .toggleCollect(item.id);
+      ref.invalidate(materialCollectionsProvider(const MaterialHistoryQuery()));
+      ref.invalidate(materialDetailProvider(item.id));
+      if (context.mounted) {
+        context.showCenteredNotice(
+          isCollected
+              ? _t(context, '已恢复收藏状态', 'Collection restored')
+              : _t(context, '已取消收藏', 'Removed from collections'),
+        );
+      }
+      return !isCollected;
+    } on Object catch (error) {
+      if (context.mounted) {
+        context.showCenteredNotice(error.toString());
+      }
+      return false;
+    } finally {
+      if (mounted) {
+        setState(() => _submittingCollectionIds.remove(item.id));
+      }
+    }
   }
 }
 
@@ -360,11 +405,13 @@ class _MaterialCard extends ConsumerWidget {
     required this.item,
     required this.categoryName,
     required this.isCollectionView,
+    required this.dismissing,
   });
 
   final MaterialItem item;
   final String categoryName;
   final bool isCollectionView;
+  final bool dismissing;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -411,26 +458,6 @@ class _MaterialCard extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        if (isCollectionView)
-                          Container(
-                            margin: const EdgeInsets.only(left: 8),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFF1DE),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              _t(context, '已收藏', 'Saved'),
-                              style: const TextStyle(
-                                color: Color(0xFFFFAE4D),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -484,8 +511,16 @@ class _MaterialCard extends ConsumerWidget {
                         ),
                         const SizedBox(width: 14),
                         _StatInfo(
-                          icon: Icons.bookmark_border_rounded,
+                          icon: isCollectionView
+                              ? Icons.star_rounded
+                              : Icons.bookmark_border_rounded,
                           value: item.collectCount,
+                          color: isCollectionView
+                              ? const Color(0xFFFFB648)
+                              : const Color(0xFF9CA1AA),
+                          valueColor: isCollectionView
+                              ? const Color(0xFFFFB648)
+                              : const Color(0xFF8B9098),
                         ),
                         const SizedBox(width: 14),
                         _StatInfo(
@@ -501,16 +536,56 @@ class _MaterialCard extends ConsumerWidget {
               SizedBox(
                 width: 118,
                 height: 118,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: coverUrl.isNotEmpty
-                      ? Image.network(
-                          coverUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) =>
-                              const _MaterialThumbShell(),
-                        )
-                      : const _MaterialThumbShell(),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: coverUrl.isNotEmpty
+                            ? Image.network(
+                                coverUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) =>
+                                    const _MaterialThumbShell(),
+                              )
+                            : const _MaterialThumbShell(),
+                      ),
+                    ),
+                    if (item.mediaType == 'video')
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.play_circle_fill_rounded,
+                              color: Colors.white,
+                              size: 38,
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (dismissing)
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.68),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],
@@ -521,25 +596,141 @@ class _MaterialCard extends ConsumerWidget {
   }
 }
 
-class _HistoryCard extends StatelessWidget {
-  const _HistoryCard({required this.entry});
-
-  final MaterialHistoryEntry entry;
+class _CollectionDismissBackground extends StatelessWidget {
+  const _CollectionDismissBackground();
 
   @override
   Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFC15C),
+        borderRadius: BorderRadius.circular(28),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 28),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.star_outline_rounded,
+              color: Colors.white,
+              size: 30,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _t(context, '取消收藏', 'Remove'),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryTimeline extends StatelessWidget {
+  const _HistoryTimeline({required this.entries});
+
+  final List<MaterialHistoryEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final sections = <MapEntry<String, List<MaterialHistoryEntry>>>[];
+    for (final entry in entries) {
+      final label = _historyDateLabel(entry.viewedAt);
+      if (sections.isEmpty || sections.last.key != label) {
+        sections.add(MapEntry(label, <MaterialHistoryEntry>[entry]));
+      } else {
+        sections.last.value.add(entry);
+      }
+    }
+
+    return Column(
+      children: [
+        for (final section in sections) ...[
+          _HistorySectionHeader(label: section.key),
+          const SizedBox(height: 8),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              children: [
+                for (var index = 0; index < section.value.length; index += 1)
+                  _HistoryRow(
+                    entry: section.value[index],
+                    showDivider: index != section.value.length - 1,
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+        const _HistoryEndHint(),
+      ],
+    );
+  }
+}
+
+class _HistorySectionHeader extends StatelessWidget {
+  const _HistorySectionHeader({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F0F2),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFFA1A4AA),
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryRow extends StatelessWidget {
+  const _HistoryRow({required this.entry, required this.showDivider});
+
+  final MaterialHistoryEntry entry;
+  final bool showDivider;
+
+  @override
+  Widget build(BuildContext context) {
+    final onTap = entry.contentId > 0
+        ? () => context.push('/materials/detail/${entry.contentId}')
+        : entry.route.trim().isNotEmpty
+        ? () => context.push(entry.route)
+        : null;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(24),
-        onTap: entry.contentId > 0
-            ? () => context.push('/materials/detail/${entry.contentId}')
-            : null,
-        child: Ink(
-          padding: const EdgeInsets.all(18),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
+            border: showDivider
+                ? const Border(
+                    bottom: BorderSide(color: Color(0xFFF1F2F4), width: 1),
+                  )
+                : null,
           ),
           child: Row(
             children: [
@@ -550,54 +741,62 @@ class _HistoryCard extends StatelessWidget {
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      entry.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF303236),
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      entry.authorName.isNotEmpty
-                          ? entry.authorName
-                          : _t(
-                              context,
-                              '继续上次阅读',
-                              'Continue where you left off',
-                            ),
-                      style: const TextStyle(
-                        color: Color(0xFF7D828A),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      entry.viewedAt,
-                      style: const TextStyle(
-                        color: Color(0xFF96999F),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  entry.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF303236),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: Color(0xFFB0B3BA),
-                size: 28,
+              Text(
+                entry.authorName.trim().isEmpty
+                    ? _t(context, '作者名', 'Author')
+                    : entry.authorName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFFA8ABB1),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _HistoryEndHint extends StatelessWidget {
+  const _HistoryEndHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 10, 0, 6),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Divider(color: Color(0xFFE7E9EE), indent: 26, endIndent: 10),
+          ),
+          Text(
+            _t(context, '已显示所有记录', 'All records shown'),
+            style: const TextStyle(
+              color: Color(0xFFC2C5CB),
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const Expanded(
+            child: Divider(color: Color(0xFFE7E9EE), indent: 10, endIndent: 26),
+          ),
+        ],
       ),
     );
   }
@@ -655,107 +854,30 @@ class _MaterialThumbShell extends StatelessWidget {
 }
 
 class _StatInfo extends StatelessWidget {
-  const _StatInfo({required this.icon, required this.value});
+  const _StatInfo({
+    required this.icon,
+    required this.value,
+    this.color = const Color(0xFF9CA1AA),
+    this.valueColor = const Color(0xFF8B9098),
+  });
 
   final IconData icon;
   final int value;
+  final Color color;
+  final Color valueColor;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 22, color: const Color(0xFF9CA1AA)),
+        Icon(icon, size: 22, color: color),
         const SizedBox(width: 6),
         Text(
           '$value',
-          style: const TextStyle(
-            color: Color(0xFF8B9098),
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(color: valueColor, fontWeight: FontWeight.w700),
         ),
       ],
-    );
-  }
-}
-
-class _SourceSummaryBanner extends StatelessWidget {
-  const _SourceSummaryBanner({
-    required this.source,
-    required this.materialType,
-  });
-
-  final MaterialLibrarySource source;
-  final String materialType;
-
-  @override
-  Widget build(BuildContext context) {
-    final (title, subtitle, colors) = switch (source) {
-      MaterialLibrarySource.collections => (
-        _t(context, '你收藏的高价值内容', 'Your saved high-value content'),
-        _t(
-          context,
-          '把想反复阅读的内容集中保存，方便长期复盘。',
-          'Keep the materials worth revisiting in one place.',
-        ),
-        const [Color(0xFFFFC56F), Color(0xFFFFAE4D)],
-      ),
-      MaterialLibrarySource.history => (
-        _t(context, '最近浏览记录', 'Recent reading trail'),
-        _t(
-          context,
-          '这里保留你最近打开过的素材，帮助你接上进度。',
-          'Return to the materials you recently opened and continue.',
-        ),
-        const [Color(0xFF8EA8F8), Color(0xFF6D8DE7)],
-      ),
-      MaterialLibrarySource.browse => (
-        materialType == 'entertainment'
-            ? _t(context, '恢复也需要轻松入口', 'Recovery needs lighter moments')
-            : _t(context, '稳定学习，循序前进', 'Steady learning, step by step'),
-        materialType == 'entertainment'
-            ? _t(
-                context,
-                '音乐、视频和轻内容能帮你从高压中切换出来。',
-                'Music, videos, and lighter content can create breathing room.',
-              )
-            : _t(
-                context,
-                '从基础认知到复发预防，把有用的内容真正看进去。',
-                'Move from fundamentals to relapse prevention with useful material.',
-              ),
-        const [Color(0xFFB695F6), Color(0xFFA07CEE)],
-      ),
-    };
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: LinearGradient(colors: colors),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              color: Color(0xFFF6F5FF),
-              height: 1.5,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -872,6 +994,18 @@ String _mediaLabel(BuildContext context, String mediaType) {
     'link' => _t(context, '链接', 'Link'),
     _ => _t(context, '文章', 'Article'),
   };
+}
+
+String _historyDateLabel(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) {
+    return '--';
+  }
+  final normalized = trimmed.replaceAll('/', '-');
+  if (normalized.length >= 10) {
+    return normalized.substring(0, 10);
+  }
+  return normalized;
 }
 
 String _t(BuildContext context, String zh, String en) {

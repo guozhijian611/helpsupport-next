@@ -196,6 +196,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   bool _appointmentUpdates = true;
   bool _communityReplies = true;
   bool _journalReminders = false;
+  bool _privacySaving = false;
   bool _remoteLoading = false;
   String? _remoteError;
   MeProfileBundle? _profileBundle;
@@ -240,6 +241,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.section == SettingsSectionType.privacy) {
+      return _buildPrivacyDetailScaffold(context);
+    }
     final palette = _SettingsPalette.of(context);
 
     return Scaffold(
@@ -261,6 +265,126 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
             SettingsSectionType.about => _aboutChildren(context),
             SettingsSectionType.permissions => _permissionChildren(context),
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrivacyDetailScaffold(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F5F9),
+      appBar: AppBar(
+        title: Text(widget.section.title(context)),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF303236),
+        surfaceTintColor: Colors.white,
+        scrolledUnderElevation: 0,
+        actions: [
+          TextButton(
+            onPressed: _privacySaving ? null : _savePrivacySettings,
+            child: _privacySaving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2.2),
+                  )
+                : Text(
+                    _t(context, '保存', 'Save'),
+                    style: const TextStyle(
+                      color: Color(0xFF5A81DA),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+          children: [
+            _CompactPrivacyRow(
+              title: _t(context, '社区可见范围', 'Community visibility'),
+              value: _compactCommunityVisibilityLabel(context),
+              onTap: _selectCompactCommunityVisibility,
+            ),
+            const SizedBox(height: 16),
+            _CompactPrivacyRow(
+              title: _t(
+                context,
+                '日记是否可被模型摘要参与进度面板',
+                'Allow journal summaries in progress panel',
+              ),
+              value: _compactDiarySummaryLabel(context),
+              onTap: _selectCompactDiarySummary,
+            ),
+            const SizedBox(height: 18),
+            _SettingsGroup(
+              title: _t(context, '更多隐私偏好', 'More privacy options'),
+              footer: _t(
+                context,
+                '日记正文默认只保存在设备端。开启同步时只生成结构化摘要，不上传原文内容。',
+                'Journal text stays on device by default. Sync only sends structured summaries, not raw entries.',
+              ),
+              children: [
+                _SettingsSwitchRow(
+                  title: _t(context, '匿名发言', 'Anonymous posting'),
+                  subtitle: _t(
+                    context,
+                    '发帖和评论时默认隐藏昵称与头像',
+                    'Hide nickname and avatar by default',
+                  ),
+                  value: _anonymousPosting,
+                  onChanged: (value) =>
+                      setState(() => _anonymousPosting = value),
+                ),
+                _SettingsSwitchRow(
+                  title: _t(context, '隐藏治疗阶段', 'Hide treatment stage'),
+                  subtitle: _t(
+                    context,
+                    '不在主页和社区卡片里显示当前阶段',
+                    'Do not show current stage on public cards',
+                  ),
+                  value: _hideRecoveryStage,
+                  onChanged: (value) =>
+                      setState(() => _hideRecoveryStage = value),
+                ),
+                _SettingsSwitchRow(
+                  title: _t(context, '允许查看关注列表', 'Show following list'),
+                  subtitle: _t(
+                    context,
+                    '关闭后他人无法看到你的关注关系',
+                    'Hide follow relationships from others',
+                  ),
+                  value: _showFollowingList,
+                  onChanged: (value) =>
+                      setState(() => _showFollowingList = value),
+                ),
+                _SettingsSwitchRow(
+                  title: _t(context, '展示个性签名', 'Show signature'),
+                  subtitle: _t(
+                    context,
+                    '主页和互动卡片里展示签名内容',
+                    'Show signature on profile and cards',
+                  ),
+                  value: _showSignature,
+                  onChanged: (value) => setState(() => _showSignature = value),
+                ),
+                _SettingsSwitchRow(
+                  title: _t(context, '导出前二次确认', 'Confirm before export'),
+                  subtitle: _t(
+                    context,
+                    '导出记录、截图和摘要前先确认一次',
+                    'Ask again before exporting records or summaries',
+                  ),
+                  value: _confirmBeforeExport,
+                  onChanged: (value) =>
+                      setState(() => _confirmBeforeExport = value),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -639,6 +763,66 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     ];
   }
 
+  String _compactCommunityVisibilityLabel(BuildContext context) {
+    return switch (_communityVisibility) {
+      _PrivacyVisibility.private => _t(context, '匿名', 'Anonymous'),
+      _PrivacyVisibility.mutual => _t(context, '互相关注', 'Mutual'),
+      _PrivacyVisibility.public => _t(context, '公开', 'Public'),
+    };
+  }
+
+  String _compactDiarySummaryLabel(BuildContext context) {
+    return _syncDiarySummary
+        ? _t(context, '默认允许', 'Allowed')
+        : _t(context, '不允许', 'Disabled');
+  }
+
+  Future<void> _selectCompactCommunityVisibility() async {
+    final selected = await _showChoiceSheet<_PrivacyVisibility>(
+      context: context,
+      title: _t(context, '社区可见范围', 'Community visibility'),
+      currentValue: _communityVisibility,
+      items: [
+        _ChoiceSheetItem(
+          _PrivacyVisibility.private,
+          _t(context, '匿名', 'Anonymous'),
+        ),
+        _ChoiceSheetItem(
+          _PrivacyVisibility.mutual,
+          _t(context, '互相关注', 'Mutual'),
+        ),
+        _ChoiceSheetItem(
+          _PrivacyVisibility.public,
+          _t(context, '公开', 'Public'),
+        ),
+      ],
+    );
+    if (selected == null || !mounted) {
+      return;
+    }
+    setState(() => _communityVisibility = selected);
+  }
+
+  Future<void> _selectCompactDiarySummary() async {
+    final selected = await _showChoiceSheet<bool>(
+      context: context,
+      title: _t(
+        context,
+        '日记是否可被模型摘要参与进度面板',
+        'Allow journal summaries in progress panel',
+      ),
+      currentValue: _syncDiarySummary,
+      items: [
+        _ChoiceSheetItem(true, _t(context, '默认允许', 'Allowed')),
+        _ChoiceSheetItem(false, _t(context, '不允许', 'Disabled')),
+      ],
+    );
+    if (selected == null || !mounted) {
+      return;
+    }
+    setState(() => _syncDiarySummary = selected);
+  }
+
   List<Widget> _systemChildren(BuildContext context) {
     final locale = ref.watch(appLocaleProvider);
     final currentLanguage =
@@ -839,6 +1023,47 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         ],
       ),
     ];
+  }
+
+  Future<void> _savePrivacySettings() async {
+    if (_privacySaving) {
+      return;
+    }
+    setState(() => _privacySaving = true);
+    final prefs = ref.read(sharedPreferencesProvider);
+    try {
+      await Future.wait([
+        prefs.setString(
+          '${_privacyPrefix}community_visibility',
+          _communityVisibility.storageValue,
+        ),
+        prefs.setBool('${_privacyPrefix}anonymous_posting', _anonymousPosting),
+        prefs.setBool(
+          '${_privacyPrefix}hide_recovery_stage',
+          _hideRecoveryStage,
+        ),
+        prefs.setBool(
+          '${_privacyPrefix}show_following_list',
+          _showFollowingList,
+        ),
+        prefs.setBool('${_privacyPrefix}show_signature', _showSignature),
+        prefs.setBool('${_privacyPrefix}sync_diary_summary', _syncDiarySummary),
+        prefs.setBool(
+          '${_privacyPrefix}confirm_before_export',
+          _confirmBeforeExport,
+        ),
+      ]);
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(
+        _t(context, '隐私设置已保存', 'Privacy settings saved'),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _privacySaving = false);
+      }
+    }
   }
 
   Future<void> _selectCommunityVisibility() async {
@@ -2214,6 +2439,63 @@ class _SettingsSwitchRow extends StatelessWidget {
               inactiveTrackColor: palette.switchInactiveTrack,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactPrivacyRow extends StatelessWidget {
+  const _CompactPrivacyRow({
+    required this.title,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String title;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xFFA6A9AF),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Color(0xFF303236),
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Color(0xFFC6C8CE),
+                size: 24,
+              ),
+            ],
+          ),
         ),
       ),
     );

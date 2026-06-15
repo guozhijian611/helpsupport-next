@@ -49,6 +49,10 @@ class _CommunityMemberRelationsScreenState
           loading: () => Text(defaultTitle),
         ),
         centerTitle: true,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF303236),
+        surfaceTintColor: Colors.white,
+        scrolledUnderElevation: 0,
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -69,7 +73,7 @@ class _CommunityMemberRelationsScreenState
           child: members.when(
             data: (page) => page.list.isEmpty
                 ? ListView(
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
                     children: [
                       _RelationStatusCard(
                         title: widget.type == CommunityRelationType.following
@@ -90,9 +94,9 @@ class _CommunityMemberRelationsScreenState
                     ],
                   )
                 : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
                     itemCount: page.list.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final item = page.list[index];
                       return _RelationMemberCard(
@@ -113,7 +117,7 @@ class _CommunityMemberRelationsScreenState
                     },
                   ),
             error: (error, _) => ListView(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
               children: [
                 _RelationStatusCard(
                   title: _t(context, '列表加载失败', 'Load failed'),
@@ -122,16 +126,16 @@ class _CommunityMemberRelationsScreenState
               ],
             ),
             loading: () => ListView(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
               children: List.generate(
                 6,
                 (index) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.only(bottom: 10),
                   child: Container(
-                    height: 140,
+                    height: 118,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(22),
                     ),
                   ),
                 ),
@@ -222,12 +226,12 @@ class _RelationMemberCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
       ),
       child: Row(
         children: [
           CircleAvatar(
-            radius: 34,
+            radius: 36,
             backgroundColor: const Color(0xFFEAF0FF),
             backgroundImage: avatarUrl.isEmpty ? null : NetworkImage(avatarUrl),
             child: avatarUrl.isEmpty
@@ -276,13 +280,13 @@ class _RelationMemberCard extends StatelessWidget {
                           'Keep helping one person at a time.',
                         )
                       : member.bio,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Color(0xFFACAFB6),
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    height: 1.5,
+                    height: 1.4,
                   ),
                 ),
               ],
@@ -297,7 +301,7 @@ class _RelationMemberCard extends StatelessWidget {
                     ? const Color(0xFFF7D7D1)
                     : const Color(0xFFF49C8C),
                 foregroundColor: Colors.white,
-                minimumSize: const Size(92, 48),
+                minimumSize: const Size(104, 46),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18),
                 ),
