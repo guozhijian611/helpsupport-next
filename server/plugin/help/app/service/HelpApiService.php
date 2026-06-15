@@ -6,6 +6,7 @@ namespace plugin\help\app\service;
 
 use plugin\saiai\app\service\AiFactory;
 use plugin\saiadmin\exception\ApiException;
+use plugin\saiuser\app\admin\logic\member\MemberLogic;
 use think\facade\Db;
 use Throwable;
 
@@ -14,6 +15,8 @@ class HelpApiService
     private const DEFAULT_LOCALE = 'en-US';
     private const DEFAULT_PROTOCOL_LOCALE = 'zh-CN';
     private const RISK_REVIEW_REMARK = '命中风控规则，需人工审核';
+    private const SMS_CODE_EXPIRES_IN = 300;
+    private const CODE_RESEND_AFTER = 120;
 
     public function appConfig(): array
     {
@@ -183,6 +186,168 @@ class HelpApiService
         });
 
         return $this->profile($memberId, $this->member($memberId));
+    }
+
+    public function securityOverview(int $memberId): array
+    {
+        $member = $this->memberWithPassword($memberId);
+        $devices = $this->securityDevices($memberId);
+
+        return [
+            'member' => [
+                'id' => (int) ($member['id'] ?? 0),
+                'email' => (string) ($member['email'] ?? ''),
+                'mobile' => (string) ($member['mobile'] ?? ''),
+                'has_password' => trim((string) ($member['password_hash'] ?? '')) !== '',
+            ],
+            'linked_accounts' => $this->securityLinkedAccounts($memberId),
+            'devices' => $devices,
+            'recent_logins' => $this->securityRecentLogins($memberId),
+            'sso_enabled' => true,
+            'active_device_count' => count(array_filter(
+                $devices,
+                static fn(array $row): bool => (int) ($row['is_active'] ?? 2) === 1
+            )),
+        ];
+    }
+
+    public function changeSecurityPassword(int $memberId, array $data): array
+    {
+        $member = $this->memberWithPassword($memberId);
+        $oldPassword = (string) ($data['old_password'] ?? '');
+        $newPassword = (string) ($data['new_password'] ?? '');
+
+        if ($newPassword === '') {
+            throw new ApiException('新密码必须填写', 400);
+        }
+        if (strlen($newPassword) < 6) {
+            throw new ApiException('密码长度不能少于 6 位', 400);
+        }
+
+        $currentHash = trim((string) ($member['password_hash'] ?? ''));
+        if ($currentHash !== '') {
+            if ($oldPassword === '') {
+                throw new ApiException('当前密码必须填写', 400);
+            }
+            if (!password_verify($oldPassword, $currentHash)) {
+                throw new ApiException('当前密码错误', 400);
+            }
+        }
+
+        Db::table('sa_member')
+            ->where('id', $memberId)
+            ->whereNull('delete_time')
+            ->update([
+                'password_hash' => password_hash($newPassword, PASSWORD_DEFAULT),
+                'update_time' => date('Y-m-d H:i:s'),
+            ]);
+
+        return [
+            'changed' => true,
+            'has_password' => true,
+        ];
+    }
+
+    public function sendSecurityMobileCode(int $memberId, array $data): array
+    {
+        $mobile = $this->normalizeMobile($data['mobile'] ?? '');
+        $this->assertMobileBindable($memberId, $mobile);
+        $this->sendSmsCode($mobile);
+
+        return [
+            'sent' => true,
+            'target' => $this->maskMobile($mobile),
+            'expires_in' => self::SMS_CODE_EXPIRES_IN,
+            'resend_after' => self::CODE_RESEND_AFTER,
+        ];
+    }
+
+    public function bindSecurityMobile(int $memberId, array $data): array
+    {
+        $mobile = $this->normalizeMobile($data['mobile'] ?? '');
+        $mobileCode = trim((string) ($data['mobile_code'] ?? ''));
+        if ($mobileCode === '') {
+            throw new ApiException('短信验证码必须填写', 400);
+        }
+
+        $this->assertMobileBindable($memberId, $mobile);
+        $this->consumeSmsCode($mobile, $mobileCode);
+
+        $platformId = $this->memberPlatformId('MOBILE');
+        $now = date('Y-m-d H:i:s');
+
+        Db::transaction(function () use ($memberId, $mobile, $platformId, $now) {
+            Db::table('sa_member')
+                ->where('id', $memberId)
+                ->whereNull('delete_time')
+                ->update([
+                    'mobile' => $mobile,
+                    'update_time' => $now,
+                ]);
+
+            $rel = Db::table('sa_member_platform_rel')
+                ->where('member_id', $memberId)
+                ->where('platform_id', $platformId)
+                ->whereNull('delete_time')
+                ->find();
+
+            if ($rel) {
+                Db::table('sa_member_platform_rel')->where('id', (int) $rel['id'])->update([
+                    'platform_openid' => $mobile,
+                    'is_bind' => 1,
+                    'bind_time' => $now,
+                    'update_time' => $now,
+                ]);
+            } else {
+                Db::table('sa_member_platform_rel')->insert([
+                    'member_id' => $memberId,
+                    'platform_id' => $platformId,
+                    'platform_openid' => $mobile,
+                    'is_bind' => 1,
+                    'bind_time' => $now,
+                    'create_time' => $now,
+                    'update_time' => $now,
+                ]);
+            }
+        });
+
+        return [
+            'mobile' => $mobile,
+            'mobile_bound' => true,
+        ];
+    }
+
+    public function logoutOtherDevices(int $memberId, array $data): array
+    {
+        $currentDeviceId = trim((string) ($data['current_device_id'] ?? ''));
+        $platform = strtolower(trim((string) ($data['platform'] ?? '')));
+        $query = Db::table('sa_member_push_device')
+            ->where('member_id', $memberId)
+            ->where('is_active', 1)
+            ->whereNull('delete_time');
+
+        if ($currentDeviceId !== '') {
+            $query->where(function ($subQuery) use ($currentDeviceId, $platform) {
+                $subQuery->where('device_id', '<>', $currentDeviceId);
+                if ($platform !== '') {
+                    $subQuery->whereOr(function ($orQuery) use ($currentDeviceId, $platform) {
+                        $orQuery->where('device_id', $currentDeviceId)
+                            ->where('platform', '<>', $platform);
+                    });
+                }
+            });
+        }
+
+        $affected = $query->update([
+            'is_active' => 2,
+            'logout_time' => date('Y-m-d H:i:s'),
+            'updated_by' => $memberId,
+            'update_time' => date('Y-m-d H:i:s'),
+        ]);
+
+        return [
+            'logged_out_devices' => (int) $affected,
+        ];
     }
 
     public function markOnboardingSeen(int $memberId, string $version): array
@@ -3300,6 +3465,142 @@ class HelpApiService
                 'member_id' => $memberId,
             ],
         ]);
+    }
+
+    private function memberWithPassword(int $memberId): array
+    {
+        $member = Db::table('sa_member')
+            ->where('id', $memberId)
+            ->whereNull('delete_time')
+            ->field('id, username, nickname, avatar, mobile, email, password_hash, status, update_time')
+            ->find();
+        if (!$member || (int) ($member['status'] ?? 2) !== 1) {
+            throw new ApiException('会员不存在或状态异常', 401);
+        }
+
+        return (array) $member;
+    }
+
+    private function securityLinkedAccounts(int $memberId): array
+    {
+        return Db::table('sa_member_platform_rel')
+            ->alias('rel')
+            ->leftJoin('sa_member_platform platform', 'platform.id = rel.platform_id AND platform.delete_time IS NULL')
+            ->where('rel.member_id', $memberId)
+            ->where('rel.is_bind', 1)
+            ->whereNull('rel.delete_time')
+            ->field('platform.platform_code, platform.platform_name, rel.platform_openid, rel.bind_time')
+            ->order('rel.bind_time', 'desc')
+            ->order('rel.id', 'desc')
+            ->select()
+            ->toArray();
+    }
+
+    private function securityDevices(int $memberId): array
+    {
+        return Db::table('sa_member_push_device')
+            ->where('member_id', $memberId)
+            ->whereNull('delete_time')
+            ->field('id, device_id, platform, app_version, locale, timezone, is_active, last_active_time, logout_time, create_time, update_time')
+            ->order('is_active', 'asc')
+            ->order('last_active_time', 'desc')
+            ->order('id', 'desc')
+            ->select()
+            ->toArray();
+    }
+
+    private function securityRecentLogins(int $memberId, int $limit = 10): array
+    {
+        return Db::table('sa_member_login_log')
+            ->alias('log')
+            ->leftJoin('sa_member_platform platform', 'platform.id = log.platform_id AND platform.delete_time IS NULL')
+            ->where('log.member_id', $memberId)
+            ->whereNull('log.delete_time')
+            ->field('log.id, log.login_ip, log.login_location, log.user_agent, log.login_result, log.fail_reason, log.create_time, platform.platform_code, platform.platform_name')
+            ->order('log.create_time', 'desc')
+            ->limit($limit)
+            ->select()
+            ->toArray();
+    }
+
+    private function normalizeMobile(mixed $mobile): string
+    {
+        $mobile = trim((string) $mobile);
+        if ($mobile === '' || !preg_match('/^1\d{10}$/', $mobile)) {
+            throw new ApiException('请输入正确格式的手机号码', 400);
+        }
+
+        return $mobile;
+    }
+
+    private function assertMobileBindable(int $memberId, string $mobile): void
+    {
+        $member = (array) Db::table('sa_member')
+            ->where('mobile', $mobile)
+            ->whereNull('delete_time')
+            ->field('id')
+            ->find();
+        if ($member !== [] && (int) ($member['id'] ?? 0) !== $memberId) {
+            throw new ApiException('该手机号已经绑定其他账号', 400);
+        }
+    }
+
+    private function sendSmsCode(string $mobile): void
+    {
+        $result = (new MemberLogic())->sendCode($mobile);
+        if (!$result) {
+            throw new ApiException('验证码发送失败，请稍后重试', 500);
+        }
+    }
+
+    private function consumeSmsCode(string $mobile, string $code): void
+    {
+        $record = Db::table('saisms_record')
+            ->where('mobile', $mobile)
+            ->where('status', 'success')
+            ->whereNull('delete_time')
+            ->order('create_time', 'desc')
+            ->find();
+        if (!$record) {
+            throw new ApiException('验证码错误或已过期', 400);
+        }
+        if ((int) ($record['is_verify'] ?? 2) === 1) {
+            throw new ApiException('验证码错误或已过期', 400);
+        }
+        if (strtotime((string) ($record['create_time'] ?? '')) < time() - self::SMS_CODE_EXPIRES_IN) {
+            throw new ApiException('验证码错误或已过期', 400);
+        }
+        if ((string) ($record['code'] ?? '') !== $code) {
+            throw new ApiException('验证码错误或已过期', 400);
+        }
+
+        Db::table('saisms_record')->where('id', (int) $record['id'])->update([
+            'is_verify' => 1,
+            'update_time' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    private function memberPlatformId(string $platformCode): int
+    {
+        $platformId = (int) Db::table('sa_member_platform')
+            ->where('platform_code', $platformCode)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->value('id');
+        if ($platformId <= 0) {
+            throw new ApiException($platformCode . ' 会员平台未初始化或未启用', 400);
+        }
+
+        return $platformId;
+    }
+
+    private function maskMobile(string $mobile): string
+    {
+        if (strlen($mobile) !== 11) {
+            return $mobile;
+        }
+
+        return substr($mobile, 0, 3) . '****' . substr($mobile, -4);
     }
 
     private function rowByMember(string $table, int $memberId): array

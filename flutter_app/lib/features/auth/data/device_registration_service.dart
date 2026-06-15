@@ -62,6 +62,16 @@ class DeviceRegistrationService {
     );
   }
 
+  Future<String?> readCurrentDeviceId() async {
+    final existing = _preferences.getString(_deviceIdKey);
+    if (existing != null && existing.isNotEmpty) {
+      return existing;
+    }
+    return _deviceId();
+  }
+
+  String? currentPlatform() => _platformName();
+
   Future<String> _deviceId() async {
     final existing = _preferences.getString(_deviceIdKey);
     if (existing != null && existing.isNotEmpty) {

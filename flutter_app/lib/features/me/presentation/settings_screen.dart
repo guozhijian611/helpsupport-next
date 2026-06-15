@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/i18n/app_locale_controller.dart';
@@ -11,6 +12,8 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/settings/app_display_preferences.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/data/auth_protocol.dart';
+import '../data/settings_models.dart';
+import '../data/settings_repository.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -177,6 +180,7 @@ class SettingsDetailScreen extends ConsumerStatefulWidget {
 class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   static const _privacyPrefix = 'settings.privacy.';
   static const _notificationPrefix = 'settings.notification.';
+  final _dateFormat = DateFormat('yyyy-MM-dd');
 
   _PrivacyVisibility _communityVisibility = _PrivacyVisibility.mutual;
   bool _anonymousPosting = true;
@@ -190,6 +194,10 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   bool _appointmentUpdates = true;
   bool _communityReplies = true;
   bool _journalReminders = false;
+  bool _remoteLoading = false;
+  String? _remoteError;
+  MeProfileBundle? _profileBundle;
+  SecurityOverview? _securityOverview;
 
   @override
   void initState() {
@@ -219,7 +227,14 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         prefs.getBool('${_notificationPrefix}community_replies') ?? true;
     _journalReminders =
         prefs.getBool('${_notificationPrefix}journal_reminders') ?? false;
+    if (_needsRemoteData) {
+      unawaited(_loadRemoteSection());
+    }
   }
+
+  bool get _needsRemoteData =>
+      widget.section == SettingsSectionType.profile ||
+      widget.section == SettingsSectionType.security;
 
   @override
   Widget build(BuildContext context) {
@@ -236,8 +251,8 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
           children: switch (widget.section) {
-            SettingsSectionType.profile => _profileChildren(context),
-            SettingsSectionType.security => _securityChildren(context),
+            SettingsSectionType.profile => _profileSectionContent(context),
+            SettingsSectionType.security => _securitySectionContent(context),
             SettingsSectionType.privacy => _privacyChildren(context),
             SettingsSectionType.system => _systemChildren(context),
             SettingsSectionType.notifications => _notificationChildren(context),
@@ -249,29 +264,179 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     );
   }
 
-  List<Widget> _profileChildren(BuildContext context) {
+  List<Widget> _profileSectionContent(BuildContext context) {
+    if (_remoteLoading && _profileBundle == null) {
+      return [_stateSection(context, loading: true)];
+    }
+    if (_remoteError != null && _profileBundle == null) {
+      return [_stateSection(context, error: _remoteError)];
+    }
+    final bundle = _profileBundle;
+    if (bundle == null) {
+      return [
+        _stateSection(
+          context,
+          error: _t(context, '资料加载失败', 'Failed to load profile'),
+        ),
+      ];
+    }
+    return _profileChildren(context, bundle);
+  }
+
+  List<Widget> _securitySectionContent(BuildContext context) {
+    if (_remoteLoading && _securityOverview == null) {
+      return [_stateSection(context, loading: true)];
+    }
+    if (_remoteError != null && _securityOverview == null) {
+      return [_stateSection(context, error: _remoteError)];
+    }
+    final overview = _securityOverview;
+    if (overview == null) {
+      return [
+        _stateSection(
+          context,
+          error: _t(context, '账号安全加载失败', 'Failed to load security overview'),
+        ),
+      ];
+    }
+    return _securityChildren(context, overview);
+  }
+
+  Widget _stateSection(
+    BuildContext context, {
+    bool loading = false,
+    String? error,
+  }) {
+    final palette = _SettingsPalette.of(context);
+    final theme = Theme.of(context);
+    return _SettingsGroup(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              if (loading) ...[
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    color: palette.accent,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  _t(context, '正在加载...', 'Loading...'),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: palette.primaryText,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ] else ...[
+                Expanded(
+                  child: Text(
+                    error ?? _t(context, '加载失败', 'Load failed'),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: palette.primaryText,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => _loadRemoteSection(),
+                  child: Text(_t(context, '重试', 'Retry')),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _loadRemoteSection() async {
+    if (!_needsRemoteData) {
+      return;
+    }
+    setState(() {
+      _remoteLoading = true;
+      _remoteError = null;
+    });
+    try {
+      if (widget.section == SettingsSectionType.profile) {
+        final bundle = await ref
+            .read(meSettingsRepositoryProvider)
+            .fetchProfile();
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _profileBundle = bundle;
+        });
+      } else if (widget.section == SettingsSectionType.security) {
+        final overview = await ref
+            .read(meSettingsRepositoryProvider)
+            .fetchSecurityOverview();
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _securityOverview = overview;
+        });
+      }
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _remoteError = _errorText(context, error);
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _remoteLoading = false);
+      }
+    }
+  }
+
+  List<Widget> _profileChildren(BuildContext context, MeProfileBundle bundle) {
+    final mobile = bundle.mobile.isEmpty
+        ? _t(context, '未绑定', 'Not linked')
+        : _maskMobile(bundle.mobile);
+    final avatarValue = bundle.avatarUrl.isEmpty
+        ? _t(context, '默认头像', 'Default')
+        : _t(context, '已设置', 'Set');
+    final genderValue = _genderLabel(bundle.gender, context);
+    final birthdayValue = bundle.birthday.isEmpty
+        ? _t(context, '未设置', 'Not set')
+        : bundle.birthday;
+
     return [
       _SettingsGroup(
         children: [
           _SettingsNavRow(
             title: _t(context, '头像', 'Avatar'),
-            value: _t(context, '当前头像', 'Current'),
-            onTap: () => _comingSoon(context),
+            value: avatarValue,
+            onTap: () => _previewAvatar(bundle.avatarUrl),
           ),
           _SettingsNavRow(
             title: _t(context, '昵称', 'Nickname'),
-            value: 'u35911516',
-            onTap: () => _comingSoon(context),
+            value: bundle.nickname,
+            onTap: () => _editNickname(bundle),
           ),
           _SettingsNavRow(
-            title: _t(context, '性别与生日', 'Gender and birthday'),
-            value: _t(context, '男 / 18', 'Male / 18'),
-            onTap: () => _comingSoon(context),
+            title: _t(context, '性别', 'Gender'),
+            value: genderValue,
+            onTap: () => _editGender(bundle),
+          ),
+          _SettingsNavRow(
+            title: _t(context, '生日', 'Birthday'),
+            value: birthdayValue,
+            onTap: () => _editBirthday(bundle),
           ),
           _SettingsNavRow(
             title: _t(context, '手机号', 'Phone number'),
-            value: _t(context, '未绑定', 'Not linked'),
-            onTap: () => _comingSoon(context),
+            value: mobile,
+            onTap: () => _bindMobile(),
           ),
         ],
       ),
@@ -280,49 +445,80 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         children: [
           _SettingsNavRow(
             title: _t(context, '康复目标', 'Recovery goal'),
-            value: _t(context, '0', '0'),
-            onTap: () => _comingSoon(context),
+            value: _summaryOrFallback(
+              bundle.recoveryGoal,
+              context,
+              emptyZh: '待补充',
+              emptyEn: 'To complete',
+            ),
+            onTap: () => _editRecoveryGoal(bundle),
           ),
           _SettingsNavRow(
             title: _t(context, '重点触发', 'Key triggers'),
-            value: _t(context, '待补充', 'To complete'),
-            onTap: () => _comingSoon(context),
+            value: bundle.triggerTags.isEmpty
+                ? _t(context, '待补充', 'To complete')
+                : bundle.triggerTags.join(' / '),
+            onTap: () => _editTriggerTags(bundle),
           ),
           _SettingsNavRow(
             title: _t(context, '专属回忆录资料', 'Memory profile'),
-            onTap: () => _comingSoon(context),
+            value: _summaryOrFallback(
+              bundle.bio,
+              context,
+              emptyZh: '待补充',
+              emptyEn: 'To complete',
+            ),
+            onTap: () => _editBio(bundle),
           ),
         ],
       ),
     ];
   }
 
-  List<Widget> _securityChildren(BuildContext context) {
+  List<Widget> _securityChildren(
+    BuildContext context,
+    SecurityOverview overview,
+  ) {
     return [
       _SettingsGroup(
         children: [
           _SettingsNavRow(
-            title: _t(context, '修改密码', 'Change password'),
-            onTap: () => _comingSoon(context),
+            title: _t(context, '邮箱', 'Email'),
+            value: overview.member.email.isEmpty
+                ? _t(context, '未绑定', 'Not linked')
+                : _maskEmail(overview.member.email),
+            showChevron: false,
+          ),
+          _SettingsNavRow(
+            title: overview.member.hasPassword
+                ? _t(context, '修改密码', 'Change password')
+                : _t(context, '设置密码', 'Set password'),
+            onTap: () => _changePassword(),
           ),
           _SettingsNavRow(
             title: _t(context, '绑定手机号', 'Linked phone'),
-            value: _t(context, '未绑定', 'Not linked'),
-            onTap: () => _comingSoon(context),
+            value: overview.member.mobile.isEmpty
+                ? _t(context, '未绑定', 'Not linked')
+                : _maskMobile(overview.member.mobile),
+            onTap: () => _bindMobile(),
           ),
           _SettingsNavRow(
             title: _t(context, '第三方账号', 'Connected accounts'),
-            value: _t(context, '未绑定', 'None'),
-            onTap: () => _comingSoon(context),
+            value: _thirdPartyAccountSummary(overview, context),
+            onTap: () => _showLinkedAccounts(overview),
           ),
           _SettingsNavRow(
             title: _t(context, '登录设备', 'Login devices'),
-            onTap: () => _comingSoon(context),
+            value:
+                '${overview.activeDeviceCount}${_t(context, '台在线', ' online')}',
+            onTap: () => _showLoginDevices(overview),
           ),
           _SettingsNavRow(
             title: _t(context, '单点登录状态', 'Single sign-on status'),
-            value: _t(context, '已启用', 'Enabled'),
-            onTap: () => _comingSoon(context),
+            value: overview.ssoEnabled
+                ? _t(context, '已启用', 'Enabled')
+                : _t(context, '未启用', 'Disabled'),
+            onTap: () => _handleLogoutOtherDevices(overview),
           ),
         ],
       ),
@@ -781,6 +977,585 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
               'Notification permission is not enabled. You can enable it in system settings.',
             ),
     );
+  }
+
+  Future<void> _previewAvatar(String avatarUrl) async {
+    if (avatarUrl.isEmpty || !mounted) {
+      context.showCenteredNotice(
+        _t(context, '当前账号还没有头像', 'No avatar is set yet'),
+      );
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Image.network(
+                  avatarUrl,
+                  width: 180,
+                  height: 180,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => Container(
+                    width: 180,
+                    height: 180,
+                    color: const Color(0xFFF3F5FA),
+                    alignment: Alignment.center,
+                    child: Text(_t(context, '头像加载失败', 'Failed to load avatar')),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text(_t(context, '关闭', 'Close')),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _editNickname(MeProfileBundle bundle) async {
+    final nextValue = await _showTextInputDialog(
+      context: context,
+      title: _t(context, '修改昵称', 'Edit nickname'),
+      initialValue: bundle.nickname,
+      hintText: _t(context, '请输入昵称', 'Enter nickname'),
+    );
+    if (nextValue == null || nextValue.trim() == bundle.nickname.trim()) {
+      return;
+    }
+    await _saveProfilePayload({
+      'nickname': nextValue.trim(),
+    }, successMessage: _t(context, '昵称已更新', 'Nickname updated'));
+  }
+
+  Future<void> _editGender(MeProfileBundle bundle) async {
+    final currentGender = bundle.gender ?? 3;
+    final selected = await _showChoiceSheet<int>(
+      context: context,
+      title: _t(context, '选择性别', 'Select gender'),
+      currentValue: currentGender,
+      items: [
+        _ChoiceSheetItem(1, _t(context, '男', 'Male')),
+        _ChoiceSheetItem(2, _t(context, '女', 'Female')),
+        _ChoiceSheetItem(3, _t(context, '保密', 'Private')),
+      ],
+    );
+    if (selected == null || selected == currentGender) {
+      return;
+    }
+    await _saveProfilePayload({
+      'gender': selected,
+    }, successMessage: _t(context, '性别已更新', 'Gender updated'));
+  }
+
+  Future<void> _editBirthday(MeProfileBundle bundle) async {
+    final initialDate =
+        DateTime.tryParse(bundle.birthday) ??
+        DateTime(DateTime.now().year - 18, 1, 1);
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1900, 1, 1),
+      lastDate: DateTime.now(),
+    );
+    if (selected == null) {
+      return;
+    }
+    final text = _dateFormat.format(selected);
+    if (text == bundle.birthday) {
+      return;
+    }
+    await _saveProfilePayload({
+      'birthday': text,
+    }, successMessage: _t(context, '生日已更新', 'Birthday updated'));
+  }
+
+  Future<void> _editRecoveryGoal(MeProfileBundle bundle) async {
+    final nextValue = await _showTextInputDialog(
+      context: context,
+      title: _t(context, '编辑康复目标', 'Edit recovery goal'),
+      initialValue: bundle.recoveryGoal,
+      hintText: _t(context, '请输入康复目标', 'Enter recovery goal'),
+      maxLines: 4,
+    );
+    if (nextValue == null || nextValue.trim() == bundle.recoveryGoal.trim()) {
+      return;
+    }
+    await _saveProfilePayload({
+      'recovery_goal': nextValue.trim(),
+    }, successMessage: _t(context, '康复目标已更新', 'Recovery goal updated'));
+  }
+
+  Future<void> _editTriggerTags(MeProfileBundle bundle) async {
+    final nextValue = await _showTextInputDialog(
+      context: context,
+      title: _t(context, '编辑重点触发', 'Edit key triggers'),
+      initialValue: bundle.triggerTags.join(', '),
+      hintText: _t(context, '多个触发因素请用逗号分隔', 'Separate triggers with commas'),
+      maxLines: 4,
+    );
+    if (nextValue == null) {
+      return;
+    }
+    final tags = nextValue
+        .split(',')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    if (tags.join(',') == bundle.triggerTags.join(',')) {
+      return;
+    }
+    await _saveProfilePayload({
+      'trigger_tags': tags,
+    }, successMessage: _t(context, '重点触发已更新', 'Key triggers updated'));
+  }
+
+  Future<void> _editBio(MeProfileBundle bundle) async {
+    final nextValue = await _showTextInputDialog(
+      context: context,
+      title: _t(context, '编辑专属回忆录资料', 'Edit memory profile'),
+      initialValue: bundle.bio,
+      hintText: _t(context, '写一点希望沉淀下来的资料', 'Write a short profile'),
+      maxLines: 5,
+    );
+    if (nextValue == null || nextValue.trim() == bundle.bio.trim()) {
+      return;
+    }
+    await _saveProfilePayload({
+      'bio': nextValue.trim(),
+    }, successMessage: _t(context, '回忆录资料已更新', 'Memory profile updated'));
+  }
+
+  Future<void> _bindMobile() async {
+    final initialMobile = _securityOverview?.member.mobile.isNotEmpty == true
+        ? _securityOverview!.member.mobile
+        : (_profileBundle?.mobile ?? '');
+    final mobile = await _showTextInputDialog(
+      context: context,
+      title: _t(context, '绑定手机号', 'Bind phone number'),
+      initialValue: initialMobile,
+      hintText: _t(context, '请输入手机号', 'Enter phone number'),
+      keyboardType: TextInputType.phone,
+    );
+    if (mobile == null || mobile.trim().isEmpty) {
+      return;
+    }
+    final normalizedMobile = mobile.trim();
+
+    try {
+      final delivery = await ref
+          .read(meSettingsRepositoryProvider)
+          .sendMobileCode(mobile: normalizedMobile);
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(
+        _t(context, '验证码已发送至', 'Code sent to ') + delivery.target,
+      );
+      final code = await _showTextInputDialog(
+        context: context,
+        title: _t(context, '输入验证码', 'Enter verification code'),
+        initialValue: '',
+        hintText: _t(context, '请输入短信验证码', 'Enter SMS verification code'),
+        keyboardType: TextInputType.number,
+      );
+      if (code == null || code.trim().isEmpty) {
+        return;
+      }
+      await ref
+          .read(meSettingsRepositoryProvider)
+          .bindMobile(mobile: normalizedMobile, code: code.trim());
+      await ref.read(authControllerProvider.notifier).refreshCurrentSession();
+      await _loadRemoteSection();
+      if (mounted) {
+        context.showCenteredNotice(
+          _t(context, '手机号已绑定', 'Phone number linked'),
+        );
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(_errorText(context, error));
+      }
+    }
+  }
+
+  Future<void> _changePassword() async {
+    final hasPassword = _securityOverview?.member.hasPassword ?? false;
+    String? oldPassword;
+    if (hasPassword) {
+      oldPassword = await _showTextInputDialog(
+        context: context,
+        title: _t(context, '输入当前密码', 'Enter current password'),
+        initialValue: '',
+        hintText: _t(context, '当前密码', 'Current password'),
+        obscureText: true,
+      );
+      if (oldPassword == null || oldPassword.isEmpty) {
+        return;
+      }
+    }
+    final newPassword = await _showTextInputDialog(
+      context: context,
+      title: hasPassword
+          ? _t(context, '设置新密码', 'Set new password')
+          : _t(context, '设置密码', 'Set password'),
+      initialValue: '',
+      hintText: _t(context, '至少 6 位', 'At least 6 characters'),
+      obscureText: true,
+    );
+    if (newPassword == null || newPassword.isEmpty) {
+      return;
+    }
+    final confirmPassword = await _showTextInputDialog(
+      context: context,
+      title: _t(context, '确认新密码', 'Confirm new password'),
+      initialValue: '',
+      hintText: _t(context, '请再次输入新密码', 'Enter the new password again'),
+      obscureText: true,
+    );
+    if (confirmPassword == null || confirmPassword.isEmpty) {
+      return;
+    }
+    if (newPassword != confirmPassword) {
+      context.showCenteredNotice(
+        _t(context, '两次输入的新密码不一致', 'Passwords do not match'),
+      );
+      return;
+    }
+
+    try {
+      await ref
+          .read(meSettingsRepositoryProvider)
+          .changePassword(oldPassword: oldPassword, newPassword: newPassword);
+      await _loadRemoteSection();
+      if (mounted) {
+        context.showCenteredNotice(
+          hasPassword
+              ? _t(context, '密码已更新', 'Password updated')
+              : _t(context, '密码已设置', 'Password set'),
+        );
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(_errorText(context, error));
+      }
+    }
+  }
+
+  Future<void> _showLinkedAccounts(SecurityOverview overview) async {
+    final accounts = overview.thirdPartyAccounts;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: _SettingsPalette.of(context).pageBackground,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      showDragHandle: true,
+      builder: (context) {
+        final palette = _SettingsPalette.of(context);
+        final theme = Theme.of(context);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                  child: Text(
+                    _t(context, '第三方账号', 'Connected accounts'),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: palette.primaryText,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                _SettingsGroup(
+                  children: accounts.isEmpty
+                      ? [
+                          _SettingsNavRow(
+                            title: _t(
+                              context,
+                              '当前未绑定第三方账号',
+                              'No connected third-party accounts',
+                            ),
+                            showChevron: false,
+                          ),
+                        ]
+                      : accounts
+                            .map(
+                              (item) => _SettingsNavRow(
+                                title: _platformLabel(
+                                  item.platformCode,
+                                  context,
+                                ),
+                                value: item.bindTime.isEmpty
+                                    ? _t(context, '已绑定', 'Connected')
+                                    : item.bindTime,
+                                showChevron: false,
+                              ),
+                            )
+                            .toList(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showLoginDevices(SecurityOverview overview) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: _SettingsPalette.of(context).pageBackground,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      showDragHandle: true,
+      builder: (context) {
+        final theme = Theme.of(context);
+        final palette = _SettingsPalette.of(context);
+        final devices = overview.devices;
+        final logins = overview.recentLogins;
+        return SafeArea(
+          child: SizedBox(
+            height: MediaQuery.sizeOf(context).height * 0.78,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                  child: Text(
+                    _t(context, '登录设备', 'Login devices'),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: palette.primaryText,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                _SettingsGroup(
+                  title: _t(context, '当前设备', 'Current devices'),
+                  children: devices.isEmpty
+                      ? [
+                          _SettingsNavRow(
+                            title: _t(context, '暂无设备记录', 'No device records'),
+                            showChevron: false,
+                          ),
+                        ]
+                      : devices
+                            .map(
+                              (item) => _SettingsNavRow(
+                                title:
+                                    '${_platformLabel(item.platform, context)} ${item.appVersion.isEmpty ? '' : item.appVersion}'
+                                        .trim(),
+                                subtitle: item.lastActiveTime.isEmpty
+                                    ? null
+                                    : '${_t(context, '最近活跃', 'Last active')}: ${item.lastActiveTime}',
+                                value: item.isActive
+                                    ? _t(context, '当前在线', 'Online')
+                                    : _t(context, '已下线', 'Offline'),
+                                showChevron: false,
+                              ),
+                            )
+                            .toList(),
+                ),
+                _SettingsGroup(
+                  title: _t(context, '最近登录', 'Recent sign-ins'),
+                  children: logins.isEmpty
+                      ? [
+                          _SettingsNavRow(
+                            title: _t(context, '暂无登录记录', 'No recent sign-ins'),
+                            showChevron: false,
+                          ),
+                        ]
+                      : logins
+                            .map(
+                              (item) => _SettingsNavRow(
+                                title: _platformLabel(
+                                  item.platformCode,
+                                  context,
+                                ),
+                                subtitle: item.userAgent.isEmpty
+                                    ? null
+                                    : item.userAgent,
+                                value: item.createTime,
+                                showChevron: false,
+                              ),
+                            )
+                            .toList(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _handleLogoutOtherDevices(SecurityOverview overview) async {
+    if (overview.activeDeviceCount <= 1) {
+      context.showCenteredNotice(
+        _t(context, '当前没有其他在线设备', 'No other active devices'),
+      );
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(_t(context, '下线其他设备', 'Sign out other devices')),
+        content: Text(
+          _t(
+            context,
+            '这会保留当前设备登录，并下线其余在线设备。',
+            'This keeps the current device signed in and signs out the others.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(_t(context, '取消', 'Cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(_t(context, '确认', 'Confirm')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+
+    try {
+      final deviceService = ref.read(deviceRegistrationServiceProvider);
+      final currentDeviceId = await deviceService.readCurrentDeviceId();
+      final loggedOut = await ref
+          .read(meSettingsRepositoryProvider)
+          .logoutOtherDevices(
+            currentDeviceId: currentDeviceId,
+            platform: deviceService.currentPlatform(),
+          );
+      await _loadRemoteSection();
+      if (mounted) {
+        context.showCenteredNotice(
+          _t(context, '已下线其他设备', 'Other devices signed out') + ' ($loggedOut)',
+        );
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(_errorText(context, error));
+      }
+    }
+  }
+
+  Future<void> _saveProfilePayload(
+    Map<String, dynamic> payload, {
+    required String successMessage,
+  }) async {
+    try {
+      final bundle = await ref
+          .read(meSettingsRepositoryProvider)
+          .saveProfile(payload);
+      await ref.read(authControllerProvider.notifier).refreshCurrentSession();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _profileBundle = bundle;
+      });
+      context.showCenteredNotice(successMessage);
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(_errorText(context, error));
+      }
+    }
+  }
+
+  String _genderLabel(int? gender, BuildContext context) {
+    return switch (gender) {
+      1 => _t(context, '男', 'Male'),
+      2 => _t(context, '女', 'Female'),
+      3 => _t(context, '保密', 'Private'),
+      _ => _t(context, '未设置', 'Not set'),
+    };
+  }
+
+  String _thirdPartyAccountSummary(
+    SecurityOverview overview,
+    BuildContext context,
+  ) {
+    final accounts = overview.thirdPartyAccounts;
+    if (accounts.isEmpty) {
+      return _t(context, '未绑定', 'None');
+    }
+    return accounts
+        .map((item) => _platformLabel(item.platformCode, context))
+        .join(' / ');
+  }
+
+  String _platformLabel(String platformCode, BuildContext context) {
+    return switch (platformCode.toUpperCase()) {
+      'GOOGLE' => 'Google',
+      'APPLE' => 'Apple',
+      'EMAIL' => _t(context, '邮箱', 'Email'),
+      'MOBILE' => _t(context, '手机号', 'Phone'),
+      'IOS' => 'iOS',
+      'ANDROID' => 'Android',
+      _ => platformCode.isEmpty ? _t(context, '未知', 'Unknown') : platformCode,
+    };
+  }
+
+  String _summaryOrFallback(
+    String value,
+    BuildContext context, {
+    required String emptyZh,
+    required String emptyEn,
+  }) {
+    final text = value.trim();
+    if (text.isEmpty) {
+      return _t(context, emptyZh, emptyEn);
+    }
+    return text;
+  }
+
+  String _maskMobile(String mobile) {
+    if (mobile.length != 11) {
+      return mobile;
+    }
+    return '${mobile.substring(0, 3)}****${mobile.substring(7)}';
+  }
+
+  String _maskEmail(String email) {
+    final atIndex = email.indexOf('@');
+    if (atIndex <= 1) {
+      return email;
+    }
+    return '${email.substring(0, 1)}***${email.substring(atIndex - 1)}';
+  }
+
+  String _errorText(BuildContext context, Object error) {
+    final text = error.toString();
+    if (text.contains('message: ')) {
+      return text
+          .replaceFirst(RegExp(r'^.*message: '), '')
+          .replaceFirst(RegExp(r', traceId: .*$'), '');
+    }
+    return text.isEmpty
+        ? _t(context, '操作失败，请稍后重试', 'Request failed. Please try again.')
+        : text;
   }
 
   void _comingSoon(BuildContext context) {
@@ -1251,6 +2026,44 @@ Future<T?> _showChoiceSheet<T>({
       );
     },
   );
+}
+
+Future<String?> _showTextInputDialog({
+  required BuildContext context,
+  required String title,
+  required String initialValue,
+  required String hintText,
+  int maxLines = 1,
+  bool obscureText = false,
+  TextInputType? keyboardType,
+}) async {
+  final controller = TextEditingController(text: initialValue);
+  final result = await showDialog<String>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text(title),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        maxLines: obscureText ? 1 : maxLines,
+        obscureText: obscureText,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(hintText: hintText),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: Text(_t(context, '取消', 'Cancel')),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+          child: Text(_t(context, '确定', 'Confirm')),
+        ),
+      ],
+    ),
+  );
+  controller.dispose();
+  return result;
 }
 
 void _openDetail(BuildContext context, SettingsSectionType section) {

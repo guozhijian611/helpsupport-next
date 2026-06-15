@@ -54,6 +54,68 @@ class MeController extends BaseController
         return ok($this->service->saveProfile($this->memberId, $request->all()));
     }
 
+    #[Apidoc\Title('账号安全概览')]
+    #[Apidoc\Url('/app/help/me/security')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Returned('member', type: 'object', desc: '当前会员安全资料，含 email/mobile/has_password')]
+    #[Apidoc\Returned('linked_accounts', type: 'array', desc: '已绑定账号列表，含 EMAIL/MOBILE/GOOGLE/APPLE')]
+    #[Apidoc\Returned('devices', type: 'array', desc: '当前登录设备列表')]
+    #[Apidoc\Returned('recent_logins', type: 'array', desc: '最近登录记录')]
+    #[Apidoc\Returned('sso_enabled', type: 'boolean', desc: '是否启用单点登录')]
+    #[Apidoc\Returned('active_device_count', type: 'int', desc: '当前活跃设备数量')]
+    public function security(Request $request): Response
+    {
+        return ok($this->service->securityOverview($this->memberId));
+    }
+
+    #[Apidoc\Title('修改账号密码')]
+    #[Apidoc\Url('/app/help/me/security/password')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('old_password', type: 'string', require: false, desc: '当前密码，已有密码账号修改时必填')]
+    #[Apidoc\Param('new_password', type: 'string', require: true, desc: '新密码，至少 6 位')]
+    #[Apidoc\Returned('changed', type: 'boolean', desc: '是否修改成功')]
+    #[Apidoc\Returned('has_password', type: 'boolean', desc: '修改后是否已设置密码')]
+    public function changePassword(Request $request): Response
+    {
+        return ok($this->service->changeSecurityPassword($this->memberId, $request->post()));
+    }
+
+    #[Apidoc\Title('发送绑定手机号验证码')]
+    #[Apidoc\Url('/app/help/me/security/mobile-code')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('mobile', type: 'string', require: true, desc: '待绑定手机号')]
+    #[Apidoc\Returned('sent', type: 'boolean', desc: '是否发送成功')]
+    #[Apidoc\Returned('target', type: 'string', desc: '脱敏手机号')]
+    #[Apidoc\Returned('expires_in', type: 'int', desc: '验证码有效期秒数')]
+    #[Apidoc\Returned('resend_after', type: 'int', desc: '再次发送等待秒数')]
+    public function sendMobileCode(Request $request): Response
+    {
+        return ok($this->service->sendSecurityMobileCode($this->memberId, $request->post()));
+    }
+
+    #[Apidoc\Title('绑定或更换手机号')]
+    #[Apidoc\Url('/app/help/me/security/mobile')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('mobile', type: 'string', require: true, desc: '待绑定手机号')]
+    #[Apidoc\Param('mobile_code', type: 'string', require: true, desc: '短信验证码')]
+    #[Apidoc\Returned('mobile', type: 'string', desc: '当前绑定手机号')]
+    #[Apidoc\Returned('mobile_bound', type: 'boolean', desc: '是否已绑定手机号')]
+    public function bindMobile(Request $request): Response
+    {
+        return ok($this->service->bindSecurityMobile($this->memberId, $request->post()));
+    }
+
+    #[Apidoc\Title('下线其他设备')]
+    #[Apidoc\Url('/app/help/me/security/logout-other-devices')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('current_device_id', type: 'string', require: false, desc: '当前设备标识，传入后保留当前设备')]
+    #[Apidoc\Param('platform', type: 'string', require: false, desc: '当前设备平台 ios/android')]
+    #[Apidoc\Returned('logged_out_devices', type: 'int', desc: '本次下线的设备数')]
+    public function logoutOtherDevices(Request $request): Response
+    {
+        return ok($this->service->logoutOtherDevices($this->memberId, $request->post()));
+    }
+
     #[Apidoc\Title('上报已看引导页版本')]
     #[Apidoc\Url('/app/help/common/onboarding/seen')]
     #[Apidoc\Method('POST')]
