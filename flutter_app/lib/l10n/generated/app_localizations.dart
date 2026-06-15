@@ -146,11 +146,71 @@ abstract class AppLocalizations {
   /// **'By signing in, you confirm that you have read and agree to the privacy policy.'**
   String get loginAgreementNotice;
 
+  /// No description provided for @loginAgreementPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'I have read and agree to'**
+  String get loginAgreementPrefix;
+
+  /// No description provided for @loginAgreementJoin.
+  ///
+  /// In en, this message translates to:
+  /// **'and'**
+  String get loginAgreementJoin;
+
+  /// No description provided for @termsOfUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms of Use'**
+  String get termsOfUse;
+
+  /// No description provided for @privacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get privacyPolicy;
+
   /// No description provided for @loginAction.
   ///
   /// In en, this message translates to:
   /// **'Sign in'**
   String get loginAction;
+
+  /// No description provided for @registerAccountAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Create account'**
+  String get registerAccountAction;
+
+  /// No description provided for @forgotPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password'**
+  String get forgotPassword;
+
+  /// No description provided for @phoneLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone sign in'**
+  String get phoneLogin;
+
+  /// No description provided for @phoneNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number'**
+  String get phoneNumber;
+
+  /// No description provided for @loginEmailPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get loginEmailPlaceholder;
+
+  /// No description provided for @featureComingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'This feature is not available yet'**
+  String get featureComingSoon;
 
   /// No description provided for @registerAction.
   ///
@@ -317,13 +377,13 @@ abstract class AppLocalizations {
   /// No description provided for @googleLogin.
   ///
   /// In en, this message translates to:
-  /// **'Continue with Google'**
+  /// **'Sign in with Google'**
   String get googleLogin;
 
   /// No description provided for @appleLogin.
   ///
   /// In en, this message translates to:
-  /// **'Continue with Apple'**
+  /// **'Sign in with Apple'**
   String get appleLogin;
 
   /// No description provided for @homeTitle.

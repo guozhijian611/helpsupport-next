@@ -51,10 +51,10 @@ class AuthPageFrame extends ConsumerWidget {
                   final scale = (constraints.maxWidth / 375)
                       .clamp(0.92, 1.08)
                       .toDouble();
-                  final panelTop = (isWide ? 292.0 : 264.0 * scale)
-                      .clamp(244.0, height * 0.54)
+                  final panelTop = (isWide ? 276.0 : 200.0 * scale)
+                      .clamp(198.0, height * 0.36)
                       .toDouble();
-                  final logoTop = isWide ? 72.0 : 92.0 * scale;
+                  final logoTop = isWide ? 52.0 : 46.0 * scale;
 
                   return Stack(
                     fit: StackFit.expand,
@@ -74,7 +74,7 @@ class AuthPageFrame extends ConsumerWidget {
                                 ),
                               ),
                               const Spacer(),
-                              if (trailing != null) trailing!,
+                              ?trailing,
                             ],
                           ),
                         ),
@@ -85,7 +85,7 @@ class AuthPageFrame extends ConsumerWidget {
                         child: _AppLogo(logoUrl: appConfig.logo),
                       ),
                       Positioned(
-                        top: logoTop + 98,
+                        top: logoTop + 100,
                         left: 24,
                         right: 24,
                         child: Text(
@@ -96,6 +96,7 @@ class AuthPageFrame extends ConsumerWidget {
                           style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(
                                 color: Colors.white,
+                                fontSize: 28,
                                 fontWeight: FontWeight.w800,
                                 height: 1.2,
                               ),
@@ -116,7 +117,7 @@ class AuthPageFrame extends ConsumerWidget {
                           child: ListView(
                             padding: EdgeInsets.fromLTRB(
                               isWide ? 44 : 40,
-                              28,
+                              30,
                               isWide ? 44 : 40,
                               28 + MediaQuery.paddingOf(context).bottom,
                             ),
@@ -187,43 +188,84 @@ class AuthPrimaryButton extends StatelessWidget {
     super.key,
     required this.onPressed,
     required this.label,
-    required this.icon,
+    this.icon,
     this.isLoading = false,
+    this.backgroundColor,
+    this.disabledBackgroundColor,
+    this.height = 52,
+    this.borderRadius = 15,
   });
 
   final VoidCallback? onPressed;
   final String label;
-  final IconData icon;
+  final IconData? icon;
   final bool isLoading;
+  final Color? backgroundColor;
+  final Color? disabledBackgroundColor;
+  final double height;
+  final double borderRadius;
 
   @override
   Widget build(BuildContext context) {
+    final resolvedBackground = backgroundColor ?? _gradientStart;
     return SizedBox(
       width: double.infinity,
-      height: 52,
-      child: FilledButton.icon(
+      height: height,
+      child: FilledButton(
         onPressed: isLoading ? null : onPressed,
         style: FilledButton.styleFrom(
-          backgroundColor: _gradientStart,
+          backgroundColor: resolvedBackground,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: _gradientStart.withValues(alpha: 0.42),
+          disabledBackgroundColor:
+              disabledBackgroundColor ??
+              resolvedBackground.withValues(alpha: 0.42),
           disabledForegroundColor: Colors.white.withValues(alpha: 0.72),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(borderRadius),
           ),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
-        icon: isLoading
-            ? const SizedBox.square(
-                dimension: 18,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
-              )
-            : Icon(icon),
-        label: Text(label),
+        child: _PrimaryButtonContent(
+          icon: icon,
+          isLoading: isLoading,
+          label: label,
+        ),
       ),
+    );
+  }
+}
+
+class _PrimaryButtonContent extends StatelessWidget {
+  const _PrimaryButtonContent({
+    required this.label,
+    required this.isLoading,
+    this.icon,
+  });
+
+  final String label;
+  final bool isLoading;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final spinner = const SizedBox.square(
+      dimension: 18,
+      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+    );
+    final iconWidget = isLoading
+        ? spinner
+        : icon == null
+        ? null
+        : Icon(icon);
+
+    if (iconWidget == null) {
+      return Text(label);
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [iconWidget, const SizedBox(width: 8), Text(label)],
     );
   }
 }
@@ -378,12 +420,16 @@ class AuthTextField extends StatelessWidget {
       obscureText: obscureText,
       onFieldSubmitted: onFieldSubmitted,
       decoration: InputDecoration(
-        labelText: label,
+        hintText: label,
         errorMaxLines: 2,
         filled: true,
         fillColor: _fieldFillColor,
-        prefixIcon: Icon(icon, color: _gradientStart),
+        prefixIcon: Icon(icon, color: _inputIconColor),
         suffixIcon: suffix,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 18,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
@@ -428,48 +474,31 @@ class _AppLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Container(
-        width: 86,
-        height: 86,
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.34)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 20,
-              offset: const Offset(0, 12),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: logoUrl.isEmpty
-              ? const _LogoFallback()
-              : Image.network(
-                  logoUrl,
-                  fit: BoxFit.contain,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) {
-                      return child;
-                    }
-                    return const Center(
-                      child: SizedBox.square(
-                        dimension: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: _gradientStart,
-                        ),
+      child: SizedBox.square(
+        dimension: 72,
+        child: logoUrl.isEmpty
+            ? const _LogoFallback()
+            : Image.network(
+                logoUrl,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) {
+                    return child;
+                  }
+                  return const Center(
+                    child: SizedBox.square(
+                      dimension: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
                       ),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return const _LogoFallback();
-                  },
-                ),
-        ),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return const _LogoFallback();
+                },
+              ),
       ),
     );
   }
@@ -480,16 +509,38 @@ class _LogoFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Icon(
-      Icons.volunteer_activism_rounded,
-      color: _gradientStart,
-      size: 44,
-    );
+    return CustomPaint(painter: _LogoMarkPainter());
   }
+}
+
+class _LogoMarkPainter extends CustomPainter {
+  const _LogoMarkPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    final unit = size.shortestSide / 90;
+    final radius = Radius.circular(17 * unit);
+
+    void pill(Rect rect) {
+      canvas.drawRRect(RRect.fromRectAndRadius(rect, radius), paint);
+    }
+
+    pill(Rect.fromLTWH(39 * unit, 0, 32 * unit, 58 * unit));
+    pill(Rect.fromLTWH(0, 44 * unit, 63 * unit, 32 * unit));
+    pill(Rect.fromLTWH(75 * unit, 44 * unit, 42 * unit, 32 * unit));
+    pill(Rect.fromLTWH(39 * unit, 70 * unit, 32 * unit, 30 * unit));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 const _gradientStart = Color(0xFFFF9585);
 const _gradientEnd = Color(0xFFFCB08E);
-const _fieldFillColor = Color(0xFFFBF4F1);
+const _fieldFillColor = Color(0xFFF4F5F9);
+const _inputIconColor = Color(0xFF343437);
 const _mutedTextColor = Color(0xFFA28D86);
 const _softBorderColor = Color(0xFFECE7E4);

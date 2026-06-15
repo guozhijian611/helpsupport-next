@@ -36,7 +36,37 @@ class AppLocalizationsEn extends AppLocalizations {
       'By signing in, you confirm that you have read and agree to the privacy policy.';
 
   @override
+  String get loginAgreementPrefix => 'I have read and agree to';
+
+  @override
+  String get loginAgreementJoin => 'and';
+
+  @override
+  String get termsOfUse => 'Terms of Use';
+
+  @override
+  String get privacyPolicy => 'Privacy Policy';
+
+  @override
   String get loginAction => 'Sign in';
+
+  @override
+  String get registerAccountAction => 'Create account';
+
+  @override
+  String get forgotPassword => 'Forgot password';
+
+  @override
+  String get phoneLogin => 'Phone sign in';
+
+  @override
+  String get phoneNumber => 'Phone number';
+
+  @override
+  String get loginEmailPlaceholder => 'Email';
+
+  @override
+  String get featureComingSoon => 'This feature is not available yet';
 
   @override
   String get registerAction => 'Create one';
@@ -121,10 +151,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logout => 'Sign out';
 
   @override
-  String get googleLogin => 'Continue with Google';
+  String get googleLogin => 'Sign in with Google';
 
   @override
-  String get appleLogin => 'Continue with Apple';
+  String get appleLogin => 'Sign in with Apple';
 
   @override
   String get homeTitle => 'Today';

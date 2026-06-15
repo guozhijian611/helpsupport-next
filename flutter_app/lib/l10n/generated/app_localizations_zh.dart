@@ -33,7 +33,37 @@ class AppLocalizationsZh extends AppLocalizations {
   String get loginAgreementNotice => '登录即表示你已阅读并同意隐私政策';
 
   @override
+  String get loginAgreementPrefix => '我已阅读并同意';
+
+  @override
+  String get loginAgreementJoin => '与';
+
+  @override
+  String get termsOfUse => '《使用协议》';
+
+  @override
+  String get privacyPolicy => '《隐私协议》';
+
+  @override
   String get loginAction => '去登录';
+
+  @override
+  String get registerAccountAction => '注册账号';
+
+  @override
+  String get forgotPassword => '忘记密码';
+
+  @override
+  String get phoneLogin => '手机号登录';
+
+  @override
+  String get phoneNumber => '手机号';
+
+  @override
+  String get loginEmailPlaceholder => '电子邮件';
+
+  @override
+  String get featureComingSoon => '该功能暂未开放';
 
   @override
   String get registerAction => '立即注册';
@@ -117,10 +147,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get logout => '退出登录';
 
   @override
-  String get googleLogin => '使用 Google 继续';
+  String get googleLogin => '使用 Google 账号登录';
 
   @override
-  String get appleLogin => '使用 Apple 继续';
+  String get appleLogin => '使用 Apple 账号登录';
 
   @override
   String get homeTitle => '今日';
