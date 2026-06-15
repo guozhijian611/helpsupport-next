@@ -85,7 +85,7 @@ class AuthPageFrame extends ConsumerWidget {
                         child: _AppLogo(logoUrl: appConfig.logo),
                       ),
                       Positioned(
-                        top: logoTop + 106,
+                        top: logoTop + 122,
                         left: 24,
                         right: 24,
                         child: Text(
@@ -96,7 +96,7 @@ class AuthPageFrame extends ConsumerWidget {
                           style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(
                                 color: Colors.white,
-                                fontSize: 28,
+                                fontSize: 36,
                                 fontWeight: FontWeight.w800,
                                 height: 1.2,
                               ),
@@ -475,7 +475,7 @@ class _AppLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: SizedBox.square(
-        dimension: 76,
+        dimension: 96,
         child: logoUrl.isEmpty
             ? const _LogoFallback()
             : Image.network(
