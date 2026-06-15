@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/i18n/language_switcher.dart';
+import '../../../core/notifications/centered_notice.dart';
 import '../application/auth_controller.dart';
 import 'auth_page_frame.dart';
 
@@ -37,9 +38,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         context.go('/home');
       }
       if (next.hasError) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(_errorText(next.error))));
+        context.showCenteredNotice(_errorText(next.error));
       }
     });
 
@@ -197,9 +196,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    context.showCenteredNotice(message);
   }
 
   String _errorText(Object? error) {

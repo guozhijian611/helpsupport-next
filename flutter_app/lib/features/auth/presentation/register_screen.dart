@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/i18n/language_switcher.dart';
+import '../../../core/notifications/centered_notice.dart';
 import '../application/auth_controller.dart';
 import 'auth_page_frame.dart';
 
@@ -312,7 +313,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   void _showSnackBar(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    context.showCenteredNotice(text);
   }
 
   String _errorText(Object? error) {

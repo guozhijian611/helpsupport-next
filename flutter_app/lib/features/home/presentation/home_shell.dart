@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
+import '../../../core/notifications/centered_notice.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../community/presentation/community_feed_screen.dart';
 import '../../plan/presentation/plan_screen.dart';
@@ -28,9 +29,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         context.go('/login');
       }
       if (next.hasError) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(next.error.toString())));
+        context.showCenteredNotice(next.error.toString());
       }
     });
 

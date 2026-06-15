@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
+import '../../../core/notifications/centered_notice.dart';
 import '../application/community_controller.dart';
 import '../data/community_models.dart';
 import 'community_feed_screen.dart';
@@ -119,9 +120,7 @@ class _CommunityPostDetailScreenState
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      context.showCenteredNotice(error.toString());
     } finally {
       if (mounted) {
         setState(() => _isSending = false);

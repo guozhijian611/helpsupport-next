@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
+import '../../../core/notifications/centered_notice.dart';
 import '../application/chat_controller.dart';
 import '../data/chat_models.dart';
 
@@ -104,9 +105,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen> {
       ref.invalidate(chatOverviewProvider);
     } on Object catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+        context.showCenteredNotice(error.toString());
       }
     } finally {
       if (mounted) {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
+import '../../../core/notifications/centered_notice.dart';
 import '../application/local_model_controller.dart';
 import '../data/local_model_models.dart';
 
@@ -161,9 +162,7 @@ class _DownloadAction extends ConsumerWidget {
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      context.showCenteredNotice(error.toString());
     }
   }
 
@@ -176,9 +175,7 @@ class _DownloadAction extends ConsumerWidget {
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      context.showCenteredNotice(error.toString());
     }
   }
 }

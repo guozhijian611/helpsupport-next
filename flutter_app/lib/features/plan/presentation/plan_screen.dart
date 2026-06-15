@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
+import '../../../core/notifications/centered_notice.dart';
 import '../application/plan_controller.dart';
 import '../data/plan_models.dart';
 
@@ -209,16 +210,12 @@ class _TaskCard extends ConsumerWidget {
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(context.l10n.planTaskUpdated)));
+      context.showCenteredNotice(context.l10n.planTaskUpdated);
     } on Object catch (error) {
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      context.showCenteredNotice(error.toString());
     }
   }
 }

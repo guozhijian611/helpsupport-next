@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
+import '../../../core/notifications/centered_notice.dart';
 import '../application/community_controller.dart';
 
 class CommunityPostEditorScreen extends ConsumerStatefulWidget {
@@ -69,9 +70,7 @@ class _CommunityPostEditorScreenState
   Future<void> _submit(BuildContext context) async {
     final content = _contentController.text.trim();
     if (content.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(context.l10n.communityPostHint)));
+      context.showCenteredNotice(context.l10n.communityPostHint);
       return;
     }
 
@@ -84,17 +83,13 @@ class _CommunityPostEditorScreenState
       if (!context.mounted) {
         return;
       }
+      context.showCenteredNotice(context.l10n.communityPendingReview);
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.communityPendingReview)),
-      );
     } on Object catch (error) {
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      context.showCenteredNotice(error.toString());
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);

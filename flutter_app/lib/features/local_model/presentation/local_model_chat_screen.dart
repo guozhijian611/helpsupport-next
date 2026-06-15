@@ -5,6 +5,7 @@ import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/local_llm/llama_engine.dart';
 import '../../../core/local_llm/local_chat_store.dart';
 import '../../../core/local_llm/local_prompt_resolver.dart';
+import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../application/local_model_controller.dart';
 import '../data/local_model_models.dart';
@@ -229,9 +230,7 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
       await _loadMessages();
     } on Object catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+        context.showCenteredNotice(error.toString());
       }
     } finally {
       if (mounted) {
