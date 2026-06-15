@@ -18,9 +18,15 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isLoggingOut = ref.watch(authControllerProvider).isLoading;
+    final palette = _SettingsPalette.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(_t(context, '设置', 'Settings'))),
+      backgroundColor: palette.pageBackground,
+      appBar: AppBar(
+        title: Text(_t(context, '设置', 'Settings')),
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
@@ -217,8 +223,15 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _SettingsPalette.of(context);
+
     return Scaffold(
-      appBar: AppBar(title: Text(widget.section.title(context))),
+      backgroundColor: palette.pageBackground,
+      appBar: AppBar(
+        title: Text(widget.section.title(context)),
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
@@ -846,6 +859,116 @@ enum _PrivacyVisibility {
   }
 }
 
+class _SettingsPalette {
+  const _SettingsPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.cardBorder,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.valueText,
+    required this.groupTitle,
+    required this.divider,
+    required this.chevron,
+    required this.accent,
+    required this.danger,
+    required this.switchInactiveThumb,
+    required this.switchInactiveTrack,
+    required this.cardShadow,
+    required List<Color> accents,
+  }) : _accents = accents;
+
+  static const _lightAccent = Color(0xFFFF9585);
+  static const _lightBlue = Color(0xFF5A81DA);
+  static const _lightOrange = Color(0xFFFFAE4D);
+  static const _lightTeal = Color(0xFFA4C3CC);
+  static const _lightPurple = Color(0xFF986FF5);
+
+  static _SettingsPalette of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+
+    if (isDark) {
+      return _SettingsPalette(
+        pageBackground: scheme.surface,
+        cardBackground: scheme.surfaceContainerHigh,
+        cardBorder: Colors.white.withValues(alpha: 0.06),
+        primaryText: scheme.onSurface,
+        secondaryText: scheme.onSurfaceVariant,
+        valueText: scheme.onSurfaceVariant,
+        groupTitle: scheme.onSurfaceVariant,
+        divider: Colors.white.withValues(alpha: 0.08),
+        chevron: scheme.onSurfaceVariant.withValues(alpha: 0.72),
+        accent: const Color(0xFFFFB4A8),
+        danger: scheme.error,
+        switchInactiveThumb: scheme.onSurfaceVariant,
+        switchInactiveTrack: scheme.surfaceContainerHighest,
+        cardShadow: const [],
+        accents: const [
+          Color(0xFFFFB4A8),
+          Color(0xFF9BB7FF),
+          Color(0xFFFFC777),
+          Color(0xFFA9D4DC),
+          Color(0xFFCAB2FF),
+        ],
+      );
+    }
+
+    return _SettingsPalette(
+      pageBackground: const Color(0xFFF4F5F9),
+      cardBackground: Colors.white,
+      cardBorder: Colors.white.withValues(alpha: 0.72),
+      primaryText: const Color(0xFF303236),
+      secondaryText: const Color(0xFF96999F),
+      valueText: const Color(0xFF74777E),
+      groupTitle: const Color(0xFF7D8188),
+      divider: const Color(0xFFE7E9EF),
+      chevron: const Color(0xFFB6BAC2),
+      accent: _lightAccent,
+      danger: scheme.error,
+      switchInactiveThumb: Colors.white,
+      switchInactiveTrack: const Color(0xFFDADCE1),
+      cardShadow: [
+        BoxShadow(
+          color: const Color(0xFF9DA4B3).withValues(alpha: 0.10),
+          blurRadius: 22,
+          offset: const Offset(0, 10),
+        ),
+      ],
+      accents: const [
+        _lightAccent,
+        _lightBlue,
+        _lightOrange,
+        _lightTeal,
+        _lightPurple,
+      ],
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color cardBorder;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color valueText;
+  final Color groupTitle;
+  final Color divider;
+  final Color chevron;
+  final Color accent;
+  final Color danger;
+  final Color switchInactiveThumb;
+  final Color switchInactiveTrack;
+  final List<BoxShadow> cardShadow;
+  final List<Color> _accents;
+
+  Color accentFor(IconData? icon) {
+    if (icon == null) {
+      return accent;
+    }
+    return _accents[icon.codePoint % _accents.length];
+  }
+}
+
 class _SettingsGroup extends StatelessWidget {
   const _SettingsGroup({required this.children, this.title, this.footer});
 
@@ -856,6 +979,7 @@ class _SettingsGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final palette = _SettingsPalette.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
       child: Column(
@@ -867,31 +991,24 @@ class _SettingsGroup extends StatelessWidget {
               child: Text(
                 title!,
                 style: theme.textTheme.labelLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: palette.groupTitle,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           DecoratedBox(
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.55),
-              ),
+              color: palette.cardBackground,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: palette.cardBorder),
+              boxShadow: palette.cardShadow,
             ),
             child: Column(
               children: [
                 for (var index = 0; index < children.length; index += 1) ...[
                   children[index],
                   if (index != children.length - 1)
-                    Divider(
-                      height: 1,
-                      indent: 52,
-                      color: theme.colorScheme.outlineVariant.withValues(
-                        alpha: 0.65,
-                      ),
-                    ),
+                    Divider(height: 1, indent: 68, color: palette.divider),
                 ],
               ],
             ),
@@ -902,7 +1019,7 @@ class _SettingsGroup extends StatelessWidget {
               child: Text(
                 footer!,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: palette.secondaryText,
                   height: 1.4,
                 ),
               ),
@@ -935,25 +1052,28 @@ class _SettingsNavRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final titleColor = danger
-        ? theme.colorScheme.error
-        : theme.colorScheme.onSurface;
-    final secondaryColor = theme.colorScheme.onSurfaceVariant;
+    final palette = _SettingsPalette.of(context);
+    final accentColor = danger ? palette.danger : palette.accentFor(icon);
+    final titleColor = danger ? palette.danger : palette.primaryText;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(22),
       onTap: onTap,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 58),
+        constraints: const BoxConstraints(minHeight: 68),
         child: Padding(
-          padding: EdgeInsets.fromLTRB(icon == null ? 16 : 14, 10, 12, 10),
+          padding: EdgeInsets.fromLTRB(icon == null ? 18 : 16, 12, 14, 12),
           child: Row(
             children: [
               if (icon != null) ...[
-                Icon(
-                  icon,
-                  size: 22,
-                  color: danger ? theme.colorScheme.error : secondaryColor,
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: danger ? 0.10 : 0.16),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, size: 21, color: accentColor),
                 ),
                 const SizedBox(width: 14),
               ],
@@ -978,7 +1098,7 @@ class _SettingsNavRow extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: secondaryColor,
+                          color: palette.secondaryText,
                         ),
                       ),
                     ],
@@ -994,14 +1114,15 @@ class _SettingsNavRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: secondaryColor,
+                      color: palette.valueText,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ],
               if (showChevron && onTap != null) ...[
                 const SizedBox(width: 4),
-                Icon(Icons.chevron_right_rounded, color: secondaryColor),
+                Icon(Icons.chevron_right_rounded, color: palette.chevron),
               ],
             ],
           ),
@@ -1027,10 +1148,11 @@ class _SettingsSwitchRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final palette = _SettingsPalette.of(context);
     return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 58),
+      constraints: const BoxConstraints(minHeight: 68),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+        padding: const EdgeInsets.fromLTRB(18, 10, 14, 10),
         child: Row(
           children: [
             Expanded(
@@ -1043,6 +1165,7 @@ class _SettingsSwitchRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyLarge?.copyWith(
+                      color: palette.primaryText,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1053,14 +1176,21 @@ class _SettingsSwitchRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                        color: palette.secondaryText,
                       ),
                     ),
                   ],
                 ],
               ),
             ),
-            Switch(value: value, onChanged: onChanged),
+            Switch(
+              value: value,
+              onChanged: onChanged,
+              activeThumbColor: palette.accent,
+              activeTrackColor: palette.accent.withValues(alpha: 0.34),
+              inactiveThumbColor: palette.switchInactiveThumb,
+              inactiveTrackColor: palette.switchInactiveTrack,
+            ),
           ],
         ),
       ),
@@ -1081,11 +1211,17 @@ Future<T?> _showChoiceSheet<T>({
   required T currentValue,
   required List<_ChoiceSheetItem<T>> items,
 }) {
+  final palette = _SettingsPalette.of(context);
   return showModalBottomSheet<T>(
     context: context,
+    backgroundColor: palette.pageBackground,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
     showDragHandle: true,
     builder: (context) {
       final theme = Theme.of(context);
+      final palette = _SettingsPalette.of(context);
       return SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -1098,19 +1234,17 @@ Future<T?> _showChoiceSheet<T>({
                 child: Text(
                   title,
                   style: theme.textTheme.titleMedium?.copyWith(
+                    color: palette.primaryText,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
               DecoratedBox(
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerLowest,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: theme.colorScheme.outlineVariant.withValues(
-                      alpha: 0.55,
-                    ),
-                  ),
+                  color: palette.cardBackground,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: palette.cardBorder),
+                  boxShadow: palette.cardShadow,
                 ),
                 child: Column(
                   children: [
@@ -1120,13 +1254,7 @@ Future<T?> _showChoiceSheet<T>({
                         selected: items[index].value == currentValue,
                       ),
                       if (index != items.length - 1)
-                        Divider(
-                          height: 1,
-                          indent: 16,
-                          color: theme.colorScheme.outlineVariant.withValues(
-                            alpha: 0.65,
-                          ),
-                        ),
+                        Divider(height: 1, indent: 16, color: palette.divider),
                     ],
                   ],
                 ),
@@ -1152,16 +1280,24 @@ class _ChoiceSheetRow<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final palette = _SettingsPalette.of(context);
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(22),
       onTap: () => Navigator.of(context).pop(item.value),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: Row(
           children: [
-            Expanded(child: Text(item.label, style: theme.textTheme.bodyLarge)),
-            if (selected)
-              Icon(Icons.check_rounded, color: theme.colorScheme.primary),
+            Expanded(
+              child: Text(
+                item.label,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: selected ? palette.accent : palette.primaryText,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ),
+            if (selected) Icon(Icons.check_rounded, color: palette.accent),
           ],
         ),
       ),
