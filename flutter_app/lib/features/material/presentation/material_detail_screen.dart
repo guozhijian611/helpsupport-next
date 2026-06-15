@@ -33,12 +33,18 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialDetailPalette.of(context);
     final material = ref.watch(materialDetailProvider(widget.materialId));
     final comments = ref.watch(materialCommentsProvider(widget.materialId));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
-      appBar: AppBar(title: Text(_t(context, '素材详情', 'Material'))),
+      backgroundColor: palette.pageBackground,
+      appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
+        title: Text(_t(context, '素材详情', 'Material')),
+      ),
       body: SafeArea(
         child: material.when(
           data: (item) {
@@ -172,13 +178,14 @@ class _MaterialHero extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _MaterialDetailPalette.of(context);
     final apiClient = ref.watch(apiClientProvider);
     final url = apiClient.resolveUrl(item.coverUrl);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -198,8 +205,8 @@ class _MaterialHero extends ConsumerWidget {
           if (url.isNotEmpty) const SizedBox(height: 16),
           Text(
             item.title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 24,
               fontWeight: FontWeight.w800,
               height: 1.25,
@@ -214,8 +221,8 @@ class _MaterialHero extends ConsumerWidget {
                     '打开内容详情后，你可以继续阅读、收藏或发表评论。',
                     'Open the content to read more, save it, or leave a comment.',
                   ),
-            style: const TextStyle(
-              color: Color(0xFF5E6470),
+            style: TextStyle(
+              color: palette.bodyText,
               height: 1.6,
               fontWeight: FontWeight.w500,
             ),
@@ -261,8 +268,8 @@ class _MaterialHero extends ConsumerWidget {
               const Spacer(),
               Text(
                 item.createTime,
-                style: const TextStyle(
-                  color: Color(0xFF96999F),
+                style: TextStyle(
+                  color: palette.secondaryText,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -306,10 +313,11 @@ class _MaterialContentSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialDetailPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -317,8 +325,8 @@ class _MaterialContentSection extends StatelessWidget {
         children: [
           Text(
             _t(context, '内容概览', 'Overview'),
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -327,8 +335,8 @@ class _MaterialContentSection extends StatelessWidget {
           if (item.contentText.isNotEmpty)
             SelectableText(
               item.contentText,
-              style: const TextStyle(
-                color: Color(0xFF4A4D55),
+              style: TextStyle(
+                color: palette.bodyText,
                 fontSize: 15,
                 height: 1.75,
               ),
@@ -342,8 +350,8 @@ class _MaterialContentSection extends StatelessWidget {
                       '当前内容主要通过外部地址提供，你可以点击下面的按钮继续查看。',
                       'This content is mainly provided through an external source.',
                     ),
-              style: const TextStyle(
-                color: Color(0xFF4A4D55),
+              style: TextStyle(
+                color: palette.bodyText,
                 fontSize: 15,
                 height: 1.7,
               ),
@@ -383,13 +391,14 @@ class _MaterialCommentCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _MaterialDetailPalette.of(context);
     final apiClient = ref.watch(apiClientProvider);
     final avatarUrl = apiClient.resolveUrl(comment.authorAvatar);
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
@@ -397,7 +406,7 @@ class _MaterialCommentCard extends ConsumerWidget {
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundColor: const Color(0xFFF8E3DB),
+            backgroundColor: palette.avatarBackground,
             backgroundImage: avatarUrl.isNotEmpty
                 ? NetworkImage(avatarUrl)
                 : null,
@@ -415,8 +424,8 @@ class _MaterialCommentCard extends ConsumerWidget {
               children: [
                 Text(
                   comment.authorName,
-                  style: const TextStyle(
-                    color: Color(0xFF979CA4),
+                  style: TextStyle(
+                    color: palette.secondaryText,
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                   ),
@@ -424,8 +433,8 @@ class _MaterialCommentCard extends ConsumerWidget {
                 const SizedBox(height: 8),
                 Text(
                   comment.content,
-                  style: const TextStyle(
-                    color: Color(0xFF303236),
+                  style: TextStyle(
+                    color: palette.primaryText,
                     fontSize: 16,
                     height: 1.65,
                   ),
@@ -435,16 +444,16 @@ class _MaterialCommentCard extends ConsumerWidget {
                   children: [
                     Text(
                       comment.createTime,
-                      style: const TextStyle(
-                        color: Color(0xFFB0B3BA),
+                      style: TextStyle(
+                        color: palette.mutedText,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(width: 14),
                     Text(
                       _t(context, '回复', 'Reply'),
-                      style: const TextStyle(
-                        color: Color(0xFF9CA1AA),
+                      style: TextStyle(
+                        color: palette.secondaryText,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -463,7 +472,7 @@ class _MaterialCommentCard extends ConsumerWidget {
                   : Icons.thumb_up_alt_outlined,
               color: comment.isLiked
                   ? const Color(0xFFFF9585)
-                  : const Color(0xFF4A4D55),
+                  : palette.bodyText,
             ),
           ),
         ],
@@ -498,8 +507,9 @@ class _CommentComposer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialDetailPalette.of(context);
     return Material(
-      color: Colors.white,
+      color: palette.cardBackground,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
           16,
@@ -517,7 +527,7 @@ class _CommentComposer extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: _t(context, '说两句...', 'Say something...'),
                 filled: true,
-                fillColor: const Color(0xFFF4F5F9),
+                fillColor: palette.softBackground,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
@@ -558,16 +568,17 @@ class _HeroChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialDetailPalette.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F5F9),
+        color: palette.softBackground,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: Color(0xFF4A4D55),
+        style: TextStyle(
+          color: palette.bodyText,
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),
@@ -591,13 +602,14 @@ class _ActionStatButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialDetailPalette.of(context);
     return InkWell(
       borderRadius: BorderRadius.circular(999),
       onTap: onTap,
       child: Ink(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: active ? const Color(0xFFFFF1ED) : const Color(0xFFF4F5F9),
+          color: active ? palette.activeSoftBackground : palette.softBackground,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Row(
@@ -606,15 +618,13 @@ class _ActionStatButton extends StatelessWidget {
             Icon(
               icon,
               size: 18,
-              color: active ? const Color(0xFFFF9585) : const Color(0xFF6D727A),
+              color: active ? const Color(0xFFFF9585) : palette.bodyText,
             ),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                color: active
-                    ? const Color(0xFFFF9585)
-                    : const Color(0xFF6D727A),
+                color: active ? const Color(0xFFFF9585) : palette.bodyText,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -633,12 +643,13 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialDetailPalette.of(context);
     return Row(
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: Color(0xFF303236),
+          style: TextStyle(
+            color: palette.primaryText,
             fontSize: 22,
             fontWeight: FontWeight.w800,
           ),
@@ -646,8 +657,8 @@ class _SectionTitle extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           '$count',
-          style: const TextStyle(
-            color: Color(0xFF9CA1AA),
+          style: TextStyle(
+            color: palette.secondaryText,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -663,17 +674,18 @@ class _CommentEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialDetailPalette.of(context);
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Center(
         child: Text(
           text,
           textAlign: TextAlign.center,
-          style: const TextStyle(color: Color(0xFF7D828A), height: 1.5),
+          style: TextStyle(color: palette.secondaryText, height: 1.5),
         ),
       ),
     );
@@ -693,4 +705,52 @@ String _mediaTitle(BuildContext context, String mediaType) {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _MaterialDetailPalette {
+  const _MaterialDetailPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.softBackground,
+    required this.activeSoftBackground,
+    required this.avatarBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.mutedText,
+    required this.bodyText,
+  });
+
+  factory _MaterialDetailPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _MaterialDetailPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      softBackground: scheme.surfaceContainerLow,
+      activeSoftBackground: isDark
+          ? const Color(0x33FF9585)
+          : const Color(0xFFFFF1ED),
+      avatarBackground: isDark
+          ? scheme.primaryContainer.withValues(alpha: 0.28)
+          : const Color(0xFFF8E3DB),
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
+          : const Color(0xFFB0B3BA),
+      bodyText: isDark
+          ? scheme.onSurface.withValues(alpha: 0.84)
+          : const Color(0xFF4A4D55),
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color softBackground;
+  final Color activeSoftBackground;
+  final Color avatarBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color mutedText;
+  final Color bodyText;
 }

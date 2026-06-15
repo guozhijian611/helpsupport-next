@@ -15,10 +15,9 @@ import '../../plan/application/plan_controller.dart';
 class HomeDashboardScreen extends ConsumerWidget {
   const HomeDashboardScreen({super.key});
 
-  static const _pageBackground = Color(0xFFF4F5F9);
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _HomeDashboardPalette.of(context);
     final authState = ref.watch(authControllerProvider);
     final overview = ref.watch(chatOverviewProvider);
     final plans = ref.watch(currentPlansProvider);
@@ -47,7 +46,7 @@ class HomeDashboardScreen extends ConsumerWidget {
     final badge = _badgeText(unreadCount.asData?.value ?? 0);
 
     return ColoredBox(
-      color: _pageBackground,
+      color: palette.pageBackground,
       child: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(chatOverviewProvider);
@@ -147,7 +146,7 @@ class HomeDashboardScreen extends ConsumerWidget {
                     trailing: Text(
                       _planSummaryText(context, plansData),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF96999F),
+                        color: palette.secondaryText,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -323,6 +322,7 @@ class _HomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _HomeDashboardPalette.of(context);
     return Row(
       children: [
         _ProfileAvatar(avatarUrl: avatarUrl, size: 56),
@@ -333,8 +333,8 @@ class _HomeHeader extends StatelessWidget {
             children: [
               Text(
                 _t(context, 'Good morning!', 'Good morning!'),
-                style: const TextStyle(
-                  color: Color(0xFFB0B3BA),
+                style: TextStyle(
+                  color: palette.secondaryText,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -344,8 +344,8 @@ class _HomeHeader extends StatelessWidget {
                 name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF303236),
+                style: TextStyle(
+                  color: palette.primaryText,
                   fontSize: 21,
                   fontWeight: FontWeight.w800,
                 ),
@@ -517,13 +517,14 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _HomeDashboardPalette.of(context);
     return Row(
       children: [
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 26,
               fontWeight: FontWeight.w800,
             ),
@@ -648,6 +649,7 @@ class _ConversationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _HomeDashboardPalette.of(context);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -656,15 +658,15 @@ class _ConversationCard extends StatelessWidget {
         child: Ink(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.72),
+            color: palette.cardBackground,
             borderRadius: BorderRadius.circular(24),
           ),
           child: Row(
             children: [
               Text(
                 '#${session.id}',
-                style: const TextStyle(
-                  color: Color(0xFF303236),
+                style: TextStyle(
+                  color: palette.primaryText,
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
                 ),
@@ -689,8 +691,8 @@ class _ConversationCard extends StatelessWidget {
                       _conversationSubtitle(context, session),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF96999F),
+                      style: TextStyle(
+                        color: palette.secondaryText,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -705,7 +707,7 @@ class _ConversationCard extends StatelessWidget {
                   color: Color(0xFFF19484),
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: Color(0xFF96999F)),
+              Icon(Icons.chevron_right_rounded, color: palette.secondaryText),
             ],
           ),
         ),
@@ -721,10 +723,11 @@ class _EmptyConversationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _HomeDashboardPalette.of(context);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
@@ -745,8 +748,8 @@ class _EmptyConversationCard extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(
-                color: Color(0xFF7D828A),
+              style: TextStyle(
+                color: palette.secondaryText,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 height: 1.45,
@@ -766,10 +769,11 @@ class _CommunityTeaser extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _HomeDashboardPalette.of(context);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -777,8 +781,8 @@ class _CommunityTeaser extends StatelessWidget {
         children: [
           Text(
             post.authorName as String,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -788,8 +792,8 @@ class _CommunityTeaser extends StatelessWidget {
             post.content as String,
             maxLines: 4,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF4A4D55),
+            style: TextStyle(
+              color: palette.bodyText,
               fontSize: 15,
               height: 1.6,
               fontWeight: FontWeight.w500,
@@ -828,21 +832,22 @@ class _MetaChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _HomeDashboardPalette.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF6F7FB),
+        color: palette.softBackground,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: const Color(0xFF7D828A)),
+          Icon(icon, size: 18, color: palette.secondaryText),
           const SizedBox(width: 6),
           Text(
             text,
-            style: const TextStyle(
-              color: Color(0xFF7D828A),
+            style: TextStyle(
+              color: palette.secondaryText,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -867,10 +872,11 @@ class _InfoPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _HomeDashboardPalette.of(context);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -878,8 +884,8 @@ class _InfoPanel extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 16,
               fontWeight: FontWeight.w800,
             ),
@@ -887,8 +893,8 @@ class _InfoPanel extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: const TextStyle(
-              color: Color(0xFF7D828A),
+            style: TextStyle(
+              color: palette.secondaryText,
               fontSize: 14,
               height: 1.5,
             ),
@@ -927,10 +933,11 @@ class _InfoPanelSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _HomeDashboardPalette.of(context);
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: const Center(child: CircularProgressIndicator()),
@@ -951,11 +958,12 @@ class _CircularActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _HomeDashboardPalette.of(context);
     return Stack(
       clipBehavior: Clip.none,
       children: [
         Material(
-          color: Colors.white,
+          color: palette.cardBackground,
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
@@ -963,7 +971,7 @@ class _CircularActionButton extends StatelessWidget {
             child: SizedBox(
               width: 50,
               height: 50,
-              child: Icon(icon, color: const Color(0xFF303236)),
+              child: Icon(icon, color: palette.primaryText),
             ),
           ),
         ),
@@ -1007,20 +1015,20 @@ class _ProfileAvatar extends StatelessWidget {
               width: size,
               height: size,
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => _avatarFallback(size),
+              errorBuilder: (_, _, _) => _avatarFallback(context, size),
             ),
           )
-        : _avatarFallback(size);
+        : _avatarFallback(context, size);
 
     return SizedBox(width: size, height: size, child: child);
   }
 
-  Widget _avatarFallback(double size) {
+  Widget _avatarFallback(BuildContext context, double size) {
     return Container(
       width: size,
       height: size,
-      decoration: const BoxDecoration(
-        color: Color(0xFFF8E3DB),
+      decoration: BoxDecoration(
+        color: _HomeDashboardPalette.of(context).avatarBackground,
         shape: BoxShape.circle,
       ),
       child: const Icon(Icons.person_rounded, color: Color(0xFFFF9585)),
@@ -1130,6 +1138,46 @@ class _ModeVisualData {
       ),
     };
   }
+}
+
+class _HomeDashboardPalette {
+  const _HomeDashboardPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.softBackground,
+    required this.avatarBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.bodyText,
+  });
+
+  factory _HomeDashboardPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _HomeDashboardPalette(
+      pageBackground: scheme.surface,
+      cardBackground: isDark
+          ? scheme.surfaceContainerLow
+          : Colors.white.withValues(alpha: 0.88),
+      softBackground: scheme.surfaceContainerLow,
+      avatarBackground: isDark
+          ? scheme.primaryContainer.withValues(alpha: 0.28)
+          : const Color(0xFFF8E3DB),
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      bodyText: isDark
+          ? scheme.onSurface.withValues(alpha: 0.84)
+          : const Color(0xFF4A4D55),
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color softBackground;
+  final Color avatarBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color bodyText;
 }
 
 String _modeDescription(BuildContext context, String mode) {

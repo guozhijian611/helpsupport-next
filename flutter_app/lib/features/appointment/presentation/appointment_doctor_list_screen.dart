@@ -28,12 +28,16 @@ class _AppointmentDoctorListScreenState
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentDoctorListPalette.of(context);
     final query = AppointmentDoctorQuery(keyword: _keyword);
     final doctors = ref.watch(appointmentDoctorListProvider(query));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(_t(context, '预约真人医生', 'Book a doctor')),
         centerTitle: true,
         actions: [
@@ -114,14 +118,15 @@ class _AppointmentSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentDoctorListPalette.of(context);
     return Row(
       children: [
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: palette.cardBackground,
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: const Color(0xFFE4E7EC)),
+              border: Border.all(color: palette.outline),
             ),
             child: TextField(
               controller: controller,
@@ -134,9 +139,10 @@ class _AppointmentSearchBar extends StatelessWidget {
                   vertical: 16,
                 ),
                 hintText: _t(context, '输入关键词', 'Search doctor'),
-                prefixIcon: const Icon(
+                hintStyle: TextStyle(color: palette.secondaryText),
+                prefixIcon: Icon(
                   Icons.search_rounded,
-                  color: Color(0xFFA1A6AF),
+                  color: palette.secondaryText,
                 ),
               ),
             ),
@@ -157,6 +163,7 @@ class _DoctorListCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final screenPalette = _AppointmentDoctorListPalette.of(context);
     final apiClient = ref.watch(apiClientProvider);
     final avatarUrl = apiClient.resolveUrl(doctor.avatar);
     final subtitleParts = [
@@ -173,7 +180,7 @@ class _DoctorListCard extends ConsumerWidget {
         child: Ink(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: screenPalette.cardBackground,
             borderRadius: BorderRadius.circular(28),
           ),
           child: Row(
@@ -198,8 +205,8 @@ class _DoctorListCard extends ConsumerWidget {
                   children: [
                     Text(
                       doctor.displayName,
-                      style: const TextStyle(
-                        color: Color(0xFF303236),
+                      style: TextStyle(
+                        color: screenPalette.primaryText,
                         fontSize: 19,
                         fontWeight: FontWeight.w800,
                       ),
@@ -210,8 +217,8 @@ class _DoctorListCard extends ConsumerWidget {
                         subtitleParts.join(' / '),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF70757D),
+                        style: TextStyle(
+                          color: screenPalette.bodyText,
                           fontSize: 14,
                           height: 1.5,
                         ),
@@ -227,8 +234,8 @@ class _DoctorListCard extends ConsumerWidget {
                           : doctor.specialty,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF9AA0A8),
+                      style: TextStyle(
+                        color: screenPalette.secondaryText,
                         fontSize: 14,
                         height: 1.45,
                       ),
@@ -269,16 +276,17 @@ class _DoctorAvatarPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentDoctorListPalette.of(context);
     final initial = doctor.displayName.characters.first.toUpperCase();
     return Container(
       width: size,
       height: size,
-      color: const Color(0xFFEDEFF4),
+      color: palette.avatarBackground,
       alignment: Alignment.center,
       child: Text(
         initial,
         style: TextStyle(
-          color: const Color(0xFF7E8490),
+          color: palette.secondaryText,
           fontSize: size * 0.32,
           fontWeight: FontWeight.w800,
         ),
@@ -302,10 +310,11 @@ class _EmptyStateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentDoctorListPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -319,8 +328,8 @@ class _EmptyStateCard extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
@@ -329,8 +338,8 @@ class _EmptyStateCard extends StatelessWidget {
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF8B9099),
+            style: TextStyle(
+              color: palette.secondaryText,
               fontSize: 14,
               height: 1.6,
             ),
@@ -350,6 +359,7 @@ class _DoctorListSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentDoctorListPalette.of(context);
     return Column(
       children: List<Widget>.generate(
         4,
@@ -358,7 +368,7 @@ class _DoctorListSkeleton extends StatelessWidget {
           child: Container(
             height: 146,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: palette.cardBackground,
               borderRadius: BorderRadius.circular(28),
             ),
           ),
@@ -370,4 +380,42 @@ class _DoctorListSkeleton extends StatelessWidget {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _AppointmentDoctorListPalette {
+  const _AppointmentDoctorListPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.avatarBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.bodyText,
+    required this.outline,
+  });
+
+  factory _AppointmentDoctorListPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _AppointmentDoctorListPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      avatarBackground: isDark
+          ? scheme.surfaceContainerHigh
+          : const Color(0xFFEDEFF4),
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      bodyText: isDark
+          ? scheme.onSurface.withValues(alpha: 0.84)
+          : const Color(0xFF70757D),
+      outline: scheme.outlineVariant,
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color avatarBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color bodyText;
+  final Color outline;
 }

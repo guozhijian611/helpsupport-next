@@ -12,12 +12,16 @@ class MemoirScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _MemoirPalette.of(context);
     final memoirs = ref.watch(memoirItemsProvider);
     final configs = ref.watch(memoirConfigsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(_t(context, '回忆录', 'Memoir')),
         centerTitle: true,
       ),
@@ -88,11 +92,15 @@ class MemoirDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _MemoirPalette.of(context);
     final detail = ref.watch(memoirDetailProvider(id));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(_t(context, '回忆录详情', 'Memoir detail')),
         centerTitle: true,
       ),
@@ -106,7 +114,7 @@ class MemoirDetailScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: palette.cardBackground,
                   borderRadius: BorderRadius.circular(28),
                 ),
                 child: Column(
@@ -114,8 +122,8 @@ class MemoirDetailScreen extends ConsumerWidget {
                   children: [
                     Text(
                       item.title,
-                      style: const TextStyle(
-                        color: Color(0xFF303236),
+                      style: TextStyle(
+                        color: palette.primaryText,
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
                       ),
@@ -150,8 +158,8 @@ class MemoirDetailScreen extends ConsumerWidget {
                               '系统会根据你的日记、任务与成长阶段生成这份回忆录。',
                               'This memoir is generated from your journals, tasks, and progress.',
                             ),
-                      style: const TextStyle(
-                        color: Color(0xFF4A4D55),
+                      style: TextStyle(
+                        color: palette.bodyText,
                         fontSize: 15,
                         height: 1.7,
                       ),
@@ -198,6 +206,7 @@ class _MemoirCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _MemoirPalette.of(context);
     final url = ref.watch(apiClientProvider).resolveUrl(item.cover);
 
     return Material(
@@ -231,8 +240,8 @@ class _MemoirCard extends ConsumerWidget {
                 'Date: ${item.sourceMonth.isEmpty ? item.createTime : item.sourceMonth}',
               ),
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFF9A9EA6),
+              style: TextStyle(
+                color: palette.secondaryText,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -377,10 +386,11 @@ class _MemoirConfigPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MemoirPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -388,8 +398,8 @@ class _MemoirConfigPanel extends StatelessWidget {
         children: [
           Text(
             _t(context, '回忆录生成规则', 'Memoir generation rules'),
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
@@ -402,7 +412,7 @@ class _MemoirConfigPanel extends StatelessWidget {
                 '当累计的日记和任务达到条件后，系统会自动生成回忆录。',
                 'A memoir will be generated automatically once your journals and tasks meet the rule.',
               ),
-              style: const TextStyle(color: Color(0xFF7D828A), height: 1.6),
+              style: TextStyle(color: palette.secondaryText, height: 1.6),
             )
           else
             ...configs.map(
@@ -427,10 +437,7 @@ class _MemoirConfigPanel extends StatelessWidget {
                           '${item.name}：至少 ${item.minJournalCount} 篇日记，${_cycleLabel(context, item.generationCycle)}生成',
                           '${item.name}: at least ${item.minJournalCount} journals, ${_cycleLabel(context, item.generationCycle)} generation',
                         ),
-                        style: const TextStyle(
-                          color: Color(0xFF4A4D55),
-                          height: 1.55,
-                        ),
+                        style: TextStyle(color: palette.bodyText, height: 1.55),
                       ),
                     ),
                   ],
@@ -450,16 +457,17 @@ class _MetaChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MemoirPalette.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F5F9),
+        color: palette.softBackground,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: Color(0xFF6A6E76),
+        style: TextStyle(
+          color: palette.bodyText,
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),
@@ -476,10 +484,11 @@ class _EmptyPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MemoirPalette.of(context);
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -492,8 +501,8 @@ class _EmptyPanel extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -502,7 +511,7 @@ class _EmptyPanel extends StatelessWidget {
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF7D828A), height: 1.5),
+            style: TextStyle(color: palette.secondaryText, height: 1.5),
           ),
         ],
       ),
@@ -536,10 +545,11 @@ class _PanelSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MemoirPalette.of(context);
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
     );
@@ -556,4 +566,37 @@ String _cycleLabel(BuildContext context, String value) {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _MemoirPalette {
+  const _MemoirPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.softBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.bodyText,
+  });
+
+  factory _MemoirPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _MemoirPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      softBackground: scheme.surfaceContainerLow,
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      bodyText: isDark
+          ? scheme.onSurface.withValues(alpha: 0.84)
+          : const Color(0xFF4A4D55),
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color softBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color bodyText;
 }

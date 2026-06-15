@@ -18,13 +18,14 @@ class AppointmentDoctorDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _AppointmentDoctorDetailPalette.of(context);
     final doctor = ref.watch(appointmentDoctorDetailProvider(doctorId));
     final slots = ref.watch(
       appointmentSlotsProvider(AppointmentSlotQuery(doctorId: doctorId)),
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       body: SafeArea(
         bottom: false,
         child: doctor.when(
@@ -65,6 +66,7 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _AppointmentDoctorDetailPalette.of(context);
     final apiClient = ref.watch(apiClientProvider);
     final avatarUrl = apiClient.resolveUrl(doctor.avatar);
     final minPrice = slots.isEmpty
@@ -106,8 +108,8 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
               child: Transform.translate(
                 offset: const Offset(0, -30),
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF4F5F9),
+                  decoration: BoxDecoration(
+                    color: palette.pageBackground,
                     borderRadius: BorderRadius.vertical(
                       top: Radius.circular(34),
                     ),
@@ -123,8 +125,8 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
                             Expanded(
                               child: Text(
                                 doctor.displayName,
-                                style: const TextStyle(
-                                  color: Color(0xFF303236),
+                                style: TextStyle(
+                                  color: palette.primaryText,
                                   fontSize: 26,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -135,8 +137,8 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
                                 padding: const EdgeInsets.only(top: 6),
                                 child: RichText(
                                   text: TextSpan(
-                                    style: const TextStyle(
-                                      color: Color(0xFFAAAFB7),
+                                    style: TextStyle(
+                                      color: palette.secondaryText,
                                       fontSize: 16,
                                     ),
                                     children: [
@@ -164,8 +166,8 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
                             if (doctor.hospital.isNotEmpty) doctor.hospital,
                             if (doctor.department.isNotEmpty) doctor.department,
                           ].join(' / '),
-                          style: const TextStyle(
-                            color: Color(0xFF70757D),
+                          style: TextStyle(
+                            color: palette.bodyText,
                             fontSize: 16,
                             height: 1.6,
                           ),
@@ -178,8 +180,8 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
                         _ContentCard(
                           child: Text(
                             _doctorIntro(context, doctor),
-                            style: const TextStyle(
-                              color: Color(0xFF4A4D55),
+                            style: TextStyle(
+                              color: palette.bodyText,
                               fontSize: 16,
                               height: 1.8,
                             ),
@@ -360,6 +362,7 @@ class _DoctorHeroFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentDoctorDetailPalette.of(context);
     return DecoratedBox(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -371,11 +374,11 @@ class _DoctorHeroFallback extends StatelessWidget {
       child: Center(
         child: CircleAvatar(
           radius: 62,
-          backgroundColor: Colors.white,
+          backgroundColor: palette.cardBackground,
           child: Text(
             doctor.displayName.characters.first,
-            style: const TextStyle(
-              color: Color(0xFF7E8490),
+            style: TextStyle(
+              color: palette.secondaryText,
               fontSize: 42,
               fontWeight: FontWeight.w800,
             ),
@@ -482,10 +485,11 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentDoctorDetailPalette.of(context);
     return Text(
       title,
-      style: const TextStyle(
-        color: Color(0xFF303236),
+      style: TextStyle(
+        color: palette.primaryText,
         fontSize: 20,
         fontWeight: FontWeight.w800,
       ),
@@ -500,11 +504,12 @@ class _ContentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentDoctorDetailPalette.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: child,
@@ -520,11 +525,12 @@ class _SpecialtyTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentDoctorDetailPalette.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FC),
+        color: palette.softBackground,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
@@ -541,8 +547,8 @@ class _SpecialtyTile extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             subtitle,
-            style: const TextStyle(
-              color: Color(0xFF636872),
+            style: TextStyle(
+              color: palette.bodyText,
               fontSize: 15,
               height: 1.6,
             ),
@@ -560,17 +566,18 @@ class _InlineNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentDoctorDetailPalette.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Text(
         message,
-        style: const TextStyle(
-          color: Color(0xFF7D828A),
+        style: TextStyle(
+          color: palette.secondaryText,
           fontSize: 14,
           height: 1.6,
         ),
@@ -596,11 +603,12 @@ class _AppointmentSlotSheetState extends ConsumerState<_AppointmentSlotSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentDoctorDetailPalette.of(context);
     final grouped = _groupSlots(widget.slots);
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
       child: SafeArea(
@@ -621,8 +629,8 @@ class _AppointmentSlotSheetState extends ConsumerState<_AppointmentSlotSheet> {
                     child: Center(
                       child: Text(
                         _t(context, '选择预约时间', 'Choose appointment time'),
-                        style: const TextStyle(
-                          color: Color(0xFF303236),
+                        style: TextStyle(
+                          color: palette.primaryText,
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
                         ),
@@ -643,8 +651,8 @@ class _AppointmentSlotSheetState extends ConsumerState<_AppointmentSlotSheet> {
                     '共${widget.slots.length}个时间段可选',
                     '${widget.slots.length} time slots available',
                   ),
-                  style: const TextStyle(
-                    color: Color(0xFF7D828A),
+                  style: TextStyle(
+                    color: palette.secondaryText,
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
@@ -720,6 +728,7 @@ class _AppointmentSlotSheetState extends ConsumerState<_AppointmentSlotSheet> {
     if (slot == null) {
       return;
     }
+    final palette = _AppointmentDoctorDetailPalette.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -730,7 +739,7 @@ class _AppointmentSlotSheetState extends ConsumerState<_AppointmentSlotSheet> {
           children: [
             Text(
               _t(context, '您预约的时间段是', 'You are booking the following slot'),
-              style: const TextStyle(color: Color(0xFF8C919A), fontSize: 16),
+              style: TextStyle(color: palette.secondaryText, fontSize: 16),
             ),
             const SizedBox(height: 18),
             _ConfirmRow(
@@ -798,8 +807,8 @@ class _AppointmentSlotSheetState extends ConsumerState<_AppointmentSlotSheet> {
               const SizedBox(height: 18),
               Text(
                 _t(context, '预约成功', 'Booking successful'),
-                style: const TextStyle(
-                  color: Color(0xFF303236),
+                style: TextStyle(
+                  color: palette.primaryText,
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
                 ),
@@ -812,8 +821,8 @@ class _AppointmentSlotSheetState extends ConsumerState<_AppointmentSlotSheet> {
                   'Your booking request has been submitted. You can track it in My bookings.',
                 ),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF8B9099),
+                style: TextStyle(
+                  color: palette.secondaryText,
                   fontSize: 15,
                   height: 1.6,
                 ),
@@ -862,6 +871,7 @@ class _SlotDayBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentDoctorDetailPalette.of(context);
     final parsedDay = DateTime.tryParse(day);
     final dateLabel = parsedDay == null
         ? day
@@ -874,15 +884,15 @@ class _SlotDayBlock extends StatelessWidget {
           width: 78,
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFFF4F5F9),
+            color: palette.softBackground,
             borderRadius: BorderRadius.circular(18),
           ),
           child: Column(
             children: [
               Text(
                 _weekdayLabel(context, day),
-                style: const TextStyle(
-                  color: Color(0xFF7C818A),
+                style: TextStyle(
+                  color: palette.bodyText,
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
@@ -890,8 +900,8 @@ class _SlotDayBlock extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 dateLabel,
-                style: const TextStyle(
-                  color: Color(0xFF9AA0A8),
+                style: TextStyle(
+                  color: palette.secondaryText,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -918,21 +928,19 @@ class _SlotDayBlock extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: selected
                             ? const Color(0xFFFF9585)
-                            : Colors.white,
+                            : palette.cardBackground,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: selected
                               ? const Color(0xFFFF9585)
-                              : const Color(0xFFD7DCE4),
+                              : palette.outline,
                         ),
                       ),
                       child: Text(
                         slot.timeSlot.replaceAll('-', '\n'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: selected
-                              ? Colors.white
-                              : const Color(0xFF6D737D),
+                          color: selected ? Colors.white : palette.bodyText,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                           height: 1.35,
@@ -957,12 +965,13 @@ class _ConfirmRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentDoctorDetailPalette.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
           label,
-          style: const TextStyle(color: Color(0xFF8B9099), fontSize: 17),
+          style: TextStyle(color: palette.secondaryText, fontSize: 17),
         ),
         const SizedBox(width: 14),
         Flexible(
@@ -1006,4 +1015,42 @@ String _weekdayLabel(BuildContext context, String day) {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _AppointmentDoctorDetailPalette {
+  const _AppointmentDoctorDetailPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.softBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.bodyText,
+    required this.outline,
+  });
+
+  factory _AppointmentDoctorDetailPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _AppointmentDoctorDetailPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      softBackground: isDark
+          ? scheme.surfaceContainerHigh
+          : const Color(0xFFF5F7FC),
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      bodyText: isDark
+          ? scheme.onSurface.withValues(alpha: 0.84)
+          : const Color(0xFF4A4D55),
+      outline: scheme.outlineVariant,
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color softBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color bodyText;
+  final Color outline;
 }

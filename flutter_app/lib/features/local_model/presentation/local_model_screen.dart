@@ -34,6 +34,7 @@ class _LocalModelScreenState extends ConsumerState<LocalModelScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _LocalModelScreenPalette.of(context);
     final catalog = ref.watch(localModelCatalogProvider);
     final downloadStates = ref.watch(localModelDownloadControllerProvider);
     final states = downloadStates.hasValue
@@ -41,8 +42,11 @@ class _LocalModelScreenState extends ConsumerState<LocalModelScreen> {
         : const <int, LocalModelDownloadState>{};
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(context.l10n.localModelTitle),
         centerTitle: true,
       ),
@@ -254,14 +258,15 @@ class _SearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _LocalModelScreenPalette.of(context);
     return Row(
       children: [
         Expanded(
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: palette.cardBackground,
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: const Color(0xFFE4E7EC)),
+              border: Border.all(color: palette.outline),
             ),
             child: TextField(
               controller: controller,
@@ -269,7 +274,11 @@ class _SearchBar extends StatelessWidget {
               onSubmitted: (_) => onSearch(),
               decoration: InputDecoration(
                 hintText: _t(context, '输入关键词', 'Search by keyword'),
-                prefixIcon: const Icon(Icons.search_rounded),
+                hintStyle: TextStyle(color: palette.secondaryText),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: palette.secondaryText,
+                ),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(vertical: 16),
               ),
@@ -291,9 +300,10 @@ class _FilterTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _LocalModelScreenPalette.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
@@ -333,6 +343,7 @@ class _FilterTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _LocalModelScreenPalette.of(context);
     return InkWell(
       borderRadius: BorderRadius.circular(18),
       onTap: onTap,
@@ -342,9 +353,7 @@ class _FilterTab extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              color: selected
-                  ? const Color(0xFF5A81DA)
-                  : const Color(0xFF343437),
+              color: selected ? const Color(0xFF5A81DA) : palette.primaryText,
               fontSize: 16,
               fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
             ),
@@ -370,6 +379,7 @@ class _ModelCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final screenPalette = _LocalModelScreenPalette.of(context);
     final palette = _paletteFor(item.id);
     final title = item.name.isNotEmpty ? item.name : item.code;
     final statusLabel = switch (state.status) {
@@ -388,7 +398,7 @@ class _ModelCard extends ConsumerWidget {
         onTap: state.isReady ? () => _openLocalChat(context) : null,
         child: Ink(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: screenPalette.cardBackground,
             borderRadius: BorderRadius.circular(26),
           ),
           child: Column(
@@ -456,8 +466,8 @@ class _ModelCard extends ConsumerWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF303236),
+                      style: TextStyle(
+                        color: screenPalette.primaryText,
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                       ),
@@ -468,8 +478,8 @@ class _ModelCard extends ConsumerWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Color(0xFF96999F),
+                      style: TextStyle(
+                        color: screenPalette.secondaryText,
                         fontSize: 12,
                         height: 1.45,
                         fontWeight: FontWeight.w600,
@@ -620,17 +630,18 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _LocalModelScreenPalette.of(context);
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Center(
         child: Text(
           message,
           textAlign: TextAlign.center,
-          style: const TextStyle(color: Color(0xFF7D828A), height: 1.5),
+          style: TextStyle(color: palette.secondaryText, height: 1.5),
         ),
       ),
     );
@@ -707,4 +718,31 @@ String _formatBytes(int bytes) {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _LocalModelScreenPalette {
+  const _LocalModelScreenPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.outline,
+  });
+
+  factory _LocalModelScreenPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return _LocalModelScreenPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      outline: scheme.outlineVariant,
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color outline;
 }

@@ -18,12 +18,16 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _JournalPalette.of(context);
     final journals = ref.watch(journalEntriesProvider);
     final month = DateTime(_selectedDate.year, _selectedDate.month);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(_t(context, '日记', 'Journal')),
         centerTitle: true,
       ),
@@ -48,7 +52,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                   Container(
                     padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: palette.cardBackground,
                       borderRadius: BorderRadius.circular(28),
                     ),
                     child: Column(
@@ -69,8 +73,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                               child: Center(
                                 child: Text(
                                   DateFormat('yyyy-MM').format(month),
-                                  style: const TextStyle(
-                                    color: Color(0xFF303236),
+                                  style: TextStyle(
+                                    color: palette.primaryText,
                                     fontSize: 21,
                                     fontWeight: FontWeight.w800,
                                   ),
@@ -105,8 +109,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                                 child: Center(
                                   child: Text(
                                     label,
-                                    style: const TextStyle(
-                                      color: Color(0xFF70757D),
+                                    style: TextStyle(
+                                      color: palette.bodyText,
                                       fontSize: 17,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -118,7 +122,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                         const SizedBox(height: 18),
                         for (final day in week) ...[
                           if (day == week.first)
-                            const Divider(color: Color(0xFFE4E7EC), height: 1),
+                            Divider(color: palette.outline, height: 1),
                           const SizedBox(height: 10),
                           _WeekDayCell(
                             day: day,
@@ -136,9 +140,9 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Icon(
+                  Icon(
                     Icons.keyboard_arrow_down_rounded,
-                    color: Color(0xFF9CA1AA),
+                    color: palette.secondaryText,
                     size: 34,
                   ),
                   const SizedBox(height: 14),
@@ -218,6 +222,7 @@ class _MonthArrow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _JournalPalette.of(context);
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: onTap,
@@ -225,10 +230,10 @@ class _MonthArrow extends StatelessWidget {
         width: 42,
         height: 42,
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFD1D5DC)),
+          border: Border.all(color: palette.outline),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(icon, color: const Color(0xFFB0B3BA)),
+        child: Icon(icon, color: palette.secondaryText),
       ),
     );
   }
@@ -251,6 +256,7 @@ class _WeekDayCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _JournalPalette.of(context);
     return InkWell(
       borderRadius: BorderRadius.circular(18),
       onTap: onTap,
@@ -266,8 +272,8 @@ class _WeekDayCell extends StatelessWidget {
                     color: isSelected
                         ? const Color(0xFF5A81DA)
                         : (day.month == DateTime.now().month
-                              ? const Color(0xFF303236)
-                              : const Color(0xFFD0D3DA)),
+                              ? palette.primaryText
+                              : palette.mutedText),
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
@@ -301,8 +307,8 @@ class _WeekDayCell extends StatelessWidget {
                         count <= 0
                             ? _t(context, '无记录', 'No entry')
                             : _t(context, '$count条记录', '$count entries'),
-                        style: const TextStyle(
-                          color: Color(0xFF6B7078),
+                        style: TextStyle(
+                          color: palette.bodyText,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),
@@ -352,6 +358,7 @@ class _TimelineItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _JournalPalette.of(context);
     return SizedBox(
       height: 172,
       child: Row(
@@ -370,7 +377,7 @@ class _TimelineItem extends StatelessWidget {
                       color: const Color(0xFF5A81DA),
                       width: 4,
                     ),
-                    color: Colors.white,
+                    color: palette.cardBackground,
                   ),
                 ),
                 if (!isLast)
@@ -386,15 +393,15 @@ class _TimelineItem extends StatelessWidget {
               children: [
                 Text(
                   entry.entryDateTimeLabel,
-                  style: const TextStyle(
-                    color: Color(0xFF9A9EA6),
+                  style: TextStyle(
+                    color: palette.secondaryText,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 10),
                 Material(
-                  color: Colors.white,
+                  color: palette.cardBackground,
                   borderRadius: BorderRadius.circular(24),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(24),
@@ -411,8 +418,8 @@ class _TimelineItem extends StatelessWidget {
                                   entry.title,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Color(0xFF303236),
+                                  style: TextStyle(
+                                    color: palette.primaryText,
                                     fontSize: 18,
                                     fontWeight: FontWeight.w800,
                                   ),
@@ -422,8 +429,8 @@ class _TimelineItem extends StatelessWidget {
                                   entry.content,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Color(0xFF9A9EA6),
+                                  style: TextStyle(
+                                    color: palette.secondaryText,
                                     fontSize: 15,
                                     height: 1.5,
                                   ),
@@ -459,10 +466,11 @@ class _JournalEmptyPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _JournalPalette.of(context);
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -473,8 +481,8 @@ class _JournalEmptyPanel extends StatelessWidget {
               '${_dateKey(date)} 还没有记录',
               'No journal entry on ${_dateKey(date)}',
             ),
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -487,7 +495,7 @@ class _JournalEmptyPanel extends StatelessWidget {
               'Record a conversation reflection, today\'s trigger, or a small recovery change.',
             ),
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF7D828A), height: 1.55),
+            style: TextStyle(color: palette.secondaryText, height: 1.55),
           ),
           const SizedBox(height: 16),
           OutlinedButton(
@@ -538,6 +546,7 @@ class _JournalEditorSheetState extends ConsumerState<_JournalEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _JournalPalette.of(context);
     return Padding(
       padding: EdgeInsets.fromLTRB(
         16,
@@ -546,8 +555,8 @@ class _JournalEditorSheetState extends ConsumerState<_JournalEditorSheet> {
         16 + MediaQuery.viewInsetsOf(context).bottom,
       ),
       child: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: palette.cardBackground,
           borderRadius: BorderRadius.vertical(top: Radius.circular(34)),
         ),
         child: Padding(
@@ -561,7 +570,7 @@ class _JournalEditorSheetState extends ConsumerState<_JournalEditorSheet> {
                   width: 52,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE4E7EC),
+                    color: palette.outline,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -570,8 +579,8 @@ class _JournalEditorSheetState extends ConsumerState<_JournalEditorSheet> {
               Center(
                 child: Text(
                   _t(context, '记录', 'Record'),
-                  style: const TextStyle(
-                    color: Color(0xFF303236),
+                  style: TextStyle(
+                    color: palette.primaryText,
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                   ),
@@ -580,8 +589,8 @@ class _JournalEditorSheetState extends ConsumerState<_JournalEditorSheet> {
               const SizedBox(height: 18),
               Text(
                 _t(context, '标题', 'Title'),
-                style: const TextStyle(
-                  color: Color(0xFF303236),
+                style: TextStyle(
+                  color: palette.primaryText,
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                 ),
@@ -595,8 +604,8 @@ class _JournalEditorSheetState extends ConsumerState<_JournalEditorSheet> {
               const SizedBox(height: 18),
               Text(
                 _t(context, '内容', 'Content'),
-                style: const TextStyle(
-                  color: Color(0xFF303236),
+                style: TextStyle(
+                  color: palette.primaryText,
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                 ),
@@ -610,8 +619,8 @@ class _JournalEditorSheetState extends ConsumerState<_JournalEditorSheet> {
               const SizedBox(height: 18),
               Text(
                 _t(context, '记录日期', 'Entry date'),
-                style: const TextStyle(
-                  color: Color(0xFF303236),
+                style: TextStyle(
+                  color: palette.primaryText,
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                 ),
@@ -626,15 +635,15 @@ class _JournalEditorSheetState extends ConsumerState<_JournalEditorSheet> {
                     vertical: 16,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF4F5F9),
+                    color: palette.softBackground,
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: Row(
                     children: [
                       Text(
                         _dateKey(_date),
-                        style: const TextStyle(
-                          color: Color(0xFF303236),
+                        style: TextStyle(
+                          color: palette.primaryText,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -745,13 +754,14 @@ class _EditorField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _JournalPalette.of(context);
     return TextField(
       controller: controller,
       minLines: minLines,
       maxLines: maxLines,
       decoration: InputDecoration(
         filled: true,
-        fillColor: const Color(0xFFF4F5F9),
+        fillColor: palette.softBackground,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide.none,
@@ -765,4 +775,45 @@ String _dateKey(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _JournalPalette {
+  const _JournalPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.softBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.bodyText,
+    required this.mutedText,
+    required this.outline,
+  });
+
+  factory _JournalPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _JournalPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      softBackground: scheme.surfaceContainerLow,
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      bodyText: isDark
+          ? scheme.onSurface.withValues(alpha: 0.84)
+          : const Color(0xFF6B7078),
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.55)
+          : const Color(0xFFD0D3DA),
+      outline: scheme.outlineVariant,
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color softBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color bodyText;
+  final Color mutedText;
+  final Color outline;
 }
