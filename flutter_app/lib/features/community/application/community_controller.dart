@@ -35,7 +35,7 @@ final communityCommentsProvider = FutureProvider.autoDispose
     .family<CommunityPage<CommunityComment>, int>((ref, postId) {
       return ref
           .watch(communityRepositoryProvider)
-          .fetchComments(postId: postId);
+          .fetchComments(postId: postId, includeReplies: true);
     });
 
 final communityMemberProfileProvider = FutureProvider.autoDispose

@@ -35,7 +35,7 @@ class _MessageCenterScreenState extends ConsumerState<MessageCenterScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F5F9),
       appBar: AppBar(
-        title: Text(_t(context, '消息中心', 'Messages')),
+        title: Text(_t(context, '消息详情', 'Messages')),
         centerTitle: true,
         actions: [
           TextButton(
@@ -194,13 +194,13 @@ class _MessageCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 46,
-                height: 46,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: scheme.background,
-                  borderRadius: BorderRadius.circular(16),
+                  shape: BoxShape.circle,
                 ),
-                child: Icon(scheme.icon, color: scheme.color),
+                child: Icon(scheme.icon, color: scheme.color, size: 20),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -216,8 +216,8 @@ class _MessageCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Color(0xFF303236),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
                             ),
                           ),
                         ),
@@ -237,47 +237,40 @@ class _MessageCard extends StatelessWidget {
                       item.content.trim().isEmpty
                           ? _t(context, '点击查看消息详情', 'Tap to view the message')
                           : item.content,
-                      maxLines: 3,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(0xFF7D828A),
-                        fontSize: 14,
-                        height: 1.55,
+                        color: Color(0xFFB0B3BA),
+                        fontSize: 15,
+                        height: 1.6,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
+                    const Divider(height: 1, color: Color(0xFFE9EBF0)),
+                    const SizedBox(height: 14),
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: scheme.background,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            _messageTypeLabel(context, item.messageType),
-                            style: TextStyle(
-                              color: scheme.color,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
+                        Text(
+                          _formatTime(item.createTime),
+                          style: const TextStyle(
+                            color: Color(0xFFA7ACB5),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                         const Spacer(),
                         Text(
-                          _formatTime(item.createTime),
-                          style: const TextStyle(
-                            color: Color(0xFFB0B3BA),
+                          _messageTypeLabel(context, item.messageType),
+                          style: TextStyle(
+                            color: scheme.color,
                             fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 4),
                         const Icon(
                           Icons.chevron_right_rounded,
+                          size: 18,
                           color: Color(0xFFB0B3BA),
                         ),
                       ],

@@ -1,3 +1,6 @@
+import 'package:dio/dio.dart';
+import 'package:image_picker/image_picker.dart';
+
 import '../../../core/api/api_client.dart';
 import 'community_models.dart';
 
@@ -92,10 +95,16 @@ class CommunityRepository {
     required int postId,
     int page = 1,
     int pageSize = 50,
+    bool includeReplies = false,
   }) async {
     final result = await _apiClient.getApi<CommunityPage<CommunityComment>>(
       '/app/help/community/comments',
-      queryParameters: {'post_id': postId, 'page': page, 'page_size': pageSize},
+      queryParameters: {
+        'post_id': postId,
+        'page': page,
+        'page_size': pageSize,
+        if (includeReplies) 'with_replies': 1,
+      },
       decode: (value) =>
           CommunityPage.fromJson(value, CommunityComment.fromJson),
     );
@@ -106,10 +115,23 @@ class CommunityRepository {
   Future<CommunityComment> createComment({
     required int postId,
     required String content,
+    bool isAnonymous = false,
+    int? parentId,
+    int? replyToMemberId,
+    List<String>? attachments,
   }) async {
     final result = await _apiClient.postApi<CommunityComment>(
       '/app/help/community/comment',
-      data: {'post_id': postId, 'content': content},
+      data: {
+        'post_id': postId,
+        'content': content,
+        'is_anonymous': isAnonymous ? 1 : 2,
+        if (parentId != null && parentId > 0) 'parent_id': parentId,
+        if (replyToMemberId != null && replyToMemberId > 0)
+          'reply_to_member_id': replyToMemberId,
+        if (attachments != null && attachments.isNotEmpty)
+          'attachments': attachments,
+      },
       decode: (value) {
         if (value is Map<String, dynamic>) {
           return CommunityComment.fromJson(value);
@@ -128,6 +150,20 @@ class CommunityRepository {
     final result = await _apiClient.postApi<bool>(
       '/app/help/community/like',
       data: {'target_type': 1, 'target_id': postId},
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return value['is_liked'] == true;
+        }
+        return false;
+      },
+    );
+    return result.data ?? false;
+  }
+
+  Future<bool> toggleCommentLike(int commentId) async {
+    final result = await _apiClient.postApi<bool>(
+      '/app/help/community/like',
+      data: {'target_type': 2, 'target_id': commentId},
       decode: (value) {
         if (value is Map<String, dynamic>) {
           return value['is_liked'] == true;
@@ -178,6 +214,28 @@ class CommunityRepository {
       },
     );
     return result.data ?? false;
+  }
+
+  Future<String> uploadImage({required XFile file}) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(file.path, filename: file.name),
+    });
+    final result = await _apiClient.postApi<String>(
+      '/app/help/community/upload-image',
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return (value['url'] ?? '').toString();
+        }
+        throw const FormatException('Unexpected community upload response');
+      },
+    );
+    final url = result.data?.trim() ?? '';
+    if (url.isEmpty) {
+      throw const FormatException('社区图片上传失败');
+    }
+    return url;
   }
 
   Future<CommunityMemberProfile> fetchMemberProfile({int? memberId}) async {

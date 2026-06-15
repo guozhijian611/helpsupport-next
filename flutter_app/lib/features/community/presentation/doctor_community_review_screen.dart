@@ -314,7 +314,10 @@ class _ReviewPostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = post.content.replaceAll('\n', ' ').trim();
+    final title = post.hasTitle
+        ? post.title
+        : post.content.replaceAll('\n', ' ').trim();
+    final body = post.hasTitle ? post.body : post.content;
     final approved = post.auditStatus == 1;
     final rejected = post.auditStatus == 2;
 
@@ -363,7 +366,7 @@ class _ReviewPostCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            post.content,
+                            body,
                             maxLines: 5,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(

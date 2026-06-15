@@ -67,11 +67,22 @@ class CommunityController extends BaseController
         return ok($this->service->saveCommunityPost($this->memberId, $request->post()));
     }
 
+    #[Apidoc\Title('上传社区图片')]
+    #[Apidoc\Url('/app/help/community/upload-image')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('file', type: 'file', require: true, desc: '图片文件')]
+    #[Apidoc\Returned('url', type: 'string', desc: '图片地址')]
+    public function uploadImage(Request $request): Response
+    {
+        return ok($this->service->uploadCommunityImage($request));
+    }
+
     #[Apidoc\Title('社区评论列表')]
     #[Apidoc\Url('/app/help/community/comments')]
     #[Apidoc\Method('GET')]
     #[Apidoc\Query('post_id', type: 'int', require: true, desc: '帖子ID')]
     #[Apidoc\Query('parent_id', type: 'int', require: false, default: 0, desc: '父评论ID')]
+    #[Apidoc\Query('with_replies', type: 'int', require: false, default: 2, desc: '是否包含回复 1是 2否')]
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
     #[Apidoc\Returned('list', type: 'array', desc: '评论列表')]

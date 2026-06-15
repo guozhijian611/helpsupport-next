@@ -76,6 +76,10 @@ class CommunityPost {
   final bool isFollowedAuthor;
 
   bool get isPendingReview => auditStatus == 0;
+  CommunityStructuredText get structuredText => _splitStructuredText(content);
+  String get title => structuredText.title;
+  String get body => structuredText.body;
+  bool get hasTitle => structuredText.hasTitle;
 
   factory CommunityPost.fromJson(Map<String, dynamic> json) {
     return CommunityPost(
@@ -110,7 +114,10 @@ class CommunityComment {
     required this.postId,
     required this.memberId,
     required this.parentId,
+    required this.replyToMemberId,
+    required this.replyToMemberName,
     required this.content,
+    required this.attachments,
     required this.authorName,
     required this.authorAvatar,
     required this.isAnonymous,
@@ -124,7 +131,10 @@ class CommunityComment {
   final int postId;
   final int memberId;
   final int parentId;
+  final int replyToMemberId;
+  final String replyToMemberName;
   final String content;
+  final List<String> attachments;
   final String authorName;
   final String authorAvatar;
   final bool isAnonymous;
@@ -133,13 +143,18 @@ class CommunityComment {
   final String createTime;
   final bool isLiked;
 
+  bool get isReply => parentId > 0;
+
   factory CommunityComment.fromJson(Map<String, dynamic> json) {
     return CommunityComment(
       id: _intValue(json['id']),
       postId: _intValue(json['post_id']),
       memberId: _intValue(json['member_id']),
       parentId: _intValue(json['parent_id']),
+      replyToMemberId: _intValue(json['reply_to_member_id']),
+      replyToMemberName: _stringValue(json['reply_to_member_name']),
       content: _stringValue(json['content']),
+      attachments: _stringList(json['attachments']),
       authorName: _stringValue(json['author_name'], fallback: 'Member'),
       authorAvatar: _stringValue(json['author_avatar']),
       isAnonymous: _intValue(json['is_anonymous'], fallback: 2) == 1,
@@ -275,6 +290,48 @@ class CommunityMember {
       isFollowed: _boolValue(json['is_followed']),
     );
   }
+}
+
+class CommunityStructuredText {
+  const CommunityStructuredText({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  bool get hasTitle => title.isNotEmpty && body.isNotEmpty;
+}
+
+CommunityStructuredText _splitStructuredText(String value) {
+  final normalized = value.trim();
+  if (normalized.isEmpty) {
+    return const CommunityStructuredText(title: '', body: '');
+  }
+
+  final sections = normalized
+      .split(RegExp(r'(?:\r?\n){2,}'))
+      .map((item) => item.trim())
+      .where((item) => item.isNotEmpty)
+      .toList(growable: false);
+  if (sections.length >= 2 && sections.first.length <= 48) {
+    return CommunityStructuredText(
+      title: sections.first,
+      body: sections.skip(1).join('\n\n'),
+    );
+  }
+
+  final lines = normalized
+      .split(RegExp(r'\r?\n'))
+      .map((item) => item.trim())
+      .where((item) => item.isNotEmpty)
+      .toList(growable: false);
+  if (lines.length >= 2 && lines.first.length <= 48) {
+    return CommunityStructuredText(
+      title: lines.first,
+      body: lines.skip(1).join('\n'),
+    );
+  }
+
+  return CommunityStructuredText(title: '', body: normalized);
 }
 
 List<T> _list<T>(Object? value, T Function(Map<String, dynamic> json) decode) {

@@ -260,8 +260,22 @@ class CommunityPostCard extends ConsumerWidget {
                           .toList(growable: false),
                     ),
                   ),
+                if (post.hasTitle) ...[
+                  Text(
+                    post.title,
+                    maxLines: routeToDetail ? 2 : 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF303236),
+                      fontSize: 18,
+                      height: 1.35,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 Text(
-                  post.content,
+                  post.hasTitle ? post.body : post.content,
                   maxLines: routeToDetail ? 7 : 5,
                   overflow: routeToDetail ? TextOverflow.ellipsis : null,
                   style: const TextStyle(

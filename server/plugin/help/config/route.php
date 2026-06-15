@@ -85,6 +85,7 @@ Route::group('/app/help', function () {
     Route::get('/community/posts', [CommunityController::class, 'posts']);
     Route::get('/community/post', [CommunityController::class, 'post']);
     Route::post('/community/post', [CommunityController::class, 'savePost']);
+    Route::post('/community/upload-image', [CommunityController::class, 'uploadImage']);
     Route::get('/community/comments', [CommunityController::class, 'comments']);
     Route::post('/community/comment', [CommunityController::class, 'saveComment']);
     Route::post('/community/like', [CommunityController::class, 'toggleLike']);

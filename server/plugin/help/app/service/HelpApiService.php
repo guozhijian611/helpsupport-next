@@ -1478,6 +1478,26 @@ class HelpApiService
         return $this->decorateCommunityPosts([$post], $memberId)[0] ?? [];
     }
 
+    public function uploadCommunityImage(Request $request): array
+    {
+        if ($request->file() === []) {
+            throw new ApiException('社区图片必须上传', 400);
+        }
+
+        $upload = (new SystemAttachmentLogic())->uploadBase('image');
+        $url = trim((string) ($upload['url'] ?? ''));
+        if ($url === '') {
+            throw new ApiException('社区图片上传失败，请稍后重试', 500);
+        }
+
+        return [
+            'url' => $url,
+            'origin_name' => (string) ($upload['origin_name'] ?? ''),
+            'mime_type' => (string) ($upload['mime_type'] ?? ''),
+            'size_byte' => (int) ($upload['size_byte'] ?? 0),
+        ];
+    }
+
     public function saveCommunityPost(int $memberId, array $data): array
     {
         $content = trim((string) ($data['content'] ?? ''));
@@ -1513,20 +1533,33 @@ class HelpApiService
         $postId = (int) ($params['post_id'] ?? 0);
         $this->assertVisibleCommunityPost($memberId, $postId);
         $parentId = max(0, (int) ($params['parent_id'] ?? 0));
+        $withReplies = (int) ($params['with_replies'] ?? 2) === 1;
 
-        $page = $this->paginate(function () use ($memberId, $postId, $parentId) {
-            return Db::table('sa_community_comment')
+        $page = $this->paginate(function () use ($memberId, $postId, $parentId, $withReplies) {
+            $query = Db::table('sa_community_comment')
                 ->alias('c')
                 ->leftJoin('sa_member m', 'm.id = c.member_id AND m.delete_time IS NULL')
+                ->leftJoin('sa_member rm', 'rm.id = c.reply_to_member_id AND rm.delete_time IS NULL')
                 ->where('c.post_id', $postId)
-                ->where('c.parent_id', $parentId)
                 ->where('c.status', 1)
                 ->whereNull('c.delete_time')
                 ->where(function ($query) use ($memberId) {
                     $query->where('c.audit_status', 1)->whereOr('c.member_id', $memberId);
                 })
-                ->field('c.*, m.nickname AS author_name, m.avatar AS author_avatar')
-                ->order('c.id', 'asc');
+                ->field('c.*, m.nickname AS author_name, m.avatar AS author_avatar, rm.nickname AS reply_to_member_name');
+
+            if ($parentId > 0) {
+                $query->where('c.parent_id', $parentId);
+            } elseif (!$withReplies) {
+                $query->where('c.parent_id', 0);
+            }
+
+            if ($withReplies) {
+                $query->orderRaw('CASE WHEN c.parent_id = 0 THEN c.id ELSE c.parent_id END ASC')
+                    ->order('c.parent_id', 'asc');
+            }
+
+            return $query->order('c.id', 'asc');
         }, $params);
 
         $page['list'] = $this->decorateCommunityComments($page['list'], $memberId);
