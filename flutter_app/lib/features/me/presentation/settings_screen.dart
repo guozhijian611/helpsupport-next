@@ -872,17 +872,15 @@ class _SettingsPalette {
     required this.chevron,
     required this.accent,
     required this.danger,
+    required this.iconBackground,
+    required this.iconColor,
     required this.switchInactiveThumb,
     required this.switchInactiveTrack,
+    required this.switchActiveTrack,
     required this.cardShadow,
-    required List<Color> accents,
-  }) : _accents = accents;
+  });
 
-  static const _lightAccent = Color(0xFFFF9585);
-  static const _lightBlue = Color(0xFF5A81DA);
-  static const _lightOrange = Color(0xFFFFAE4D);
-  static const _lightTeal = Color(0xFFA4C3CC);
-  static const _lightPurple = Color(0xFF986FF5);
+  static const _lightAccent = Color(0xFFFF8D7F);
 
   static _SettingsPalette of(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -901,47 +899,33 @@ class _SettingsPalette {
         chevron: scheme.onSurfaceVariant.withValues(alpha: 0.72),
         accent: const Color(0xFFFFB4A8),
         danger: scheme.error,
+        iconBackground: scheme.surfaceContainerHighest,
+        iconColor: scheme.onSurfaceVariant,
         switchInactiveThumb: scheme.onSurfaceVariant,
         switchInactiveTrack: scheme.surfaceContainerHighest,
+        switchActiveTrack: const Color(0xFF5D3631),
         cardShadow: const [],
-        accents: const [
-          Color(0xFFFFB4A8),
-          Color(0xFF9BB7FF),
-          Color(0xFFFFC777),
-          Color(0xFFA9D4DC),
-          Color(0xFFCAB2FF),
-        ],
       );
     }
 
     return _SettingsPalette(
-      pageBackground: const Color(0xFFF4F5F9),
+      pageBackground: const Color(0xFFF7F7FA),
       cardBackground: Colors.white,
-      cardBorder: Colors.white.withValues(alpha: 0.72),
+      cardBorder: Colors.white,
       primaryText: const Color(0xFF303236),
-      secondaryText: const Color(0xFF96999F),
-      valueText: const Color(0xFF74777E),
-      groupTitle: const Color(0xFF7D8188),
-      divider: const Color(0xFFE7E9EF),
-      chevron: const Color(0xFFB6BAC2),
+      secondaryText: const Color(0xFFA5A9B0),
+      valueText: const Color(0xFF7D828A),
+      groupTitle: const Color(0xFF8A9098),
+      divider: const Color(0xFFE4E7EC),
+      chevron: const Color(0xFFB7BCC4),
       accent: _lightAccent,
       danger: scheme.error,
+      iconBackground: const Color(0xFFF1F4F6),
+      iconColor: const Color(0xFF9FBBC3),
       switchInactiveThumb: Colors.white,
-      switchInactiveTrack: const Color(0xFFDADCE1),
-      cardShadow: [
-        BoxShadow(
-          color: const Color(0xFF9DA4B3).withValues(alpha: 0.10),
-          blurRadius: 22,
-          offset: const Offset(0, 10),
-        ),
-      ],
-      accents: const [
-        _lightAccent,
-        _lightBlue,
-        _lightOrange,
-        _lightTeal,
-        _lightPurple,
-      ],
+      switchInactiveTrack: const Color(0xFFE7EAEE),
+      switchActiveTrack: const Color(0xFFFFDCD7),
+      cardShadow: const [],
     );
   }
 
@@ -956,16 +940,15 @@ class _SettingsPalette {
   final Color chevron;
   final Color accent;
   final Color danger;
+  final Color iconBackground;
+  final Color iconColor;
   final Color switchInactiveThumb;
   final Color switchInactiveTrack;
+  final Color switchActiveTrack;
   final List<BoxShadow> cardShadow;
-  final List<Color> _accents;
 
   Color accentFor(IconData? icon) {
-    if (icon == null) {
-      return accent;
-    }
-    return _accents[icon.codePoint % _accents.length];
+    return icon == null ? accent : iconColor;
   }
 }
 
@@ -999,7 +982,7 @@ class _SettingsGroup extends StatelessWidget {
           DecoratedBox(
             decoration: BoxDecoration(
               color: palette.cardBackground,
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(24),
               border: Border.all(color: palette.cardBorder),
               boxShadow: palette.cardShadow,
             ),
@@ -1055,9 +1038,12 @@ class _SettingsNavRow extends StatelessWidget {
     final palette = _SettingsPalette.of(context);
     final accentColor = danger ? palette.danger : palette.accentFor(icon);
     final titleColor = danger ? palette.danger : palette.primaryText;
+    final iconBackground = danger
+        ? palette.danger.withValues(alpha: 0.10)
+        : palette.iconBackground;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(24),
       onTap: onTap,
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 68),
@@ -1070,7 +1056,7 @@ class _SettingsNavRow extends StatelessWidget {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: danger ? 0.10 : 0.16),
+                    color: iconBackground,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(icon, size: 21, color: accentColor),
@@ -1187,7 +1173,7 @@ class _SettingsSwitchRow extends StatelessWidget {
               value: value,
               onChanged: onChanged,
               activeThumbColor: palette.accent,
-              activeTrackColor: palette.accent.withValues(alpha: 0.34),
+              activeTrackColor: palette.switchActiveTrack,
               inactiveThumbColor: palette.switchInactiveThumb,
               inactiveTrackColor: palette.switchInactiveTrack,
             ),
@@ -1242,7 +1228,7 @@ Future<T?> _showChoiceSheet<T>({
               DecoratedBox(
                 decoration: BoxDecoration(
                   color: palette.cardBackground,
-                  borderRadius: BorderRadius.circular(22),
+                  borderRadius: BorderRadius.circular(24),
                   border: Border.all(color: palette.cardBorder),
                   boxShadow: palette.cardShadow,
                 ),
