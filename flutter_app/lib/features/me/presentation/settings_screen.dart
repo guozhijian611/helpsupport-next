@@ -420,8 +420,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         children: [
           _SettingsNavRow(
             title: _t(context, '头像', 'Avatar'),
-            value: avatarValue,
-            onTap: () => _manageAvatar(bundle),
+            subtitle: avatarValue,
+            trailing: _AvatarPreview(url: bundle.avatarUrl),
+            onTap: () => _previewAvatar(bundle.avatarUrl),
           ),
           _SettingsNavRow(
             title: _t(context, '昵称', 'Nickname'),
@@ -990,95 +991,49 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   }
 
   Future<void> _previewAvatar(String avatarUrl) async {
-    if (avatarUrl.isEmpty || !mounted) {
-      context.showCenteredNotice(
-        _t(context, '当前账号还没有头像', 'No avatar is set yet'),
-      );
-      return;
-    }
-    final previewUrl = ref.read(apiClientProvider).resolveUrl(avatarUrl);
-    await showDialog<void>(
+    final previewUrl = avatarUrl.isEmpty
+        ? ''
+        : ref.read(apiClientProvider).resolveUrl(avatarUrl);
+    final shouldReplace = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Image.network(
-                  previewUrl,
-                  width: 180,
-                  height: 180,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(
-                    width: 180,
-                    height: 180,
-                    color: const Color(0xFFF3F5FA),
-                    alignment: Alignment.center,
-                    child: Text(_t(context, '头像加载失败', 'Failed to load avatar')),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: Text(_t(context, '关闭', 'Close')),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _manageAvatar(MeProfileBundle bundle) async {
-    if (bundle.avatarUrl.isEmpty) {
-      await _pickAvatar();
-      return;
-    }
-
-    final action = await showModalBottomSheet<_AvatarAction>(
-      context: context,
-      backgroundColor: _SettingsPalette.of(context).pageBackground,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      showDragHandle: true,
-      builder: (sheetContext) {
-        final palette = _SettingsPalette.of(sheetContext);
-        final theme = Theme.of(sheetContext);
-        return SafeArea(
-          top: false,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      builder: (dialogContext) {
+        final palette = _SettingsPalette.of(dialogContext);
+        final theme = Theme.of(dialogContext);
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(
-                    _t(context, '头像操作', 'Avatar actions'),
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: palette.primaryText,
-                      fontWeight: FontWeight.w700,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _t(context, '头像预览', 'Avatar preview'),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: palette.primaryText,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
+                    IconButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(false),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _AvatarPreviewSurface(url: previewUrl),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: Text(_t(context, '更换头像', 'Change avatar')),
                   ),
-                ),
-                _SettingsNavRow(
-                  title: _t(context, '查看当前头像', 'Preview current avatar'),
-                  onTap: () =>
-                      Navigator.of(sheetContext).pop(_AvatarAction.preview),
-                ),
-                Divider(height: 1, color: palette.divider),
-                _SettingsNavRow(
-                  title: _t(context, '从相册选择新头像', 'Choose a new avatar'),
-                  onTap: () =>
-                      Navigator.of(sheetContext).pop(_AvatarAction.choose),
                 ),
               ],
             ),
@@ -1086,14 +1041,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         );
       },
     );
-    if (!mounted || action == null) {
-      return;
+    if (shouldReplace == true) {
+      await _pickAvatar();
     }
-    if (action == _AvatarAction.preview) {
-      await _previewAvatar(bundle.avatarUrl);
-      return;
-    }
-    await _pickAvatar();
   }
 
   Future<void> _pickAvatar() async {
@@ -1151,6 +1101,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       initialValue: bundle.nickname,
       hintText: _t(context, '请输入昵称', 'Enter nickname'),
     );
+    if (!mounted) {
+      return;
+    }
     if (nextValue == null || nextValue.trim() == bundle.nickname.trim()) {
       return;
     }
@@ -1171,6 +1124,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         _ChoiceSheetItem(3, _t(context, '保密', 'Private')),
       ],
     );
+    if (!mounted) {
+      return;
+    }
     if (selected == null || selected == currentGender) {
       return;
     }
@@ -1189,6 +1145,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       firstDate: DateTime(1900, 1, 1),
       lastDate: DateTime.now(),
     );
+    if (!mounted) {
+      return;
+    }
     if (selected == null) {
       return;
     }
@@ -1209,6 +1168,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       hintText: _t(context, '请输入康复目标', 'Enter recovery goal'),
       maxLines: 4,
     );
+    if (!mounted) {
+      return;
+    }
     if (nextValue == null || nextValue.trim() == bundle.recoveryGoal.trim()) {
       return;
     }
@@ -1225,6 +1187,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       hintText: _t(context, '多个触发因素请用逗号分隔', 'Separate triggers with commas'),
       maxLines: 4,
     );
+    if (!mounted) {
+      return;
+    }
     if (nextValue == null) {
       return;
     }
@@ -1249,6 +1214,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       hintText: _t(context, '写一点希望沉淀下来的资料', 'Write a short profile'),
       maxLines: 5,
     );
+    if (!mounted) {
+      return;
+    }
     if (nextValue == null || nextValue.trim() == bundle.bio.trim()) {
       return;
     }
@@ -1390,6 +1358,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         hintText: _t(context, '当前密码', 'Current password'),
         obscureText: true,
       );
+      if (!mounted) {
+        return;
+      }
       if (oldPassword == null || oldPassword.isEmpty) {
         return;
       }
@@ -1403,6 +1374,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       hintText: _t(context, '至少 6 位', 'At least 6 characters'),
       obscureText: true,
     );
+    if (!mounted) {
+      return;
+    }
     if (newPassword == null || newPassword.isEmpty) {
       return;
     }
@@ -1413,6 +1387,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       hintText: _t(context, '请再次输入新密码', 'Enter the new password again'),
       obscureText: true,
     );
+    if (!mounted) {
+      return;
+    }
     if (confirmPassword == null || confirmPassword.isEmpty) {
       return;
     }
@@ -1641,7 +1618,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       await _loadRemoteSection();
       if (mounted) {
         context.showCenteredNotice(
-          _t(context, '已下线其他设备', 'Other devices signed out') + ' ($loggedOut)',
+          '${_t(context, '已下线其他设备', 'Other devices signed out')} ($loggedOut)',
         );
       }
     } on Object catch (error) {
@@ -1798,7 +1775,96 @@ enum SettingsSectionType {
   }
 }
 
-enum _AvatarAction { preview, choose }
+class _AvatarPreview extends ConsumerWidget {
+  const _AvatarPreview({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _SettingsPalette.of(context);
+    final resolved = url.isEmpty
+        ? ''
+        : ref.read(apiClientProvider).resolveUrl(url);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.iconBackground,
+        shape: BoxShape.circle,
+        border: Border.all(color: palette.cardBorder),
+      ),
+      child: ClipOval(
+        child: SizedBox(
+          width: 42,
+          height: 42,
+          child: resolved.isEmpty
+              ? Icon(Icons.person_rounded, color: palette.accent, size: 22)
+              : Image.network(
+                  resolved,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => Icon(
+                    Icons.person_rounded,
+                    color: palette.accent,
+                    size: 22,
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AvatarPreviewSurface extends StatelessWidget {
+  const _AvatarPreviewSurface({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _SettingsPalette.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.pageBackground,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: palette.cardBorder),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: SizedBox(
+          width: 220,
+          height: 220,
+          child: url.isEmpty
+              ? Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.person_rounded, color: palette.accent, size: 72),
+                    const SizedBox(height: 10),
+                    Text(
+                      _t(context, '当前还没有头像', 'No avatar yet'),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: palette.secondaryText,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                )
+              : Image.network(
+                  url,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => Center(
+                    child: Text(
+                      _t(context, '头像加载失败', 'Failed to load avatar'),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: palette.secondaryText,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+}
 
 enum _PrivacyVisibility {
   private('private'),
@@ -1986,6 +2052,7 @@ class _SettingsNavRow extends StatelessWidget {
     this.icon,
     this.subtitle,
     this.value,
+    this.trailing,
     this.onTap,
     this.danger = false,
     this.showChevron = true,
@@ -1995,6 +2062,7 @@ class _SettingsNavRow extends StatelessWidget {
   final String title;
   final String? subtitle;
   final String? value;
+  final Widget? trailing;
   final VoidCallback? onTap;
   final bool danger;
   final bool showChevron;
@@ -2073,6 +2141,7 @@ class _SettingsNavRow extends StatelessWidget {
                   ),
                 ),
               ],
+              if (trailing != null) ...[const SizedBox(width: 12), trailing!],
               if (showChevron && onTap != null) ...[
                 const SizedBox(width: 4),
                 Icon(Icons.chevron_right_rounded, color: palette.chevron),
