@@ -15,33 +15,94 @@ class ChatHomeScreen extends ConsumerWidget {
     final overview = ref.watch(chatOverviewProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.chatTitle)),
+      backgroundColor: const Color(0xFFF4F5F9),
+      appBar: AppBar(
+        title: Text(_t(context, 'AI 心理支持', 'AI support')),
+        centerTitle: true,
+      ),
       body: SafeArea(
         child: overview.when(
           data: (data) => RefreshIndicator(
             onRefresh: () async => ref.invalidate(chatOverviewProvider),
             child: ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
               children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                  child: Row(
+                    children: [
+                      const CircleAvatar(
+                        radius: 26,
+                        backgroundColor: Color(0xFFEAF0FF),
+                        child: Icon(
+                          Icons.smart_toy_rounded,
+                          color: Color(0xFF5B86DB),
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              context.l10n.chatTitle,
+                              style: const TextStyle(
+                                color: Color(0xFF303236),
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _t(
+                                context,
+                                '选择适合你当前状态的模式，开始一段真实对话。',
+                                'Choose the mode that fits your current state and begin a real conversation.',
+                              ),
+                              style: const TextStyle(
+                                color: Color(0xFF7D828A),
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
                 for (final mode in data.modes)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.only(bottom: 14),
                     child: _ModeCard(
                       mode: mode,
                       onTap: () => _startSession(context, ref, mode.chatMode),
                     ),
                   ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Text(
                   context.l10n.recentConversations,
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: const TextStyle(
+                    color: Color(0xFF303236),
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 if (data.recentSessions.isEmpty)
                   _EmptyState(text: context.l10n.noConversations)
                 else
-                  for (final session in data.recentSessions)
-                    _SessionTile(session: session),
+                  ...data.recentSessions.map(
+                    (session) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _SessionTile(session: session),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -86,75 +147,169 @@ class _ModeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final visual = _modeVisual(context, mode.chatMode);
     final latest = mode.latestSession;
 
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: scheme.primaryContainer,
-                child: Icon(_modeIcon(mode.chatMode), color: scheme.primary),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: LinearGradient(colors: visual.$1),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _modeTitle(context, mode.chatMode),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  mode.promptText.trim().isNotEmpty
+                      ? mode.promptText
+                      : _modeDescription(context, mode.chatMode),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFFF8F5FF),
+                    fontSize: 14,
+                    height: 1.55,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
-                    Text(
-                      _modeTitle(context, mode.chatMode),
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      latest?.lastMessage.isNotEmpty == true
-                          ? latest!.lastMessage
-                          : _modeDescription(context, mode.chatMode),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
+                    for (final label in visual.$2)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0x33FFFFFF),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          label,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
-                    ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(Icons.chevron_right),
-            ],
+                if (latest != null) ...[
+                  const SizedBox(height: 14),
+                  Text(
+                    latest.lastMessage.isNotEmpty
+                        ? latest.lastMessage
+                        : latest.sessionName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFFE9EEFF),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: visual.$3,
+                    minimumSize: const Size(170, 46),
+                  ),
+                  onPressed: onTap,
+                  child: Text(_t(context, '开始体验', 'Start')),
+                ),
+              ],
+            ),
           ),
-        ),
+          const SizedBox(width: 18),
+          Container(
+            width: 104,
+            height: 104,
+            decoration: BoxDecoration(color: visual.$4, shape: BoxShape.circle),
+            child: Icon(visual.$5, color: Colors.white, size: 50),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _SessionTile extends StatelessWidget {
+class _SessionTile extends ConsumerWidget {
   const _SessionTile({required this.session});
 
   final ChatSession session;
 
   @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(_modeIcon(session.chatMode)),
-      title: Text(session.sessionName),
-      subtitle: Text(
-        session.lastMessage.isEmpty
-            ? _modeTitle(context, session.chatMode)
-            : session.lastMessage,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
       ),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => _openSession(context, session),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: _modeAccent(
+            session.chatMode,
+          ).withValues(alpha: 0.14),
+          child: Icon(
+            _modeIcon(session.chatMode),
+            color: _modeAccent(session.chatMode),
+          ),
+        ),
+        title: Text(
+          session.sessionName,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        subtitle: Text(
+          session.lastMessage.isEmpty
+              ? _modeTitle(context, session.chatMode)
+              : session.lastMessage,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.delete_outline_rounded),
+          onPressed: () => _deleteSession(context, ref, session),
+        ),
+        onTap: () => _openSession(context, session),
+      ),
     );
+  }
+
+  Future<void> _deleteSession(
+    BuildContext context,
+    WidgetRef ref,
+    ChatSession session,
+  ) async {
+    try {
+      await ref.read(chatRepositoryProvider).deleteSession(session.id);
+      ref.invalidate(chatOverviewProvider);
+      if (!context.mounted) {
+        return;
+      }
+      context.showCenteredNotice(_t(context, '会话已删除', 'Conversation deleted'));
+    } on Object catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      context.showCenteredNotice(error.toString());
+    }
   }
 }
 
@@ -165,8 +320,12 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 32),
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
       child: Center(
         child: Text(
           text,
@@ -214,17 +373,25 @@ void _openSession(BuildContext context, ChatSession session) {
 
 IconData _modeIcon(String mode) {
   return switch (mode) {
-    'doctor' => Icons.medical_services_outlined,
-    'patient' => Icons.assignment_ind_outlined,
-    _ => Icons.favorite_outline,
+    'doctor' => Icons.smart_toy_rounded,
+    'patient' => Icons.healing_rounded,
+    _ => Icons.volunteer_activism_rounded,
+  };
+}
+
+Color _modeAccent(String mode) {
+  return switch (mode) {
+    'doctor' => const Color(0xFF5B86DB),
+    'patient' => const Color(0xFFF39C38),
+    _ => const Color(0xFFE78B81),
   };
 }
 
 String _modeTitle(BuildContext context, String mode) {
   return switch (mode) {
-    'doctor' => context.l10n.doctorChatMode,
-    'patient' => context.l10n.patientChatMode,
-    _ => context.l10n.companionChatMode,
+    'doctor' => _t(context, 'AI 心理医生', 'AI doctor'),
+    'patient' => _t(context, 'AI 模拟病人', 'AI patient'),
+    _ => _t(context, 'AI 心理陪伴', 'AI companion'),
   };
 }
 
@@ -234,4 +401,49 @@ String _modeDescription(BuildContext context, String mode) {
     'patient' => context.l10n.patientChatDescription,
     _ => context.l10n.companionChatDescription,
   };
+}
+
+(List<Color>, List<String>, Color, Color, IconData) _modeVisual(
+  BuildContext context,
+  String mode,
+) {
+  return switch (mode) {
+    'doctor' => (
+      const [Color(0xFF5B86DB), Color(0xFF4C72C8)],
+      [
+        _t(context, '认知行为疗法', 'CBT'),
+        _t(context, '病情追踪', 'Tracking'),
+        _t(context, '任务建议', 'Tasks'),
+      ],
+      const Color(0xFF4F78D2),
+      const Color(0xFF7EA0E8),
+      Icons.smart_toy_rounded,
+    ),
+    'patient' => (
+      const [Color(0xFFFFB24F), Color(0xFFF39C38)],
+      [
+        _t(context, '角色演练', 'Role-play'),
+        _t(context, '共情训练', 'Empathy'),
+        _t(context, '反馈系统', 'Feedback'),
+      ],
+      const Color(0xFFF39C38),
+      const Color(0xFFFFC87E),
+      Icons.healing_rounded,
+    ),
+    _ => (
+      const [Color(0xFFF5A497), Color(0xFFE78B81)],
+      [
+        _t(context, '情感支持', 'Support'),
+        _t(context, '理想伙伴', 'Partner'),
+        _t(context, '个性化定制', 'Personalize'),
+      ],
+      const Color(0xFFE78B81),
+      const Color(0xFFF8B8AE),
+      Icons.volunteer_activism_rounded,
+    ),
+  };
+}
+
+String _t(BuildContext context, String zh, String en) {
+  return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
 }

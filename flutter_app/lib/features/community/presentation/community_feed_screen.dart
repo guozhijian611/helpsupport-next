@@ -2,198 +2,346 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/providers/app_providers.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
+import '../../auth/application/auth_controller.dart';
 import '../application/community_controller.dart';
 import '../data/community_models.dart';
 
-class CommunityFeedScreen extends ConsumerWidget {
+class CommunityFeedScreen extends ConsumerStatefulWidget {
   const CommunityFeedScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final posts = ref.watch(communityPostsProvider);
+  ConsumerState<CommunityFeedScreen> createState() =>
+      _CommunityFeedScreenState();
+}
 
-    return posts.when(
-      data: (page) => RefreshIndicator(
-        onRefresh: () => ref.refresh(communityPostsProvider.future),
-        child: page.list.isEmpty
-            ? ListView(
-                padding: const EdgeInsets.all(24),
-                children: [
-                  const SizedBox(height: 120),
-                  Icon(
-                    Icons.forum_outlined,
-                    size: 56,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    context.l10n.communityFeedEmpty,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                ],
-              )
-            : ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
-                itemCount: page.list.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  return CommunityPostCard(post: page.list[index]);
+class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final posts = _query.trim().isEmpty
+        ? ref.watch(communityPostsProvider)
+        : ref.watch(communityPostsSearchProvider(_query.trim()));
+    final tags = ref.watch(communityTagsProvider);
+    final authState = ref.watch(authControllerProvider);
+    final session = switch (authState) {
+      AsyncData(:final value) => value,
+      _ => null,
+    };
+    final avatarUrl = _firstText([session?.member['avatar']]);
+
+    return ColoredBox(
+      color: const Color(0xFFF4F5F9),
+      child: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(communityTagsProvider);
+          ref.invalidate(communityPostsProvider);
+          if (_query.trim().isNotEmpty) {
+            ref.invalidate(communityPostsSearchProvider(_query.trim()));
+          }
+          await Future.wait([
+            ref.read(communityTagsProvider.future),
+            _query.trim().isEmpty
+                ? ref.read(communityPostsProvider.future)
+                : ref.read(communityPostsSearchProvider(_query.trim()).future),
+          ]);
+        },
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 94),
+          children: [
+            _CommunityTopBar(
+              avatarUrl: avatarUrl,
+              controller: _searchController,
+              onChanged: (value) => setState(() => _query = value),
+              onNotifyTap: () =>
+                  context.showCenteredNotice(context.l10n.featureComingSoon),
+            ),
+            const SizedBox(height: 16),
+            tags.when(
+              data: (items) => items.isEmpty
+                  ? const SizedBox.shrink()
+                  : SizedBox(
+                      height: 42,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemBuilder: (context, index) {
+                          final tag = items[index];
+                          return _TopicChip(
+                            tag: tag,
+                            onTap: () => _toggleFollowTag(tag),
+                          );
+                        },
+                        separatorBuilder: (_, _) => const SizedBox(width: 8),
+                        itemCount: items.length,
+                      ),
+                    ),
+              error: (_, _) => const SizedBox.shrink(),
+              loading: () => const SizedBox(
+                height: 42,
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+            ),
+            const SizedBox(height: 18),
+            posts.when(
+              data: (page) => page.list.isEmpty
+                  ? _CommunityEmptyState(query: _query)
+                  : Column(
+                      children: [
+                        for (final post in page.list)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: CommunityPostCard(post: post),
+                          ),
+                      ],
+                    ),
+              error: (error, _) => _StatusCard(
+                title: context.l10n.networkUnavailable,
+                message: error.toString(),
+                onRetry: () {
+                  ref.invalidate(communityPostsProvider);
+                  if (_query.trim().isNotEmpty) {
+                    ref.invalidate(communityPostsSearchProvider(_query.trim()));
+                  }
                 },
               ),
-      ),
-      error: (error, stackTrace) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(context.l10n.networkUnavailable),
-            const SizedBox(height: 16),
-            OutlinedButton(
-              onPressed: () => ref.invalidate(communityPostsProvider),
-              child: Text(context.l10n.retry),
+              loading: () => const _FeedLoading(),
             ),
           ],
         ),
       ),
-      loading: () => const Center(child: CircularProgressIndicator()),
     );
+  }
+
+  Future<void> _toggleFollowTag(CommunityTag tag) async {
+    try {
+      await ref.read(communityRepositoryProvider).toggleFollowTag(tag.id);
+      ref.invalidate(communityTagsProvider);
+      ref.invalidate(communityPostsProvider);
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(
+        tag.isFollowed
+            ? _t(context, '已取消关注标签', 'Tag unfollowed')
+            : _t(context, '已关注标签', 'Tag followed'),
+      );
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(error.toString());
+    }
   }
 }
 
 class CommunityPostCard extends ConsumerWidget {
-  const CommunityPostCard({super.key, required this.post});
+  const CommunityPostCard({
+    super.key,
+    required this.post,
+    this.showFollowButton = true,
+    this.routeToDetail = true,
+  });
 
   final CommunityPost post;
+  final bool showFollowButton;
+  final bool routeToDetail;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
+    final apiClient = ref.watch(apiClientProvider);
+    final authState = ref.watch(authControllerProvider);
+    final session = switch (authState) {
+      AsyncData(:final value) => value,
+      _ => null,
+    };
+    final currentMemberId = int.tryParse(session?.memberId ?? '') ?? 0;
+    final canFollow =
+        showFollowButton &&
+        !post.isAnonymous &&
+        post.memberId > 0 &&
+        post.memberId != currentMemberId;
 
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => context.push('/community/post/${post.id}'),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: scheme.primaryContainer,
-                    child: Icon(
-                      post.isAnonymous
-                          ? Icons.visibility_off_outlined
-                          : Icons.person_outline,
-                      size: 18,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          post.authorName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleSmall,
-                        ),
-                        Text(
-                          post.createTime,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (post.isPendingReview)
-                    Chip(
-                      label: Text(context.l10n.communityPendingReview),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                post.content,
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              if (post.tags.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(28),
+          onTap: routeToDetail
+              ? () => context.push('/community/post/${post.id}')
+              : null,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final tag in post.tags.take(4))
-                      Chip(
-                        label: Text(tag),
-                        visualDensity: VisualDensity.compact,
+                    _AuthorAvatar(
+                      avatarUrl: apiClient.resolveUrl(post.authorAvatar),
+                      isDoctor: post.isDoctorPost,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            post.authorName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF303236),
+                              fontSize: 21,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _authorSubtitle(context, post),
+                            style: const TextStyle(
+                              color: Color(0xFF96999F),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (canFollow)
+                      _FollowButton(
+                        followed: post.isFollowedAuthor,
+                        onTap: () => _toggleFollowAuthor(context, ref, post),
                       ),
                   ],
                 ),
-              ],
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _PostAction(
-                    icon: post.isLiked
-                        ? Icons.favorite
-                        : Icons.favorite_border_outlined,
-                    label: '${post.likeCount}',
-                    tooltip: post.isLiked
-                        ? context.l10n.communityUnlike
-                        : context.l10n.communityLike,
-                    onPressed: () => _toggleLike(context, ref),
+                const SizedBox(height: 14),
+                if (post.images.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: _PostImageGrid(
+                      images: post.images
+                          .map(apiClient.resolveUrl)
+                          .where((url) => url.trim().isNotEmpty)
+                          .toList(growable: false),
+                    ),
                   ),
-                  _PostAction(
-                    icon: Icons.mode_comment_outlined,
-                    label: '${post.commentCount}',
-                    tooltip: context.l10n.communityComments,
-                    onPressed: () => context.push('/community/post/${post.id}'),
+                Text(
+                  post.content,
+                  maxLines: routeToDetail ? 7 : 5,
+                  overflow: routeToDetail ? TextOverflow.ellipsis : null,
+                  style: const TextStyle(
+                    color: Color(0xFF3D414A),
+                    fontSize: 15,
+                    height: 1.7,
+                    fontWeight: FontWeight.w500,
                   ),
-                  _PostAction(
-                    icon: post.isCollected
-                        ? Icons.bookmark
-                        : Icons.bookmark_border_outlined,
-                    label: '${post.collectCount}',
-                    tooltip: post.isCollected
-                        ? context.l10n.communityUncollect
-                        : context.l10n.communityCollect,
-                    onPressed: () => _toggleCollect(context, ref),
-                  ),
-                  const Spacer(),
-                  Icon(
-                    Icons.visibility_outlined,
-                    size: 18,
-                    color: scheme.outline,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${post.viewCount}',
-                    style: Theme.of(context).textTheme.bodySmall,
+                ),
+                if (post.linkUrl.trim().isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _LinkPreview(url: post.linkUrl),
+                ],
+                if (post.tags.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final tag in post.tags.take(4))
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5F7FD),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '# $tag',
+                            style: const TextStyle(
+                              color: Color(0xFF6B7380),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
-              ),
-            ],
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    _ActionChip(
+                      icon: Icons.mode_comment_outlined,
+                      text: '${post.commentCount}',
+                      onTap: () => context.push('/community/post/${post.id}'),
+                    ),
+                    const SizedBox(width: 10),
+                    _ActionChip(
+                      icon: post.isLiked
+                          ? Icons.thumb_up_rounded
+                          : Icons.thumb_up_off_alt_rounded,
+                      text: '${post.likeCount}',
+                      active: post.isLiked,
+                      onTap: () => _toggleLike(context, ref, post.id),
+                    ),
+                    const SizedBox(width: 10),
+                    _ActionChip(
+                      icon: post.isCollected
+                          ? Icons.star_rounded
+                          : Icons.star_border_rounded,
+                      text: '${post.collectCount}',
+                      active: post.isCollected,
+                      onTap: () => _toggleCollect(context, ref, post.id),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      Icons.visibility_outlined,
+                      size: 18,
+                      color: const Color(0xFF96999F),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${post.viewCount}',
+                      style: const TextStyle(
+                        color: Color(0xFF96999F),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Future<void> _toggleLike(BuildContext context, WidgetRef ref) async {
+  Future<void> _toggleLike(
+    BuildContext context,
+    WidgetRef ref,
+    int postId,
+  ) async {
     try {
-      await ref.read(communityRepositoryProvider).togglePostLike(post.id);
+      await ref.read(communityRepositoryProvider).togglePostLike(postId);
       ref.invalidate(communityPostsProvider);
+      ref.invalidate(communityPostProvider(postId));
     } on Object catch (error) {
       if (!context.mounted) {
         return;
@@ -202,10 +350,42 @@ class CommunityPostCard extends ConsumerWidget {
     }
   }
 
-  Future<void> _toggleCollect(BuildContext context, WidgetRef ref) async {
+  Future<void> _toggleCollect(
+    BuildContext context,
+    WidgetRef ref,
+    int postId,
+  ) async {
     try {
-      await ref.read(communityRepositoryProvider).togglePostCollect(post.id);
+      await ref.read(communityRepositoryProvider).togglePostCollect(postId);
       ref.invalidate(communityPostsProvider);
+      ref.invalidate(communityPostProvider(postId));
+    } on Object catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      context.showCenteredNotice(error.toString());
+    }
+  }
+
+  Future<void> _toggleFollowAuthor(
+    BuildContext context,
+    WidgetRef ref,
+    CommunityPost post,
+  ) async {
+    try {
+      await ref
+          .read(communityRepositoryProvider)
+          .toggleFollowMember(post.memberId);
+      ref.invalidate(communityPostsProvider);
+      ref.invalidate(communityPostProvider(post.id));
+      if (!context.mounted) {
+        return;
+      }
+      context.showCenteredNotice(
+        post.isFollowedAuthor
+            ? _t(context, '已取消关注', 'Unfollowed')
+            : _t(context, '已关注', 'Followed'),
+      );
     } on Object catch (error) {
       if (!context.mounted) {
         return;
@@ -215,28 +395,492 @@ class CommunityPostCard extends ConsumerWidget {
   }
 }
 
-class _PostAction extends StatelessWidget {
-  const _PostAction({
-    required this.icon,
-    required this.label,
-    required this.tooltip,
-    required this.onPressed,
+class _CommunityTopBar extends StatelessWidget {
+  const _CommunityTopBar({
+    required this.avatarUrl,
+    required this.controller,
+    required this.onChanged,
+    required this.onNotifyTap,
   });
 
-  final IconData icon;
-  final String label;
-  final String tooltip;
-  final VoidCallback onPressed;
+  final String avatarUrl;
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onNotifyTap;
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: TextButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 18),
-        label: Text(label),
+    return Row(
+      children: [
+        _AuthorAvatar(avatarUrl: avatarUrl, isDoctor: false, size: 48),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Container(
+            height: 50,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search_rounded),
+                hintText: _t(context, '开始探索', 'Search support'),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        _CircleButton(
+          icon: Icons.notifications_none_rounded,
+          badge: '5',
+          onTap: onNotifyTap,
+        ),
+      ],
+    );
+  }
+}
+
+class _TopicChip extends StatelessWidget {
+  const _TopicChip({required this.tag, required this.onTap});
+
+  final CommunityTag tag;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = tag.isFollowed;
+
+    return Material(
+      color: active ? const Color(0xFFFFEEE9) : Colors.white,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Text(
+            '# ${tag.name}',
+            style: TextStyle(
+              color: active ? const Color(0xFFFF9585) : const Color(0xFF6B7380),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
       ),
     );
   }
+}
+
+class _AuthorAvatar extends StatelessWidget {
+  const _AuthorAvatar({
+    required this.avatarUrl,
+    required this.isDoctor,
+    this.size = 54,
+  });
+
+  final String avatarUrl;
+  final bool isDoctor;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final avatar = avatarUrl.trim().isNotEmpty
+        ? ClipOval(
+            child: Image.network(
+              avatarUrl,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => _fallback(),
+            ),
+          )
+        : _fallback();
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        SizedBox(width: size, height: size, child: avatar),
+        if (isDoctor)
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: const BoxDecoration(
+                color: Color(0xFF5A81DA),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.medical_services_rounded,
+                color: Colors.white,
+                size: 12,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _fallback() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFFF8E3DB),
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(Icons.person_rounded, color: Color(0xFFFF9585)),
+    );
+  }
+}
+
+class _FollowButton extends StatelessWidget {
+  const _FollowButton({required this.followed, required this.onTap});
+
+  final bool followed;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.tonal(
+      onPressed: onTap,
+      style: FilledButton.styleFrom(
+        backgroundColor: followed
+            ? const Color(0xFFFFF2EF)
+            : const Color(0xFFF49A86),
+        foregroundColor: followed ? const Color(0xFFF49A86) : Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      ),
+      child: Text(
+        followed
+            ? _t(context, '已关注', 'Following')
+            : _t(context, '关注', 'Follow'),
+      ),
+    );
+  }
+}
+
+class _PostImageGrid extends StatelessWidget {
+  const _PostImageGrid({required this.images});
+
+  final List<String> images;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = images.length.clamp(0, 4);
+    if (count == 0) {
+      return const SizedBox.shrink();
+    }
+    if (count == 1) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: AspectRatio(
+          aspectRatio: 1.45,
+          child: Image.network(images.first, fit: BoxFit.cover),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: count,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 6,
+          crossAxisSpacing: 6,
+          childAspectRatio: 0.88,
+        ),
+        itemBuilder: (context, index) {
+          return Image.network(images[index], fit: BoxFit.cover);
+        },
+      ),
+    );
+  }
+}
+
+class _LinkPreview extends StatelessWidget {
+  const _LinkPreview({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F7FD),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.link_rounded, color: Color(0xFF5A81DA)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              url,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF5A81DA),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionChip extends StatelessWidget {
+  const _ActionChip({
+    required this.icon,
+    required this.text,
+    required this.onTap,
+    this.active = false,
+  });
+
+  final IconData icon;
+  final String text;
+  final VoidCallback onTap;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFFFFEEE9) : const Color(0xFFF5F7FD),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: active ? const Color(0xFFF49A86) : const Color(0xFF6B7380),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              text,
+              style: TextStyle(
+                color: active
+                    ? const Color(0xFFF49A86)
+                    : const Color(0xFF6B7380),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CommunityEmptyState extends StatelessWidget {
+  const _CommunityEmptyState({required this.query});
+
+  final String query;
+
+  @override
+  Widget build(BuildContext context) {
+    final message = query.trim().isEmpty
+        ? context.l10n.communityFeedEmpty
+        : _t(context, '没有找到相关动态', 'No matching posts');
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.forum_outlined, size: 52, color: Color(0xFFFF9585)),
+          const SizedBox(height: 14),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF303236),
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _t(
+              context,
+              '你可以换个关键词，或者直接发布你的第一条支持内容。',
+              'Try another keyword or publish your first support post.',
+            ),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF7D828A),
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusCard extends StatelessWidget {
+  const _StatusCard({required this.title, required this.message, this.onRetry});
+
+  final String title;
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Column(
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Color(0xFF303236),
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF7D828A), height: 1.5),
+          ),
+          if (onRetry != null) ...[
+            const SizedBox(height: 14),
+            FilledButton.tonal(
+              onPressed: onRetry,
+              child: Text(context.l10n.retry),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FeedLoading extends StatelessWidget {
+  const _FeedLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      children: [_LoadingCard(), SizedBox(height: 14), _LoadingCard()],
+    );
+  }
+}
+
+class _LoadingCard extends StatelessWidget {
+  const _LoadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 260,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: const Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+class _CircleButton extends StatelessWidget {
+  const _CircleButton({required this.icon, required this.onTap, this.badge});
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final String? badge;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Material(
+          color: Colors.white,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: SizedBox(
+              width: 48,
+              height: 48,
+              child: Icon(icon, color: const Color(0xFF303236)),
+            ),
+          ),
+        ),
+        if (badge != null)
+          Positioned(
+            top: -2,
+            right: -2,
+            child: Container(
+              width: 18,
+              height: 18,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFF5B77),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                badge!,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+String _authorSubtitle(BuildContext context, CommunityPost post) {
+  final role = post.isDoctorPost
+      ? _t(context, '医生作者', 'Doctor author')
+      : _t(context, '坚持治疗', 'Recovery journal');
+  if (post.createTime.trim().isEmpty) {
+    return role;
+  }
+  return '$role  ${post.createTime}';
+}
+
+String _firstText(List<Object?> values, {String fallback = ''}) {
+  for (final value in values) {
+    final text = (value ?? '').toString().trim();
+    if (text.isNotEmpty && text != 'null') {
+      return text;
+    }
+  }
+  return fallback;
+}
+
+String _t(BuildContext context, String zh, String en) {
+  return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
 }

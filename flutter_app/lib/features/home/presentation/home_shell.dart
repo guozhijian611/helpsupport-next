@@ -8,6 +8,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../community/presentation/community_feed_screen.dart';
 import '../../me/presentation/me_screen.dart';
 import '../../plan/presentation/plan_screen.dart';
+import 'home_dashboard_screen.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
@@ -34,7 +35,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       }
     });
 
-    final isLoggingOut = ref.watch(authControllerProvider).isLoading;
     final destinations = [
       _HomeDestination(
         label: context.l10n.homeTab,
@@ -57,43 +57,14 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         selectedIcon: Icons.person_rounded,
       ),
     ];
-    final current = destinations[_index];
     final body = switch (_index) {
       1 => const CommunityFeedScreen(),
       2 => const PlanScreen(),
       3 => const MeScreen(),
-      _ => _HomePanel(
-        icon: current.icon,
-        title: current.label,
-        subtitle: context.l10n.homeGreeting,
-      ),
+      _ => const HomeDashboardScreen(),
     };
 
     return Scaffold(
-      appBar: _index == 3
-          ? null
-          : AppBar(
-              title: Text(_index == 0 ? context.l10n.homeTitle : current.label),
-              actions: [
-                IconButton(
-                  tooltip: context.l10n.chatTitle,
-                  onPressed: () => context.push('/chat'),
-                  icon: const Icon(Icons.auto_awesome_outlined),
-                ),
-                IconButton(
-                  tooltip: context.l10n.localModelTitle,
-                  onPressed: () => context.push('/local-model'),
-                  icon: const Icon(Icons.memory_outlined),
-                ),
-                IconButton(
-                  tooltip: context.l10n.logout,
-                  onPressed: isLoggingOut
-                      ? null
-                      : ref.read(authControllerProvider.notifier).logout,
-                  icon: const Icon(Icons.logout),
-                ),
-              ],
-            ),
       body: SafeArea(child: body),
       floatingActionButton: _index == 1
           ? FloatingActionButton(
@@ -225,45 +196,6 @@ class _FloatingHomeTabItem extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HomePanel extends StatelessWidget {
-  const _HomePanel({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 64, color: scheme.primary),
-            const SizedBox(height: 20),
-            Text(title, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-          ],
         ),
       ),
     );

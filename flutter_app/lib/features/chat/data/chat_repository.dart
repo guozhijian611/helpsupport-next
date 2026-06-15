@@ -102,4 +102,12 @@ class ChatRepository {
     }
     return sendResult;
   }
+
+  Future<void> deleteSession(int sessionId) async {
+    await _apiClient.postApi<bool>(
+      '/app/help/chat/session/delete',
+      data: {'id': sessionId},
+      decode: (_) => true,
+    );
+  }
 }

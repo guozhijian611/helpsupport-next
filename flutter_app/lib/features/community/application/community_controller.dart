@@ -8,9 +8,22 @@ final communityRepositoryProvider = Provider<CommunityRepository>((ref) {
   return CommunityRepository(ref.watch(apiClientProvider));
 });
 
+final communityTagsProvider = FutureProvider.autoDispose<List<CommunityTag>>((
+  ref,
+) {
+  return ref.watch(communityRepositoryProvider).fetchTags();
+});
+
 final communityPostsProvider =
     FutureProvider.autoDispose<CommunityPage<CommunityPost>>((ref) {
       return ref.watch(communityRepositoryProvider).fetchPosts();
+    });
+
+final communityPostsSearchProvider = FutureProvider.autoDispose
+    .family<CommunityPage<CommunityPost>, String>((ref, keyword) {
+      return ref
+          .watch(communityRepositoryProvider)
+          .fetchPosts(keyword: keyword);
     });
 
 final communityPostProvider = FutureProvider.autoDispose

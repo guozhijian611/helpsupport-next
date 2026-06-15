@@ -34,6 +34,7 @@ class _CommunityPostDetailScreenState
     final comments = ref.watch(communityCommentsProvider(widget.postId));
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F5F9),
       appBar: AppBar(title: Text(context.l10n.community)),
       body: SafeArea(
         child: post.when(
@@ -47,13 +48,21 @@ class _CommunityPostDetailScreenState
                     await ref.read(communityPostProvider(widget.postId).future);
                   },
                   child: ListView(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
                     children: [
-                      CommunityPostCard(post: item),
+                      CommunityPostCard(
+                        post: item,
+                        showFollowButton: true,
+                        routeToDetail: false,
+                      ),
                       const SizedBox(height: 20),
                       Text(
                         context.l10n.communityComments,
-                        style: Theme.of(context).textTheme.titleMedium,
+                        style: const TextStyle(
+                          color: Color(0xFF303236),
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       comments.when(
@@ -136,28 +145,69 @@ class _CommentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: CircleAvatar(
-        child: Icon(
-          comment.isAnonymous
-              ? Icons.visibility_off_outlined
-              : Icons.person_outline,
-        ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
       ),
-      title: Text(comment.authorName),
-      subtitle: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(comment.content),
-          if (comment.createTime.isNotEmpty)
-            Text(
-              comment.createTime,
-              style: Theme.of(context).textTheme.bodySmall,
+          CircleAvatar(
+            backgroundColor: const Color(0xFFF8E3DB),
+            child: Icon(
+              comment.isAnonymous
+                  ? Icons.visibility_off_outlined
+                  : Icons.person_outline,
+              color: const Color(0xFFFF9585),
             ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  comment.authorName,
+                  style: const TextStyle(
+                    color: Color(0xFF303236),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  comment.content,
+                  style: const TextStyle(
+                    color: Color(0xFF4A4D55),
+                    height: 1.55,
+                  ),
+                ),
+                if (comment.createTime.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    comment.createTime,
+                    style: const TextStyle(
+                      color: Color(0xFF96999F),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '${comment.likeCount}',
+            style: const TextStyle(
+              color: Color(0xFF96999F),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
-      trailing: Text('${comment.likeCount}'),
     );
   }
 }
@@ -176,7 +226,7 @@ class _CommentComposer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      elevation: 4,
+      color: Colors.white,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
           16,

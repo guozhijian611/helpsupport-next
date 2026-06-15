@@ -9,6 +9,8 @@ import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/data/auth_models.dart';
+import '../../plan/application/plan_controller.dart';
+import '../../plan/data/plan_models.dart';
 
 class MeScreen extends ConsumerWidget {
   const MeScreen({super.key});
@@ -31,6 +33,22 @@ class MeScreen extends ConsumerWidget {
     };
     final apiClient = ref.watch(apiClientProvider);
     final profile = _MeProfile.fromSession(session, apiClient.resolveUrl);
+    final plans = switch (ref.watch(currentPlansProvider)) {
+      AsyncData(:final value) => value,
+      _ => const <TreatmentPlan>[],
+    };
+    final tasks = switch (ref.watch(dailyTasksProvider)) {
+      AsyncData(:final value) => value.list,
+      _ => const <DailyTask>[],
+    };
+    final finishedTasks = tasks.where((task) => task.isDone).length;
+    final pendingTasks = tasks.where((task) => !task.isDone).length;
+    final currentPlanTitle = plans.isEmpty
+        ? context.l10n.meNoTask
+        : plans.first.title;
+    final monthPlanValue = pendingTasks > 0
+        ? _t(context, '待完成 $pendingTasks 项', '$pendingTasks pending')
+        : currentPlanTitle;
 
     return ColoredBox(
       color: _pageBackground,
@@ -49,19 +67,25 @@ class MeScreen extends ConsumerWidget {
                     cards: [
                       _SummaryCardData(
                         title: context.l10n.meMonthPlan,
-                        value: context.l10n.meNoTask,
+                        value: monthPlanValue,
                         icon: Icons.graphic_eq_rounded,
                         color: _accent,
                       ),
                       _SummaryCardData(
                         title: context.l10n.meKeyTrigger,
-                        value: context.l10n.mePendingSupplement,
+                        value: profile.triggerSummary,
                         icon: Icons.hub_rounded,
                         color: _orange,
                       ),
                       _SummaryCardData(
                         title: context.l10n.meRecoveryGoal,
-                        value: '0',
+                        value: profile.recoveryGoal.isEmpty
+                            ? _t(
+                                context,
+                                '已完成 $finishedTasks 项',
+                                '$finishedTasks finished',
+                              )
+                            : profile.recoveryGoal,
                         icon: Icons.track_changes_rounded,
                         color: _blue,
                       ),
@@ -89,12 +113,16 @@ class _MeProfile {
     required this.age,
     required this.gender,
     required this.avatarUrl,
+    required this.triggerSummary,
+    required this.recoveryGoal,
   });
 
   final String name;
   final String age;
   final String gender;
   final String avatarUrl;
+  final String triggerSummary;
+  final String recoveryGoal;
 
   factory _MeProfile.fromSession(
     AuthSession? session,
@@ -115,12 +143,19 @@ class _MeProfile {
     final age = _firstText([profile['age'], member['age']]);
     final birthday = _firstText([profile['birthday'], member['birthday']]);
     final avatar = _firstText([member['avatar']]);
+    final triggers = _stringListValue(profile['trigger_tags']);
+    final recoveryGoal = _firstText([
+      profile['recovery_goal'],
+      member['recovery_goal'],
+    ]);
 
     return _MeProfile(
       name: name.isEmpty ? '316868' : name,
       age: age.isEmpty ? _ageFromBirthday(birthday) : age,
       gender: gender,
       avatarUrl: avatar.isEmpty ? '' : resolveUrl(avatar),
+      triggerSummary: triggers.isEmpty ? '压力 焦虑' : triggers.take(2).join(' '),
+      recoveryGoal: recoveryGoal,
     );
   }
 
@@ -157,6 +192,23 @@ class _MeProfile {
       age -= 1;
     }
     return math.max(age, 0).toString();
+  }
+
+  static List<String> _stringListValue(Object? value) {
+    if (value is List) {
+      return value
+          .map((item) => (item ?? '').toString().trim())
+          .where((item) => item.isNotEmpty)
+          .toList(growable: false);
+    }
+    if (value is String && value.trim().isNotEmpty) {
+      return value
+          .split(',')
+          .map((item) => item.trim())
+          .where((item) => item.isNotEmpty)
+          .toList(growable: false);
+    }
+    return const [];
   }
 }
 
@@ -323,6 +375,10 @@ class _RobotAvatarPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+String _t(BuildContext context, String zh, String en) {
+  return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
 }
 
 class _MetaText extends StatelessWidget {

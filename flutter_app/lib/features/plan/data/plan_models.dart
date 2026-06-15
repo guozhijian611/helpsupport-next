@@ -105,6 +105,7 @@ class DailyTask {
     required this.title,
     required this.description,
     required this.taskType,
+    required this.source,
     required this.pointsReward,
     required this.completedTime,
     required this.completionNote,
@@ -119,6 +120,7 @@ class DailyTask {
   final String title;
   final String description;
   final String taskType;
+  final String source;
   final int pointsReward;
   final String completedTime;
   final String completionNote;
@@ -137,6 +139,7 @@ class DailyTask {
       title: _stringValue(json['title']),
       description: _stringValue(json['description']),
       taskType: _stringValue(json['task_type'], fallback: 'daily'),
+      source: _stringValue(json['source'], fallback: 'manual'),
       pointsReward: _intValue(json['points_reward']),
       completedTime: _stringValue(json['completed_time']),
       completionNote: _stringValue(json['completion_note']),

@@ -34,6 +34,7 @@ class CommunityPost {
     required this.memberId,
     required this.content,
     required this.images,
+    required this.linkUrl,
     required this.tags,
     required this.authorName,
     required this.authorAvatar,
@@ -48,12 +49,14 @@ class CommunityPost {
     required this.createTime,
     required this.isLiked,
     required this.isCollected,
+    required this.isFollowedAuthor,
   });
 
   final int id;
   final int memberId;
   final String content;
   final List<String> images;
+  final String linkUrl;
   final List<String> tags;
   final String authorName;
   final String authorAvatar;
@@ -68,6 +71,7 @@ class CommunityPost {
   final String createTime;
   final bool isLiked;
   final bool isCollected;
+  final bool isFollowedAuthor;
 
   bool get isPendingReview => auditStatus == 0;
 
@@ -77,6 +81,7 @@ class CommunityPost {
       memberId: _intValue(json['member_id']),
       content: _stringValue(json['content']),
       images: _stringList(json['images']),
+      linkUrl: _stringValue(json['link_url']),
       tags: _stringList(json['tags']),
       authorName: _stringValue(json['author_name'], fallback: 'Member'),
       authorAvatar: _stringValue(json['author_avatar']),
@@ -91,6 +96,7 @@ class CommunityPost {
       createTime: _stringValue(json['create_time']),
       isLiked: _boolValue(json['is_liked']),
       isCollected: _boolValue(json['is_collected']),
+      isFollowedAuthor: _boolValue(json['is_followed_author']),
     );
   }
 }
@@ -148,12 +154,14 @@ class CommunityTag {
     required this.name,
     required this.color,
     required this.sort,
+    required this.isFollowed,
   });
 
   final int id;
   final String name;
   final String color;
   final int sort;
+  final bool isFollowed;
 
   factory CommunityTag.fromJson(Map<String, dynamic> json) {
     return CommunityTag(
@@ -161,6 +169,7 @@ class CommunityTag {
       name: _stringValue(json['tag_name']),
       color: _stringValue(json['color']),
       sort: _intValue(json['sort'], fallback: 100),
+      isFollowed: _boolValue(json['is_followed']),
     );
   }
 }

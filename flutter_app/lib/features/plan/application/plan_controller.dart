@@ -20,6 +20,11 @@ final dailyTasksProvider = FutureProvider.autoDispose<PlanPage<DailyTask>>((
   return ref.watch(planRepositoryProvider).fetchTasks(date: _today());
 });
 
+final dailyTasksByDateProvider = FutureProvider.autoDispose
+    .family<PlanPage<DailyTask>, String>((ref, date) {
+      return ref.watch(planRepositoryProvider).fetchTasks(date: date);
+    });
+
 final assessmentResultsProvider =
     FutureProvider.autoDispose<PlanPage<AssessmentResult>>((ref) {
       return ref.watch(planRepositoryProvider).fetchAssessmentResults();

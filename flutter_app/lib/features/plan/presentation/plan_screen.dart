@@ -1,69 +1,674 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
+import '../../auth/application/auth_controller.dart';
 import '../application/plan_controller.dart';
 import '../data/plan_models.dart';
 
-class PlanScreen extends ConsumerWidget {
+class PlanScreen extends ConsumerStatefulWidget {
   const PlanScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final plans = ref.watch(currentPlansProvider);
-    final tasks = ref.watch(dailyTasksProvider);
-    final assessments = ref.watch(assessmentResultsProvider);
+  ConsumerState<PlanScreen> createState() => _PlanScreenState();
+}
 
-    return RefreshIndicator(
-      onRefresh: () async {
-        ref.invalidate(currentPlansProvider);
-        ref.invalidate(dailyTasksProvider);
-        ref.invalidate(assessmentResultsProvider);
-        await ref.read(dailyTasksProvider.future);
-      },
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+class _PlanScreenState extends ConsumerState<PlanScreen> {
+  DateTime _selectedDate = DateTime.now();
+
+  String get _selectedKey => _formatDate(_selectedDate);
+
+  @override
+  Widget build(BuildContext context) {
+    final plans = ref.watch(currentPlansProvider);
+    final tasks = ref.watch(dailyTasksByDateProvider(_selectedKey));
+    final assessments = ref.watch(assessmentResultsProvider);
+    final taskPage = switch (tasks) {
+      AsyncData(:final value) => value,
+      _ => null,
+    };
+    final authState = ref.watch(authControllerProvider);
+    final session = switch (authState) {
+      AsyncData(:final value) => value,
+      _ => null,
+    };
+    final nickname = _firstText([
+      session?.profile['nickname'],
+      session?.member['nickname'],
+      session?.member['username'],
+    ], fallback: 'Alexandrina');
+
+    return ColoredBox(
+      color: const Color(0xFFF4F5F9),
+      child: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(currentPlansProvider);
+          ref.invalidate(dailyTasksByDateProvider(_selectedKey));
+          ref.invalidate(assessmentResultsProvider);
+          await Future.wait([
+            ref.read(currentPlansProvider.future),
+            ref.read(dailyTasksByDateProvider(_selectedKey).future),
+            ref.read(assessmentResultsProvider.future),
+          ]);
+        },
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 32),
+          children: [
+            _PlanHeader(
+              name: nickname,
+              onNotificationTap: () =>
+                  context.showCenteredNotice(context.l10n.featureComingSoon),
+            ),
+            const SizedBox(height: 20),
+            plans.when(
+              data: (items) => _PlanSummaryCard(
+                plan: items.isEmpty ? null : items.first,
+                completedCount:
+                    taskPage?.list.where((task) => task.isDone).length ?? 0,
+                totalCount: taskPage?.list.length ?? 0,
+                selectedDate: _selectedDate,
+              ),
+              error: (error, _) => _StatusCard(
+                title: context.l10n.networkUnavailable,
+                message: error.toString(),
+              ),
+              loading: () => const _SummaryLoadingCard(),
+            ),
+            const SizedBox(height: 18),
+            _WeekSwitcher(
+              selectedDate: _selectedDate,
+              onPreviousWeek: () => setState(
+                () => _selectedDate = _selectedDate.subtract(
+                  const Duration(days: 7),
+                ),
+              ),
+              onNextWeek: () => setState(
+                () =>
+                    _selectedDate = _selectedDate.add(const Duration(days: 7)),
+              ),
+            ),
+            const SizedBox(height: 14),
+            _WeekStrip(
+              selectedDate: _selectedDate,
+              onSelected: (date) => setState(() => _selectedDate = date),
+            ),
+            const SizedBox(height: 10),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 34,
+              color: Color(0xFF9AA0A8),
+            ),
+            const SizedBox(height: 14),
+            _SectionTitle(title: _t(context, '当日任务', "Today's tasks")),
+            const SizedBox(height: 12),
+            tasks.when(
+              data: (page) => page.list.isEmpty
+                  ? _StatusCard(
+                      title: context.l10n.planTaskEmpty,
+                      message: _t(
+                        context,
+                        '这一天没有排定任务，你可以切换日期查看其它安排。',
+                        'No tasks are scheduled for this day. Try another date.',
+                      ),
+                    )
+                  : Column(
+                      children: [
+                        for (final task in page.list)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: _TaskScheduleCard(
+                              task: task,
+                              onStatusChanged: () => _completeTask(task),
+                              onOpen: () => _openTask(context, task),
+                            ),
+                          ),
+                      ],
+                    ),
+              error: (error, _) => _StatusCard(
+                title: context.l10n.networkUnavailable,
+                message: error.toString(),
+              ),
+              loading: () => const _SummaryLoadingCard(height: 220),
+            ),
+            const SizedBox(height: 10),
+            _SectionTitle(title: _t(context, '评估量表', 'Assessments')),
+            const SizedBox(height: 12),
+            assessments.when(
+              data: (page) => page.list.isEmpty
+                  ? _StatusCard(
+                      title: context.l10n.planAssessmentEmpty,
+                      message: _t(
+                        context,
+                        '完成量表后，这里会出现你的评分与建议。',
+                        'Assessment scores and suggestions will appear here.',
+                      ),
+                    )
+                  : Column(
+                      children: [
+                        for (final item in page.list.take(3))
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _AssessmentInsightCard(result: item),
+                          ),
+                      ],
+                    ),
+              error: (error, _) => _StatusCard(
+                title: context.l10n.networkUnavailable,
+                message: error.toString(),
+              ),
+              loading: () => const _SummaryLoadingCard(height: 200),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _completeTask(DailyTask task) async {
+    try {
+      await ref
+          .read(planRepositoryProvider)
+          .updateTaskStatus(taskId: task.id, status: 1);
+      ref.invalidate(dailyTasksByDateProvider(_selectedKey));
+      ref.invalidate(dailyTasksProvider);
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(context.l10n.planTaskUpdated);
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(error.toString());
+    }
+  }
+
+  void _openTask(BuildContext context, DailyTask task) {
+    switch (task.source) {
+      case 'chat':
+      case 'doctor':
+      case 'ai':
+        context.push('/chat');
+        return;
+      case 'assessment':
+      case 'material':
+        context.showCenteredNotice(context.l10n.featureComingSoon);
+        return;
+      default:
+        context.showCenteredNotice(context.l10n.featureComingSoon);
+        return;
+    }
+  }
+}
+
+class _PlanHeader extends StatelessWidget {
+  const _PlanHeader({required this.name, required this.onNotificationTap});
+
+  final String name;
+  final VoidCallback onNotificationTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const CircleAvatar(
+          radius: 24,
+          backgroundColor: Color(0xFFF8E3DB),
+          child: Icon(Icons.person_rounded, color: Color(0xFFFF9585)),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _t(context, 'Good morning!', 'Good morning!'),
+                style: const TextStyle(
+                  color: Color(0xFFB0B3BA),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                name,
+                style: const TextStyle(
+                  color: Color(0xFF303236),
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton.filledTonal(
+          style: IconButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFF303236),
+          ),
+          onPressed: onNotificationTap,
+          icon: const Icon(Icons.notifications_none_rounded),
+        ),
+      ],
+    );
+  }
+}
+
+class _PlanSummaryCard extends StatelessWidget {
+  const _PlanSummaryCard({
+    required this.plan,
+    required this.completedCount,
+    required this.totalCount,
+    required this.selectedDate,
+  });
+
+  final TreatmentPlan? plan;
+  final int completedCount;
+  final int totalCount;
+  final DateTime selectedDate;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentStage = _currentStage(plan);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF628AE1), Color(0xFF4F76D4)],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(title: context.l10n.planCurrent),
-          plans.when(
-            data: (items) => items.isEmpty
-                ? _EmptyPanel(message: context.l10n.planEmpty)
-                : Column(
-                    children: [for (final plan in items) _PlanCard(plan: plan)],
-                  ),
-            error: (error, stackTrace) =>
-                _EmptyPanel(message: context.l10n.networkUnavailable),
-            loading: () => const _LoadingPanel(),
+          _SummaryLine(
+            label: _t(context, '阶段名称', 'Stage'),
+            value:
+                currentStage?.stageName ??
+                plan?.title ??
+                _t(context, '暂无计划', 'No plan'),
           ),
-          const SizedBox(height: 20),
-          _SectionHeader(title: context.l10n.planTodayTasks),
-          tasks.when(
-            data: (page) => page.list.isEmpty
-                ? _EmptyPanel(message: context.l10n.planTaskEmpty)
-                : Column(
+          const SizedBox(height: 12),
+          _SummaryLine(
+            label: _t(context, '起止日期', 'Schedule'),
+            value: _planRange(plan, selectedDate),
+          ),
+          const SizedBox(height: 12),
+          _SummaryLine(
+            label: _t(context, '阶段目标', 'Goal'),
+            value: currentStage?.description.isNotEmpty == true
+                ? currentStage!.description
+                : plan?.description.isNotEmpty == true
+                ? plan!.description
+                : _t(context, '建立更稳定的应对机制', 'Build a steadier coping rhythm'),
+          ),
+          const SizedBox(height: 12),
+          _SummaryLine(
+            label: _t(context, '今日任务', 'Daily progress'),
+            value: totalCount == 0
+                ? _t(context, '暂无任务', 'No tasks')
+                : '$completedCount / $totalCount',
+          ),
+        ],
+      ),
+    );
+  }
+
+  TreatmentStage? _currentStage(TreatmentPlan? plan) {
+    if (plan == null || plan.stages.isEmpty) {
+      return null;
+    }
+    return plan.stages.firstWhere(
+      (stage) => stage.status == 1,
+      orElse: () => plan.stages.first,
+    );
+  }
+
+  String _planRange(TreatmentPlan? plan, DateTime selectedDate) {
+    if (plan == null) {
+      return DateFormat('yyyy-MM-dd').format(selectedDate);
+    }
+    final start = plan.startDate.trim();
+    final end = plan.endDate.trim();
+    if (start.isEmpty && end.isEmpty) {
+      return DateFormat('yyyy-MM-dd').format(selectedDate);
+    }
+    if (start.isEmpty) {
+      return end;
+    }
+    if (end.isEmpty) {
+      return start;
+    }
+    return '$start - $end';
+  }
+}
+
+class _SummaryLine extends StatelessWidget {
+  const _SummaryLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 82,
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFFDDE8FF),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              height: 1.45,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WeekSwitcher extends StatelessWidget {
+  const _WeekSwitcher({
+    required this.selectedDate,
+    required this.onPreviousWeek,
+    required this.onNextWeek,
+  });
+
+  final DateTime selectedDate;
+  final VoidCallback onPreviousWeek;
+  final VoidCallback onNextWeek;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = DateFormat('yyyy-MM').format(selectedDate);
+
+    return Row(
+      children: [
+        _MiniIconButton(
+          icon: Icons.chevron_left_rounded,
+          onTap: onPreviousWeek,
+        ),
+        Expanded(
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF303236),
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        _MiniIconButton(icon: Icons.chevron_right_rounded, onTap: onNextWeek),
+      ],
+    );
+  }
+}
+
+class _MiniIconButton extends StatelessWidget {
+  const _MiniIconButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(icon, color: const Color(0xFF9AA0A8)),
+        ),
+      ),
+    );
+  }
+}
+
+class _WeekStrip extends StatelessWidget {
+  const _WeekStrip({required this.selectedDate, required this.onSelected});
+
+  final DateTime selectedDate;
+  final ValueChanged<DateTime> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final first = selectedDate.subtract(
+      Duration(days: selectedDate.weekday % 7),
+    );
+    final days = List.generate(7, (index) => first.add(Duration(days: index)));
+
+    return Row(
+      children: [
+        for (final day in days)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: _DayCell(
+                date: day,
+                selected: _sameDay(day, selectedDate),
+                onTap: () => onSelected(day),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _DayCell extends StatelessWidget {
+  const _DayCell({
+    required this.date,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final DateTime date;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = _weekdayLabel(context, date);
+
+    return Material(
+      color: selected ? const Color(0xFF2483F0) : Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+          child: Column(
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? Colors.white : const Color(0xFF7D828A),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${date.day}',
+                style: TextStyle(
+                  color: selected ? Colors.white : const Color(0xFF303236),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TaskScheduleCard extends StatelessWidget {
+  const _TaskScheduleCard({
+    required this.task,
+    required this.onStatusChanged,
+    required this.onOpen,
+  });
+
+  final DailyTask task;
+  final VoidCallback onStatusChanged;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final priority = _taskPriority(context, task);
+    final doneColor = task.isDone
+        ? const Color(0xFFB7E4A7)
+        : const Color(0xFFE8EEF9);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            task.title,
+            style: const TextStyle(
+              color: Color(0xFF303236),
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (task.description.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              task.description,
+              style: const TextStyle(
+                color: Color(0xFF50545D),
+                fontSize: 15,
+                height: 1.55,
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F7FD),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
                     children: [
-                      for (final task in page.list) _TaskCard(task: task),
+                      _TaskMetaRow(
+                        label: _t(context, '优先级', 'Priority'),
+                        value: priority.$1,
+                        valueColor: priority.$2,
+                      ),
+                      const SizedBox(height: 12),
+                      _TaskMetaRow(
+                        label: _t(context, '来源', 'Source'),
+                        value: _taskSource(context, task.source),
+                      ),
+                      const SizedBox(height: 12),
+                      _TaskMetaRow(
+                        label: _t(context, '时间', 'Time'),
+                        value: _taskTimeRange(task),
+                      ),
+                      const SizedBox(height: 12),
+                      _TaskMetaRow(
+                        label: _t(context, '分数', 'Points'),
+                        value: '${task.pointsReward}',
+                      ),
                     ],
                   ),
-            error: (error, stackTrace) =>
-                _EmptyPanel(message: context.l10n.networkUnavailable),
-            loading: () => const _LoadingPanel(),
-          ),
-          const SizedBox(height: 20),
-          _SectionHeader(title: context.l10n.planAssessments),
-          assessments.when(
-            data: (page) => page.list.isEmpty
-                ? _EmptyPanel(message: context.l10n.planAssessmentEmpty)
-                : Column(
-                    children: [
-                      for (final result in page.list)
-                        _AssessmentCard(result: result),
-                    ],
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  width: 92,
+                  height: 92,
+                  decoration: BoxDecoration(
+                    color: doneColor,
+                    shape: BoxShape.circle,
                   ),
-            error: (error, stackTrace) =>
-                _EmptyPanel(message: context.l10n.networkUnavailable),
-            loading: () => const _LoadingPanel(),
+                  child: Icon(
+                    task.isDone
+                        ? Icons.check_rounded
+                        : task.isSkipped
+                        ? Icons.skip_next_rounded
+                        : Icons.schedule_rounded,
+                    size: 46,
+                    color: task.isDone
+                        ? const Color(0xFF75BE62)
+                        : const Color(0xFF5A81DA),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  task.completedTime.isNotEmpty
+                      ? _t(
+                          context,
+                          '已完成于 ${task.completedTime}',
+                          'Completed at ${task.completedTime}',
+                        )
+                      : _t(
+                          context,
+                          '提醒时间 ${_taskTimeRange(task)}',
+                          'Reminder ${_taskTimeRange(task)}',
+                        ),
+                  style: const TextStyle(
+                    color: Color(0xFF7D828A),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (!task.isDone) ...[
+                TextButton(
+                  onPressed: onStatusChanged,
+                  child: Text(context.l10n.planTaskComplete),
+                ),
+                FilledButton.tonal(
+                  onPressed: onOpen,
+                  style: FilledButton.styleFrom(
+                    foregroundColor: const Color(0xFF5A81DA),
+                  ),
+                  child: Text(_t(context, '前往', 'Open')),
+                ),
+              ],
+            ],
           ),
         ],
       ),
@@ -71,254 +676,275 @@ class PlanScreen extends ConsumerWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
+class _TaskMetaRow extends StatelessWidget {
+  const _TaskMetaRow({
+    required this.label,
+    required this.value,
+    this.valueColor = const Color(0xFF303236),
+  });
 
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Text(title, style: Theme.of(context).textTheme.titleMedium),
-    );
-  }
-}
-
-class _PlanCard extends StatelessWidget {
-  const _PlanCard({required this.plan});
-
-  final TreatmentPlan plan;
+  final String label;
+  final String value;
+  final Color valueColor;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(plan.title, style: Theme.of(context).textTheme.titleMedium),
-            if (plan.description.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(plan.description),
-            ],
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (plan.startDate.isNotEmpty || plan.endDate.isNotEmpty)
-                  Chip(label: Text(_planRange(context, plan))),
-                Chip(label: Text(_planStatus(context, plan.status))),
-              ],
+    return Row(
+      children: [
+        SizedBox(
+          width: 64,
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFFA5A9B0),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
-            if (plan.stages.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              for (final stage in plan.stages)
-                ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.flag_outlined),
-                  title: Text(stage.stageName),
-                  subtitle: stage.description.isEmpty
-                      ? null
-                      : Text(stage.description),
-                ),
-            ],
-          ],
+          ),
         ),
-      ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _TaskCard extends ConsumerWidget {
-  const _TaskCard({required this.task});
-
-  final DailyTask task;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
-    final isFinished = task.isDone || task.isSkipped;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(_taskIcon(task.taskType), color: scheme.primary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    task.title,
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                ),
-                Chip(label: Text(_taskStatus(context, task.status))),
-              ],
-            ),
-            if (task.description.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(task.description),
-            ],
-            const SizedBox(height: 8),
-            Text(
-              _taskMeta(context, task),
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-            if (!isFinished) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  FilledButton.icon(
-                    onPressed: () => _updateTask(context, ref, 1),
-                    icon: const Icon(Icons.check),
-                    label: Text(context.l10n.planTaskComplete),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    onPressed: () => _updateTask(context, ref, 2),
-                    icon: const Icon(Icons.skip_next_outlined),
-                    label: Text(context.l10n.planTaskSkip),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _updateTask(
-    BuildContext context,
-    WidgetRef ref,
-    int status,
-  ) async {
-    try {
-      await ref
-          .read(planRepositoryProvider)
-          .updateTaskStatus(taskId: task.id, status: status);
-      ref.invalidate(dailyTasksProvider);
-      if (!context.mounted) {
-        return;
-      }
-      context.showCenteredNotice(context.l10n.planTaskUpdated);
-    } on Object catch (error) {
-      if (!context.mounted) {
-        return;
-      }
-      context.showCenteredNotice(error.toString());
-    }
-  }
-}
-
-class _AssessmentCard extends StatelessWidget {
-  const _AssessmentCard({required this.result});
+class _AssessmentInsightCard extends StatelessWidget {
+  const _AssessmentInsightCard({required this.result});
 
   final AssessmentResult result;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.fact_check_outlined),
-        title: Text(result.assessmentTitle),
-        subtitle: Text(
-          [
-            if (result.assessedAt.isNotEmpty) result.assessedAt,
-            if (result.resultLevel.isNotEmpty) result.resultLevel,
-            if (result.questionCount > 0)
-              '${result.achievedScore}/${result.totalScore}',
-          ].join('  '),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            result.assessmentTitle,
+            style: const TextStyle(
+              color: Color(0xFF303236),
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _AssessmentChip(
+                label: _t(
+                  context,
+                  '等级 ${result.resultLevel}',
+                  'Level ${result.resultLevel}',
+                ),
+              ),
+              _AssessmentChip(
+                label: '${result.achievedScore}/${result.totalScore}',
+              ),
+              if (result.assessedAt.isNotEmpty)
+                _AssessmentChip(label: result.assessedAt),
+            ],
+          ),
+          if (result.suggestions.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              result.suggestions,
+              style: const TextStyle(
+                color: Color(0xFF50545D),
+                fontSize: 14,
+                height: 1.55,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _AssessmentChip extends StatelessWidget {
+  const _AssessmentChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F7FD),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFF5A81DA),
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
   }
 }
 
-class _EmptyPanel extends StatelessWidget {
-  const _EmptyPanel({required this.message});
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.title});
 
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+        color: Color(0xFF303236),
+        fontSize: 24,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+  }
+}
+
+class _StatusCard extends StatelessWidget {
+  const _StatusCard({required this.title, required this.message});
+
+  final String title;
   final String message;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Text(message, textAlign: TextAlign.center),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Color(0xFF303236),
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: const TextStyle(
+              color: Color(0xFF7D828A),
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _LoadingPanel extends StatelessWidget {
-  const _LoadingPanel();
+class _SummaryLoadingCard extends StatelessWidget {
+  const _SummaryLoadingCard({this.height = 172});
+
+  final double height;
 
   @override
   Widget build(BuildContext context) {
-    return const Card(
-      child: Padding(
-        padding: EdgeInsets.all(24),
-        child: Center(child: CircularProgressIndicator()),
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
       ),
+      child: const Center(child: CircularProgressIndicator()),
     );
   }
 }
 
-String _planRange(BuildContext context, TreatmentPlan plan) {
-  if (plan.startDate.isEmpty && plan.endDate.isEmpty) {
-    return context.l10n.planNoDate;
+(String, Color) _taskPriority(BuildContext context, DailyTask task) {
+  if (task.taskType == 'checkin') {
+    return (_t(context, '关键', 'Key'), const Color(0xFFFF5B61));
   }
-  if (plan.endDate.isEmpty) {
-    return plan.startDate;
+  if (task.taskType == 'assessment') {
+    return (_t(context, '一般', 'Normal'), const Color(0xFF5A81DA));
   }
-  if (plan.startDate.isEmpty) {
-    return plan.endDate;
+  if (task.taskType == 'material') {
+    return (_t(context, '学习', 'Learn'), const Color(0xFF7CBB5B));
   }
-  return '${plan.startDate} - ${plan.endDate}';
+  return (_t(context, '常规', 'Routine'), const Color(0xFF5A81DA));
 }
 
-String _planStatus(BuildContext context, int status) {
-  return switch (status) {
-    1 => context.l10n.planStatusActive,
-    2 => context.l10n.planStatusPaused,
-    3 => context.l10n.planStatusFinished,
-    _ => context.l10n.planStatusDraft,
+String _taskSource(BuildContext context, String source) {
+  return switch (source) {
+    'chat' || 'doctor' || 'ai' => _t(context, 'AI 心理医生', 'AI doctor'),
+    'assessment' => _t(context, '评估量表', 'Assessment'),
+    'material' => _t(context, '教育素材', 'Material'),
+    _ => _t(context, '治疗计划', 'Treatment plan'),
   };
 }
 
-String _taskStatus(BuildContext context, int status) {
-  return switch (status) {
-    1 => context.l10n.planTaskDone,
-    2 => context.l10n.planTaskSkipped,
-    3 => context.l10n.planTaskDelayed,
-    _ => context.l10n.planTaskTodo,
-  };
+String _taskTimeRange(DailyTask task) {
+  final start = task.startTime.trim();
+  final end = task.endTime.trim();
+  if (start.isEmpty && end.isEmpty) {
+    return '--';
+  }
+  if (start.isEmpty) {
+    return end;
+  }
+  if (end.isEmpty) {
+    return start;
+  }
+  return '$start-$end';
 }
 
-IconData _taskIcon(String type) {
-  return switch (type) {
-    'assessment' => Icons.assignment_outlined,
-    'material' => Icons.menu_book_outlined,
-    'checkin' => Icons.edit_note_outlined,
-    _ => Icons.event_available_outlined,
-  };
+String _weekdayLabel(BuildContext context, DateTime date) {
+  const zh = ['日', '一', '二', '三', '四', '五', '六'];
+  const en = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  final index = date.weekday % 7;
+  return Localizations.localeOf(context).languageCode == 'zh'
+      ? zh[index]
+      : en[index];
 }
 
-String _taskMeta(BuildContext context, DailyTask task) {
-  final parts = [
-    if (task.taskDate.isNotEmpty) task.taskDate,
-    if (task.startTime.isNotEmpty) task.startTime,
-    if (task.pointsReward > 0) '+${task.pointsReward}',
-  ];
-  return parts.isEmpty ? context.l10n.planNoDate : parts.join('  ');
+bool _sameDay(DateTime left, DateTime right) {
+  return left.year == right.year &&
+      left.month == right.month &&
+      left.day == right.day;
+}
+
+String _formatDate(DateTime date) {
+  return '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
+}
+
+String _firstText(List<Object?> values, {String fallback = ''}) {
+  for (final value in values) {
+    final text = (value ?? '').toString().trim();
+    if (text.isNotEmpty && text != 'null') {
+      return text;
+    }
+  }
+  return fallback;
+}
+
+String _t(BuildContext context, String zh, String en) {
+  return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
 }

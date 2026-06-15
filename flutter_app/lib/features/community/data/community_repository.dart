@@ -25,10 +25,15 @@ class CommunityRepository {
   Future<CommunityPage<CommunityPost>> fetchPosts({
     int page = 1,
     int pageSize = 20,
+    String? keyword,
   }) async {
     final result = await _apiClient.getApi<CommunityPage<CommunityPost>>(
       '/app/help/community/posts',
-      queryParameters: {'page': page, 'page_size': pageSize},
+      queryParameters: {
+        'page': page,
+        'page_size': pageSize,
+        if (keyword != null && keyword.trim().isNotEmpty) 'keyword': keyword,
+      },
       decode: (value) => CommunityPage.fromJson(value, CommunityPost.fromJson),
     );
     return result.data ??
@@ -56,10 +61,17 @@ class CommunityRepository {
   Future<CommunityPost> createPost({
     required String content,
     bool isAnonymous = false,
+    List<String>? tags,
+    String? linkUrl,
   }) async {
     final result = await _apiClient.postApi<CommunityPost>(
       '/app/help/community/post',
-      data: {'content': content, 'is_anonymous': isAnonymous ? 1 : 2},
+      data: {
+        'content': content,
+        'is_anonymous': isAnonymous ? 1 : 2,
+        if (tags != null && tags.isNotEmpty) 'tags': tags,
+        if (linkUrl != null && linkUrl.trim().isNotEmpty) 'link_url': linkUrl,
+      },
       decode: (value) {
         if (value is Map<String, dynamic>) {
           return CommunityPost.fromJson(value);
@@ -131,6 +143,34 @@ class CommunityRepository {
       decode: (value) {
         if (value is Map<String, dynamic>) {
           return value['is_collected'] == true;
+        }
+        return false;
+      },
+    );
+    return result.data ?? false;
+  }
+
+  Future<bool> toggleFollowTag(int tagId) async {
+    final result = await _apiClient.postApi<bool>(
+      '/app/help/community/follow-tag',
+      data: {'tag_id': tagId},
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return value['is_followed'] == true;
+        }
+        return false;
+      },
+    );
+    return result.data ?? false;
+  }
+
+  Future<bool> toggleFollowMember(int memberId) async {
+    final result = await _apiClient.postApi<bool>(
+      '/app/help/community/follow-member',
+      data: {'target_member_id': memberId},
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return value['is_followed'] == true;
         }
         return false;
       },
