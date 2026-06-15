@@ -37,6 +37,7 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialLibraryPalette.of(context);
     final categories = widget.source == MaterialLibrarySource.browse
         ? ref.watch(materialCategoriesProvider(widget.materialType))
         : const AsyncData<List<MaterialCategory>>([]);
@@ -63,13 +64,13 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
     };
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
         title: Text(_screenTitle(context)),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF303236),
-        surfaceTintColor: Colors.white,
+        backgroundColor: palette.appBarBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         actions: widget.source == MaterialLibrarySource.browse
             ? [
@@ -300,14 +301,15 @@ class _SearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialLibraryPalette.of(context);
     return Row(
       children: [
         Expanded(
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: palette.cardBackground,
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: const Color(0xFFE6E8EE)),
+              border: Border.all(color: palette.outline),
             ),
             child: TextField(
               controller: controller,
@@ -379,19 +381,22 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialLibraryPalette.of(context);
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFE6EEFF) : Colors.white,
+          color: selected
+              ? palette.selectedChipBackground
+              : palette.cardBackground,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? const Color(0xFF5A81DA) : const Color(0xFF343437),
+            color: selected ? palette.selectedChipText : palette.primaryText,
             fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
           ),
         ),
@@ -415,6 +420,7 @@ class _MaterialCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _MaterialLibraryPalette.of(context);
     final apiClient = ref.watch(apiClientProvider);
     final coverUrl = apiClient.resolveUrl(item.coverUrl);
     final chips = [
@@ -431,7 +437,7 @@ class _MaterialCard extends ConsumerWidget {
         child: Ink(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: palette.cardBackground,
             borderRadius: BorderRadius.circular(28),
           ),
           child: Row(
@@ -450,8 +456,8 @@ class _MaterialCard extends ConsumerWidget {
                             item.title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF303236),
+                            style: TextStyle(
+                              color: palette.primaryText,
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
                               height: 1.25,
@@ -471,10 +477,7 @@ class _MaterialCard extends ConsumerWidget {
                             ),
                       maxLines: 4,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF5E6470),
-                        height: 1.55,
-                      ),
+                      style: TextStyle(color: palette.bodyText, height: 1.55),
                     ),
                     const SizedBox(height: 12),
                     Wrap(
@@ -488,13 +491,13 @@ class _MaterialCard extends ConsumerWidget {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF4F5F9),
+                              color: palette.tagBackground,
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
                               '# $chip',
-                              style: const TextStyle(
-                                color: Color(0xFF4A4D55),
+                              style: TextStyle(
+                                color: palette.bodyText,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -640,6 +643,7 @@ class _HistoryTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialLibraryPalette.of(context);
     final sections = <MapEntry<String, List<MaterialHistoryEntry>>>[];
     for (final entry in entries) {
       final label = _historyDateLabel(entry.viewedAt);
@@ -657,7 +661,7 @@ class _HistoryTimeline extends StatelessWidget {
           const SizedBox(height: 8),
           DecoratedBox(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: palette.cardBackground,
               borderRadius: BorderRadius.circular(24),
             ),
             child: Column(
@@ -685,17 +689,18 @@ class _HistorySectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialLibraryPalette.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F0F2),
+        color: palette.sectionHeaderBackground,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: Color(0xFFA1A4AA),
+        style: TextStyle(
+          color: palette.secondaryText,
           fontSize: 16,
           fontWeight: FontWeight.w700,
         ),
@@ -712,6 +717,7 @@ class _HistoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialLibraryPalette.of(context);
     final onTap = entry.contentId > 0
         ? () => context.push('/materials/detail/${entry.contentId}')
         : entry.route.trim().isNotEmpty
@@ -727,9 +733,7 @@ class _HistoryRow extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
           decoration: BoxDecoration(
             border: showDivider
-                ? const Border(
-                    bottom: BorderSide(color: Color(0xFFF1F2F4), width: 1),
-                  )
+                ? Border(bottom: BorderSide(color: palette.outline, width: 1))
                 : null,
           ),
           child: Row(
@@ -745,8 +749,8 @@ class _HistoryRow extends StatelessWidget {
                   entry.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF303236),
+                  style: TextStyle(
+                    color: palette.primaryText,
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                   ),
@@ -759,8 +763,8 @@ class _HistoryRow extends StatelessWidget {
                     : entry.authorName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFFA8ABB1),
+                style: TextStyle(
+                  color: palette.secondaryText,
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
                 ),
@@ -778,23 +782,24 @@ class _HistoryEndHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialLibraryPalette.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 10, 0, 6),
       child: Row(
         children: [
-          const Expanded(
-            child: Divider(color: Color(0xFFE7E9EE), indent: 26, endIndent: 10),
+          Expanded(
+            child: Divider(color: palette.outline, indent: 26, endIndent: 10),
           ),
           Text(
             _t(context, '已显示所有记录', 'All records shown'),
-            style: const TextStyle(
-              color: Color(0xFFC2C5CB),
+            style: TextStyle(
+              color: palette.secondaryText.withValues(alpha: 0.72),
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
           ),
-          const Expanded(
-            child: Divider(color: Color(0xFFE7E9EE), indent: 10, endIndent: 26),
+          Expanded(
+            child: Divider(color: palette.outline, indent: 10, endIndent: 26),
           ),
         ],
       ),
@@ -834,18 +839,19 @@ class _MaterialThumbShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialLibraryPalette.of(context);
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFFFFF4EF), Color(0xFFF5F7FF)],
+          colors: palette.thumbGradient,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
       ),
-      child: const Center(
+      child: Center(
         child: Icon(
           Icons.auto_stories_rounded,
-          color: Color(0xFFD89A8C),
+          color: palette.thumbIcon,
           size: 42,
         ),
       ),
@@ -889,13 +895,14 @@ class _InlineStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialLibraryPalette.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(22),
       ),
-      child: Text(text, style: const TextStyle(color: Color(0xFF7D828A))),
+      child: Text(text, style: TextStyle(color: palette.secondaryText)),
     );
   }
 }
@@ -908,24 +915,25 @@ class _EmptyPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialLibraryPalette.of(context);
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
         children: [
-          const Icon(
+          Icon(
             Icons.auto_stories_rounded,
-            color: Color(0xFFD0D3DA),
+            color: palette.secondaryText.withValues(alpha: 0.58),
             size: 42,
           ),
           const SizedBox(height: 14),
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -934,7 +942,7 @@ class _EmptyPanel extends StatelessWidget {
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF7D828A), height: 1.5),
+            style: TextStyle(color: palette.secondaryText, height: 1.5),
           ),
         ],
       ),
@@ -947,6 +955,7 @@ class _CategoryStripSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialLibraryPalette.of(context);
     return Row(
       children: List.generate(
         4,
@@ -955,7 +964,7 @@ class _CategoryStripSkeleton extends StatelessWidget {
           height: 40,
           margin: EdgeInsets.only(right: index == 3 ? 0 : 10),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: palette.cardBackground,
             borderRadius: BorderRadius.circular(999),
           ),
         ),
@@ -969,6 +978,7 @@ class _LibraryLoadingList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MaterialLibraryPalette.of(context);
     return Column(
       children: List.generate(
         3,
@@ -976,7 +986,7 @@ class _LibraryLoadingList extends StatelessWidget {
           height: 176,
           margin: EdgeInsets.only(bottom: index == 2 ? 0 : 14),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: palette.cardBackground,
             borderRadius: BorderRadius.circular(28),
           ),
         ),
@@ -1006,6 +1016,66 @@ String _historyDateLabel(String value) {
     return normalized.substring(0, 10);
   }
   return normalized;
+}
+
+class _MaterialLibraryPalette {
+  const _MaterialLibraryPalette({
+    required this.pageBackground,
+    required this.appBarBackground,
+    required this.cardBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.bodyText,
+    required this.outline,
+    required this.tagBackground,
+    required this.sectionHeaderBackground,
+    required this.selectedChipBackground,
+    required this.selectedChipText,
+    required this.thumbGradient,
+    required this.thumbIcon,
+  });
+
+  static _MaterialLibraryPalette of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _MaterialLibraryPalette(
+      pageBackground: scheme.surface,
+      appBarBackground: isDark ? scheme.surface : scheme.surfaceContainerLowest,
+      cardBackground: scheme.surfaceContainerLowest,
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      bodyText: isDark
+          ? scheme.onSurface.withValues(alpha: 0.82)
+          : const Color(0xFF5E6470),
+      outline: scheme.outlineVariant,
+      tagBackground: scheme.surfaceContainerLow,
+      sectionHeaderBackground: scheme.surfaceContainerHigh,
+      selectedChipBackground: isDark
+          ? scheme.primaryContainer
+          : const Color(0xFFE6EEFF),
+      selectedChipText: isDark
+          ? scheme.onPrimaryContainer
+          : const Color(0xFF5A81DA),
+      thumbGradient: isDark
+          ? const [Color(0xFF2E3440), Color(0xFF233047)]
+          : const [Color(0xFFFFF4EF), Color(0xFFF5F7FF)],
+      thumbIcon: isDark ? scheme.primary : const Color(0xFFD89A8C),
+    );
+  }
+
+  final Color pageBackground;
+  final Color appBarBackground;
+  final Color cardBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color bodyText;
+  final Color outline;
+  final Color tagBackground;
+  final Color sectionHeaderBackground;
+  final Color selectedChipBackground;
+  final Color selectedChipText;
+  final List<Color> thumbGradient;
+  final Color thumbIcon;
 }
 
 String _t(BuildContext context, String zh, String en) {

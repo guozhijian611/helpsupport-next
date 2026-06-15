@@ -23,6 +23,7 @@ class DoctorMeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _DoctorMePalette.of(context);
     final authState = ref.watch(authControllerProvider);
     final session = switch (authState) {
       AsyncData(:final value) => value,
@@ -84,7 +85,7 @@ class DoctorMeScreen extends ConsumerWidget {
     ];
 
     return ColoredBox(
-      color: _pageBackground,
+      color: palette.pageBackground,
       child: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
@@ -119,8 +120,8 @@ class DoctorMeScreen extends ConsumerWidget {
                                           profile.name,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            color: _primaryText,
+                                          style: TextStyle(
+                                            color: palette.primaryText,
                                             fontSize: 28,
                                             fontWeight: FontWeight.w800,
                                             height: 1.1,
@@ -172,7 +173,7 @@ class DoctorMeScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.fromLTRB(24, 28, 24, 30),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: palette.cardBackground,
                 borderRadius: BorderRadius.circular(26),
               ),
               child: Column(
@@ -180,8 +181,8 @@ class DoctorMeScreen extends ConsumerWidget {
                 children: [
                   Text(
                     _t(context, '常用功能', 'Common actions'),
-                    style: const TextStyle(
-                      color: _primaryText,
+                    style: TextStyle(
+                      color: palette.primaryText,
                       fontSize: 25,
                       fontWeight: FontWeight.w900,
                     ),
@@ -278,6 +279,7 @@ class _DoctorActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorMePalette.of(context);
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () {
@@ -299,8 +301,8 @@ class _DoctorActionTile extends StatelessWidget {
             action.title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: DoctorMeScreen._primaryText,
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w700,
               height: 1.1,
@@ -319,11 +321,12 @@ class _DoctorAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorMePalette.of(context);
     if (avatarUrl.isEmpty) {
-      return const CircleAvatar(
+      return CircleAvatar(
         radius: 28,
-        backgroundColor: Color(0xFFF0F4FF),
-        child: Icon(Icons.person_rounded, color: DoctorMeScreen._blue),
+        backgroundColor: palette.avatarBackground,
+        child: const Icon(Icons.person_rounded, color: DoctorMeScreen._blue),
       );
     }
 
@@ -334,10 +337,13 @@ class _DoctorAvatar extends StatelessWidget {
         child: Image.network(
           avatarUrl,
           fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => const CircleAvatar(
+          errorBuilder: (_, _, _) => CircleAvatar(
             radius: 28,
-            backgroundColor: Color(0xFFF0F4FF),
-            child: Icon(Icons.person_rounded, color: DoctorMeScreen._blue),
+            backgroundColor: palette.avatarBackground,
+            child: const Icon(
+              Icons.person_rounded,
+              color: DoctorMeScreen._blue,
+            ),
           ),
         ),
       ),
@@ -353,22 +359,23 @@ class _MetaText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorMePalette.of(context);
     return RichText(
       text: TextSpan(
         style: const TextStyle(fontSize: 17, height: 1.2),
         children: [
           TextSpan(
             text: label,
-            style: const TextStyle(
-              color: DoctorMeScreen._mutedText,
+            style: TextStyle(
+              color: palette.mutedText,
               fontWeight: FontWeight.w700,
             ),
           ),
           const TextSpan(text: '  '),
           TextSpan(
             text: value,
-            style: const TextStyle(
-              color: DoctorMeScreen._primaryText,
+            style: TextStyle(
+              color: palette.primaryText,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -386,8 +393,9 @@ class _RoundIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorMePalette.of(context);
     return Material(
-      color: Colors.white.withValues(alpha: 0.82),
+      color: palette.iconButtonBackground,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -395,7 +403,7 @@ class _RoundIconButton extends StatelessWidget {
         child: SizedBox(
           width: 58,
           height: 58,
-          child: Icon(icon, size: 20, color: DoctorMeScreen._primaryText),
+          child: Icon(icon, size: 20, color: palette.primaryText),
         ),
       ),
     );
@@ -439,4 +447,39 @@ String _ageFromBirthday(String birthday) {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _DoctorMePalette {
+  const _DoctorMePalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.primaryText,
+    required this.mutedText,
+    required this.iconButtonBackground,
+    required this.avatarBackground,
+  });
+
+  static _DoctorMePalette of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _DoctorMePalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      primaryText: scheme.onSurface,
+      mutedText: scheme.onSurfaceVariant,
+      iconButtonBackground: isDark
+          ? scheme.surfaceContainerHighest
+          : Colors.white.withValues(alpha: 0.82),
+      avatarBackground: isDark
+          ? scheme.surfaceContainerHighest
+          : const Color(0xFFF0F4FF),
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color primaryText;
+  final Color mutedText;
+  final Color iconButtonBackground;
+  final Color avatarBackground;
 }

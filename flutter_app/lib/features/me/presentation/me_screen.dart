@@ -30,6 +30,7 @@ class MeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _MePalette.of(context);
     final authState = ref.watch(authControllerProvider);
     final session = switch (authState) {
       AsyncData(:final value) => value,
@@ -73,7 +74,7 @@ class MeScreen extends ConsumerWidget {
         : currentPlanTitle;
 
     return ColoredBox(
-      color: _pageBackground,
+      color: palette.pageBackground,
       child: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
@@ -252,6 +253,7 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MePalette.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -275,8 +277,8 @@ class _ProfileHeader extends StatelessWidget {
                             profile.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: MeScreen._primaryText,
+                            style: TextStyle(
+                              color: palette.primaryText,
                               fontSize: 28,
                               fontWeight: FontWeight.w800,
                               height: 1.1,
@@ -441,22 +443,23 @@ class _MetaText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MePalette.of(context);
     return RichText(
       text: TextSpan(
         style: const TextStyle(fontSize: 17, height: 1.2),
         children: [
           TextSpan(
             text: label,
-            style: const TextStyle(
-              color: MeScreen._mutedText,
+            style: TextStyle(
+              color: palette.mutedText,
               fontWeight: FontWeight.w700,
             ),
           ),
           const TextSpan(text: '  '),
           TextSpan(
             text: value,
-            style: const TextStyle(
-              color: MeScreen._primaryText,
+            style: TextStyle(
+              color: palette.primaryText,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -473,10 +476,11 @@ class _GenderPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MePalette.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F4FF),
+        color: palette.pillBackground,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -506,8 +510,9 @@ class _RoundIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MePalette.of(context);
     return Material(
-      color: Colors.white.withValues(alpha: 0.82),
+      color: palette.iconButtonBackground,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -515,7 +520,7 @@ class _RoundIconButton extends StatelessWidget {
         child: SizedBox(
           width: 58,
           height: 58,
-          child: Icon(icon, size: 20, color: MeScreen._primaryText),
+          child: Icon(icon, size: 20, color: palette.primaryText),
         ),
       ),
     );
@@ -561,11 +566,12 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MePalette.of(context);
     return Container(
       height: 112,
       padding: const EdgeInsets.fromLTRB(18, 18, 14, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -579,8 +585,8 @@ class _SummaryCard extends StatelessWidget {
                   data.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: MeScreen._mutedText,
+                  style: TextStyle(
+                    color: palette.mutedText,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                     height: 1.15,
@@ -600,8 +606,8 @@ class _SummaryCard extends StatelessWidget {
             data.value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: MeScreen._primaryText,
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 22,
               fontWeight: FontWeight.w800,
             ),
@@ -860,10 +866,11 @@ class _BenefitStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MePalette.of(context);
     return Container(
       height: 72,
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F7FD),
+        color: palette.softCardBackground,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
@@ -877,7 +884,7 @@ class _BenefitStrip extends StatelessWidget {
               route: '/me/memoirs',
             ),
           ),
-          Container(width: 1, height: 40, color: const Color(0xFFE3E7EF)),
+          Container(width: 1, height: 40, color: palette.divider),
           Expanded(
             child: _BenefitItem(
               icon: Icons.local_hospital_outlined,
@@ -910,6 +917,7 @@ class _BenefitItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MePalette.of(context);
     return InkWell(
       borderRadius: BorderRadius.circular(18),
       onTap: () {
@@ -944,8 +952,8 @@ class _BenefitItem extends StatelessWidget {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: MeScreen._primaryText,
+                    style: TextStyle(
+                      color: palette.primaryText,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
@@ -955,8 +963,8 @@ class _BenefitItem extends StatelessWidget {
                     description,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: MeScreen._mutedText,
+                    style: TextStyle(
+                      color: palette.mutedText,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
@@ -976,6 +984,7 @@ class _QuickActionsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MePalette.of(context);
     final actions = [
       _QuickActionData(
         title: context.l10n.meFollowing,
@@ -1018,7 +1027,7 @@ class _QuickActionsPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 30),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(26),
       ),
       child: Column(
@@ -1026,8 +1035,8 @@ class _QuickActionsPanel extends StatelessWidget {
         children: [
           Text(
             context.l10n.meCommonFunctions,
-            style: const TextStyle(
-              color: MeScreen._primaryText,
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 25,
               fontWeight: FontWeight.w900,
             ),
@@ -1075,6 +1084,7 @@ class _QuickActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MePalette.of(context);
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () {
@@ -1094,8 +1104,8 @@ class _QuickActionTile extends StatelessWidget {
             action.title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: MeScreen._primaryText,
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w700,
               height: 1.1,
@@ -1112,4 +1122,47 @@ int _intValue(Object? value, {int fallback = 0}) {
     return value.toInt();
   }
   return int.tryParse((value ?? '').toString()) ?? fallback;
+}
+
+class _MePalette {
+  const _MePalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.softCardBackground,
+    required this.primaryText,
+    required this.mutedText,
+    required this.pillBackground,
+    required this.iconButtonBackground,
+    required this.divider,
+  });
+
+  static _MePalette of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _MePalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      softCardBackground: isDark
+          ? scheme.surfaceContainerHigh
+          : const Color(0xFFF4F7FD),
+      primaryText: scheme.onSurface,
+      mutedText: scheme.onSurfaceVariant,
+      pillBackground: isDark
+          ? scheme.surfaceContainerHighest
+          : const Color(0xFFF0F4FF),
+      iconButtonBackground: isDark
+          ? scheme.surfaceContainerHighest
+          : Colors.white.withValues(alpha: 0.82),
+      divider: scheme.outlineVariant,
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color softCardBackground;
+  final Color primaryText;
+  final Color mutedText;
+  final Color pillBackground;
+  final Color iconButtonBackground;
+  final Color divider;
 }

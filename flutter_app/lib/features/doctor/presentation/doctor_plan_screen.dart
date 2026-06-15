@@ -40,6 +40,7 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
     final authState = ref.watch(authControllerProvider);
     final session = switch (authState) {
       AsyncData(:final value) => value,
@@ -73,7 +74,7 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
           );
 
     return ColoredBox(
-      color: const Color(0xFFF4F5F9),
+      color: palette.pageBackground,
       child: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(doctorPatientsProvider(patientsQuery));
@@ -297,45 +298,48 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
     final picked = await showModalBottomSheet<int>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
-            children: [
-              Text(
-                _t(context, '选择患者', 'Select patient'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF303236),
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 18),
-              for (final patient in patients)
-                ListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  tileColor: patient.memberId == _selectedMemberId
-                      ? const Color(0xFFFFF1EE)
-                      : const Color(0xFFF7F8FB),
-                  title: Text(patient.displayName),
-                  subtitle: Text(
-                    '${_t(context, '年龄', 'Age')} ${patient.ageLabel} · ${_t(context, '性别', 'Gender')} ${patient.genderLabel}',
-                  ),
-                  onTap: () => Navigator.of(context).pop(patient.memberId),
-                ),
-            ],
+      builder: (context) {
+        final palette = _DoctorPlanPalette.of(context);
+        return Container(
+          decoration: BoxDecoration(
+            color: palette.sheetBackground,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
-        ),
-      ),
+          child: SafeArea(
+            top: false,
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+              children: [
+                Text(
+                  _t(context, '选择患者', 'Select patient'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                for (final patient in patients)
+                  ListTile(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    tileColor: patient.memberId == _selectedMemberId
+                        ? palette.selectedSoftBackground
+                        : palette.softBackground,
+                    title: Text(patient.displayName),
+                    subtitle: Text(
+                      '${_t(context, '年龄', 'Age')} ${patient.ageLabel} · ${_t(context, '性别', 'Gender')} ${patient.genderLabel}',
+                    ),
+                    onTap: () => Navigator.of(context).pop(patient.memberId),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
     if (picked != null && mounted) {
       setState(() => _selectedMemberId = picked);
@@ -366,12 +370,13 @@ class _DoctorPlanHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
     return Row(
       children: [
-        const CircleAvatar(
+        CircleAvatar(
           radius: 24,
-          backgroundColor: Color(0xFFF0F4FF),
-          child: Icon(Icons.person_rounded, color: Color(0xFF5A81DA)),
+          backgroundColor: palette.avatarBackground,
+          child: const Icon(Icons.person_rounded, color: Color(0xFF5A81DA)),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -380,8 +385,8 @@ class _DoctorPlanHeader extends StatelessWidget {
             children: [
               Text(
                 'Good morning!',
-                style: const TextStyle(
-                  color: Color(0xFFB0B3BA),
+                style: TextStyle(
+                  color: palette.secondaryText,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -389,8 +394,8 @@ class _DoctorPlanHeader extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 name,
-                style: const TextStyle(
-                  color: Color(0xFF303236),
+                style: TextStyle(
+                  color: palette.primaryText,
                   fontSize: 21,
                   fontWeight: FontWeight.w800,
                 ),
@@ -400,8 +405,8 @@ class _DoctorPlanHeader extends StatelessWidget {
         ),
         IconButton.filledTonal(
           style: IconButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: const Color(0xFF303236),
+            backgroundColor: palette.cardBackground,
+            foregroundColor: palette.primaryText,
           ),
           onPressed: () => context.push('/me/messages'),
           icon: const Icon(Icons.notifications_none_rounded),
@@ -419,6 +424,7 @@ class _PatientSelectorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -427,7 +433,7 @@ class _PatientSelectorCard extends StatelessWidget {
         child: Ink(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: palette.cardBackground,
             borderRadius: BorderRadius.circular(24),
           ),
           child: Row(
@@ -435,16 +441,16 @@ class _PatientSelectorCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   patient.displayName,
-                  style: const TextStyle(
-                    color: Color(0xFF303236),
+                  style: TextStyle(
+                    color: palette.primaryText,
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
-                color: Color(0xFFB8BCC4),
+                color: palette.outline,
                 size: 28,
               ),
             ],
@@ -470,10 +476,11 @@ class _PlanOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(26),
       ),
       child: Column(
@@ -481,8 +488,8 @@ class _PlanOverviewCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
@@ -490,8 +497,8 @@ class _PlanOverviewCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             subtitle,
-            style: const TextStyle(
-              color: Color(0xFF7D828A),
+            style: TextStyle(
+              color: palette.mutedText,
               fontSize: 14,
               height: 1.65,
             ),
@@ -521,10 +528,11 @@ class _PlanOverviewSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
     return Container(
       height: 176,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(26),
       ),
     );
@@ -544,6 +552,7 @@ class _MonthNavigator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
     return Row(
       children: [
         _CalendarButton(icon: Icons.chevron_left_rounded, onTap: onPrevious),
@@ -551,8 +560,8 @@ class _MonthNavigator extends StatelessWidget {
           child: Center(
             child: Text(
               DateFormat('yyyy-MM').format(month),
-              style: const TextStyle(
-                color: Color(0xFF303236),
+              style: TextStyle(
+                color: palette.primaryText,
                 fontSize: 21,
                 fontWeight: FontWeight.w800,
               ),
@@ -573,6 +582,7 @@ class _CalendarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: onTap,
@@ -580,11 +590,11 @@ class _CalendarButton extends StatelessWidget {
         width: 42,
         height: 42,
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: const Color(0xFFD1D5DC)),
+          color: palette.cardBackground,
+          border: Border.all(color: palette.outline),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(icon, color: const Color(0xFFB0B3BA)),
+        child: Icon(icon, color: palette.secondaryText),
       ),
     );
   }
@@ -598,6 +608,7 @@ class _MonthCalendar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
     final monthStart = DateTime(selectedDate.year, selectedDate.month, 1);
     final firstDayOffset = monthStart.weekday % 7;
     final gridStart = monthStart.subtract(Duration(days: firstDayOffset));
@@ -612,7 +623,7 @@ class _MonthCalendar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -626,8 +637,8 @@ class _MonthCalendar extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       child: Text(
                         label,
-                        style: const TextStyle(
-                          color: Color(0xFF70757D),
+                        style: TextStyle(
+                          color: palette.secondaryText,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
@@ -640,8 +651,8 @@ class _MonthCalendar extends StatelessWidget {
           for (final week in weeks)
             Container(
               padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: Color(0xFFEAECEF))),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: palette.outline)),
               ),
               child: Row(
                 children: [
@@ -662,8 +673,8 @@ class _MonthCalendar extends StatelessWidget {
                             '${day.day}',
                             style: TextStyle(
                               color: day.month == selectedDate.month
-                                  ? const Color(0xFF303236)
-                                  : const Color(0xFFD0D3D8),
+                                  ? palette.primaryText
+                                  : palette.outline,
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
                             ),
@@ -695,6 +706,7 @@ class _ShortcutCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -703,7 +715,7 @@ class _ShortcutCard extends StatelessWidget {
         child: Ink(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: palette.cardBackground,
             borderRadius: BorderRadius.circular(22),
           ),
           child: Row(
@@ -713,8 +725,8 @@ class _ShortcutCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(
-                    color: Color(0xFF303236),
+                  style: TextStyle(
+                    color: palette.primaryText,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
@@ -735,13 +747,14 @@ class _DoctorTaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
     final accent = task.isDone
         ? const Color(0xFF7BC96F)
         : const Color(0xFFFF9585);
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -761,8 +774,8 @@ class _DoctorTaskCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   task.title,
-                  style: const TextStyle(
-                    color: Color(0xFF303236),
+                  style: TextStyle(
+                    color: palette.primaryText,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
@@ -785,8 +798,8 @@ class _DoctorTaskCard extends StatelessWidget {
                     'This task has been added to the patient schedule.',
                   )
                 : task.description,
-            style: const TextStyle(
-              color: Color(0xFF7D828A),
+            style: TextStyle(
+              color: palette.mutedText,
               fontSize: 14,
               height: 1.6,
             ),
@@ -821,16 +834,17 @@ class _TaskPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FC),
+        color: palette.softBackground,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: Color(0xFF5A81DA),
+        style: TextStyle(
+          color: palette.pillText,
           fontSize: 13,
           fontWeight: FontWeight.w700,
         ),
@@ -846,10 +860,11 @@ class _DoctorPlanEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -858,8 +873,8 @@ class _DoctorPlanEmptyState extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             _t(context, '还没有患者', 'No patients yet'),
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 21,
               fontWeight: FontWeight.w800,
             ),
@@ -872,8 +887,8 @@ class _DoctorPlanEmptyState extends StatelessWidget {
               'Bind a patient first to view the task calendar.',
             ),
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF8C919A),
+            style: TextStyle(
+              color: palette.mutedText,
               fontSize: 14,
               height: 1.6,
             ),
@@ -899,19 +914,16 @@ class _TaskEmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Text(
         text,
-        style: const TextStyle(
-          color: Color(0xFF7D828A),
-          fontSize: 14,
-          height: 1.6,
-        ),
+        style: TextStyle(color: palette.mutedText, fontSize: 14, height: 1.6),
       ),
     );
   }
@@ -922,6 +934,7 @@ class _DoctorTaskSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
     return Column(
       children: List<Widget>.generate(
         3,
@@ -930,7 +943,7 @@ class _DoctorTaskSkeleton extends StatelessWidget {
           child: Container(
             height: 120,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: palette.cardBackground,
               borderRadius: BorderRadius.circular(24),
             ),
           ),
@@ -967,4 +980,56 @@ String _firstText(List<Object?> values, {String fallback = ''}) {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _DoctorPlanPalette {
+  const _DoctorPlanPalette({
+    required this.pageBackground,
+    required this.sheetBackground,
+    required this.cardBackground,
+    required this.softBackground,
+    required this.selectedSoftBackground,
+    required this.avatarBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.mutedText,
+    required this.outline,
+    required this.pillText,
+  });
+
+  factory _DoctorPlanPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _DoctorPlanPalette(
+      pageBackground: scheme.surface,
+      sheetBackground: scheme.surfaceContainerLowest,
+      cardBackground: scheme.surfaceContainerLowest,
+      softBackground: scheme.surfaceContainerLow,
+      selectedSoftBackground: isDark
+          ? scheme.primaryContainer.withValues(alpha: 0.42)
+          : const Color(0xFFFFF1EE),
+      avatarBackground: isDark
+          ? scheme.primaryContainer.withValues(alpha: 0.32)
+          : const Color(0xFFF0F4FF),
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
+          : const Color(0xFF7D828A),
+      outline: scheme.outlineVariant,
+      pillText: isDark ? scheme.primary : const Color(0xFF5A81DA),
+    );
+  }
+
+  final Color pageBackground;
+  final Color sheetBackground;
+  final Color cardBackground;
+  final Color softBackground;
+  final Color selectedSoftBackground;
+  final Color avatarBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color mutedText;
+  final Color outline;
+  final Color pillText;
 }

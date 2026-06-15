@@ -271,14 +271,15 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   }
 
   Widget _buildPrivacyDetailScaffold(BuildContext context) {
+    final palette = _SettingsPalette.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
         title: Text(widget.section.title(context)),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF303236),
-        surfaceTintColor: Colors.white,
+        backgroundColor: palette.cardBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         actions: [
           TextButton(
@@ -291,8 +292,8 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
                   )
                 : Text(
                     _t(context, '保存', 'Save'),
-                    style: const TextStyle(
-                      color: Color(0xFF5A81DA),
+                    style: TextStyle(
+                      color: palette.accent,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
@@ -2458,8 +2459,9 @@ class _CompactPrivacyRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _SettingsPalette.of(context);
     return Material(
-      color: Colors.white,
+      color: palette.cardBackground,
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
@@ -2471,8 +2473,8 @@ class _CompactPrivacyRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(
-                    color: Color(0xFFA6A9AF),
+                  style: TextStyle(
+                    color: palette.secondaryText,
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                     height: 1.35,
@@ -2482,16 +2484,16 @@ class _CompactPrivacyRow extends StatelessWidget {
               const SizedBox(width: 14),
               Text(
                 value,
-                style: const TextStyle(
-                  color: Color(0xFF303236),
+                style: TextStyle(
+                  color: palette.primaryText,
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(width: 6),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
-                color: Color(0xFFC6C8CE),
+                color: palette.chevron,
                 size: 24,
               ),
             ],

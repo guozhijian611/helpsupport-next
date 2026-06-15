@@ -57,6 +57,7 @@ class _DoctorTreatmentPlanScreenState
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
     final patientsQuery = const DoctorPatientsQuery(status: 1, pageSize: 100);
     final patients = ref.watch(doctorPatientsProvider(patientsQuery));
     final plansQuery = _selectedMemberId > 0
@@ -88,8 +89,11 @@ class _DoctorTreatmentPlanScreenState
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(_t(context, '配置治疗计划', 'Configure treatment plan')),
         centerTitle: true,
       ),
@@ -141,8 +145,8 @@ class _DoctorTreatmentPlanScreenState
                               Expanded(
                                 child: Text(
                                   _t(context, '已有计划', 'Existing plans'),
-                                  style: const TextStyle(
-                                    color: Color(0xFF303236),
+                                  style: TextStyle(
+                                    color: palette.primaryText,
                                     fontSize: 18,
                                     fontWeight: FontWeight.w800,
                                   ),
@@ -166,12 +170,12 @@ class _DoctorTreatmentPlanScreenState
                                   label: Text(plan.title),
                                   selected: selected,
                                   onSelected: (_) => _selectPlan(plan),
-                                  selectedColor: const Color(0xFFEAF0FF),
-                                  backgroundColor: Colors.white,
+                                  selectedColor: palette.selectedChipBackground,
+                                  backgroundColor: palette.cardBackground,
                                   labelStyle: TextStyle(
                                     color: selected
-                                        ? const Color(0xFF5A81DA)
-                                        : const Color(0xFF7D828A),
+                                        ? palette.selectedChipText
+                                        : palette.secondaryText,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 );
@@ -380,45 +384,48 @@ class _DoctorTreatmentPlanScreenState
     final picked = await showModalBottomSheet<int>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
-            children: [
-              Text(
-                _t(context, '选择患者', 'Select patient'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF303236),
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 18),
-              for (final patient in patients)
-                ListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  tileColor: patient.memberId == _selectedMemberId
-                      ? const Color(0xFFFFF1EE)
-                      : const Color(0xFFF7F8FB),
-                  title: Text(patient.displayName),
-                  subtitle: Text(
-                    '${_t(context, '年龄', 'Age')} ${patient.ageLabel} · ${_t(context, '性别', 'Gender')} ${patient.genderLabel}',
-                  ),
-                  onTap: () => Navigator.of(context).pop(patient.memberId),
-                ),
-            ],
+      builder: (context) {
+        final palette = _DoctorTreatmentPlanPalette.of(context);
+        return Container(
+          decoration: BoxDecoration(
+            color: palette.sheetBackground,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
-        ),
-      ),
+          child: SafeArea(
+            top: false,
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+              children: [
+                Text(
+                  _t(context, '选择患者', 'Select patient'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                for (final patient in patients)
+                  ListTile(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    tileColor: patient.memberId == _selectedMemberId
+                        ? palette.selectedSoftBackground
+                        : palette.softBackground,
+                    title: Text(patient.displayName),
+                    subtitle: Text(
+                      '${_t(context, '年龄', 'Age')} ${patient.ageLabel} · ${_t(context, '性别', 'Gender')} ${patient.genderLabel}',
+                    ),
+                    onTap: () => Navigator.of(context).pop(patient.memberId),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
     if (picked != null && mounted) {
       setState(() {
@@ -458,42 +465,45 @@ class _DoctorTreatmentPlanScreenState
     final value = await showModalBottomSheet<int>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
-            children: [
-              Text(
-                _t(context, '计划状态', 'Plan status'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF303236),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 16),
-              for (final item in const [1, 2, 3])
-                ListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  tileColor: item == _status
-                      ? const Color(0xFFEAF0FF)
-                      : const Color(0xFFF7F8FB),
-                  title: Text(_planStatusLabel(context, item)),
-                  onTap: () => Navigator.of(context).pop(item),
-                ),
-            ],
+      builder: (context) {
+        final palette = _DoctorTreatmentPlanPalette.of(context);
+        return Container(
+          decoration: BoxDecoration(
+            color: palette.sheetBackground,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
-        ),
-      ),
+          child: SafeArea(
+            top: false,
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+              children: [
+                Text(
+                  _t(context, '计划状态', 'Plan status'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                for (final item in const [1, 2, 3])
+                  ListTile(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    tileColor: item == _status
+                        ? palette.selectedChipBackground
+                        : palette.softBackground,
+                    title: Text(_planStatusLabel(context, item)),
+                    onTap: () => Navigator.of(context).pop(item),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
     if (value != null && mounted) {
       setState(() => _status = value);
@@ -647,43 +657,46 @@ class _DoctorTreatmentPlanScreenState
     final pickedStageId = await showModalBottomSheet<int>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
-            children: [
-              Text(
-                _t(context, '选择任务所属阶段', 'Choose a stage'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF303236),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 16),
-              for (final stage in plan.stages)
-                ListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  tileColor: const Color(0xFFF7F8FB),
-                  title: Text(stage.stageName),
-                  subtitle: Text(
-                    '${_formatDateString(stage.startDate)} - ${_formatDateString(stage.endDate)}',
-                  ),
-                  onTap: () => Navigator.of(context).pop(stage.id),
-                ),
-            ],
+      builder: (context) {
+        final palette = _DoctorTreatmentPlanPalette.of(context);
+        return Container(
+          decoration: BoxDecoration(
+            color: palette.sheetBackground,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
-        ),
-      ),
+          child: SafeArea(
+            top: false,
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+              children: [
+                Text(
+                  _t(context, '选择任务所属阶段', 'Choose a stage'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                for (final stage in plan.stages)
+                  ListTile(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    tileColor: palette.softBackground,
+                    title: Text(stage.stageName),
+                    subtitle: Text(
+                      '${_formatDateString(stage.startDate)} - ${_formatDateString(stage.endDate)}',
+                    ),
+                    onTap: () => Navigator.of(context).pop(stage.id),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
     if (pickedStageId == null || !mounted) {
       return;
@@ -701,62 +714,65 @@ class _DoctorTreatmentPlanScreenState
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-            children: [
-              Text(
-                task.title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF303236),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 18),
-              _TaskSummaryRow(
-                label: _t(context, '日期', 'Date'),
-                value: task.taskDate,
-              ),
-              _TaskSummaryRow(
-                label: _t(context, '时间', 'Time'),
-                value: [
-                  task.startTime.trim(),
-                  task.endTime.trim(),
-                ].where((item) => item.isNotEmpty).join(' - '),
-              ),
-              _TaskSummaryRow(
-                label: _t(context, '任务类型', 'Type'),
-                value: task.taskType,
-              ),
-              _TaskSummaryRow(
-                label: _t(context, '奖励积分', 'Reward'),
-                value: '${task.pointsReward}',
-              ),
-              if (task.description.trim().isNotEmpty)
-                _TaskSummaryRow(
-                  label: _t(context, '说明', 'Description'),
-                  value: task.description,
-                  multiline: true,
-                ),
-              if (task.attachments.isNotEmpty)
-                _TaskSummaryRow(
-                  label: _t(context, '附件', 'Attachments'),
-                  value: task.attachments.join('、'),
-                  multiline: true,
-                ),
-            ],
+      builder: (context) {
+        final palette = _DoctorTreatmentPlanPalette.of(context);
+        return Container(
+          decoration: BoxDecoration(
+            color: palette.sheetBackground,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
-        ),
-      ),
+          child: SafeArea(
+            top: false,
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+              children: [
+                Text(
+                  task.title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                _TaskSummaryRow(
+                  label: _t(context, '日期', 'Date'),
+                  value: task.taskDate,
+                ),
+                _TaskSummaryRow(
+                  label: _t(context, '时间', 'Time'),
+                  value: [
+                    task.startTime.trim(),
+                    task.endTime.trim(),
+                  ].where((item) => item.isNotEmpty).join(' - '),
+                ),
+                _TaskSummaryRow(
+                  label: _t(context, '任务类型', 'Type'),
+                  value: task.taskType,
+                ),
+                _TaskSummaryRow(
+                  label: _t(context, '奖励积分', 'Reward'),
+                  value: '${task.pointsReward}',
+                ),
+                if (task.description.trim().isNotEmpty)
+                  _TaskSummaryRow(
+                    label: _t(context, '说明', 'Description'),
+                    value: task.description,
+                    multiline: true,
+                  ),
+                if (task.attachments.isNotEmpty)
+                  _TaskSummaryRow(
+                    label: _t(context, '附件', 'Attachments'),
+                    value: task.attachments.join('、'),
+                    multiline: true,
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -806,10 +822,11 @@ class _KeyTaskPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -823,8 +840,8 @@ class _KeyTaskPanel extends StatelessWidget {
                 Expanded(
                   child: Text(
                     _t(context, '关键任务', 'Key tasks'),
-                    style: const TextStyle(
-                      color: Color(0xFF303236),
+                    style: TextStyle(
+                      color: palette.primaryText,
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
                     ),
@@ -834,7 +851,7 @@ class _KeyTaskPanel extends StatelessWidget {
                   expanded
                       ? Icons.keyboard_arrow_down_rounded
                       : Icons.chevron_right_rounded,
-                  color: const Color(0xFFC5CAD4),
+                  color: palette.outline,
                   size: 28,
                 ),
               ],
@@ -881,11 +898,12 @@ class _KeyTaskTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
     final trailing = task.isDone
         ? Text(
             _t(context, '已完成', 'Done'),
-            style: const TextStyle(
-              color: Color(0xFFA9ACB2),
+            style: TextStyle(
+              color: palette.mutedText,
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
@@ -899,7 +917,7 @@ class _KeyTaskTile extends StatelessWidget {
           );
 
     return Material(
-      color: const Color(0xFFF7F7FA),
+      color: palette.softBackground,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
@@ -916,8 +934,8 @@ class _KeyTaskTile extends StatelessWidget {
                       task.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF303236),
+                      style: TextStyle(
+                        color: palette.primaryText,
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                       ),
@@ -925,8 +943,8 @@ class _KeyTaskTile extends StatelessWidget {
                     const SizedBox(height: 10),
                     Text(
                       task.taskDate,
-                      style: const TextStyle(
-                        color: Color(0xFFA5A9B0),
+                      style: TextStyle(
+                        color: palette.mutedText,
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -963,10 +981,11 @@ class _TreatmentStageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -977,8 +996,8 @@ class _TreatmentStageCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   _t(context, '阶段$order', 'Stage $order'),
-                  style: const TextStyle(
-                    color: Color(0xFF303236),
+                  style: TextStyle(
+                    color: palette.primaryText,
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                   ),
@@ -986,14 +1005,11 @@ class _TreatmentStageCard extends StatelessWidget {
               ),
               IconButton(
                 onPressed: onEdit,
-                icon: const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Color(0xFFC5CAD4),
-                ),
+                icon: Icon(Icons.chevron_right_rounded, color: palette.outline),
               ),
             ],
           ),
-          const Divider(height: 24, color: Color(0xFFE8EBF1)),
+          Divider(height: 24, color: palette.outline),
           _StageDetailRow(
             label: _t(context, '阶段名称', 'Stage name'),
             value: stage.stageName,
@@ -1019,8 +1035,8 @@ class _TreatmentStageCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             _t(context, '任务设置', 'Task settings'),
-            style: const TextStyle(
-              color: Color(0xFF9AA0A8),
+            style: TextStyle(
+              color: palette.secondaryText,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -1050,6 +1066,7 @@ class _StageDetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -1060,8 +1077,8 @@ class _StageDetailRow extends StatelessWidget {
               width: 94,
               child: Text(
                 label,
-                style: const TextStyle(
-                  color: Color(0xFFB2B5BB),
+                style: TextStyle(
+                  color: palette.secondaryText,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1074,15 +1091,15 @@ class _StageDetailRow extends StatelessWidget {
                 textAlign: TextAlign.right,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF303236),
+                style: TextStyle(
+                  color: palette.primaryText,
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ),
             const SizedBox(width: 6),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFFC8CDD6)),
+            Icon(Icons.chevron_right_rounded, color: palette.outline),
           ],
         ),
       ),
@@ -1189,17 +1206,22 @@ class _AddTaskTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
     return SizedBox(
       width: 100,
       height: 132,
       child: Material(
-        color: const Color(0xFFF7F7FA),
+        color: palette.softBackground,
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
           onTap: onTap,
-          child: const Center(
-            child: Icon(Icons.add_rounded, color: Color(0xFF9EA3AB), size: 34),
+          child: Center(
+            child: Icon(
+              Icons.add_rounded,
+              color: palette.secondaryText,
+              size: 34,
+            ),
           ),
         ),
       ),
@@ -1220,6 +1242,7 @@ class _TaskSummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
     if (value.trim().isEmpty) {
       return const SizedBox.shrink();
     }
@@ -1234,8 +1257,8 @@ class _TaskSummaryRow extends StatelessWidget {
             width: 76,
             child: Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFF9AA0A8),
+              style: TextStyle(
+                color: palette.secondaryText,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -1245,8 +1268,8 @@ class _TaskSummaryRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                color: Color(0xFF303236),
+              style: TextStyle(
+                color: palette.primaryText,
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
                 height: 1.5,
@@ -1272,30 +1295,31 @@ class _SelectorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
         title: Text(
           label,
-          style: const TextStyle(color: Color(0xFF9AA0A8), fontSize: 16),
+          style: TextStyle(color: palette.secondaryText, fontSize: 16),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               value,
-              style: const TextStyle(
-                color: Color(0xFF303236),
+              style: TextStyle(
+                color: palette.primaryText,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(width: 6),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFFC8CDD6)),
+            Icon(Icons.chevron_right_rounded, color: palette.outline),
           ],
         ),
         onTap: onTap,
@@ -1327,9 +1351,10 @@ class _PlanFormCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -1343,7 +1368,7 @@ class _PlanFormCard extends StatelessWidget {
               'Example: Stage 2 response training',
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFE8EBF1)),
+          Divider(height: 1, color: palette.outline),
           _PlanTextFieldRow(
             label: _t(context, '计划说明', 'Description'),
             controller: descriptionController,
@@ -1355,19 +1380,19 @@ class _PlanFormCard extends StatelessWidget {
             minLines: 2,
             maxLines: 4,
           ),
-          const Divider(height: 1, color: Color(0xFFE8EBF1)),
+          Divider(height: 1, color: palette.outline),
           _PlanActionRow(
             label: _t(context, '开始日期', 'Start date'),
             value: _formatNullableDate(startDate),
             onTap: onPickStart,
           ),
-          const Divider(height: 1, color: Color(0xFFE8EBF1)),
+          Divider(height: 1, color: palette.outline),
           _PlanActionRow(
             label: _t(context, '结束日期', 'End date'),
             value: _formatNullableDate(endDate),
             onTap: onPickEnd,
           ),
-          const Divider(height: 1, color: Color(0xFFE8EBF1)),
+          Divider(height: 1, color: palette.outline),
           _PlanActionRow(
             label: _t(context, '计划状态', 'Plan status'),
             value: statusLabel,
@@ -1396,6 +1421,7 @@ class _PlanTextFieldRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       child: Row(
@@ -1407,7 +1433,7 @@ class _PlanTextFieldRow extends StatelessWidget {
             width: 92,
             child: Text(
               label,
-              style: const TextStyle(color: Color(0xFF9AA0A8), fontSize: 16),
+              style: TextStyle(color: palette.secondaryText, fontSize: 16),
             ),
           ),
           const SizedBox(width: 10),
@@ -1421,9 +1447,10 @@ class _PlanTextFieldRow extends StatelessWidget {
                 isDense: true,
                 hintText: hintText,
                 border: InputBorder.none,
+                hintStyle: TextStyle(color: palette.mutedText),
               ),
-              style: const TextStyle(
-                color: Color(0xFF303236),
+              style: TextStyle(
+                color: palette.primaryText,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -1448,6 +1475,7 @@ class _PlanActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -1458,7 +1486,7 @@ class _PlanActionRow extends StatelessWidget {
               width: 92,
               child: Text(
                 label,
-                style: const TextStyle(color: Color(0xFF9AA0A8), fontSize: 16),
+                style: TextStyle(color: palette.secondaryText, fontSize: 16),
               ),
             ),
             const Spacer(),
@@ -1466,15 +1494,15 @@ class _PlanActionRow extends StatelessWidget {
               child: Text(
                 value.isEmpty ? '--' : value,
                 textAlign: TextAlign.right,
-                style: const TextStyle(
-                  color: Color(0xFF303236),
+                style: TextStyle(
+                  color: palette.primaryText,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
             const SizedBox(width: 6),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFFC8CDD6)),
+            Icon(Icons.chevron_right_rounded, color: palette.outline),
           ],
         ),
       ),
@@ -1497,10 +1525,11 @@ class _StageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -1511,8 +1540,8 @@ class _StageCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   stage.stageName,
-                  style: const TextStyle(
-                    color: Color(0xFF303236),
+                  style: TextStyle(
+                    color: palette.primaryText,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1527,8 +1556,8 @@ class _StageCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             '${_formatDateString(stage.startDate)} - ${_formatDateString(stage.endDate)}',
-            style: const TextStyle(
-              color: Color(0xFF7D828A),
+            style: TextStyle(
+              color: palette.mutedText,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
@@ -1537,8 +1566,8 @@ class _StageCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               stage.description,
-              style: const TextStyle(
-                color: Color(0xFF6D7480),
+              style: TextStyle(
+                color: palette.secondaryText,
                 fontSize: 14,
                 height: 1.6,
               ),
@@ -1553,13 +1582,13 @@ class _StageCard extends StatelessWidget {
                   vertical: 7,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEAF0FF),
+                  color: palette.selectedChipBackground,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   _stageStatusLabel(context, stage.status),
-                  style: const TextStyle(
-                    color: Color(0xFF5A81DA),
+                  style: TextStyle(
+                    color: palette.selectedChipText,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1568,8 +1597,8 @@ class _StageCard extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 _t(context, '任务 $taskCount', 'Tasks $taskCount'),
-                style: const TextStyle(
-                  color: Color(0xFF9AA0A8),
+                style: TextStyle(
+                  color: palette.secondaryText,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1596,10 +1625,11 @@ class _InlineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -1607,8 +1637,8 @@ class _InlineCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -1616,8 +1646,8 @@ class _InlineCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: const TextStyle(
-              color: Color(0xFF7D828A),
+            style: TextStyle(
+              color: palette.secondaryText,
               fontSize: 14,
               height: 1.6,
             ),
@@ -1635,14 +1665,69 @@ class _LoadingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
     );
   }
+}
+
+class _DoctorTreatmentPlanPalette {
+  const _DoctorTreatmentPlanPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.sheetBackground,
+    required this.softBackground,
+    required this.selectedSoftBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.mutedText,
+    required this.outline,
+    required this.selectedChipBackground,
+    required this.selectedChipText,
+  });
+
+  factory _DoctorTreatmentPlanPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _DoctorTreatmentPlanPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      sheetBackground: scheme.surfaceContainerLowest,
+      softBackground: scheme.surfaceContainerLow,
+      selectedSoftBackground: isDark
+          ? scheme.primaryContainer.withValues(alpha: 0.42)
+          : const Color(0xFFFFF1EE),
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
+          : const Color(0xFF7D828A),
+      outline: scheme.outlineVariant,
+      selectedChipBackground: isDark
+          ? scheme.primaryContainer
+          : const Color(0xFFEAF0FF),
+      selectedChipText: isDark
+          ? scheme.onPrimaryContainer
+          : const Color(0xFF5A81DA),
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color sheetBackground;
+  final Color softBackground;
+  final Color selectedSoftBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color mutedText;
+  final Color outline;
+  final Color selectedChipBackground;
+  final Color selectedChipText;
 }
 
 String _t(BuildContext context, String zh, String en) {

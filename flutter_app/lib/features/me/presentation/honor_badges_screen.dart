@@ -17,6 +17,7 @@ class HonorBadgesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _HonorPalette.of(context);
     final authState = ref.watch(authControllerProvider);
     final session = switch (authState) {
       AsyncData(:final value) => value,
@@ -44,7 +45,7 @@ class HonorBadgesScreen extends ConsumerWidget {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
         centerTitle: true,
         title: Text(context.l10n.meHonorBadgesTitle),
@@ -147,6 +148,7 @@ class _HonorProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _HonorPalette.of(context);
     return Row(
       children: [
         _HonorAvatar(avatarUrl: profile.avatarUrl),
@@ -159,8 +161,8 @@ class _HonorProfileHeader extends StatelessWidget {
                 profile.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF303236),
+                style: TextStyle(
+                  color: palette.primaryText,
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
                 ),
@@ -170,8 +172,8 @@ class _HonorProfileHeader extends StatelessWidget {
                 '${context.l10n.meAgeLabel}  ${profile.age}      ${context.l10n.meGenderLabel}  ${profile.gender}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF96999F),
+                style: TextStyle(
+                  color: palette.secondaryText,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -182,8 +184,8 @@ class _HonorProfileHeader extends StatelessWidget {
         IconButton.filledTonal(
           onPressed: () => context.push('/me/settings'),
           style: IconButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: const Color(0xFF303236),
+            backgroundColor: palette.cardBackground,
+            foregroundColor: palette.primaryText,
             minimumSize: const Size.square(52),
           ),
           icon: const Icon(Icons.settings_rounded),
@@ -200,17 +202,22 @@ class _HonorAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _HonorPalette.of(context);
     if (avatarUrl.trim().isNotEmpty) {
       return CircleAvatar(
         radius: 28,
-        backgroundColor: Colors.white,
+        backgroundColor: palette.cardBackground,
         foregroundImage: NetworkImage(avatarUrl),
       );
     }
-    return const CircleAvatar(
+    return CircleAvatar(
       radius: 28,
-      backgroundColor: Colors.white,
-      child: Icon(Icons.person_rounded, color: Color(0xFFB6BCC7), size: 28),
+      backgroundColor: palette.cardBackground,
+      child: Icon(
+        Icons.person_rounded,
+        color: palette.secondaryText.withValues(alpha: 0.78),
+        size: 28,
+      ),
     );
   }
 }
@@ -223,10 +230,11 @@ class _InfoPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _HonorPalette.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -236,8 +244,8 @@ class _InfoPill extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             text,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 14,
               fontWeight: FontWeight.w700,
             ),
@@ -510,10 +518,11 @@ class _RecentBadgesPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _HonorPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -521,8 +530,8 @@ class _RecentBadgesPanel extends StatelessWidget {
         children: [
           Text(
             context.l10n.meHonorRecentBadges,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -533,8 +542,8 @@ class _RecentBadgesPanel extends StatelessWidget {
           else if (badges.isEmpty)
             Text(
               context.l10n.meHonorNoBadges,
-              style: const TextStyle(
-                color: Color(0xFF96999F),
+              style: TextStyle(
+                color: palette.secondaryText,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -551,7 +560,7 @@ class _RecentBadgesPanel extends StatelessWidget {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF6F8FD),
+                      color: palette.badgeChipBackground,
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Column(
@@ -560,8 +569,8 @@ class _RecentBadgesPanel extends StatelessWidget {
                       children: [
                         Text(
                           badge.badgeName,
-                          style: const TextStyle(
-                            color: Color(0xFF303236),
+                          style: TextStyle(
+                            color: palette.primaryText,
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
                           ),
@@ -569,8 +578,8 @@ class _RecentBadgesPanel extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           _formatDate(badge.awardTime),
-                          style: const TextStyle(
-                            color: Color(0xFF96999F),
+                          style: TextStyle(
+                            color: palette.secondaryText,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -620,4 +629,34 @@ int _intValue(Object? value, {int fallback = 0}) {
     return value.toInt();
   }
   return int.tryParse((value ?? '').toString()) ?? fallback;
+}
+
+class _HonorPalette {
+  const _HonorPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.badgeChipBackground,
+    required this.primaryText,
+    required this.secondaryText,
+  });
+
+  static _HonorPalette of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _HonorPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      badgeChipBackground: isDark
+          ? scheme.surfaceContainerHigh
+          : const Color(0xFFF6F8FD),
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color badgeChipBackground;
+  final Color primaryText;
+  final Color secondaryText;
 }

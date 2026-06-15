@@ -30,6 +30,7 @@ class _CommunityMemberRelationsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final palette = _RelationPalette.of(context);
     final profile = ref.watch(communityMemberProfileProvider(widget.memberId));
     final members = widget.type == CommunityRelationType.following
         ? ref.watch(communityFollowingProvider(widget.memberId))
@@ -41,7 +42,7 @@ class _CommunityMemberRelationsScreenState
         : _t(context, '我的粉丝', 'Followers');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
         title: profile.when(
           data: (value) => Text(_title(context, value)),
@@ -49,9 +50,9 @@ class _CommunityMemberRelationsScreenState
           loading: () => Text(defaultTitle),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF303236),
-        surfaceTintColor: Colors.white,
+        backgroundColor: palette.appBarBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
       ),
       body: SafeArea(
@@ -134,7 +135,7 @@ class _CommunityMemberRelationsScreenState
                   child: Container(
                     height: 118,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: palette.cardBackground,
                       borderRadius: BorderRadius.circular(22),
                     ),
                   ),
@@ -222,22 +223,23 @@ class _RelationMemberCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _RelationPalette.of(context);
     final card = Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 36,
-            backgroundColor: const Color(0xFFEAF0FF),
+            backgroundColor: palette.avatarBackground,
             backgroundImage: avatarUrl.isEmpty ? null : NetworkImage(avatarUrl),
             child: avatarUrl.isEmpty
-                ? const Icon(
+                ? Icon(
                     Icons.person_rounded,
-                    color: Color(0xFF8EA8F8),
+                    color: palette.avatarIcon,
                     size: 30,
                   )
                 : null,
@@ -254,8 +256,8 @@ class _RelationMemberCard extends StatelessWidget {
                         member.displayName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF303236),
+                        style: TextStyle(
+                          color: palette.primaryText,
                           fontSize: 18,
                           fontWeight: FontWeight.w900,
                         ),
@@ -282,8 +284,8 @@ class _RelationMemberCard extends StatelessWidget {
                       : member.bio,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFFACAFB6),
+                  style: TextStyle(
+                    color: palette.secondaryText,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     height: 1.4,
@@ -298,8 +300,8 @@ class _RelationMemberCard extends StatelessWidget {
               onPressed: submitting ? null : onFollow,
               style: FilledButton.styleFrom(
                 backgroundColor: member.isFollowed
-                    ? const Color(0xFFF7D7D1)
-                    : const Color(0xFFF49C8C),
+                    ? palette.followedButtonBackground
+                    : palette.followButtonBackground,
                 foregroundColor: Colors.white,
                 minimumSize: const Size(104, 46),
                 shape: RoundedRectangleBorder(
@@ -353,10 +355,11 @@ class _RelationStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _RelationPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -364,8 +367,8 @@ class _RelationStatusCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -373,8 +376,8 @@ class _RelationStatusCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: const TextStyle(
-              color: Color(0xFF7D828A),
+            style: TextStyle(
+              color: palette.secondaryText,
               fontSize: 14,
               height: 1.6,
             ),
@@ -387,4 +390,48 @@ class _RelationStatusCard extends StatelessWidget {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _RelationPalette {
+  const _RelationPalette({
+    required this.pageBackground,
+    required this.appBarBackground,
+    required this.cardBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.avatarBackground,
+    required this.avatarIcon,
+    required this.followButtonBackground,
+    required this.followedButtonBackground,
+  });
+
+  static _RelationPalette of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _RelationPalette(
+      pageBackground: scheme.surface,
+      appBarBackground: isDark ? scheme.surface : scheme.surfaceContainerLowest,
+      cardBackground: scheme.surfaceContainerLowest,
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      avatarBackground: isDark
+          ? scheme.surfaceContainerHighest
+          : const Color(0xFFEAF0FF),
+      avatarIcon: isDark ? scheme.tertiary : const Color(0xFF8EA8F8),
+      followButtonBackground: const Color(0xFFF49C8C),
+      followedButtonBackground: isDark
+          ? const Color(0xFF6B4A47)
+          : const Color(0xFFF7D7D1),
+    );
+  }
+
+  final Color pageBackground;
+  final Color appBarBackground;
+  final Color cardBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color avatarBackground;
+  final Color avatarIcon;
+  final Color followButtonBackground;
+  final Color followedButtonBackground;
 }

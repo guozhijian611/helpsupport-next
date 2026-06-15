@@ -30,6 +30,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityFeedPalette.of(context);
     final posts = _query.trim().isEmpty
         ? ref.watch(communityPostsProvider)
         : ref.watch(communityPostsSearchProvider(_query.trim()));
@@ -44,7 +45,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
     final badge = _badgeText(unreadCount.asData?.value ?? 0);
 
     return ColoredBox(
-      color: const Color(0xFFF4F5F9),
+      color: palette.pageBackground,
       child: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(communityTagsProvider);
@@ -163,6 +164,7 @@ class CommunityPostCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _CommunityFeedPalette.of(context);
     final apiClient = ref.watch(apiClientProvider);
     final authState = ref.watch(authControllerProvider);
     final session = switch (authState) {
@@ -181,7 +183,7 @@ class CommunityPostCard extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Material(
@@ -223,8 +225,8 @@ class CommunityPostCard extends ConsumerWidget {
                               post.authorName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF303236),
+                              style: TextStyle(
+                                color: palette.primaryText,
                                 fontSize: 21,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -232,8 +234,8 @@ class CommunityPostCard extends ConsumerWidget {
                             const SizedBox(height: 4),
                             Text(
                               _authorSubtitle(context, post),
-                              style: const TextStyle(
-                                color: Color(0xFF96999F),
+                              style: TextStyle(
+                                color: palette.secondaryText,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -265,8 +267,8 @@ class CommunityPostCard extends ConsumerWidget {
                     post.title,
                     maxLines: routeToDetail ? 2 : 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF303236),
+                    style: TextStyle(
+                      color: palette.primaryText,
                       fontSize: 18,
                       height: 1.35,
                       fontWeight: FontWeight.w900,
@@ -278,8 +280,8 @@ class CommunityPostCard extends ConsumerWidget {
                   post.hasTitle ? post.body : post.content,
                   maxLines: routeToDetail ? 7 : 5,
                   overflow: routeToDetail ? TextOverflow.ellipsis : null,
-                  style: const TextStyle(
-                    color: Color(0xFF3D414A),
+                  style: TextStyle(
+                    color: palette.bodyText,
                     fontSize: 15,
                     height: 1.7,
                     fontWeight: FontWeight.w500,
@@ -302,13 +304,13 @@ class CommunityPostCard extends ConsumerWidget {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF5F7FD),
+                            color: palette.softBackground,
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
                             '# $tag',
-                            style: const TextStyle(
-                              color: Color(0xFF6B7380),
+                            style: TextStyle(
+                              color: palette.secondaryText,
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                             ),
@@ -347,13 +349,13 @@ class CommunityPostCard extends ConsumerWidget {
                     Icon(
                       Icons.visibility_outlined,
                       size: 18,
-                      color: const Color(0xFF96999F),
+                      color: palette.secondaryText,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       '${post.viewCount}',
-                      style: const TextStyle(
-                        color: Color(0xFF96999F),
+                      style: TextStyle(
+                        color: palette.secondaryText,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -446,6 +448,7 @@ class _CommunityTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityFeedPalette.of(context);
     return Row(
       children: [
         _AuthorAvatar(avatarUrl: avatarUrl, isDoctor: false, size: 48),
@@ -454,7 +457,7 @@ class _CommunityTopBar extends StatelessWidget {
           child: Container(
             height: 50,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: palette.cardBackground,
               borderRadius: BorderRadius.circular(999),
             ),
             child: TextField(
@@ -462,11 +465,16 @@ class _CommunityTopBar extends StatelessWidget {
               onChanged: onChanged,
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search_rounded),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: palette.secondaryText,
+                ),
                 hintText: _t(context, '开始探索', 'Search support'),
+                hintStyle: TextStyle(color: palette.secondaryText),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(vertical: 14),
               ),
+              style: TextStyle(color: palette.primaryText),
             ),
           ),
         ),
@@ -496,10 +504,11 @@ class _TopicChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityFeedPalette.of(context);
     final active = tag.isFollowed;
 
     return Material(
-      color: active ? const Color(0xFFFFEEE9) : Colors.white,
+      color: active ? palette.selectedChipBackground : palette.cardBackground,
       borderRadius: BorderRadius.circular(999),
       child: InkWell(
         borderRadius: BorderRadius.circular(999),
@@ -509,7 +518,7 @@ class _TopicChip extends StatelessWidget {
           child: Text(
             '# ${tag.name}',
             style: TextStyle(
-              color: active ? const Color(0xFFFF9585) : const Color(0xFF6B7380),
+              color: active ? palette.selectedChipText : palette.secondaryText,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -532,6 +541,7 @@ class _AuthorAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityFeedPalette.of(context);
     final avatar = avatarUrl.trim().isNotEmpty
         ? ClipOval(
             child: Image.network(
@@ -539,10 +549,10 @@ class _AuthorAvatar extends StatelessWidget {
               width: size,
               height: size,
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => _fallback(),
+              errorBuilder: (_, _, _) => _fallback(context),
             ),
           )
-        : _fallback();
+        : _fallback(context);
 
     return Stack(
       clipBehavior: Clip.none,
@@ -570,10 +580,11 @@ class _AuthorAvatar extends StatelessWidget {
     );
   }
 
-  Widget _fallback() {
+  Widget _fallback(BuildContext context) {
+    final palette = _CommunityFeedPalette.of(context);
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFFF8E3DB),
+      decoration: BoxDecoration(
+        color: palette.avatarBackground,
         shape: BoxShape.circle,
       ),
       child: const Icon(Icons.person_rounded, color: Color(0xFFFF9585)),
@@ -589,11 +600,12 @@ class _FollowButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityFeedPalette.of(context);
     return FilledButton.tonal(
       onPressed: onTap,
       style: FilledButton.styleFrom(
         backgroundColor: followed
-            ? const Color(0xFFFFF2EF)
+            ? palette.selectedChipBackground
             : const Color(0xFFF49A86),
         foregroundColor: followed ? const Color(0xFFF49A86) : Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -655,10 +667,11 @@ class _LinkPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityFeedPalette.of(context);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FD),
+        color: palette.softBackground,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -670,8 +683,8 @@ class _LinkPreview extends StatelessWidget {
               url,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF5A81DA),
+              style: TextStyle(
+                color: palette.linkText,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -697,13 +710,16 @@ class _ActionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityFeedPalette.of(context);
     return InkWell(
       borderRadius: BorderRadius.circular(999),
       onTap: onTap,
       child: Ink(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? const Color(0xFFFFEEE9) : const Color(0xFFF5F7FD),
+          color: active
+              ? palette.selectedChipBackground
+              : palette.softBackground,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Row(
@@ -712,15 +728,15 @@ class _ActionChip extends StatelessWidget {
             Icon(
               icon,
               size: 18,
-              color: active ? const Color(0xFFF49A86) : const Color(0xFF6B7380),
+              color: active ? palette.selectedChipText : palette.secondaryText,
             ),
             const SizedBox(width: 6),
             Text(
               text,
               style: TextStyle(
                 color: active
-                    ? const Color(0xFFF49A86)
-                    : const Color(0xFF6B7380),
+                    ? palette.selectedChipText
+                    : palette.secondaryText,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -738,6 +754,7 @@ class _CommunityEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityFeedPalette.of(context);
     final message = query.trim().isEmpty
         ? context.l10n.communityFeedEmpty
         : _t(context, '没有找到相关动态', 'No matching posts');
@@ -745,7 +762,7 @@ class _CommunityEmptyState extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -755,8 +772,8 @@ class _CommunityEmptyState extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 16,
               fontWeight: FontWeight.w800,
             ),
@@ -769,8 +786,8 @@ class _CommunityEmptyState extends StatelessWidget {
               'Try another keyword or publish your first support post.',
             ),
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF7D828A),
+            style: TextStyle(
+              color: palette.mutedText,
               fontSize: 14,
               height: 1.5,
             ),
@@ -790,18 +807,19 @@ class _StatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityFeedPalette.of(context);
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -810,7 +828,7 @@ class _StatusCard extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF7D828A), height: 1.5),
+            style: TextStyle(color: palette.mutedText, height: 1.5),
           ),
           if (onRetry != null) ...[
             const SizedBox(height: 14),
@@ -841,10 +859,11 @@ class _LoadingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityFeedPalette.of(context);
     return Container(
       height: 260,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: const Center(child: CircularProgressIndicator()),
@@ -861,11 +880,12 @@ class _CircleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityFeedPalette.of(context);
     return Stack(
       clipBehavior: Clip.none,
       children: [
         Material(
-          color: Colors.white,
+          color: palette.cardBackground,
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
@@ -873,7 +893,7 @@ class _CircleButton extends StatelessWidget {
             child: SizedBox(
               width: 48,
               height: 48,
-              child: Icon(icon, color: const Color(0xFF303236)),
+              child: Icon(icon, color: palette.primaryText),
             ),
           ),
         ),
@@ -926,4 +946,60 @@ String _firstText(List<Object?> values, {String fallback = ''}) {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _CommunityFeedPalette {
+  const _CommunityFeedPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.softBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.mutedText,
+    required this.bodyText,
+    required this.selectedChipBackground,
+    required this.selectedChipText,
+    required this.avatarBackground,
+    required this.linkText,
+  });
+
+  factory _CommunityFeedPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _CommunityFeedPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      softBackground: scheme.surfaceContainerLow,
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
+          : const Color(0xFF7D828A),
+      bodyText: isDark
+          ? scheme.onSurface.withValues(alpha: 0.84)
+          : const Color(0xFF3D414A),
+      selectedChipBackground: isDark
+          ? scheme.primaryContainer.withValues(alpha: 0.5)
+          : const Color(0xFFFFEEE9),
+      selectedChipText: isDark
+          ? scheme.onPrimaryContainer
+          : const Color(0xFFF49A86),
+      avatarBackground: isDark
+          ? scheme.primaryContainer.withValues(alpha: 0.28)
+          : const Color(0xFFF8E3DB),
+      linkText: isDark ? scheme.primary : const Color(0xFF5A81DA),
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color softBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color mutedText;
+  final Color bodyText;
+  final Color selectedChipBackground;
+  final Color selectedChipText;
+  final Color avatarBackground;
+  final Color linkText;
 }

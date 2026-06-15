@@ -52,6 +52,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _ChatSessionPalette.of(context);
     final records = ref.watch(chatRecordsProvider(widget.sessionId));
     final authState = ref.watch(authControllerProvider);
     final session = switch (authState) {
@@ -70,7 +71,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen> {
         return true;
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F7FD),
+        backgroundColor: palette.pageBackground,
         appBar: AppBar(
           centerTitle: true,
           leading: IconButton(
@@ -133,8 +134,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen> {
                             _conversationTime(
                               records.asData?.value.list ?? const [],
                             ),
-                            style: const TextStyle(
-                              color: Color(0xFFA5ABB5),
+                            style: TextStyle(
+                              color: palette.secondaryText,
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                             ),
@@ -439,12 +440,17 @@ class _TopModeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _ChatSessionPalette.of(context);
     return IconButton.filledTonal(
       onPressed: onTap,
       style: IconButton.styleFrom(
         minimumSize: const Size.square(54),
-        backgroundColor: active ? const Color(0xFF5A81DA) : Colors.white,
-        foregroundColor: active ? Colors.white : const Color(0xFF303236),
+        backgroundColor: active
+            ? palette.activeButtonBackground
+            : palette.cardBackground,
+        foregroundColor: active
+            ? palette.activeButtonForeground
+            : palette.primaryText,
       ),
       icon: Icon(icon),
     );
@@ -470,6 +476,7 @@ class _RecordList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _ChatSessionPalette.of(context);
     if (records.isEmpty) {
       return Center(child: Text(context.l10n.noMessages));
     }
@@ -514,13 +521,18 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _ChatSessionPalette.of(context);
     final isVoice = record.contentType == 'voice';
     final align = record.isUser ? Alignment.centerRight : Alignment.centerLeft;
-    final bubbleColor = record.isUser ? const Color(0xFF5B86DB) : Colors.white;
-    final textColor = record.isUser ? Colors.white : const Color(0xFF303236);
+    final bubbleColor = record.isUser
+        ? palette.userBubbleBackground
+        : palette.cardBackground;
+    final textColor = record.isUser
+        ? palette.userBubbleForeground
+        : palette.primaryText;
     final avatarColor = record.isUser
-        ? const Color(0xFFF8E3DB)
-        : const Color(0xFFEAF0FF);
+        ? palette.userAvatarBackground
+        : palette.assistantAvatarBackground;
 
     return Align(
       alignment: align,
@@ -549,8 +561,8 @@ class _MessageBubble extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 6),
                       child: Text(
                         _messageTimeText(record.messageTime!),
-                        style: const TextStyle(
-                          color: Color(0xFF9AA0A8),
+                        style: TextStyle(
+                          color: palette.secondaryText,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -574,9 +586,9 @@ class _MessageBubble extends StatelessWidget {
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: record.isUser
                           ? null
-                          : const [
+                          : [
                               BoxShadow(
-                                color: Color(0x12000000),
+                                color: palette.shadowColor,
                                 blurRadius: 18,
                                 offset: Offset(0, 8),
                               ),
@@ -598,11 +610,11 @@ class _MessageBubble extends StatelessWidget {
                       ),
                       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: palette.cardBackground,
                         borderRadius: BorderRadius.circular(24),
-                        boxShadow: const [
+                        boxShadow: [
                           BoxShadow(
-                            color: Color(0x10000000),
+                            color: palette.shadowColor.withValues(alpha: 0.8),
                             blurRadius: 14,
                             offset: Offset(0, 6),
                           ),
@@ -610,8 +622,8 @@ class _MessageBubble extends StatelessWidget {
                       ),
                       child: Text(
                         record.content,
-                        style: const TextStyle(
-                          color: Color(0xFF303236),
+                        style: TextStyle(
+                          color: palette.primaryText,
                           fontSize: 16,
                           height: 1.6,
                         ),
@@ -622,8 +634,8 @@ class _MessageBubble extends StatelessWidget {
                       onTap: onToggleTranscript,
                       child: Text(
                         _t(context, '收起', 'Collapse'),
-                        style: const TextStyle(
-                          color: Color(0xFF8E949C),
+                        style: TextStyle(
+                          color: palette.secondaryText,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
@@ -660,6 +672,7 @@ class _VoiceRecordRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _ChatSessionPalette.of(context);
     if (record.isUser) {
       return Row(
         mainAxisSize: MainAxisSize.min,
@@ -698,13 +711,13 @@ class _VoiceRecordRow extends StatelessWidget {
             width: 30,
             height: 30,
             decoration: BoxDecoration(
-              color: const Color(0xFFD9E3FA),
+              color: palette.voiceActionBackground,
               borderRadius: BorderRadius.circular(999),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.play_arrow_rounded,
               size: 18,
-              color: Color(0xFF7C9ADB),
+              color: palette.voiceActionForeground,
             ),
           ),
         ),
@@ -783,6 +796,7 @@ class _BubbleAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _ChatSessionPalette.of(context);
     if (imageUrl.trim().isNotEmpty) {
       return CircleAvatar(
         radius: 22,
@@ -793,7 +807,7 @@ class _BubbleAvatar extends StatelessWidget {
     return CircleAvatar(
       radius: 22,
       backgroundColor: backgroundColor,
-      child: Icon(icon, color: const Color(0xFF5B86DB)),
+      child: Icon(icon, color: palette.avatarIcon),
     );
   }
 }
@@ -825,6 +839,7 @@ class _ChatComposer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _ChatSessionPalette.of(context);
     return Container(
       padding: EdgeInsets.fromLTRB(
         16,
@@ -832,8 +847,8 @@ class _ChatComposer extends StatelessWidget {
         16,
         14 + MediaQuery.viewInsetsOf(context).bottom,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       child: voiceComposer
@@ -849,8 +864,8 @@ class _ChatComposer extends StatelessWidget {
                       height: 56,
                       decoration: BoxDecoration(
                         color: recording
-                            ? const Color(0xFF5A81DA)
-                            : const Color(0xFFF3F5FA),
+                            ? palette.activeButtonBackground
+                            : palette.softSurface,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       alignment: Alignment.center,
@@ -860,8 +875,8 @@ class _ChatComposer extends StatelessWidget {
                             : _t(context, '按住 说话', 'Hold to talk'),
                         style: TextStyle(
                           color: recording
-                              ? Colors.white
-                              : const Color(0xFF303236),
+                              ? palette.activeButtonForeground
+                              : palette.primaryText,
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
                         ),
@@ -875,8 +890,8 @@ class _ChatComposer extends StatelessWidget {
                   onPressed: onToggleVoiceComposer,
                   style: IconButton.styleFrom(
                     minimumSize: const Size.square(54),
-                    backgroundColor: const Color(0xFFF5F6FB),
-                    foregroundColor: const Color(0xFF4D5056),
+                    backgroundColor: palette.softSurface,
+                    foregroundColor: palette.primaryText,
                   ),
                   icon: Icon(
                     recording
@@ -897,7 +912,7 @@ class _ChatComposer extends StatelessWidget {
                     decoration: InputDecoration(
                       hintText: context.l10n.chatMessageHint,
                       filled: true,
-                      fillColor: const Color(0xFFF4F5F9),
+                      fillColor: palette.softSurface,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(22),
                         borderSide: BorderSide.none,
@@ -916,8 +931,8 @@ class _ChatComposer extends StatelessWidget {
                   onPressed: onToggleVoiceComposer,
                   style: IconButton.styleFrom(
                     minimumSize: const Size.square(54),
-                    backgroundColor: const Color(0xFFF5F6FB),
-                    foregroundColor: const Color(0xFF303236),
+                    backgroundColor: palette.softSurface,
+                    foregroundColor: palette.primaryText,
                   ),
                   icon: const Icon(Icons.mic_none_rounded),
                 ),
@@ -956,11 +971,12 @@ class _DoctorCallView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _ChatSessionPalette.of(context);
     return Stack(
       children: [
-        const Positioned.fill(
+        Positioned.fill(
           child: DecoratedBox(
-            decoration: BoxDecoration(color: Color(0xFFEAF1FF)),
+            decoration: BoxDecoration(color: palette.callBackground),
           ),
         ),
         Positioned.fill(child: CustomPaint(painter: _CallRingPainter())),
@@ -987,8 +1003,8 @@ class _DoctorCallView extends StatelessWidget {
               const SizedBox(width: 34),
               _CallCircleButton(
                 size: 92,
-                color: Colors.white,
-                iconColor: const Color(0xFF303236),
+                color: palette.cardBackground,
+                iconColor: palette.primaryText,
                 icon: videoEnabled
                     ? Icons.videocam_rounded
                     : Icons.videocam_outlined,
@@ -1009,29 +1025,30 @@ class _CallPreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _ChatSessionPalette.of(context);
     return ClipRRect(
       borderRadius: BorderRadius.circular(22),
       child: Container(
         width: 202,
         height: 288,
-        decoration: const BoxDecoration(color: Color(0xFFD9E1EF)),
+        decoration: BoxDecoration(color: palette.previewBackground),
         child: Stack(
           children: [
             Positioned.fill(
               child: avatarUrl.trim().isNotEmpty
                   ? Image.network(avatarUrl, fit: BoxFit.cover)
                   : DecoratedBox(
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [Color(0xFFE4EBF6), Color(0xFFC5D3E8)],
+                          colors: palette.previewGradient,
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                         ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.person_rounded,
                         size: 120,
-                        color: Color(0xFF92A3BE),
+                        color: palette.secondaryText.withValues(alpha: 0.72),
                       ),
                     ),
             ),
@@ -1144,10 +1161,11 @@ class _RecordActionMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _ChatSessionPalette.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF454545),
+        color: palette.actionMenuBackground,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Row(
@@ -1230,6 +1248,7 @@ class _ConfirmDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _ChatSessionPalette.of(context);
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
@@ -1244,8 +1263,8 @@ class _ConfirmDialog extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      color: Color(0xFF303236),
+                    style: TextStyle(
+                      color: palette.primaryText,
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
                     ),
@@ -1254,8 +1273,8 @@ class _ConfirmDialog extends StatelessWidget {
                   Text(
                     message,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Color(0xFF9DA2AA),
+                    style: TextStyle(
+                      color: palette.secondaryText,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1263,7 +1282,7 @@ class _ConfirmDialog extends StatelessWidget {
                 ],
               ),
             ),
-            const Divider(height: 1, color: Color(0xFFE8EBF1)),
+            Divider(height: 1, color: palette.outline),
             Row(
               children: [
                 Expanded(
@@ -1271,18 +1290,18 @@ class _ConfirmDialog extends StatelessWidget {
                     onPressed: () => Navigator.of(context).pop(false),
                     style: TextButton.styleFrom(
                       minimumSize: const Size.fromHeight(74),
-                      foregroundColor: const Color(0xFFA9ACB2),
+                      foregroundColor: palette.secondaryText,
                     ),
                     child: Text(_t(context, '取消', 'Cancel')),
                   ),
                 ),
-                Container(width: 1, height: 46, color: const Color(0xFFE8EBF1)),
+                Container(width: 1, height: 46, color: palette.outline),
                 Expanded(
                   child: TextButton(
                     onPressed: () => Navigator.of(context).pop(true),
                     style: TextButton.styleFrom(
                       minimumSize: const Size.fromHeight(74),
-                      foregroundColor: const Color(0xFF303236),
+                      foregroundColor: palette.primaryText,
                     ),
                     child: Text(
                       _t(context, '确认', 'Confirm'),
@@ -1366,6 +1385,97 @@ bool _hasTranscript(ChatRecord record) {
     return false;
   }
   return true;
+}
+
+class _ChatSessionPalette {
+  const _ChatSessionPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.softSurface,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.outline,
+    required this.shadowColor,
+    required this.activeButtonBackground,
+    required this.activeButtonForeground,
+    required this.userBubbleBackground,
+    required this.userBubbleForeground,
+    required this.userAvatarBackground,
+    required this.assistantAvatarBackground,
+    required this.avatarIcon,
+    required this.voiceActionBackground,
+    required this.voiceActionForeground,
+    required this.callBackground,
+    required this.previewBackground,
+    required this.previewGradient,
+    required this.actionMenuBackground,
+  });
+
+  static _ChatSessionPalette of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _ChatSessionPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      softSurface: scheme.surfaceContainerLow,
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      outline: scheme.outlineVariant,
+      shadowColor: isDark
+          ? Colors.black.withValues(alpha: 0.28)
+          : const Color(0x12000000),
+      activeButtonBackground: const Color(0xFF5A81DA),
+      activeButtonForeground: Colors.white,
+      userBubbleBackground: isDark
+          ? const Color(0xFF4E73B8)
+          : const Color(0xFF5B86DB),
+      userBubbleForeground: Colors.white,
+      userAvatarBackground: isDark
+          ? const Color(0xFF5A3C39)
+          : const Color(0xFFF8E3DB),
+      assistantAvatarBackground: isDark
+          ? scheme.surfaceContainerHighest
+          : const Color(0xFFEAF0FF),
+      avatarIcon: isDark ? scheme.tertiary : const Color(0xFF5B86DB),
+      voiceActionBackground: isDark
+          ? scheme.surfaceContainerHighest
+          : const Color(0xFFD9E3FA),
+      voiceActionForeground: isDark ? scheme.tertiary : const Color(0xFF7C9ADB),
+      callBackground: isDark
+          ? const Color(0xFF1D2533)
+          : const Color(0xFFEAF1FF),
+      previewBackground: isDark
+          ? const Color(0xFF2A3444)
+          : const Color(0xFFD9E1EF),
+      previewGradient: isDark
+          ? const [Color(0xFF334157), Color(0xFF202A39)]
+          : const [Color(0xFFE4EBF6), Color(0xFFC5D3E8)],
+      actionMenuBackground: isDark
+          ? scheme.surfaceContainerHighest
+          : const Color(0xFF454545),
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color softSurface;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color outline;
+  final Color shadowColor;
+  final Color activeButtonBackground;
+  final Color activeButtonForeground;
+  final Color userBubbleBackground;
+  final Color userBubbleForeground;
+  final Color userAvatarBackground;
+  final Color assistantAvatarBackground;
+  final Color avatarIcon;
+  final Color voiceActionBackground;
+  final Color voiceActionForeground;
+  final Color callBackground;
+  final Color previewBackground;
+  final List<Color> previewGradient;
+  final Color actionMenuBackground;
 }
 
 String _t(BuildContext context, String zh, String en) {
