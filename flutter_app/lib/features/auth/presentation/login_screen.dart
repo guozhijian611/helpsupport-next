@@ -60,7 +60,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               enabled: !isLoading,
               onChanged: (method) => setState(() => _loginMethod = method),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
             AuthTextField(
               controller: _usernameController,
               enabled: !isLoading,
@@ -76,7 +76,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   : Icons.phone_iphone_rounded,
               validator: _required,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             AuthTextField(
               controller: _passwordController,
               enabled: !isLoading,
@@ -87,7 +87,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               validator: _required,
               onFieldSubmitted: (_) => _submitAccountLogin(),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             Row(
               children: [
                 _InlineActionButton(
@@ -103,11 +103,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 14),
             AuthPrimaryButton(
               onPressed: _submitAccountLogin,
               isLoading: isLoading,
-              height: 52,
+              height: 46,
               borderRadius: 16,
               backgroundColor: _agreementAccepted
                   ? const Color(0xFFFF9585)
@@ -117,7 +117,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ? context.l10n.loggingIn
                   : context.l10n.accountLogin,
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 14),
             _SocialLoginButton(
               onPressed: isLoading
                   ? null
@@ -130,7 +130,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               borderColor: const Color(0xFF101010),
               leading: const Icon(Icons.apple, color: Colors.white, size: 30),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             _SocialLoginButton(
               onPressed: isLoading
                   ? null
@@ -143,7 +143,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               borderColor: const Color(0xFFECE4E0),
               leading: const _GoogleMark(),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _LoginAgreement(
               value: _agreementAccepted,
               enabled: !isLoading,
@@ -278,7 +278,7 @@ class _LoginMethodTab extends StatelessWidget {
         onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(18),
         child: Ink(
-          height: 54,
+          height: 48,
           decoration: BoxDecoration(
             color: backgroundColor,
             borderRadius: BorderRadius.circular(18),
@@ -289,7 +289,7 @@ class _LoginMethodTab extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.w800,
               ).copyWith(color: textColor),
             ),
@@ -313,9 +313,9 @@ class _InlineActionButton extends StatelessWidget {
       style: TextButton.styleFrom(
         foregroundColor: const Color(0xFFFF9585),
         padding: EdgeInsets.zero,
-        minimumSize: const Size(0, 36),
+        minimumSize: const Size(0, 30),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
       ),
       child: Text(text),
     );
@@ -343,7 +343,7 @@ class _SocialLoginButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 54,
+      height: 48,
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
@@ -354,14 +354,14 @@ class _SocialLoginButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(30),
           ),
-          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
             leading,
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Flexible(
               child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),

@@ -51,10 +51,10 @@ class AuthPageFrame extends ConsumerWidget {
                   final scale = (constraints.maxWidth / 375)
                       .clamp(0.92, 1.08)
                       .toDouble();
-                  final panelTop = (isWide ? 276.0 : 200.0 * scale)
-                      .clamp(198.0, height * 0.36)
+                  final panelTop = (isWide ? 320.0 : 242.0 * scale)
+                      .clamp(240.0, height * 0.41)
                       .toDouble();
-                  final logoTop = isWide ? 52.0 : 46.0 * scale;
+                  final logoTop = isWide ? 68.0 : 60.0 * scale;
 
                   return Stack(
                     fit: StackFit.expand,
@@ -85,7 +85,7 @@ class AuthPageFrame extends ConsumerWidget {
                         child: _AppLogo(logoUrl: appConfig.logo),
                       ),
                       Positioned(
-                        top: logoTop + 100,
+                        top: logoTop + 92,
                         left: 24,
                         right: 24,
                         child: Text(
@@ -117,7 +117,7 @@ class AuthPageFrame extends ConsumerWidget {
                           child: ListView(
                             padding: EdgeInsets.fromLTRB(
                               isWide ? 44 : 40,
-                              30,
+                              22,
                               isWide ? 44 : 40,
                               28 + MediaQuery.paddingOf(context).bottom,
                             ),
@@ -157,7 +157,7 @@ class AuthPageFrame extends ConsumerWidget {
                                               ),
                                         ),
                                       ],
-                                      const SizedBox(height: 24),
+                                      const SizedBox(height: 18),
                                       child,
                                       if (footer != null) ...[
                                         const SizedBox(height: 18),
@@ -428,7 +428,7 @@ class AuthTextField extends StatelessWidget {
         suffixIcon: suffix,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
-          vertical: 18,
+          vertical: 13,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -475,7 +475,7 @@ class _AppLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: SizedBox.square(
-        dimension: 72,
+        dimension: 62,
         child: logoUrl.isEmpty
             ? const _LogoFallback()
             : Image.network(
