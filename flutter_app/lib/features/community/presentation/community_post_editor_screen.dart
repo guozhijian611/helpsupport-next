@@ -42,11 +42,17 @@ class _CommunityPostEditorScreenState
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityPostEditorPalette.of(context);
     final tags = ref.watch(communityTagsProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: Text(_t(context, '社区发布', 'New community post'))),
+      backgroundColor: palette.pageBackground,
+      appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
+        title: Text(_t(context, '社区发布', 'New community post')),
+      ),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(28, 10, 28, 16),
         child: FilledButton(
@@ -96,9 +102,10 @@ class _CommunityPostEditorScreenState
                     'Write a short title for your post',
                   ),
                   border: InputBorder.none,
+                  hintStyle: TextStyle(color: palette.secondaryText),
                 ),
-                style: const TextStyle(
-                  color: Color(0xFF42454D),
+                style: TextStyle(
+                  color: palette.bodyText,
                   fontSize: 18,
                   height: 1.55,
                 ),
@@ -117,9 +124,10 @@ class _CommunityPostEditorScreenState
                 decoration: InputDecoration(
                   hintText: context.l10n.communityPostHint,
                   border: InputBorder.none,
+                  hintStyle: TextStyle(color: palette.secondaryText),
                 ),
-                style: const TextStyle(
-                  color: Color(0xFF42454D),
+                style: TextStyle(
+                  color: palette.bodyText,
                   fontSize: 17,
                   height: 1.7,
                 ),
@@ -147,11 +155,13 @@ class _CommunityPostEditorScreenState
             _InputPanel(
               child: TextField(
                 controller: _linkController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'https://',
                   border: InputBorder.none,
+                  hintStyle: TextStyle(color: palette.secondaryText),
                 ),
                 keyboardType: TextInputType.url,
+                style: TextStyle(color: palette.bodyText),
               ),
             ),
             const SizedBox(height: 22),
@@ -182,7 +192,7 @@ class _CommunityPostEditorScreenState
                   '标签加载失败，可直接发布内容。',
                   'Tags failed to load. You can still publish the post.',
                 ),
-                style: const TextStyle(color: Color(0xFF96999F)),
+                style: TextStyle(color: palette.secondaryText),
               ),
               loading: () => const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
@@ -193,7 +203,7 @@ class _CommunityPostEditorScreenState
             Container(
               padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFF7F7FA),
+                color: palette.softBackground,
                 borderRadius: BorderRadius.circular(22),
               ),
               child: SwitchListTile(
@@ -391,10 +401,11 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityPostEditorPalette.of(context);
     return Text(
       text,
-      style: const TextStyle(
-        color: Color(0xFF303236),
+      style: TextStyle(
+        color: palette.primaryText,
         fontSize: 18,
         fontWeight: FontWeight.w900,
       ),
@@ -410,13 +421,14 @@ class _InputPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityPostEditorPalette.of(context);
     return Container(
       constraints: minHeight == null
           ? null
           : BoxConstraints(minHeight: minHeight!),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F7),
+        color: palette.softBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: child,
@@ -431,16 +443,21 @@ class _AddAttachmentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityPostEditorPalette.of(context);
     return Material(
-      color: const Color(0xFFF5F5F7),
+      color: palette.softBackground,
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
         onTap: onTap,
-        child: const SizedBox(
+        child: SizedBox(
           width: 108,
           height: 108,
-          child: Icon(Icons.add_rounded, size: 44, color: Color(0xFF9AA0A8)),
+          child: Icon(
+            Icons.add_rounded,
+            size: 44,
+            color: palette.secondaryText,
+          ),
         ),
       ),
     );
@@ -521,14 +538,15 @@ class _SelectableTagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityPostEditorPalette.of(context);
     return FilterChip(
       label: Text('# ${tag.name}'),
       selected: selected,
       onSelected: (_) => onTap(),
-      selectedColor: const Color(0xFFFFEEE9),
+      selectedColor: palette.selectedChipBackground,
       checkmarkColor: const Color(0xFFFF9585),
       labelStyle: TextStyle(
-        color: selected ? const Color(0xFFFF9585) : const Color(0xFF6B7380),
+        color: selected ? const Color(0xFFFF9585) : palette.secondaryText,
         fontWeight: FontWeight.w700,
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
@@ -566,4 +584,39 @@ class _EditorImageAttachment {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _CommunityPostEditorPalette {
+  const _CommunityPostEditorPalette({
+    required this.pageBackground,
+    required this.softBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.bodyText,
+    required this.selectedChipBackground,
+  });
+
+  factory _CommunityPostEditorPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _CommunityPostEditorPalette(
+      pageBackground: scheme.surface,
+      softBackground: scheme.surfaceContainerLow,
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      bodyText: isDark
+          ? scheme.onSurface.withValues(alpha: 0.84)
+          : const Color(0xFF42454D),
+      selectedChipBackground: isDark
+          ? scheme.primaryContainer.withValues(alpha: 0.5)
+          : const Color(0xFFFFEEE9),
+    );
+  }
+
+  final Color pageBackground;
+  final Color softBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color bodyText;
+  final Color selectedChipBackground;
 }

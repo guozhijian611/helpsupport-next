@@ -58,9 +58,13 @@ class _DoctorTreatmentStageScreenState
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentStagePalette.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(
           widget.stage == null
               ? _t(context, '添加阶段', 'Add stage')
@@ -84,19 +88,19 @@ class _DoctorTreatmentStageScreenState
                       'Example: Adaptation / Consolidation',
                     ),
                   ),
-                  const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                  _stageDivider(context),
                   _ActionRow(
                     label: _t(context, '开始日期', 'Start date'),
                     value: _formatDate(_startDate),
                     onTap: () => _pickDate(isStart: true),
                   ),
-                  const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                  _stageDivider(context),
                   _ActionRow(
                     label: _t(context, '结束日期', 'End date'),
                     value: _formatDate(_endDate),
                     onTap: () => _pickDate(isStart: false),
                   ),
-                  const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                  _stageDivider(context),
                   _TextFieldRow(
                     label: _t(context, '阶段目标', 'Stage goal'),
                     controller: _targetController,
@@ -108,13 +112,13 @@ class _DoctorTreatmentStageScreenState
                     minLines: 2,
                     maxLines: 4,
                   ),
-                  const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                  _stageDivider(context),
                   _ActionRow(
                     label: _t(context, '阶段状态', 'Stage status'),
                     value: _stageStatusLabel(context, _status),
                     onTap: _pickStatus,
                   ),
-                  const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                  _stageDivider(context),
                   _TextFieldRow(
                     label: _t(context, '排序', 'Sort'),
                     controller: _sortController,
@@ -169,42 +173,45 @@ class _DoctorTreatmentStageScreenState
     final value = await showModalBottomSheet<int>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
-            children: [
-              Text(
-                _t(context, '阶段状态', 'Stage status'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF303236),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 16),
-              for (final item in const [0, 1, 2])
-                ListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  tileColor: item == _status
-                      ? const Color(0xFFEAF0FF)
-                      : const Color(0xFFF7F8FB),
-                  title: Text(_stageStatusLabel(context, item)),
-                  onTap: () => Navigator.of(context).pop(item),
-                ),
-            ],
+      builder: (context) {
+        final palette = _DoctorTreatmentStagePalette.of(context);
+        return Container(
+          decoration: BoxDecoration(
+            color: palette.sheetBackground,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
-        ),
-      ),
+          child: SafeArea(
+            top: false,
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+              children: [
+                Text(
+                  _t(context, '阶段状态', 'Stage status'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                for (final item in const [0, 1, 2])
+                  ListTile(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    tileColor: item == _status
+                        ? palette.selectedChipBackground
+                        : palette.softBackground,
+                    title: Text(_stageStatusLabel(context, item)),
+                    onTap: () => Navigator.of(context).pop(item),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
     if (value != null && mounted) {
       setState(() => _status = value);
@@ -269,9 +276,10 @@ class _FieldCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentStagePalette.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: child,
@@ -298,6 +306,7 @@ class _TextFieldRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentStagePalette.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       child: Row(
@@ -309,7 +318,7 @@ class _TextFieldRow extends StatelessWidget {
             width: 92,
             child: Text(
               label,
-              style: const TextStyle(color: Color(0xFF9AA0A8), fontSize: 16),
+              style: TextStyle(color: palette.secondaryText, fontSize: 16),
             ),
           ),
           const SizedBox(width: 10),
@@ -324,9 +333,10 @@ class _TextFieldRow extends StatelessWidget {
                 isDense: true,
                 hintText: hintText,
                 border: InputBorder.none,
+                hintStyle: TextStyle(color: palette.mutedText),
               ),
-              style: const TextStyle(
-                color: Color(0xFF303236),
+              style: TextStyle(
+                color: palette.primaryText,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -351,6 +361,7 @@ class _ActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentStagePalette.of(context);
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -361,7 +372,7 @@ class _ActionRow extends StatelessWidget {
               width: 92,
               child: Text(
                 label,
-                style: const TextStyle(color: Color(0xFF9AA0A8), fontSize: 16),
+                style: TextStyle(color: palette.secondaryText, fontSize: 16),
               ),
             ),
             const Spacer(),
@@ -369,15 +380,15 @@ class _ActionRow extends StatelessWidget {
               child: Text(
                 value,
                 textAlign: TextAlign.right,
-                style: const TextStyle(
-                  color: Color(0xFF303236),
+                style: TextStyle(
+                  color: palette.primaryText,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
             const SizedBox(width: 6),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFFC8CDD6)),
+            Icon(Icons.chevron_right_rounded, color: palette.outline),
           ],
         ),
       ),
@@ -404,4 +415,55 @@ String _formatDate(DateTime value) {
 DateTime _parseDate(String? value, {required DateTime fallback}) {
   final parsed = DateTime.tryParse((value ?? '').trim());
   return parsed ?? fallback;
+}
+
+Widget _stageDivider(BuildContext context) {
+  return Divider(
+    height: 1,
+    color: _DoctorTreatmentStagePalette.of(context).outline,
+  );
+}
+
+class _DoctorTreatmentStagePalette {
+  const _DoctorTreatmentStagePalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.sheetBackground,
+    required this.softBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.mutedText,
+    required this.outline,
+    required this.selectedChipBackground,
+  });
+
+  factory _DoctorTreatmentStagePalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _DoctorTreatmentStagePalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      sheetBackground: scheme.surfaceContainerLowest,
+      softBackground: scheme.surfaceContainerLow,
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
+          : const Color(0xFF7D828A),
+      outline: scheme.outlineVariant,
+      selectedChipBackground: isDark
+          ? scheme.primaryContainer
+          : const Color(0xFFEAF0FF),
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color sheetBackground;
+  final Color softBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color mutedText;
+  final Color outline;
+  final Color selectedChipBackground;
 }

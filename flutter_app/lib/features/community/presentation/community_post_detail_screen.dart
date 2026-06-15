@@ -45,12 +45,18 @@ class _CommunityPostDetailScreenState
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityPostDetailPalette.of(context);
     final post = ref.watch(communityPostProvider(widget.postId));
     final comments = ref.watch(communityCommentsProvider(widget.postId));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
-      appBar: AppBar(title: Text(_t(context, '评论', 'Comments'))),
+      backgroundColor: palette.pageBackground,
+      appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
+        title: Text(_t(context, '评论', 'Comments')),
+      ),
       body: SafeArea(
         child: post.when(
           data: (item) => Column(
@@ -77,7 +83,7 @@ class _CommunityPostDetailScreenState
                       Container(
                         padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: palette.cardBackground,
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: comments.when(
@@ -366,14 +372,15 @@ class _CommentPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityPostDetailPalette.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Center(
           child: Text(
             _t(context, '$total 条评论', '$total comments'),
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 20,
               fontWeight: FontWeight.w900,
             ),
@@ -409,8 +416,8 @@ class _CommentPanel extends StatelessWidget {
             child: Center(
               child: Text(
                 _t(context, '还没有评论，来说两句吧', 'No comments yet'),
-                style: const TextStyle(
-                  color: Color(0xFF9AA0A8),
+                style: TextStyle(
+                  color: palette.secondaryText,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -449,6 +456,7 @@ class _SortTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityPostDetailPalette.of(context);
     return InkWell(
       borderRadius: BorderRadius.circular(999),
       onTap: onTap,
@@ -457,7 +465,7 @@ class _SortTab extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? const Color(0xFF303236) : const Color(0xFFB0B3BA),
+            color: selected ? palette.primaryText : palette.mutedText,
             fontSize: 16,
             fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
           ),
@@ -484,6 +492,7 @@ class _CommentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityPostDetailPalette.of(context);
     final displayName = comment.isAnonymous
         ? _t(context, '匿名用户', 'Anonymous')
         : comment.authorName;
@@ -508,8 +517,8 @@ class _CommentTile extends StatelessWidget {
                   replyTarget.isNotEmpty
                       ? '$displayName  >  $replyTarget'
                       : displayName,
-                  style: const TextStyle(
-                    color: Color(0xFF9AA0A8),
+                  style: TextStyle(
+                    color: palette.secondaryText,
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                   ),
@@ -517,8 +526,8 @@ class _CommentTile extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   comment.content,
-                  style: const TextStyle(
-                    color: Color(0xFF303236),
+                  style: TextStyle(
+                    color: palette.primaryText,
                     fontSize: 18,
                     height: 1.55,
                   ),
@@ -532,8 +541,8 @@ class _CommentTile extends StatelessWidget {
                   children: [
                     Text(
                       _timeLabel(context, comment.createTime),
-                      style: const TextStyle(
-                        color: Color(0xFFB0B3BA),
+                      style: TextStyle(
+                        color: palette.mutedText,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -543,8 +552,8 @@ class _CommentTile extends StatelessWidget {
                       onTap: onReply,
                       child: Text(
                         _t(context, '回复', 'Reply'),
-                        style: const TextStyle(
-                          color: Color(0xFF9AA0A8),
+                        style: TextStyle(
+                          color: palette.secondaryText,
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                         ),
@@ -566,7 +575,7 @@ class _CommentTile extends StatelessWidget {
                       : Icons.thumb_up_alt_outlined,
                   color: comment.isLiked
                       ? const Color(0xFFFF9585)
-                      : const Color(0xFF3B3E45),
+                      : palette.primaryText,
                 ),
               ),
               Text(
@@ -574,7 +583,7 @@ class _CommentTile extends StatelessWidget {
                 style: TextStyle(
                   color: comment.isLiked
                       ? const Color(0xFFFF9585)
-                      : const Color(0xFF9AA0A8),
+                      : palette.secondaryText,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -594,13 +603,14 @@ class _CommentAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityPostDetailPalette.of(context);
     if (!isAnonymous && avatarUrl.trim().isNotEmpty) {
       return CircleAvatar(radius: 28, backgroundImage: NetworkImage(avatarUrl));
     }
 
     return CircleAvatar(
       radius: 28,
-      backgroundColor: const Color(0xFFF8E3DB),
+      backgroundColor: palette.avatarBackground,
       child: Icon(
         isAnonymous ? Icons.visibility_off_outlined : Icons.person_outline,
         color: const Color(0xFFFF9585),
@@ -664,8 +674,9 @@ class _CommentComposer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityPostDetailPalette.of(context);
     return Material(
-      color: Colors.white,
+      color: palette.cardBackground,
       elevation: 10,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
@@ -686,7 +697,7 @@ class _CommentComposer extends StatelessWidget {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F7),
+                  color: palette.softBackground,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
@@ -698,17 +709,17 @@ class _CommentComposer extends StatelessWidget {
                           '回复 ${replyTarget!.authorName}',
                           'Reply to ${replyTarget!.authorName}',
                         ),
-                        style: const TextStyle(
-                          color: Color(0xFF6B7380),
+                        style: TextStyle(
+                          color: palette.bodyText,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
                     GestureDetector(
                       onTap: onDismissReply,
-                      child: const Icon(
+                      child: Icon(
                         Icons.close_rounded,
-                        color: Color(0xFF9AA0A8),
+                        color: palette.secondaryText,
                       ),
                     ),
                   ],
@@ -736,12 +747,14 @@ class _CommentComposer extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: _t(context, '说两句...', 'Say something...'),
                 filled: true,
-                fillColor: const Color(0xFFF5F5F7),
+                fillColor: palette.softBackground,
                 border: OutlineInputBorder(
                   borderSide: BorderSide.none,
                   borderRadius: BorderRadius.circular(18),
                 ),
+                hintStyle: TextStyle(color: palette.secondaryText),
               ),
+              style: TextStyle(color: palette.primaryText),
             ),
             const SizedBox(height: 10),
             Row(
@@ -755,16 +768,13 @@ class _CommentComposer extends StatelessWidget {
                         : Icons.visibility_outlined,
                     color: isAnonymous
                         ? const Color(0xFF5A81DA)
-                        : const Color(0xFF52555D),
+                        : palette.bodyText,
                   ),
                 ),
                 IconButton(
                   onPressed: onPickImage,
                   tooltip: _t(context, '添加图片', 'Add image'),
-                  icon: const Icon(
-                    Icons.image_outlined,
-                    color: Color(0xFF52555D),
-                  ),
+                  icon: Icon(Icons.image_outlined, color: palette.bodyText),
                 ),
                 const Spacer(),
                 FilledButton(
@@ -871,10 +881,11 @@ class _CommentStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityPostDetailPalette.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 28),
       child: Center(
-        child: Text(message, style: const TextStyle(color: Color(0xFF9AA0A8))),
+        child: Text(message, style: TextStyle(color: palette.secondaryText)),
       ),
     );
   }
@@ -947,4 +958,47 @@ String _timeLabel(BuildContext context, String value) {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _CommunityPostDetailPalette {
+  const _CommunityPostDetailPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.softBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.mutedText,
+    required this.bodyText,
+    required this.avatarBackground,
+  });
+
+  factory _CommunityPostDetailPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _CommunityPostDetailPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      softBackground: scheme.surfaceContainerLow,
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
+          : const Color(0xFF7D828A),
+      bodyText: isDark
+          ? scheme.onSurface.withValues(alpha: 0.82)
+          : const Color(0xFF52555D),
+      avatarBackground: isDark
+          ? scheme.primaryContainer.withValues(alpha: 0.28)
+          : const Color(0xFFF8E3DB),
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color softBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color mutedText;
+  final Color bodyText;
+  final Color avatarBackground;
 }

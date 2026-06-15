@@ -59,9 +59,13 @@ class _DoctorTaskEditorScreenState
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTaskEditorPalette.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(_t(context, '添加关键任务', 'Add key task')),
         centerTitle: true,
       ),
@@ -81,7 +85,7 @@ class _DoctorTaskEditorScreenState
                       'Example: Complete the assessment scale',
                     ),
                   ),
-                  const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                  _editorDivider(context),
                   _EditorTextRow(
                     label: _t(context, '任务描述', 'Description'),
                     controller: _descriptionController,
@@ -93,14 +97,14 @@ class _DoctorTaskEditorScreenState
                     minLines: 2,
                     maxLines: 4,
                   ),
-                  const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                  _editorDivider(context),
                   _EditorActionRow(
                     label: _t(context, '任务类型', 'Task type'),
                     value: _taskTypeLabel(context, _taskType),
                     onTap: _pickTaskType,
                   ),
                   if (_taskType == 'assessment') ...[
-                    const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                    _editorDivider(context),
                     _EditorActionRow(
                       label: _t(context, '量表选择', 'Assessment scale'),
                       value:
@@ -109,32 +113,32 @@ class _DoctorTaskEditorScreenState
                       onTap: _pickAssessmentScale,
                     ),
                   ],
-                  const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                  _editorDivider(context),
                   _EditorActionRow(
                     label: _t(context, '日期选择', 'Task date'),
                     value: DateFormat('yyyy-MM-dd').format(_taskDate),
                     onTap: _pickDate,
                   ),
-                  const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                  _editorDivider(context),
                   _EditorActionRow(
                     label: _t(context, '开始时间', 'Start time'),
                     value: _formatTime(_startTime),
                     onTap: () => _pickTime(isStart: true),
                   ),
-                  const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                  _editorDivider(context),
                   _EditorActionRow(
                     label: _t(context, '结束时间', 'End time'),
                     value: _formatTime(_endTime),
                     onTap: () => _pickTime(isStart: false),
                   ),
-                  const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                  _editorDivider(context),
                   _EditorTextRow(
                     label: _t(context, '奖励分数', 'Reward score'),
                     controller: _rewardController,
                     hintText: '20',
                     keyboardType: TextInputType.number,
                   ),
-                  const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                  _editorDivider(context),
                   _EditorActionRow(
                     label: _t(context, '附件选择', 'Attachments'),
                     value: _attachmentSummary(context, _selectedAttachments),
@@ -220,47 +224,50 @@ class _DoctorTaskEditorScreenState
     final value = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
-            children: [
-              Text(
-                _t(context, '任务类型', 'Task type'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF303236),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 16),
-              for (final item in const [
-                'daily',
-                'assessment',
-                'material',
-                'checkin',
-              ])
-                ListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  tileColor: item == _taskType
-                      ? const Color(0xFFEAF0FF)
-                      : const Color(0xFFF7F8FB),
-                  title: Text(_taskTypeLabel(context, item)),
-                  onTap: () => Navigator.of(context).pop(item),
-                ),
-            ],
+      builder: (context) {
+        final palette = _DoctorTaskEditorPalette.of(context);
+        return Container(
+          decoration: BoxDecoration(
+            color: palette.sheetBackground,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
-        ),
-      ),
+          child: SafeArea(
+            top: false,
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+              children: [
+                Text(
+                  _t(context, '任务类型', 'Task type'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                for (final item in const [
+                  'daily',
+                  'assessment',
+                  'material',
+                  'checkin',
+                ])
+                  ListTile(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    tileColor: item == _taskType
+                        ? palette.selectedChipBackground
+                        : palette.softBackground,
+                    title: Text(_taskTypeLabel(context, item)),
+                    onTap: () => Navigator.of(context).pop(item),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
     if (value != null && mounted) {
       setState(() {
@@ -292,49 +299,52 @@ class _DoctorTaskEditorScreenState
     final selected = await showModalBottomSheet<DoctorAssessmentScale>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
-            children: [
-              Text(
-                _t(context, '量表选择', 'Assessment scale'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF303236),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 16),
-              for (final scale in scales)
-                ListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  tileColor: _selectedAssessmentScale?.id == scale.id
-                      ? const Color(0xFFEAF0FF)
-                      : const Color(0xFFF7F8FB),
-                  title: Text(scale.title),
-                  subtitle: Text(
-                    _t(
-                      context,
-                      '${scale.questions.length} 题 · 总分 ${scale.totalScore}',
-                      '${scale.questions.length} questions · ${scale.totalScore} points',
-                    ),
-                  ),
-                  onTap: () => Navigator.of(context).pop(scale),
-                ),
-            ],
+      builder: (context) {
+        final palette = _DoctorTaskEditorPalette.of(context);
+        return Container(
+          decoration: BoxDecoration(
+            color: palette.sheetBackground,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
-        ),
-      ),
+          child: SafeArea(
+            top: false,
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+              children: [
+                Text(
+                  _t(context, '量表选择', 'Assessment scale'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                for (final scale in scales)
+                  ListTile(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    tileColor: _selectedAssessmentScale?.id == scale.id
+                        ? palette.selectedChipBackground
+                        : palette.softBackground,
+                    title: Text(scale.title),
+                    subtitle: Text(
+                      _t(
+                        context,
+                        '${scale.questions.length} 题 · 总分 ${scale.totalScore}',
+                        '${scale.questions.length} questions · ${scale.totalScore} points',
+                      ),
+                    ),
+                    onTap: () => Navigator.of(context).pop(scale),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
     if (selected != null && mounted) {
       setState(() {
@@ -428,10 +438,11 @@ class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTaskEditorPalette.of(context);
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: palette.sheetBackground,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
         top: false,
@@ -442,8 +453,8 @@ class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
             children: [
               Text(
                 _t(context, '附件选择', 'Attachments'),
-                style: const TextStyle(
-                  color: Color(0xFF303236),
+                style: TextStyle(
+                  color: palette.primaryText,
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                 ),
@@ -458,8 +469,8 @@ class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
                       '还没有可用的教育素材',
                       'No learning materials available yet',
                     ),
-                    style: const TextStyle(
-                      color: Color(0xFF9AA0A8),
+                    style: TextStyle(
+                      color: palette.secondaryText,
                       fontSize: 15,
                     ),
                   ),
@@ -491,8 +502,8 @@ class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
                           padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
                           decoration: BoxDecoration(
                             color: selected
-                                ? const Color(0xFFEAF0FF)
-                                : const Color(0xFFF7F8FB),
+                                ? palette.selectedChipBackground
+                                : palette.softBackground,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
@@ -515,8 +526,8 @@ class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
                                   item.title,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Color(0xFF303236),
+                                  style: TextStyle(
+                                    color: palette.primaryText,
                                     fontSize: 18,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -529,7 +540,7 @@ class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
                                     : Icons.circle_outlined,
                                 color: selected
                                     ? const Color(0xFF68C140)
-                                    : const Color(0xFFC8CDD6),
+                                    : palette.outline,
                               ),
                             ],
                           ),
@@ -567,9 +578,10 @@ class _EditorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTaskEditorPalette.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: child,
@@ -596,6 +608,7 @@ class _EditorTextRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTaskEditorPalette.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       child: Row(
@@ -607,7 +620,7 @@ class _EditorTextRow extends StatelessWidget {
             width: 92,
             child: Text(
               label,
-              style: const TextStyle(color: Color(0xFF9AA0A8), fontSize: 16),
+              style: TextStyle(color: palette.secondaryText, fontSize: 16),
             ),
           ),
           const SizedBox(width: 10),
@@ -622,9 +635,10 @@ class _EditorTextRow extends StatelessWidget {
                 isDense: true,
                 hintText: hintText,
                 border: InputBorder.none,
+                hintStyle: TextStyle(color: palette.mutedText),
               ),
-              style: const TextStyle(
-                color: Color(0xFF303236),
+              style: TextStyle(
+                color: palette.primaryText,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -649,6 +663,7 @@ class _EditorActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTaskEditorPalette.of(context);
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -659,7 +674,7 @@ class _EditorActionRow extends StatelessWidget {
               width: 92,
               child: Text(
                 label,
-                style: const TextStyle(color: Color(0xFF9AA0A8), fontSize: 16),
+                style: TextStyle(color: palette.secondaryText, fontSize: 16),
               ),
             ),
             const Spacer(),
@@ -667,15 +682,15 @@ class _EditorActionRow extends StatelessWidget {
               child: Text(
                 value,
                 textAlign: TextAlign.right,
-                style: const TextStyle(
-                  color: Color(0xFF303236),
+                style: TextStyle(
+                  color: palette.primaryText,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
             const SizedBox(width: 6),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFFC8CDD6)),
+            Icon(Icons.chevron_right_rounded, color: palette.outline),
           ],
         ),
       ),
@@ -745,4 +760,55 @@ IconData _materialIcon(String mediaType) {
     default:
       return Icons.menu_book_rounded;
   }
+}
+
+Widget _editorDivider(BuildContext context) {
+  return Divider(
+    height: 1,
+    color: _DoctorTaskEditorPalette.of(context).outline,
+  );
+}
+
+class _DoctorTaskEditorPalette {
+  const _DoctorTaskEditorPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.sheetBackground,
+    required this.softBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.mutedText,
+    required this.outline,
+    required this.selectedChipBackground,
+  });
+
+  factory _DoctorTaskEditorPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _DoctorTaskEditorPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      sheetBackground: scheme.surfaceContainerLowest,
+      softBackground: scheme.surfaceContainerLow,
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
+          : const Color(0xFF7D828A),
+      outline: scheme.outlineVariant,
+      selectedChipBackground: isDark
+          ? scheme.primaryContainer
+          : const Color(0xFFEAF0FF),
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color sheetBackground;
+  final Color softBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color mutedText;
+  final Color outline;
+  final Color selectedChipBackground;
 }
