@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
@@ -28,57 +29,53 @@ class MeScreen extends ConsumerWidget {
       _ => null,
     };
     final profile = _MeProfile.fromSession(session);
-    final media = MediaQuery.of(context);
 
-    return MediaQuery(
-      data: media.copyWith(textScaler: TextScaler.noScaling),
-      child: ColoredBox(
-        color: _pageBackground,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _ProfileHeader(profile: profile),
-                    const SizedBox(height: 28),
-                    _SummaryGrid(
-                      cards: [
-                        _SummaryCardData(
-                          title: context.l10n.meMonthPlan,
-                          value: context.l10n.meNoTask,
-                          icon: Icons.graphic_eq_rounded,
-                          color: _accent,
-                        ),
-                        _SummaryCardData(
-                          title: context.l10n.meKeyTrigger,
-                          value: context.l10n.mePendingSupplement,
-                          icon: Icons.hub_rounded,
-                          color: _orange,
-                        ),
-                        _SummaryCardData(
-                          title: context.l10n.meRecoveryGoal,
-                          value: '0',
-                          icon: Icons.track_changes_rounded,
-                          color: _blue,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 36),
-                    const _HonorPreview(),
-                    const SizedBox(height: 20),
-                    const _BenefitStrip(),
-                    const SizedBox(height: 24),
-                    const _QuickActionsPanel(),
-                  ],
-                ),
+    return ColoredBox(
+      color: _pageBackground,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _ProfileHeader(profile: profile),
+                  const SizedBox(height: 28),
+                  _SummaryGrid(
+                    cards: [
+                      _SummaryCardData(
+                        title: context.l10n.meMonthPlan,
+                        value: context.l10n.meNoTask,
+                        icon: Icons.graphic_eq_rounded,
+                        color: _accent,
+                      ),
+                      _SummaryCardData(
+                        title: context.l10n.meKeyTrigger,
+                        value: context.l10n.mePendingSupplement,
+                        icon: Icons.hub_rounded,
+                        color: _orange,
+                      ),
+                      _SummaryCardData(
+                        title: context.l10n.meRecoveryGoal,
+                        value: '0',
+                        icon: Icons.track_changes_rounded,
+                        color: _blue,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 36),
+                  const _HonorPreview(),
+                  const SizedBox(height: 20),
+                  const _BenefitStrip(),
+                  const SizedBox(height: 24),
+                  const _QuickActionsPanel(),
+                ],
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -197,8 +194,7 @@ class _ProfileHeader extends StatelessWidget {
         const SizedBox(width: 12),
         _RoundIconButton(
           icon: Icons.settings_outlined,
-          onTap: () =>
-              context.showCenteredNotice(context.l10n.featureComingSoon),
+          onTap: () => context.push('/me/settings'),
         ),
       ],
     );
@@ -810,6 +806,7 @@ class _QuickActionsPanel extends StatelessWidget {
         title: context.l10n.mePrivacy,
         icon: Icons.lock_rounded,
         color: MeScreen._privacy,
+        route: '/me/settings/privacy',
       ),
       _QuickActionData(
         title: context.l10n.meMemoir,
@@ -867,11 +864,13 @@ class _QuickActionData {
     required this.title,
     required this.icon,
     required this.color,
+    this.route,
   });
 
   final String title;
   final IconData icon;
   final Color color;
+  final String? route;
 }
 
 class _QuickActionTile extends StatelessWidget {
@@ -883,7 +882,14 @@ class _QuickActionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: () => context.showCenteredNotice(context.l10n.featureComingSoon),
+      onTap: () {
+        final route = action.route;
+        if (route == null) {
+          context.showCenteredNotice(context.l10n.featureComingSoon);
+          return;
+        }
+        context.push(route);
+      },
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

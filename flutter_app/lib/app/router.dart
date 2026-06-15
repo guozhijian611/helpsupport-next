@@ -14,6 +14,7 @@ import '../features/community/presentation/community_post_editor_screen.dart';
 import '../features/home/presentation/home_shell.dart';
 import '../features/local_model/presentation/local_model_chat_screen.dart';
 import '../features/local_model/presentation/local_model_screen.dart';
+import '../features/me/presentation/settings_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 
@@ -93,6 +94,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           return CommunityPostDetailScreen(
             postId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/me/settings',
+        name: 'me-settings',
+        builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/me/settings/:section',
+        name: 'me-settings-detail',
+        builder: (context, state) {
+          return SettingsDetailScreen(
+            section: SettingsSectionType.fromRouteValue(
+              state.pathParameters['section'],
+            ),
           );
         },
       ),
