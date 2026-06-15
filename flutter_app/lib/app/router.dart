@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/auth/presentation/login_screen.dart';
+import '../features/auth/presentation/register_screen.dart';
 import '../features/chat/presentation/chat_home_screen.dart';
 import '../features/chat/presentation/chat_session_screen.dart';
 import '../features/community/presentation/community_post_detail_screen.dart';
@@ -25,6 +26,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/login',
         name: 'login',
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/register',
+        name: 'register',
+        builder: (context, state) => const RegisterScreen(),
       ),
       GoRoute(
         path: '/onboarding',

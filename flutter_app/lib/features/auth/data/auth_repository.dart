@@ -23,6 +23,42 @@ class AuthRepository {
     });
   }
 
+  Future<RegisterEmailCodeDelivery> sendRegisterEmailCode({
+    required String email,
+  }) async {
+    final result = await _apiClient.postApi<RegisterEmailCodeDelivery>(
+      '/app/help/auth/register-email-code',
+      data: {'email': email},
+      decode: RegisterEmailCodeDelivery.fromJson,
+    );
+    final delivery = result.data;
+    if (delivery == null) {
+      throw const FormatException('注册邮箱验证码响应缺少 data');
+    }
+    return delivery;
+  }
+
+  Future<AuthSession> accountRegister({
+    required String username,
+    required String email,
+    required String password,
+    required String emailCode,
+    required String memberRole,
+    String? locale,
+    String? nickname,
+  }) {
+    return _postSession('/app/help/auth/account-register', {
+      'username': username,
+      'email': email,
+      'password': password,
+      'email_code': emailCode,
+      'member_role': memberRole,
+      if (locale != null && locale.trim().isNotEmpty) 'locale': locale,
+      if (nickname != null && nickname.trim().isNotEmpty)
+        'nickname': nickname.trim(),
+    });
+  }
+
   Future<AuthSession> googleLogin() async {
     await _initializeGoogle();
     if (!GoogleSignIn.instance.supportsAuthenticate()) {

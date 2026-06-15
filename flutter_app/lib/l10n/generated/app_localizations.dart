@@ -134,6 +134,138 @@ abstract class AppLocalizations {
   /// **'Use your account or a trusted identity provider.'**
   String get loginSubtitle;
 
+  /// No description provided for @loginNoAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'No account yet?'**
+  String get loginNoAccount;
+
+  /// No description provided for @loginAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get loginAction;
+
+  /// No description provided for @registerAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Create one'**
+  String get registerAction;
+
+  /// No description provided for @registerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create account'**
+  String get registerTitle;
+
+  /// No description provided for @registerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use an email verification code to create your HelpSupport space.'**
+  String get registerSubtitle;
+
+  /// No description provided for @registerSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Register'**
+  String get registerSubmit;
+
+  /// No description provided for @registering.
+  ///
+  /// In en, this message translates to:
+  /// **'Registering...'**
+  String get registering;
+
+  /// No description provided for @registerHasAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account?'**
+  String get registerHasAccount;
+
+  /// No description provided for @email.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get email;
+
+  /// No description provided for @emailCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Email code'**
+  String get emailCode;
+
+  /// No description provided for @confirmPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm password'**
+  String get confirmPassword;
+
+  /// No description provided for @sendEmailCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Send code'**
+  String get sendEmailCode;
+
+  /// No description provided for @resendEmailCodeIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend in'**
+  String get resendEmailCodeIn;
+
+  /// No description provided for @registerEmailCodeSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Code sent to'**
+  String get registerEmailCodeSent;
+
+  /// No description provided for @authOtherMethods.
+  ///
+  /// In en, this message translates to:
+  /// **'Other sign-in methods'**
+  String get authOtherMethods;
+
+  /// No description provided for @authAgreementText.
+  ///
+  /// In en, this message translates to:
+  /// **'I have read and agree to the privacy policy'**
+  String get authAgreementText;
+
+  /// No description provided for @agreementRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please agree to the privacy policy first'**
+  String get agreementRequired;
+
+  /// No description provided for @invalidEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid email address'**
+  String get invalidEmail;
+
+  /// No description provided for @usernameLengthRule.
+  ///
+  /// In en, this message translates to:
+  /// **'Username must be 3-32 characters'**
+  String get usernameLengthRule;
+
+  /// No description provided for @passwordLengthRule.
+  ///
+  /// In en, this message translates to:
+  /// **'Password must be at least 6 characters'**
+  String get passwordLengthRule;
+
+  /// No description provided for @passwordMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords do not match'**
+  String get passwordMismatch;
+
+  /// No description provided for @memberRoleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Role'**
+  String get memberRoleLabel;
+
   /// No description provided for @emailLogin.
   ///
   /// In en, this message translates to:

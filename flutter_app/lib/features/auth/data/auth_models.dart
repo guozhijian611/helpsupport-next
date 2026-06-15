@@ -60,3 +60,30 @@ class AuthToken {
     );
   }
 }
+
+class RegisterEmailCodeDelivery {
+  const RegisterEmailCodeDelivery({
+    required this.sent,
+    required this.email,
+    required this.expiresIn,
+    required this.resendAfter,
+  });
+
+  final bool sent;
+  final String email;
+  final int expiresIn;
+  final int resendAfter;
+
+  factory RegisterEmailCodeDelivery.fromJson(Object? value) {
+    if (value is! Map<String, dynamic>) {
+      throw const FormatException('Unexpected register email code shape');
+    }
+
+    return RegisterEmailCodeDelivery(
+      sent: value['sent'] == true || value['sent'] == 'true',
+      email: (value['email'] as String?) ?? '',
+      expiresIn: (value['expires_in'] as num?)?.toInt() ?? 0,
+      resendAfter: (value['resend_after'] as num?)?.toInt() ?? 0,
+    );
+  }
+}

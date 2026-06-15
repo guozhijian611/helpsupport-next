@@ -54,6 +54,36 @@ class AuthController extends AsyncNotifier<AuthSession?> {
     );
   }
 
+  Future<RegisterEmailCodeDelivery> sendRegisterEmailCode({
+    required String email,
+  }) {
+    return ref.read(authRepositoryProvider).sendRegisterEmailCode(email: email);
+  }
+
+  Future<void> accountRegister({
+    required String username,
+    required String email,
+    required String password,
+    required String emailCode,
+    required String memberRole,
+    String? locale,
+    String? nickname,
+  }) {
+    return _login(
+      () => ref
+          .read(authRepositoryProvider)
+          .accountRegister(
+            username: username,
+            email: email,
+            password: password,
+            emailCode: emailCode,
+            memberRole: memberRole,
+            locale: locale,
+            nickname: nickname,
+          ),
+    );
+  }
+
   Future<void> googleLogin() {
     return _login(ref.read(authRepositoryProvider).googleLogin);
   }

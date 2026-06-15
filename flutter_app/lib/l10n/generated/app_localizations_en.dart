@@ -29,6 +29,73 @@ class AppLocalizationsEn extends AppLocalizations {
       'Use your account or a trusted identity provider.';
 
   @override
+  String get loginNoAccount => 'No account yet?';
+
+  @override
+  String get loginAction => 'Sign in';
+
+  @override
+  String get registerAction => 'Create one';
+
+  @override
+  String get registerTitle => 'Create account';
+
+  @override
+  String get registerSubtitle =>
+      'Use an email verification code to create your HelpSupport space.';
+
+  @override
+  String get registerSubmit => 'Register';
+
+  @override
+  String get registering => 'Registering...';
+
+  @override
+  String get registerHasAccount => 'Already have an account?';
+
+  @override
+  String get email => 'Email';
+
+  @override
+  String get emailCode => 'Email code';
+
+  @override
+  String get confirmPassword => 'Confirm password';
+
+  @override
+  String get sendEmailCode => 'Send code';
+
+  @override
+  String get resendEmailCodeIn => 'Resend in';
+
+  @override
+  String get registerEmailCodeSent => 'Code sent to';
+
+  @override
+  String get authOtherMethods => 'Other sign-in methods';
+
+  @override
+  String get authAgreementText => 'I have read and agree to the privacy policy';
+
+  @override
+  String get agreementRequired => 'Please agree to the privacy policy first';
+
+  @override
+  String get invalidEmail => 'Enter a valid email address';
+
+  @override
+  String get usernameLengthRule => 'Username must be 3-32 characters';
+
+  @override
+  String get passwordLengthRule => 'Password must be at least 6 characters';
+
+  @override
+  String get passwordMismatch => 'Passwords do not match';
+
+  @override
+  String get memberRoleLabel => 'Role';
+
+  @override
   String get emailLogin => 'Email sign in';
 
   @override

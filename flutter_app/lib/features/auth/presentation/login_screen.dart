@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../application/auth_controller.dart';
+import 'auth_page_frame.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -41,88 +42,74 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authControllerProvider);
     final isLoading = authState.isLoading;
 
-    return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.loginTitle)),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Text(
-              context.l10n.loginTitle,
-              style: Theme.of(context).textTheme.headlineMedium,
+    return AuthPageFrame(
+      title: context.l10n.loginTitle,
+      subtitle: context.l10n.loginSubtitle,
+      footer: AuthLinkButton(
+        text: context.l10n.loginNoAccount,
+        actionText: context.l10n.registerAction,
+        onPressed: () => context.go('/register'),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                AuthTextField(
+                  controller: _usernameController,
+                  enabled: !isLoading,
+                  keyboardType: TextInputType.text,
+                  textInputAction: TextInputAction.next,
+                  label: context.l10n.username,
+                  icon: Icons.person_outline,
+                  validator: _required,
+                ),
+                const SizedBox(height: 14),
+                AuthTextField(
+                  controller: _passwordController,
+                  enabled: !isLoading,
+                  obscureText: true,
+                  textInputAction: TextInputAction.done,
+                  label: context.l10n.password,
+                  icon: Icons.lock_outline,
+                  validator: _required,
+                  onFieldSubmitted: (_) => _submitAccountLogin(),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              context.l10n.loginSubtitle,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 32),
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _usernameController,
-                    enabled: !isLoading,
-                    keyboardType: TextInputType.text,
-                    textInputAction: TextInputAction.next,
-                    decoration: InputDecoration(
-                      labelText: context.l10n.username,
-                      prefixIcon: const Icon(Icons.person_outline),
-                    ),
-                    validator: _required,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordController,
-                    enabled: !isLoading,
-                    obscureText: true,
-                    textInputAction: TextInputAction.done,
-                    decoration: InputDecoration(
-                      labelText: context.l10n.password,
-                      prefixIcon: const Icon(Icons.lock_outline),
-                    ),
-                    validator: _required,
-                    onFieldSubmitted: (_) => _submitAccountLogin(),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: isLoading ? null : _submitAccountLogin,
-              icon: isLoading
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.login),
-              label: Text(
-                isLoading ? context.l10n.loggingIn : context.l10n.accountLogin,
-              ),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: isLoading
-                  ? null
-                  : ref.read(authControllerProvider.notifier).googleLogin,
-              icon: const Icon(Icons.g_mobiledata),
-              label: Text(context.l10n.googleLogin),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: isLoading
-                  ? null
-                  : ref.read(authControllerProvider.notifier).appleLogin,
-              icon: const Icon(Icons.apple),
-              label: Text(context.l10n.appleLogin),
-            ),
-            const SizedBox(height: 28),
-            _ApiBaseUrlTile(baseUrl: ApiClient.apiBaseUrl),
-          ],
-        ),
+          ),
+          const SizedBox(height: 18),
+          AuthPrimaryButton(
+            onPressed: _submitAccountLogin,
+            icon: Icons.login_rounded,
+            isLoading: isLoading,
+            label: isLoading
+                ? context.l10n.loggingIn
+                : context.l10n.accountLogin,
+          ),
+          const SizedBox(height: 22),
+          AuthDivider(label: context.l10n.authOtherMethods),
+          const SizedBox(height: 16),
+          AuthSecondaryButton(
+            onPressed: isLoading
+                ? null
+                : ref.read(authControllerProvider.notifier).googleLogin,
+            icon: Icons.g_mobiledata,
+            label: context.l10n.googleLogin,
+          ),
+          const SizedBox(height: 12),
+          AuthSecondaryButton(
+            onPressed: isLoading
+                ? null
+                : ref.read(authControllerProvider.notifier).appleLogin,
+            icon: Icons.apple,
+            label: context.l10n.appleLogin,
+          ),
+          const SizedBox(height: 18),
+          _ApiBaseUrlTile(baseUrl: ApiClient.apiBaseUrl),
+        ],
       ),
     );
   }
@@ -165,11 +152,44 @@ class _ApiBaseUrlTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.dns_outlined),
-        title: Text(context.l10n.apiBaseUrlLabel),
-        subtitle: Text(baseUrl),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.56),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Icon(
+              Icons.dns_outlined,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.l10n.apiBaseUrlLabel,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    baseUrl,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

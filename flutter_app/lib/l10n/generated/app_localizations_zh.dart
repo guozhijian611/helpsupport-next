@@ -27,6 +27,72 @@ class AppLocalizationsZh extends AppLocalizations {
   String get loginSubtitle => '使用账号或可信身份服务登录。';
 
   @override
+  String get loginNoAccount => '还没有账号？';
+
+  @override
+  String get loginAction => '去登录';
+
+  @override
+  String get registerAction => '立即注册';
+
+  @override
+  String get registerTitle => '创建账号';
+
+  @override
+  String get registerSubtitle => '用邮箱验证码创建你的 HelpSupport 支持空间。';
+
+  @override
+  String get registerSubmit => '注册';
+
+  @override
+  String get registering => '注册中...';
+
+  @override
+  String get registerHasAccount => '已有账号？';
+
+  @override
+  String get email => '邮箱';
+
+  @override
+  String get emailCode => '邮箱验证码';
+
+  @override
+  String get confirmPassword => '确认密码';
+
+  @override
+  String get sendEmailCode => '发送验证码';
+
+  @override
+  String get resendEmailCodeIn => '重新发送';
+
+  @override
+  String get registerEmailCodeSent => '验证码已发送至';
+
+  @override
+  String get authOtherMethods => '其他登录方式';
+
+  @override
+  String get authAgreementText => '我已阅读并同意隐私政策';
+
+  @override
+  String get agreementRequired => '请先同意隐私政策';
+
+  @override
+  String get invalidEmail => '请输入正确的邮箱格式';
+
+  @override
+  String get usernameLengthRule => '账号长度需为 3-32 个字符';
+
+  @override
+  String get passwordLengthRule => '密码长度不能少于 6 位';
+
+  @override
+  String get passwordMismatch => '两次输入密码不一致';
+
+  @override
+  String get memberRoleLabel => '身份';
+
+  @override
   String get emailLogin => '邮箱登录';
 
   @override
