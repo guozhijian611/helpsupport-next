@@ -102,7 +102,7 @@ class _LocalModelScreenState extends ConsumerState<LocalModelScreen> {
                             crossAxisCount: 2,
                             crossAxisSpacing: 14,
                             mainAxisSpacing: 14,
-                            childAspectRatio: 0.72,
+                            childAspectRatio: 0.58,
                           ),
                       itemCount: filtered.length,
                       itemBuilder: (context, index) {
@@ -385,7 +385,9 @@ class _ModelCard extends ConsumerWidget {
     final statusLabel = switch (state.status) {
       LocalModelDownloadStatus.ready => _t(context, '已下载', 'Downloaded'),
       LocalModelDownloadStatus.downloading =>
-        '${_t(context, '下载中', 'Downloading')} ${(state.progress * 100).round()}%',
+        state.progress > 0
+            ? '${_t(context, '下载中', 'Downloading')} ${(state.progress * 100).clamp(1, 99).round()}%'
+            : _t(context, '下载中', 'Downloading'),
       LocalModelDownloadStatus.verifying => _t(context, '校验中', 'Verifying'),
       LocalModelDownloadStatus.failed => _t(context, '重试下载', 'Retry'),
       LocalModelDownloadStatus.notDownloaded => _t(context, '下载', 'Download'),
@@ -488,6 +490,9 @@ class _ModelCard extends ConsumerWidget {
                     const SizedBox(height: 12),
                     _BottomAction(
                       label: statusLabel,
+                      progress: state.status == LocalModelDownloadStatus.ready
+                          ? 1
+                          : state.progress,
                       isBusy: state.isBusy,
                       isReady: state.isReady,
                       color: palette.$2,
@@ -553,6 +558,7 @@ class _ModelCard extends ConsumerWidget {
 class _BottomAction extends StatelessWidget {
   const _BottomAction({
     required this.label,
+    required this.progress,
     required this.isBusy,
     required this.isReady,
     required this.color,
@@ -560,6 +566,7 @@ class _BottomAction extends StatelessWidget {
   });
 
   final String label;
+  final double progress;
   final bool isBusy;
   final bool isReady;
   final Color color;
@@ -571,29 +578,58 @@ class _BottomAction extends StatelessWidget {
       borderRadius: BorderRadius.circular(999),
       onTap: onTap,
       child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        padding: EdgeInsets.fromLTRB(
+          18,
+          isBusy ? 10 : 12,
+          18,
+          isBusy ? 10 : 12,
+        ),
         decoration: BoxDecoration(
           color: isReady ? const Color(0xFF58A45A) : color,
           borderRadius: BorderRadius.circular(999),
         ),
-        child: Center(
-          child: isBusy
-              ? const SizedBox.square(
-                  dimension: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
+        child: isBusy
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                )
-              : Text(
+                  const SizedBox(height: 7),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: progress > 0 && progress < 1
+                          ? progress.clamp(0.0, 1.0).toDouble()
+                          : null,
+                      minHeight: 5,
+                      backgroundColor: Colors.white.withValues(alpha: 0.26),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : Center(
+                child: Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-        ),
+              ),
       ),
     );
   }
