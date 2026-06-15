@@ -92,6 +92,12 @@ Route::group('/app/help', function () {
     Route::post('/community/follow-tag', [CommunityController::class, 'toggleFollowTag']);
     Route::post('/community/follow-member', [CommunityController::class, 'toggleFollowMember']);
     Route::post('/community/report', [CommunityController::class, 'report']);
+    Route::get('/community/member/profile', [CommunityController::class, 'memberProfile']);
+    Route::get('/community/member/posts', [CommunityController::class, 'memberPosts']);
+    Route::get('/community/member/following', [CommunityController::class, 'followingMembers']);
+    Route::get('/community/member/followers', [CommunityController::class, 'followerMembers']);
+    Route::get('/community/review/posts', [CommunityController::class, 'reviewPosts']);
+    Route::post('/community/review/post', [CommunityController::class, 'reviewPost']);
 
     Route::get('/me/profile', [MeController::class, 'profile']);
     Route::post('/me/profile/save', [MeController::class, 'saveProfile']);

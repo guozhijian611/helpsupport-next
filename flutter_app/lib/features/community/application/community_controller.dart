@@ -37,3 +37,38 @@ final communityCommentsProvider = FutureProvider.autoDispose
           .watch(communityRepositoryProvider)
           .fetchComments(postId: postId);
     });
+
+final communityMemberProfileProvider = FutureProvider.autoDispose
+    .family<CommunityMemberProfile, int>((ref, memberId) {
+      return ref
+          .watch(communityRepositoryProvider)
+          .fetchMemberProfile(memberId: memberId > 0 ? memberId : null);
+    });
+
+final communityMemberPostsProvider = FutureProvider.autoDispose
+    .family<CommunityPage<CommunityPost>, int>((ref, memberId) {
+      return ref
+          .watch(communityRepositoryProvider)
+          .fetchMemberPosts(memberId: memberId);
+    });
+
+final communityFollowingProvider = FutureProvider.autoDispose
+    .family<CommunityPage<CommunityMember>, int>((ref, memberId) {
+      return ref
+          .watch(communityRepositoryProvider)
+          .fetchFollowingMembers(memberId: memberId > 0 ? memberId : null);
+    });
+
+final communityFollowersProvider = FutureProvider.autoDispose
+    .family<CommunityPage<CommunityMember>, int>((ref, memberId) {
+      return ref
+          .watch(communityRepositoryProvider)
+          .fetchFollowerMembers(memberId: memberId > 0 ? memberId : null);
+    });
+
+final communityReviewPostsProvider = FutureProvider.autoDispose
+    .family<CommunityPage<CommunityPost>, String>((ref, scope) {
+      return ref
+          .watch(communityRepositoryProvider)
+          .fetchReviewPosts(scope: scope);
+    });

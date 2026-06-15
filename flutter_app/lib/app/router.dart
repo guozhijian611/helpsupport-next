@@ -14,6 +14,9 @@ import '../features/chat/presentation/chat_home_screen.dart';
 import '../features/chat/presentation/chat_session_screen.dart';
 import '../features/community/presentation/community_post_detail_screen.dart';
 import '../features/community/presentation/community_post_editor_screen.dart';
+import '../features/community/presentation/community_member_profile_screen.dart';
+import '../features/community/presentation/community_member_relations_screen.dart';
+import '../features/community/presentation/doctor_community_review_screen.dart';
 import '../features/doctor/presentation/doctor_assessment_scales_screen.dart';
 import '../features/doctor/presentation/doctor_patients_screen.dart';
 import '../features/doctor/presentation/doctor_plan_screen.dart';
@@ -131,6 +134,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             postId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
           );
         },
+      ),
+      GoRoute(
+        path: '/community/profile/:memberId',
+        name: 'community-profile',
+        builder: (context, state) {
+          return CommunityMemberProfileScreen(
+            memberId: int.tryParse(state.pathParameters['memberId'] ?? '') ?? 0,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/community/relations/:type/:memberId',
+        name: 'community-relations',
+        builder: (context, state) {
+          final type = state.pathParameters['type'] == 'followers'
+              ? CommunityRelationType.followers
+              : CommunityRelationType.following;
+          return CommunityMemberRelationsScreen(
+            type: type,
+            memberId: int.tryParse(state.pathParameters['memberId'] ?? '') ?? 0,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/doctor/community-review',
+        name: 'doctor-community-review',
+        builder: (context, state) => const DoctorCommunityReviewScreen(),
       ),
       GoRoute(
         path: '/doctor/plan',

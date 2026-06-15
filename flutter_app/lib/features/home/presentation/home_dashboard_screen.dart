@@ -86,7 +86,7 @@ class HomeDashboardScreen extends ConsumerWidget {
                   ? _t(context, '立即查看', 'Review now')
                   : _t(context, '立即预约', 'Book now'),
               onTap: () => isDoctor
-                  ? context.go('/home?tab=community')
+                  ? context.push('/doctor/community-review')
                   : context.push('/appointments/doctors'),
             ),
             const SizedBox(height: 18),

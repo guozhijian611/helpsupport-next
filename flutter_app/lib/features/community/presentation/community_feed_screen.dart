@@ -175,6 +175,9 @@ class CommunityPostCard extends ConsumerWidget {
         !post.isAnonymous &&
         post.memberId > 0 &&
         post.memberId != currentMemberId;
+    final openProfile = !post.isAnonymous && post.memberId > 0
+        ? () => context.push('/community/profile/${post.memberId}')
+        : null;
 
     return Container(
       decoration: BoxDecoration(
@@ -196,35 +199,47 @@ class CommunityPostCard extends ConsumerWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _AuthorAvatar(
-                      avatarUrl: apiClient.resolveUrl(post.authorAvatar),
-                      isDoctor: post.isDoctorPost,
+                    Material(
+                      color: Colors.transparent,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: openProfile,
+                        child: _AuthorAvatar(
+                          avatarUrl: apiClient.resolveUrl(post.authorAvatar),
+                          isDoctor: post.isDoctorPost,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            post.authorName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF303236),
-                              fontSize: 21,
-                              fontWeight: FontWeight.w800,
+                      child: GestureDetector(
+                        onTap: openProfile,
+                        behavior: HitTestBehavior.opaque,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              post.authorName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF303236),
+                                fontSize: 21,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _authorSubtitle(context, post),
-                            style: const TextStyle(
-                              color: Color(0xFF96999F),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                            const SizedBox(height: 4),
+                            Text(
+                              _authorSubtitle(context, post),
+                              style: const TextStyle(
+                                color: Color(0xFF96999F),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                     if (canFollow)

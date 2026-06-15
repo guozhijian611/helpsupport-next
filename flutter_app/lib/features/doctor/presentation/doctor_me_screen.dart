@@ -28,6 +28,7 @@ class DoctorMeScreen extends ConsumerWidget {
       AsyncData(:final value) => value,
       _ => null,
     };
+    final currentMemberId = int.tryParse(session?.memberId ?? '') ?? 0;
     final apiClient = ref.watch(apiClientProvider);
     final profile = _DoctorMeProfile.fromSession(session, apiClient.resolveUrl);
 
@@ -36,7 +37,7 @@ class DoctorMeScreen extends ConsumerWidget {
         title: _t(context, '我的关注', 'Following'),
         icon: Icons.favorite_rounded,
         color: _accent,
-        route: '/home?tab=community',
+        route: '/community/relations/following/0',
       ),
       _DoctorActionData(
         title: _t(context, '我的收藏', 'Collections'),
@@ -91,52 +92,73 @@ class DoctorMeScreen extends ConsumerWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _DoctorAvatar(avatarUrl: profile.avatarUrl),
-                const SizedBox(width: 18),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              profile.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: _primaryText,
-                                fontSize: 28,
-                                fontWeight: FontWeight.w800,
-                                height: 1.1,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(28),
+                      onTap: currentMemberId > 0
+                          ? () => context.push(
+                              '/community/profile/$currentMemberId',
+                            )
+                          : null,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          children: [
+                            _DoctorAvatar(avatarUrl: profile.avatarUrl),
+                            const SizedBox(width: 18),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          profile.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: _primaryText,
+                                            fontSize: 28,
+                                            fontWeight: FontWeight.w800,
+                                            height: 1.1,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Icon(
+                                        Icons.badge_rounded,
+                                        color: _blue,
+                                        size: 18,
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Wrap(
+                                    spacing: 18,
+                                    runSpacing: 8,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
+                                    children: [
+                                      _MetaText(
+                                        label: _t(context, '年龄', 'Age'),
+                                        value: profile.age,
+                                      ),
+                                      _MetaText(
+                                        label: _t(context, '性别', 'Gender'),
+                                        value: profile.gender,
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(
-                            Icons.badge_rounded,
-                            color: _blue,
-                            size: 18,
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 14),
-                      Wrap(
-                        spacing: 18,
-                        runSpacing: 8,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          _MetaText(
-                            label: _t(context, '年龄', 'Age'),
-                            value: profile.age,
-                          ),
-                          _MetaText(
-                            label: _t(context, '性别', 'Gender'),
-                            value: profile.gender,
-                          ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),

@@ -35,6 +35,7 @@ class MeScreen extends ConsumerWidget {
     if (session?.currentRole == 'doctor') {
       return const DoctorMeScreen();
     }
+    final currentMemberId = int.tryParse(session?.memberId ?? '') ?? 0;
     final apiClient = ref.watch(apiClientProvider);
     final profile = _MeProfile.fromSession(session, apiClient.resolveUrl);
     final plans = switch (ref.watch(currentPlansProvider)) {
@@ -65,7 +66,14 @@ class MeScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _ProfileHeader(profile: profile),
+                  _ProfileHeader(
+                    profile: profile,
+                    onProfileTap: currentMemberId > 0
+                        ? () => context.push(
+                            '/community/profile/$currentMemberId',
+                          )
+                        : null,
+                  ),
                   const SizedBox(height: 28),
                   _SummaryGrid(
                     cards: [
@@ -217,43 +225,63 @@ class _MeProfile {
 }
 
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.profile});
+  const _ProfileHeader({required this.profile, this.onProfileTap});
 
   final _MeProfile profile;
+  final VoidCallback? onProfileTap;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _MemberAvatar(avatarUrl: profile.avatarUrl),
-        const SizedBox(width: 18),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                profile.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: MeScreen._primaryText,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  height: 1.1,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(28),
+              onTap: onProfileTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    _MemberAvatar(avatarUrl: profile.avatarUrl),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            profile.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: MeScreen._primaryText,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              height: 1.1,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 18,
+                            runSpacing: 8,
+                            children: [
+                              _MetaText(
+                                label: context.l10n.meAgeLabel,
+                                value: profile.age,
+                              ),
+                              _GenderPill(gender: profile.gender),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 18,
-                runSpacing: 8,
-                children: [
-                  _MetaText(label: context.l10n.meAgeLabel, value: profile.age),
-                  _GenderPill(gender: profile.gender),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
         const SizedBox(width: 12),
@@ -896,7 +924,7 @@ class _QuickActionsPanel extends StatelessWidget {
         title: context.l10n.meFollowing,
         icon: Icons.favorite_rounded,
         color: MeScreen._accent,
-        route: '/home?tab=community',
+        route: '/community/relations/following/0',
       ),
       _QuickActionData(
         title: context.l10n.meCollection,

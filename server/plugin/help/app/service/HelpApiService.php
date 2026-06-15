@@ -1219,6 +1219,232 @@ class HelpApiService
         return $rows;
     }
 
+    public function communityMemberProfile(int $memberId, int $targetMemberId): array
+    {
+        $targetMemberId = $this->communityTargetMemberId($memberId, $targetMemberId);
+        $member = $this->member($targetMemberId);
+        $profile = $this->rowByMember('sa_help_member_profile', $targetMemberId);
+        $doctorProfile = $this->rowByMember('sa_help_doctor_profile', $targetMemberId);
+
+        return array_merge(
+            $this->communityMemberPayload($memberId, $member, $profile, $doctorProfile),
+            [
+                'follow_count' => (int) Db::table('sa_community_follow_member')
+                    ->where('member_id', $targetMemberId)
+                    ->whereNull('delete_time')
+                    ->count(),
+                'follower_count' => (int) Db::table('sa_community_follow_member')
+                    ->where('target_member_id', $targetMemberId)
+                    ->whereNull('delete_time')
+                    ->count(),
+                'like_count' => (int) $this->visibleCommunityPostQuery($memberId)
+                    ->where('p.member_id', $targetMemberId)
+                    ->sum('p.like_count'),
+                'post_count' => (int) $this->visibleCommunityPostQuery($memberId)
+                    ->where('p.member_id', $targetMemberId)
+                    ->count(),
+            ]
+        );
+    }
+
+    public function communityMemberPosts(int $memberId, array $params): array
+    {
+        $targetMemberId = $this->communityTargetMemberId($memberId, (int) ($params['member_id'] ?? 0));
+        $this->member($targetMemberId);
+
+        $page = $this->paginate(function () use ($memberId, $targetMemberId) {
+            return $this->visibleCommunityPostQuery($memberId)
+                ->where('p.member_id', $targetMemberId)
+                ->field('p.*, m.nickname AS author_name, m.avatar AS author_avatar')
+                ->order('p.is_top', 'asc')
+                ->order('p.id', 'desc');
+        }, $params);
+
+        $page['list'] = $this->decorateCommunityPosts($page['list'], $memberId);
+        return $page;
+    }
+
+    public function communityFollowingMembers(int $memberId, array $params): array
+    {
+        $targetMemberId = $this->communityTargetMemberId($memberId, (int) ($params['member_id'] ?? 0));
+        $this->member($targetMemberId);
+
+        $page = $this->paginate(function () use ($targetMemberId, $params) {
+            $query = Db::table('sa_community_follow_member')
+                ->alias('f')
+                ->leftJoin('sa_member m', 'm.id = f.target_member_id AND m.delete_time IS NULL')
+                ->leftJoin('sa_help_member_profile hp', 'hp.member_id = f.target_member_id AND hp.delete_time IS NULL')
+                ->leftJoin('sa_help_doctor_profile dp', 'dp.member_id = f.target_member_id AND dp.delete_time IS NULL')
+                ->where('f.member_id', $targetMemberId)
+                ->whereNull('f.delete_time')
+                ->where('m.status', 1)
+                ->field(
+                    'f.id AS relation_id, f.create_time AS relation_time, '
+                    . 'm.id AS member_id, m.username, m.nickname, m.avatar, m.create_time AS member_create_time, '
+                    . 'hp.bio, hp.recovery_goal, hp.member_role, hp.gender, hp.birthday, hp.create_time AS profile_create_time, '
+                    . 'dp.audit_status AS doctor_audit_status, dp.status AS doctor_status, dp.title AS doctor_title, dp.specialty AS doctor_specialty'
+                );
+
+            if (!empty($params['keyword'])) {
+                $keyword = '%' . trim((string) $params['keyword']) . '%';
+                $query->where(function ($query) use ($keyword) {
+                    $query->where('m.nickname', 'like', $keyword)
+                        ->whereOr('m.username', 'like', $keyword)
+                        ->whereOr('hp.bio', 'like', $keyword)
+                        ->whereOr('hp.recovery_goal', 'like', $keyword)
+                        ->whereOr('dp.specialty', 'like', $keyword);
+                });
+            }
+
+            return $query->order('f.id', 'desc');
+        }, $params);
+
+        $page['list'] = $this->decorateCommunityMembers($page['list'], $memberId);
+        return $page;
+    }
+
+    public function communityFollowerMembers(int $memberId, array $params): array
+    {
+        $targetMemberId = $this->communityTargetMemberId($memberId, (int) ($params['member_id'] ?? 0));
+        $this->member($targetMemberId);
+
+        $page = $this->paginate(function () use ($targetMemberId, $params) {
+            $query = Db::table('sa_community_follow_member')
+                ->alias('f')
+                ->leftJoin('sa_member m', 'm.id = f.member_id AND m.delete_time IS NULL')
+                ->leftJoin('sa_help_member_profile hp', 'hp.member_id = f.member_id AND hp.delete_time IS NULL')
+                ->leftJoin('sa_help_doctor_profile dp', 'dp.member_id = f.member_id AND dp.delete_time IS NULL')
+                ->where('f.target_member_id', $targetMemberId)
+                ->whereNull('f.delete_time')
+                ->where('m.status', 1)
+                ->field(
+                    'f.id AS relation_id, f.create_time AS relation_time, '
+                    . 'm.id AS member_id, m.username, m.nickname, m.avatar, m.create_time AS member_create_time, '
+                    . 'hp.bio, hp.recovery_goal, hp.member_role, hp.gender, hp.birthday, hp.create_time AS profile_create_time, '
+                    . 'dp.audit_status AS doctor_audit_status, dp.status AS doctor_status, dp.title AS doctor_title, dp.specialty AS doctor_specialty'
+                );
+
+            if (!empty($params['keyword'])) {
+                $keyword = '%' . trim((string) $params['keyword']) . '%';
+                $query->where(function ($query) use ($keyword) {
+                    $query->where('m.nickname', 'like', $keyword)
+                        ->whereOr('m.username', 'like', $keyword)
+                        ->whereOr('hp.bio', 'like', $keyword)
+                        ->whereOr('hp.recovery_goal', 'like', $keyword)
+                        ->whereOr('dp.specialty', 'like', $keyword);
+                });
+            }
+
+            return $query->order('f.id', 'desc');
+        }, $params);
+
+        $page['list'] = $this->decorateCommunityMembers($page['list'], $memberId);
+        return $page;
+    }
+
+    public function communityReviewPosts(int $doctorId, array $params): array
+    {
+        $this->assertApprovedDoctor($doctorId);
+        $scope = trim((string) ($params['scope'] ?? 'pending'));
+        $scope = $scope === 'reviewed' ? 'reviewed' : 'pending';
+
+        $page = $this->paginate(function () use ($scope, $params) {
+            $query = Db::table('sa_community_post')
+                ->alias('p')
+                ->leftJoin('sa_member m', 'm.id = p.member_id AND m.delete_time IS NULL')
+                ->whereNull('p.delete_time')
+                ->field('p.*, m.nickname AS author_name, m.avatar AS author_avatar');
+
+            if ($scope === 'reviewed') {
+                $query->whereIn('p.audit_status', [1, 2]);
+            } else {
+                $query->whereIn('p.audit_status', [0, 3]);
+            }
+
+            if (!empty($params['keyword'])) {
+                $keyword = '%' . trim((string) $params['keyword']) . '%';
+                $query->where(function ($query) use ($keyword) {
+                    $query->where('p.content', 'like', $keyword)
+                        ->whereOr('m.nickname', 'like', $keyword);
+                });
+            }
+
+            return $query->order('p.audit_status', 'desc')->order('p.id', 'desc');
+        }, $params);
+
+        $page['list'] = $this->decorateCommunityPosts($page['list'], $doctorId);
+        return $page;
+    }
+
+    public function reviewCommunityPost(int $doctorId, array $data): array
+    {
+        $this->assertApprovedDoctor($doctorId);
+        $postId = (int) ($data['post_id'] ?? 0);
+        $auditStatus = $this->intIn($data['audit_status'] ?? 0, [1, 2], '审核状态参数错误');
+        $auditRemark = trim((string) ($data['audit_remark'] ?? ''));
+        if ($auditStatus === 2 && $auditRemark === '') {
+            throw new ApiException('拒绝原因必须填写', 400);
+        }
+
+        $post = Db::table('sa_community_post')
+            ->where('id', $postId)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$post) {
+            throw new ApiException('帖子不存在', 404);
+        }
+
+        $now = date('Y-m-d H:i:s');
+        Db::transaction(function () use ($postId, $auditStatus, $auditRemark, $doctorId, $post, $now) {
+            Db::table('sa_community_post')->where('id', $postId)->update([
+                'audit_status' => $auditStatus,
+                'audit_remark' => $auditRemark,
+                'audit_by' => $doctorId,
+                'audit_time' => $now,
+                'status' => $auditStatus === 1 ? 1 : 2,
+                'updated_by' => $doctorId,
+                'update_time' => $now,
+            ]);
+            (new HelpAuditLogService())->record(
+                'community_post',
+                $postId,
+                'audit',
+                $post['audit_status'] ?? null,
+                $auditStatus,
+                $auditRemark,
+                $doctorId
+            );
+        });
+
+        $authorMemberId = (int) ($post['member_id'] ?? 0);
+        if ($authorMemberId > 0 && $authorMemberId !== $doctorId) {
+            $approved = $auditStatus === 1;
+            $this->notifyMemberSafely($authorMemberId, 'system_notice', [
+                'title' => $approved ? '社区帖子审核已通过' : '社区帖子审核未通过',
+                'content' => $approved
+                    ? '你发布的社区帖子已通过审核，现在可以在社区展示。'
+                    : '你发布的社区帖子未通过审核。' . ($auditRemark !== '' ? ' 原因：' . $auditRemark : ''),
+            ], [
+                'biz_type' => 'community_audit_result',
+                'biz_id' => $postId,
+                'route' => '/pages/community/detail',
+                'payload' => [
+                    'post_id' => $postId,
+                    'audit_status' => $auditStatus,
+                ],
+            ]);
+        }
+
+        $updated = Db::table('sa_community_post')
+            ->alias('p')
+            ->leftJoin('sa_member m', 'm.id = p.member_id AND m.delete_time IS NULL')
+            ->where('p.id', $postId)
+            ->field('p.*, m.nickname AS author_name, m.avatar AS author_avatar')
+            ->find() ?: [];
+
+        return $this->decorateCommunityPosts([$updated], $doctorId)[0] ?? [];
+    }
+
     public function communityPosts(int $memberId, array $params): array
     {
         $page = $this->paginate(function () use ($memberId, $params) {
@@ -3941,6 +4167,104 @@ class HelpApiService
             ->where(function ($query) use ($memberId) {
                 $query->where('audit_status', 2)->whereOr('member_id', $memberId);
             });
+    }
+
+    private function communityTargetMemberId(int $memberId, int $targetMemberId): int
+    {
+        $resolved = $targetMemberId > 0 ? $targetMemberId : $memberId;
+        if ($resolved <= 0) {
+            throw new ApiException('目标会员ID必须填写', 400);
+        }
+
+        return $resolved;
+    }
+
+    private function communityMemberPayload(
+        int $viewerId,
+        array $member,
+        array $profile = [],
+        array $doctorProfile = []
+    ): array {
+        $targetMemberId = (int) ($member['id'] ?? 0);
+        $displayName = trim((string) ($member['nickname'] ?? ''))
+            ?: trim((string) ($member['username'] ?? ''))
+            ?: 'Member #' . $targetMemberId;
+        $bio = $this->firstFilled(
+            isset($profile['bio']) ? (string) $profile['bio'] : null,
+            isset($profile['recovery_goal']) ? (string) $profile['recovery_goal'] : null,
+            isset($doctorProfile['specialty']) ? (string) $doctorProfile['specialty'] : null
+        );
+        $startedAt = $this->firstFilled(
+            isset($profile['create_time']) ? (string) $profile['create_time'] : null,
+            isset($member['create_time']) ? (string) $member['create_time'] : null
+        );
+
+        return [
+            'member_id' => $targetMemberId,
+            'display_name' => $displayName,
+            'avatar' => (string) ($member['avatar'] ?? ''),
+            'bio' => $bio,
+            'recovery_goal' => (string) ($profile['recovery_goal'] ?? ''),
+            'member_role' => $this->currentRole($profile, $doctorProfile),
+            'is_doctor' => $this->isDoctorApproved($doctorProfile),
+            'doctor_title' => (string) ($doctorProfile['title'] ?? ''),
+            'recovery_days' => $this->communityRecoveryDays($startedAt),
+            'is_self' => $viewerId > 0 && $viewerId === $targetMemberId,
+            'is_followed' => $viewerId > 0
+                && $viewerId !== $targetMemberId
+                && $this->activeInteractionExists(
+                    'sa_community_follow_member',
+                    $viewerId,
+                    'target_member_id',
+                    $targetMemberId
+                ),
+        ];
+    }
+
+    private function decorateCommunityMembers(array $rows, int $viewerId): array
+    {
+        foreach ($rows as &$row) {
+            $member = [
+                'id' => $row['member_id'] ?? 0,
+                'username' => $row['username'] ?? '',
+                'nickname' => $row['nickname'] ?? '',
+                'avatar' => $row['avatar'] ?? '',
+                'create_time' => $row['member_create_time'] ?? null,
+            ];
+            $profile = [
+                'bio' => $row['bio'] ?? '',
+                'recovery_goal' => $row['recovery_goal'] ?? '',
+                'member_role' => $row['member_role'] ?? 'patient',
+                'gender' => $row['gender'] ?? 3,
+                'birthday' => $row['birthday'] ?? null,
+                'create_time' => $row['profile_create_time'] ?? null,
+            ];
+            $doctorProfile = [
+                'audit_status' => $row['doctor_audit_status'] ?? 0,
+                'status' => $row['doctor_status'] ?? 0,
+                'title' => $row['doctor_title'] ?? '',
+                'specialty' => $row['doctor_specialty'] ?? '',
+            ];
+            $payload = $this->communityMemberPayload($viewerId, $member, $profile, $doctorProfile);
+            $row = array_merge($row, $payload);
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    private function communityRecoveryDays(string $startedAt): int
+    {
+        if ($startedAt === '') {
+            return 0;
+        }
+
+        $timestamp = strtotime($startedAt);
+        if ($timestamp === false) {
+            return 0;
+        }
+
+        return max((int) floor((time() - $timestamp) / 86400) + 1, 0);
     }
 
     private function visibleCommunityPostQuery(int $memberId)

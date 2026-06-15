@@ -149,4 +149,82 @@ class CommunityController extends BaseController
     {
         return ok($this->service->reportCommunityTarget($this->memberId, $request->post()));
     }
+
+    #[Apidoc\Title('社区成员主页')]
+    #[Apidoc\Url('/app/help/community/member/profile')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('member_id', type: 'int', require: false, desc: '目标会员ID，默认当前登录会员')]
+    #[Apidoc\Returned('member_id', type: 'int', desc: '会员ID')]
+    #[Apidoc\Returned('follow_count', type: 'int', desc: '关注数')]
+    #[Apidoc\Returned('follower_count', type: 'int', desc: '粉丝数')]
+    #[Apidoc\Returned('like_count', type: 'int', desc: '获赞数')]
+    public function memberProfile(Request $request): Response
+    {
+        return ok($this->service->communityMemberProfile(
+            $this->memberId,
+            (int) $request->get('member_id', 0)
+        ));
+    }
+
+    #[Apidoc\Title('社区成员帖子列表')]
+    #[Apidoc\Url('/app/help/community/member/posts')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('member_id', type: 'int', require: true, desc: '目标会员ID')]
+    #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
+    #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
+    #[Apidoc\Returned('list', type: 'array', desc: '帖子列表')]
+    public function memberPosts(Request $request): Response
+    {
+        return ok($this->service->communityMemberPosts($this->memberId, $request->get()));
+    }
+
+    #[Apidoc\Title('社区关注列表')]
+    #[Apidoc\Url('/app/help/community/member/following')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('member_id', type: 'int', require: false, desc: '目标会员ID，默认当前登录会员')]
+    #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
+    #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
+    #[Apidoc\Returned('list', type: 'array', desc: '关注成员列表')]
+    public function followingMembers(Request $request): Response
+    {
+        return ok($this->service->communityFollowingMembers($this->memberId, $request->get()));
+    }
+
+    #[Apidoc\Title('社区粉丝列表')]
+    #[Apidoc\Url('/app/help/community/member/followers')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('member_id', type: 'int', require: false, desc: '目标会员ID，默认当前登录会员')]
+    #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
+    #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
+    #[Apidoc\Returned('list', type: 'array', desc: '粉丝成员列表')]
+    public function followerMembers(Request $request): Response
+    {
+        return ok($this->service->communityFollowerMembers($this->memberId, $request->get()));
+    }
+
+    #[Apidoc\Title('社区内容审核列表')]
+    #[Apidoc\Url('/app/help/community/review/posts')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('scope', type: 'string', require: false, default: 'pending', desc: 'pending 待审核，reviewed 已审核')]
+    #[Apidoc\Query('keyword', type: 'string', require: false, desc: '关键词')]
+    #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
+    #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
+    #[Apidoc\Returned('list', type: 'array', desc: '审核帖子列表')]
+    public function reviewPosts(Request $request): Response
+    {
+        return ok($this->service->communityReviewPosts($this->memberId, $request->get()));
+    }
+
+    #[Apidoc\Title('审核社区帖子')]
+    #[Apidoc\Url('/app/help/community/review/post')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('post_id', type: 'int', require: true, desc: '帖子ID')]
+    #[Apidoc\Param('audit_status', type: 'int', require: true, desc: '审核状态 1通过 2拒绝')]
+    #[Apidoc\Param('audit_remark', type: 'string', require: false, desc: '审核备注/拒绝原因')]
+    #[Apidoc\Returned('id', type: 'int', desc: '帖子ID')]
+    #[Apidoc\Returned('audit_status', type: 'int', desc: '审核状态')]
+    public function reviewPost(Request $request): Response
+    {
+        return ok($this->service->reviewCommunityPost($this->memberId, $request->post()));
+    }
 }

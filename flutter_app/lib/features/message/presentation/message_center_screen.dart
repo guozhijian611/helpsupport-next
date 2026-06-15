@@ -458,6 +458,22 @@ String _formatTime(String value) {
 }
 
 String? _resolveRoute(String? role, MessageItem item) {
+  if (item.bizType == 'community_follow_member') {
+    final memberId = _payloadInt(
+      item.payload['member_id'],
+      fallback: item.bizId,
+    );
+    if (memberId > 0) {
+      return '/community/profile/$memberId';
+    }
+  }
+  if (item.bizType == 'community_comment' ||
+      item.bizType == 'community_audit_result') {
+    final postId = _payloadInt(item.payload['post_id'], fallback: item.bizId);
+    if (postId > 0) {
+      return '/community/post/$postId';
+    }
+  }
   if (item.messageType == 1 ||
       item.messageType == 2 ||
       item.bizType.startsWith('community_')) {
@@ -477,4 +493,14 @@ String? _resolveRoute(String? role, MessageItem item) {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+int _payloadInt(Object? value, {int fallback = 0}) {
+  if (value is num) {
+    return value.toInt();
+  }
+  if (value is String) {
+    return int.tryParse(value) ?? fallback;
+  }
+  return fallback;
 }

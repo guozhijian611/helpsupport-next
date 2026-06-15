@@ -61,6 +61,7 @@ class CommunityRepository {
   Future<CommunityPost> createPost({
     required String content,
     bool isAnonymous = false,
+    List<String>? images,
     List<String>? tags,
     String? linkUrl,
   }) async {
@@ -69,6 +70,7 @@ class CommunityRepository {
       data: {
         'content': content,
         'is_anonymous': isAnonymous ? 1 : 2,
+        if (images != null && images.isNotEmpty) 'images': images,
         if (tags != null && tags.isNotEmpty) 'tags': tags,
         if (linkUrl != null && linkUrl.trim().isNotEmpty) 'link_url': linkUrl,
       },
@@ -176,5 +178,128 @@ class CommunityRepository {
       },
     );
     return result.data ?? false;
+  }
+
+  Future<CommunityMemberProfile> fetchMemberProfile({int? memberId}) async {
+    final result = await _apiClient.getApi<CommunityMemberProfile>(
+      '/app/help/community/member/profile',
+      queryParameters: {
+        if (memberId != null && memberId > 0) 'member_id': memberId,
+      },
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return CommunityMemberProfile.fromJson(value);
+        }
+        throw const FormatException('Unexpected community member profile');
+      },
+    );
+    final profile = result.data;
+    if (profile == null || profile.memberId <= 0) {
+      throw const FormatException('社区成员主页不存在');
+    }
+    return profile;
+  }
+
+  Future<CommunityPage<CommunityPost>> fetchMemberPosts({
+    required int memberId,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final result = await _apiClient.getApi<CommunityPage<CommunityPost>>(
+      '/app/help/community/member/posts',
+      queryParameters: {
+        'member_id': memberId,
+        'page': page,
+        'page_size': pageSize,
+      },
+      decode: (value) => CommunityPage.fromJson(value, CommunityPost.fromJson),
+    );
+    return result.data ??
+        const CommunityPage(list: [], total: 0, page: 1, pageSize: 20);
+  }
+
+  Future<CommunityPage<CommunityMember>> fetchFollowingMembers({
+    int? memberId,
+    int page = 1,
+    int pageSize = 50,
+  }) async {
+    final result = await _apiClient.getApi<CommunityPage<CommunityMember>>(
+      '/app/help/community/member/following',
+      queryParameters: {
+        if (memberId != null && memberId > 0) 'member_id': memberId,
+        'page': page,
+        'page_size': pageSize,
+      },
+      decode: (value) =>
+          CommunityPage.fromJson(value, CommunityMember.fromJson),
+    );
+    return result.data ??
+        const CommunityPage(list: [], total: 0, page: 1, pageSize: 50);
+  }
+
+  Future<CommunityPage<CommunityMember>> fetchFollowerMembers({
+    int? memberId,
+    int page = 1,
+    int pageSize = 50,
+  }) async {
+    final result = await _apiClient.getApi<CommunityPage<CommunityMember>>(
+      '/app/help/community/member/followers',
+      queryParameters: {
+        if (memberId != null && memberId > 0) 'member_id': memberId,
+        'page': page,
+        'page_size': pageSize,
+      },
+      decode: (value) =>
+          CommunityPage.fromJson(value, CommunityMember.fromJson),
+    );
+    return result.data ??
+        const CommunityPage(list: [], total: 0, page: 1, pageSize: 50);
+  }
+
+  Future<CommunityPage<CommunityPost>> fetchReviewPosts({
+    String scope = 'pending',
+    String? keyword,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final result = await _apiClient.getApi<CommunityPage<CommunityPost>>(
+      '/app/help/community/review/posts',
+      queryParameters: {
+        'scope': scope,
+        if (keyword != null && keyword.trim().isNotEmpty) 'keyword': keyword,
+        'page': page,
+        'page_size': pageSize,
+      },
+      decode: (value) => CommunityPage.fromJson(value, CommunityPost.fromJson),
+    );
+    return result.data ??
+        const CommunityPage(list: [], total: 0, page: 1, pageSize: 20);
+  }
+
+  Future<CommunityPost> reviewPost({
+    required int postId,
+    required int auditStatus,
+    String? auditRemark,
+  }) async {
+    final result = await _apiClient.postApi<CommunityPost>(
+      '/app/help/community/review/post',
+      data: {
+        'post_id': postId,
+        'audit_status': auditStatus,
+        if (auditRemark != null && auditRemark.trim().isNotEmpty)
+          'audit_remark': auditRemark.trim(),
+      },
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return CommunityPost.fromJson(value);
+        }
+        throw const FormatException('Unexpected community review post');
+      },
+    );
+    final post = result.data;
+    if (post == null || post.id <= 0) {
+      throw const FormatException('社区帖子审核失败');
+    }
+    return post;
   }
 }

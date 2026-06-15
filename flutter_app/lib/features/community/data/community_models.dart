@@ -46,6 +46,7 @@ class CommunityPost {
     required this.collectCount,
     required this.isTop,
     required this.auditStatus,
+    this.auditRemark = '',
     required this.createTime,
     required this.isLiked,
     required this.isCollected,
@@ -68,6 +69,7 @@ class CommunityPost {
   final int collectCount;
   final bool isTop;
   final int auditStatus;
+  final String auditRemark;
   final String createTime;
   final bool isLiked;
   final bool isCollected;
@@ -93,6 +95,7 @@ class CommunityPost {
       collectCount: _intValue(json['collect_count']),
       isTop: _intValue(json['is_top'], fallback: 2) == 1,
       auditStatus: _intValue(json['audit_status']),
+      auditRemark: _stringValue(json['audit_remark']),
       createTime: _stringValue(json['create_time']),
       isLiked: _boolValue(json['is_liked']),
       isCollected: _boolValue(json['is_collected']),
@@ -169,6 +172,106 @@ class CommunityTag {
       name: _stringValue(json['tag_name']),
       color: _stringValue(json['color']),
       sort: _intValue(json['sort'], fallback: 100),
+      isFollowed: _boolValue(json['is_followed']),
+    );
+  }
+}
+
+class CommunityMemberProfile {
+  const CommunityMemberProfile({
+    required this.memberId,
+    required this.displayName,
+    required this.avatar,
+    required this.bio,
+    required this.recoveryGoal,
+    required this.memberRole,
+    required this.isDoctor,
+    required this.doctorTitle,
+    required this.recoveryDays,
+    required this.isSelf,
+    required this.isFollowed,
+    required this.followCount,
+    required this.followerCount,
+    required this.likeCount,
+    required this.postCount,
+  });
+
+  final int memberId;
+  final String displayName;
+  final String avatar;
+  final String bio;
+  final String recoveryGoal;
+  final String memberRole;
+  final bool isDoctor;
+  final String doctorTitle;
+  final int recoveryDays;
+  final bool isSelf;
+  final bool isFollowed;
+  final int followCount;
+  final int followerCount;
+  final int likeCount;
+  final int postCount;
+
+  factory CommunityMemberProfile.fromJson(Map<String, dynamic> json) {
+    return CommunityMemberProfile(
+      memberId: _intValue(json['member_id']),
+      displayName: _stringValue(json['display_name'], fallback: 'Member'),
+      avatar: _stringValue(json['avatar']),
+      bio: _stringValue(json['bio']),
+      recoveryGoal: _stringValue(json['recovery_goal']),
+      memberRole: _stringValue(json['member_role'], fallback: 'patient'),
+      isDoctor: _boolValue(json['is_doctor']),
+      doctorTitle: _stringValue(json['doctor_title']),
+      recoveryDays: _intValue(json['recovery_days']),
+      isSelf: _boolValue(json['is_self']),
+      isFollowed: _boolValue(json['is_followed']),
+      followCount: _intValue(json['follow_count']),
+      followerCount: _intValue(json['follower_count']),
+      likeCount: _intValue(json['like_count']),
+      postCount: _intValue(json['post_count']),
+    );
+  }
+}
+
+class CommunityMember {
+  const CommunityMember({
+    required this.memberId,
+    required this.displayName,
+    required this.avatar,
+    required this.bio,
+    required this.recoveryGoal,
+    required this.memberRole,
+    required this.isDoctor,
+    required this.doctorTitle,
+    required this.recoveryDays,
+    required this.isSelf,
+    required this.isFollowed,
+  });
+
+  final int memberId;
+  final String displayName;
+  final String avatar;
+  final String bio;
+  final String recoveryGoal;
+  final String memberRole;
+  final bool isDoctor;
+  final String doctorTitle;
+  final int recoveryDays;
+  final bool isSelf;
+  final bool isFollowed;
+
+  factory CommunityMember.fromJson(Map<String, dynamic> json) {
+    return CommunityMember(
+      memberId: _intValue(json['member_id']),
+      displayName: _stringValue(json['display_name'], fallback: 'Member'),
+      avatar: _stringValue(json['avatar']),
+      bio: _stringValue(json['bio']),
+      recoveryGoal: _stringValue(json['recovery_goal']),
+      memberRole: _stringValue(json['member_role'], fallback: 'patient'),
+      isDoctor: _boolValue(json['is_doctor']),
+      doctorTitle: _stringValue(json['doctor_title']),
+      recoveryDays: _intValue(json['recovery_days']),
+      isSelf: _boolValue(json['is_self']),
       isFollowed: _boolValue(json['is_followed']),
     );
   }

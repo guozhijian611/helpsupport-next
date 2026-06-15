@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class MessagePage<T> {
   const MessagePage({
     required this.list,
@@ -39,6 +41,7 @@ class MessageItem {
     required this.route,
     required this.isRead,
     required this.createTime,
+    required this.ext,
   });
 
   final int id;
@@ -50,8 +53,17 @@ class MessageItem {
   final String route;
   final int isRead;
   final String createTime;
+  final Map<String, dynamic> ext;
 
   bool get unread => isRead != 1;
+
+  Map<String, dynamic> get payload {
+    final value = ext['payload'];
+    if (value is Map<String, dynamic>) {
+      return value;
+    }
+    return const <String, dynamic>{};
+  }
 
   factory MessageItem.fromJson(Map<String, dynamic> json) {
     return MessageItem(
@@ -64,6 +76,7 @@ class MessageItem {
       route: _stringValue(json['route']),
       isRead: _intValue(json['is_read'], fallback: 2),
       createTime: _stringValue(json['create_time']),
+      ext: _mapValue(json['ext']),
     );
   }
 }
@@ -113,4 +126,21 @@ String _stringValue(Object? value, {String fallback = ''}) {
     return fallback;
   }
   return value.toString();
+}
+
+Map<String, dynamic> _mapValue(Object? value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+  if (value is String && value.trim().isNotEmpty) {
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+    } catch (_) {
+      return const <String, dynamic>{};
+    }
+  }
+  return const <String, dynamic>{};
 }
