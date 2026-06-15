@@ -51,10 +51,10 @@ class AuthPageFrame extends ConsumerWidget {
                   final scale = (constraints.maxWidth / 375)
                       .clamp(0.92, 1.08)
                       .toDouble();
-                  final panelTop = (isWide ? 320.0 : 242.0 * scale)
-                      .clamp(240.0, height * 0.41)
+                  final panelTop = (isWide ? 356.0 : 286.0 * scale)
+                      .clamp(282.0, height * 0.47)
                       .toDouble();
-                  final logoTop = isWide ? 68.0 : 60.0 * scale;
+                  final logoTop = isWide ? 72.0 : 58.0 * scale;
 
                   return Stack(
                     fit: StackFit.expand,
@@ -85,7 +85,7 @@ class AuthPageFrame extends ConsumerWidget {
                         child: _AppLogo(logoUrl: appConfig.logo),
                       ),
                       Positioned(
-                        top: logoTop + 92,
+                        top: logoTop + 106,
                         left: 24,
                         right: 24,
                         child: Text(
@@ -475,7 +475,7 @@ class _AppLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: SizedBox.square(
-        dimension: 62,
+        dimension: 76,
         child: logoUrl.isEmpty
             ? const _LogoFallback()
             : Image.network(
