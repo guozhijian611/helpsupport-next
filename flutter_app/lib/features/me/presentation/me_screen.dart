@@ -80,7 +80,7 @@ class MeScreen extends ConsumerWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
-            padding: metrics.edgeInsets(22, 20, 22, 28),
+            padding: metrics.edgeInsets(22, 18, 22, 28),
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: Column(
@@ -94,7 +94,7 @@ class MeScreen extends ConsumerWidget {
                           )
                         : null,
                   ),
-                  SizedBox(height: metrics.size(24)),
+                  SizedBox(height: metrics.size(18)),
                   _SummaryGrid(
                     cards: [
                       _SummaryCardData(
@@ -270,17 +270,17 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = _MePalette.of(context);
     final metrics = AppTabShellMetrics.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(28),
-              onTap: onProfileTap,
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: metrics.size(2)),
+    return SizedBox(
+      height: metrics.size(AppTabShellMetrics.headerBlockHeight),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(28),
+                onTap: onProfileTap,
                 child: Row(
                   children: [
                     _MemberAvatar(
@@ -290,6 +290,7 @@ class _ProfileHeader extends StatelessWidget {
                     SizedBox(width: metrics.size(12)),
                     Expanded(
                       child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
@@ -298,16 +299,16 @@ class _ProfileHeader extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: palette.primaryText,
-                              fontSize: AppTabShellMetrics.headerTitleFontSize,
+                              fontSize: 20,
                               fontWeight: FontWeight.w800,
                               height: 1.1,
                             ),
                           ),
-                          SizedBox(height: metrics.size(12)),
+                          SizedBox(height: metrics.size(8)),
                           Wrap(
                             crossAxisAlignment: WrapCrossAlignment.center,
-                            spacing: metrics.size(14),
-                            runSpacing: 8,
+                            spacing: metrics.size(12),
+                            runSpacing: metrics.size(6),
                             children: [
                               if (profile.age.isNotEmpty)
                                 _MetaText(
@@ -325,13 +326,13 @@ class _ProfileHeader extends StatelessWidget {
               ),
             ),
           ),
-        ),
-        SizedBox(width: metrics.size(12)),
-        _RoundIconButton(
-          icon: Icons.settings_outlined,
-          onTap: () => context.push('/me/settings'),
-        ),
-      ],
+          SizedBox(width: metrics.size(12)),
+          _RoundIconButton(
+            icon: Icons.settings_outlined,
+            onTap: () => context.push('/me/settings'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -472,7 +473,7 @@ class _MetaText extends StatelessWidget {
     final palette = _MePalette.of(context);
     return RichText(
       text: TextSpan(
-        style: const TextStyle(fontSize: 17, height: 1.2),
+        style: const TextStyle(fontSize: 15, height: 1.15),
         children: [
           TextSpan(
             text: label,
@@ -504,7 +505,7 @@ class _GenderPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = _MePalette.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: palette.pillBackground,
         borderRadius: BorderRadius.circular(999),
@@ -513,13 +514,13 @@ class _GenderPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _MetaText(label: context.l10n.meGenderLabel, value: gender),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Transform.rotate(
             angle: -math.pi / 2,
             child: const Icon(
               Icons.swap_horiz_rounded,
               color: MeScreen._blue,
-              size: 20,
+              size: 16,
             ),
           ),
         ],

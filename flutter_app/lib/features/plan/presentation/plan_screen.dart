@@ -234,52 +234,56 @@ class _PlanHeader extends StatelessWidget {
     final palette = _PlanPalette.of(context);
     final metrics = AppTabShellMetrics.of(context);
     final buttonSize = metrics.size(AppTabShellMetrics.actionButtonSize);
-    return Row(
-      children: [
-        _PlanAvatar(avatarUrl: avatarUrl),
-        SizedBox(width: metrics.size(AppTabShellMetrics.headerSpacing)),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _t(context, 'Good morning!', 'Good morning!'),
-                style: TextStyle(
-                  color: palette.secondaryText,
-                  fontSize: AppTabShellMetrics.headerLabelFontSize,
-                  fontWeight: FontWeight.w600,
+    return SizedBox(
+      height: metrics.size(AppTabShellMetrics.headerBlockHeight),
+      child: Row(
+        children: [
+          _PlanAvatar(avatarUrl: avatarUrl),
+          SizedBox(width: metrics.size(AppTabShellMetrics.headerSpacing)),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _t(context, 'Good morning!', 'Good morning!'),
+                  style: TextStyle(
+                    color: palette.secondaryText,
+                    fontSize: AppTabShellMetrics.headerLabelFontSize,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                name,
-                style: TextStyle(
-                  color: palette.primaryText,
-                  fontSize: AppTabShellMetrics.headerTitleFontSize,
-                  fontWeight: FontWeight.w800,
+                SizedBox(height: metrics.size(4)),
+                Text(
+                  name,
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontSize: AppTabShellMetrics.headerTitleFontSize,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        Material(
-          color: palette.cardBackground,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onNotificationTap,
-            child: SizedBox(
-              width: buttonSize,
-              height: buttonSize,
-              child: Icon(
-                Icons.notifications_none_rounded,
-                size: metrics.size(AppTabShellMetrics.actionIconSize),
-                color: palette.primaryText,
+          Material(
+            color: palette.cardBackground,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onNotificationTap,
+              child: SizedBox(
+                width: buttonSize,
+                height: buttonSize,
+                child: Icon(
+                  Icons.notifications_none_rounded,
+                  size: metrics.size(AppTabShellMetrics.actionIconSize),
+                  color: palette.primaryText,
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

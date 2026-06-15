@@ -11,6 +11,7 @@ class AppTabShellMetrics {
 
   static const double headerAvatarSize = 48;
   static const double headerSpacing = 12;
+  static const double headerBlockHeight = 76;
   static const double headerLabelFontSize = 15;
   static const double headerTitleFontSize = 21;
   static const double actionButtonSize = 48;

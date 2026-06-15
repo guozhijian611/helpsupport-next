@@ -456,48 +456,51 @@ class _CommunityTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = _CommunityFeedPalette.of(context);
     final metrics = AppTabShellMetrics.of(context);
-    return Row(
-      children: [
-        _AuthorAvatar(
-          avatarUrl: avatarUrl,
-          isDoctor: false,
-          size: metrics.size(AppTabShellMetrics.headerAvatarSize),
-        ),
-        SizedBox(width: metrics.size(AppTabShellMetrics.headerSpacing)),
-        Expanded(
-          child: Container(
-            height: metrics.size(50),
-            decoration: BoxDecoration(
-              color: palette.cardBackground,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                prefixIcon: Icon(
-                  Icons.search_rounded,
-                  color: palette.secondaryText,
-                ),
-                hintText: _t(context, '开始探索', 'Search support'),
-                hintStyle: TextStyle(color: palette.secondaryText),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(
-                  vertical: metrics.size(14),
-                ),
+    return SizedBox(
+      height: metrics.size(AppTabShellMetrics.headerBlockHeight),
+      child: Row(
+        children: [
+          _AuthorAvatar(
+            avatarUrl: avatarUrl,
+            isDoctor: false,
+            size: metrics.size(AppTabShellMetrics.headerAvatarSize),
+          ),
+          SizedBox(width: metrics.size(AppTabShellMetrics.headerSpacing)),
+          Expanded(
+            child: Container(
+              height: metrics.size(50),
+              decoration: BoxDecoration(
+                color: palette.cardBackground,
+                borderRadius: BorderRadius.circular(999),
               ),
-              style: TextStyle(color: palette.primaryText),
+              child: TextField(
+                controller: controller,
+                onChanged: onChanged,
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: palette.secondaryText,
+                  ),
+                  hintText: _t(context, '开始探索', 'Search support'),
+                  hintStyle: TextStyle(color: palette.secondaryText),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    vertical: metrics.size(14),
+                  ),
+                ),
+                style: TextStyle(color: palette.primaryText),
+              ),
             ),
           ),
-        ),
-        SizedBox(width: metrics.size(12)),
-        _CircleButton(
-          icon: Icons.notifications_none_rounded,
-          badge: badge,
-          onTap: onNotifyTap,
-        ),
-      ],
+          SizedBox(width: metrics.size(12)),
+          _CircleButton(
+            icon: Icons.notifications_none_rounded,
+            badge: badge,
+            onTap: onNotifyTap,
+          ),
+        ],
+      ),
     );
   }
 }

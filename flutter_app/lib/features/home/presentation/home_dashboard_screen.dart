@@ -330,45 +330,49 @@ class _HomeHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = _HomeDashboardPalette.of(context);
     final metrics = AppTabShellMetrics.of(context);
-    return Row(
-      children: [
-        _ProfileAvatar(
-          avatarUrl: avatarUrl,
-          size: metrics.size(AppTabShellMetrics.headerAvatarSize),
-        ),
-        SizedBox(width: metrics.size(AppTabShellMetrics.headerSpacing)),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _t(context, 'Good morning!', 'Good morning!'),
-                style: TextStyle(
-                  color: palette.secondaryText,
-                  fontSize: AppTabShellMetrics.headerLabelFontSize,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: palette.primaryText,
-                  fontSize: AppTabShellMetrics.headerTitleFontSize,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
+    return SizedBox(
+      height: metrics.size(AppTabShellMetrics.headerBlockHeight),
+      child: Row(
+        children: [
+          _ProfileAvatar(
+            avatarUrl: avatarUrl,
+            size: metrics.size(AppTabShellMetrics.headerAvatarSize),
           ),
-        ),
-        _CircularActionButton(
-          icon: Icons.notifications_none_rounded,
-          badge: badge,
-          onTap: onNotificationTap,
-        ),
-      ],
+          SizedBox(width: metrics.size(AppTabShellMetrics.headerSpacing)),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _t(context, 'Good morning!', 'Good morning!'),
+                  style: TextStyle(
+                    color: palette.secondaryText,
+                    fontSize: AppTabShellMetrics.headerLabelFontSize,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: metrics.size(4)),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontSize: AppTabShellMetrics.headerTitleFontSize,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _CircularActionButton(
+            icon: Icons.notifications_none_rounded,
+            badge: badge,
+            onTap: onNotificationTap,
+          ),
+        ],
+      ),
     );
   }
 }
