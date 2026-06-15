@@ -502,6 +502,10 @@ final class CreateHelpCoreTables extends AbstractMigration
 
     private function seedOauthConfig(): void
     {
+        $enabledOptions = [
+            ['label' => '启用', 'value' => '1'],
+            ['label' => '禁用', 'value' => '2'],
+        ];
         $groups = [
             'help_google_oauth' => [
                 'name' => 'Google 登录',
@@ -510,7 +514,7 @@ final class CreateHelpCoreTables extends AbstractMigration
                     ['web_client_id', 'Web Client ID', '', 'input', 100, 'Google Web Client ID，用于服务端校验 aud。'],
                     ['ios_client_id', 'iOS Client ID', '', 'input', 90, 'Google iOS Client ID。'],
                     ['android_client_id', 'Android Client ID', '', 'input', 80, 'Google Android Client ID。'],
-                    ['enabled', '启用状态', '2', 'radio', 70, '1启用 2禁用。'],
+                    ['enabled', '启用状态', '2', 'radio', 70, '1启用 2禁用。', $enabledOptions],
                 ],
             ],
             'help_apple_oauth' => [
@@ -522,7 +526,7 @@ final class CreateHelpCoreTables extends AbstractMigration
                     ['service_id', 'Service ID', '', 'input', 80, 'Web/Android 场景使用的 Services ID。'],
                     ['key_id', 'Key ID', '', 'input', 70, 'Sign in with Apple 私钥 Key ID。'],
                     ['private_key', 'Private Key', '', 'textarea', 60, 'Sign in with Apple 私钥内容，生产环境应通过安全配置注入。'],
-                    ['enabled', '启用状态', '2', 'radio', 50, '1启用 2禁用。'],
+                    ['enabled', '启用状态', '2', 'radio', 50, '1启用 2禁用。', $enabledOptions],
                 ],
             ],
             'help_firebase_push' => [
@@ -531,15 +535,16 @@ final class CreateHelpCoreTables extends AbstractMigration
                 'items' => [
                     ['project_id', 'Firebase Project ID', '', 'input', 100, 'Firebase 项目 ID。'],
                     ['service_account_json', 'Service Account JSON', '', 'textarea', 90, '服务端 FCM 发送使用的 Service Account JSON，生产环境应通过安全配置注入。'],
-                    ['enabled', '启用状态', '2', 'radio', 80, '1启用 2禁用。'],
+                    ['enabled', '启用状态', '2', 'radio', 80, '1启用 2禁用。', $enabledOptions],
                 ],
             ],
         ];
 
         foreach ($groups as $code => $group) {
             $this->insertConfigGroup($code, $group['name'], $group['remark']);
-            foreach ($group['items'] as [$key, $name, $value, $inputType, $sort, $remark]) {
-                $this->insertConfigItem($code, $key, $name, $value, $inputType, $sort, $remark);
+            foreach ($group['items'] as $item) {
+                [$key, $name, $value, $inputType, $sort, $remark] = $item;
+                $this->insertConfigItem($code, $key, $name, $value, $inputType, $sort, $remark, $item[6] ?? null);
             }
         }
     }
@@ -580,11 +585,11 @@ final class CreateHelpCoreTables extends AbstractMigration
         );
     }
 
-    private function insertConfigItem(string $groupCode, string $key, string $name, string $value, string $inputType, int $sort, string $remark): void
+    private function insertConfigItem(string $groupCode, string $key, string $name, string $value, string $inputType, int $sort, string $remark, ?array $selectData = null): void
     {
         $this->execute(
-            'INSERT INTO `sa_system_config` (`group_id`, `key`, `value`, `name`, `input_type`, `sort`, `remark`, `created_by`, `updated_by`, `create_time`, `update_time`, `delete_time`)
-             SELECT `id`, ' . $this->q($key) . ', ' . $this->q($value) . ', ' . $this->q($name) . ', ' . $this->q($inputType) . ', ' . $sort . ', ' . $this->q(self::REMARK . ':' . $remark) . ', 1, 1, NOW(), NOW(), NULL
+            'INSERT INTO `sa_system_config` (`group_id`, `key`, `value`, `name`, `input_type`, `config_select_data`, `sort`, `remark`, `created_by`, `updated_by`, `create_time`, `update_time`, `delete_time`)
+             SELECT `id`, ' . $this->q($key) . ', ' . $this->q($value) . ', ' . $this->q($name) . ', ' . $this->q($inputType) . ', ' . $this->configSelectDataSql($selectData) . ', ' . $sort . ', ' . $this->q(self::REMARK . ':' . $remark) . ', 1, 1, NOW(), NOW(), NULL
              FROM `sa_system_config_group`
              WHERE `code` = ' . $this->q($groupCode) . '
                AND `delete_time` IS NULL
@@ -596,6 +601,20 @@ final class CreateHelpCoreTables extends AbstractMigration
                )
              LIMIT 1'
         );
+    }
+
+    private function configSelectDataSql(?array $selectData): string
+    {
+        if ($selectData === null) {
+            return 'NULL';
+        }
+
+        return $this->q($this->json($selectData));
+    }
+
+    private function json(array $value): string
+    {
+        return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]';
     }
 
     private function q(mixed $value): string
