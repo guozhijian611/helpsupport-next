@@ -7,6 +7,7 @@ import '../../../core/notifications/centered_notice.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../chat/application/chat_controller.dart';
 import '../../chat/data/chat_models.dart';
+import '../../chat/presentation/chat_launch_sheet.dart';
 import '../../community/application/community_controller.dart';
 import '../../plan/application/plan_controller.dart';
 
@@ -88,9 +89,7 @@ class HomeDashboardScreen extends ConsumerWidget {
                     ),
                     colors: const [Color(0xFF8EA8F8), Color(0xFF7F9DF0)],
                     icon: Icons.auto_stories_rounded,
-                    onTap: () => context.showCenteredNotice(
-                      context.l10n.featureComingSoon,
-                    ),
+                    onTap: () => context.push('/materials?type=education'),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -104,9 +103,7 @@ class HomeDashboardScreen extends ConsumerWidget {
                     ),
                     colors: const [Color(0xFFB695F6), Color(0xFFA280EC)],
                     icon: Icons.sports_esports_rounded,
-                    onTap: () => context.showCenteredNotice(
-                      context.l10n.featureComingSoon,
-                    ),
+                    onTap: () => context.push('/materials?type=entertainment'),
                   ),
                 ),
               ],
@@ -214,6 +211,25 @@ class HomeDashboardScreen extends ConsumerWidget {
     WidgetRef ref,
     String chatMode,
   ) async {
+    final option = await showChatLaunchSheet(
+      context,
+      title: _modeTitle(context, chatMode),
+    );
+    if (option == null || !context.mounted) {
+      return;
+    }
+    if (option == ChatLaunchOption.local) {
+      context.push(
+        Uri(
+          path: '/local-model',
+          queryParameters: {
+            'mode': chatMode,
+            'title': _modeTitle(context, chatMode),
+          },
+        ).toString(),
+      );
+      return;
+    }
     try {
       final session = await ref
           .read(chatRepositoryProvider)

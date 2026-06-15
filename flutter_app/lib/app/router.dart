@@ -14,6 +14,9 @@ import '../features/community/presentation/community_post_editor_screen.dart';
 import '../features/home/presentation/home_shell.dart';
 import '../features/local_model/presentation/local_model_chat_screen.dart';
 import '../features/local_model/presentation/local_model_screen.dart';
+import '../features/material/data/material_models.dart';
+import '../features/material/presentation/material_detail_screen.dart';
+import '../features/material/presentation/material_library_screen.dart';
 import '../features/me/presentation/settings_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
@@ -116,7 +119,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/local-model',
         name: 'local-model',
-        builder: (context, state) => const LocalModelScreen(),
+        builder: (context, state) => LocalModelScreen(
+          preferredChatMode: state.uri.queryParameters['mode'] ?? '',
+          preferredTitle: state.uri.queryParameters['title'] ?? '',
+        ),
       ),
       GoRoute(
         path: '/local-model/chat/:id',
@@ -126,6 +132,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             modelId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
             chatMode: state.uri.queryParameters['mode'] ?? 'companion',
             title: state.uri.queryParameters['title'] ?? '',
+          );
+        },
+      ),
+      GoRoute(
+        path: '/materials',
+        name: 'materials',
+        builder: (context, state) {
+          final type = state.uri.queryParameters['type'] ?? 'education';
+          final sourceName = state.uri.queryParameters['source'] ?? 'browse';
+          final source = switch (sourceName) {
+            'history' => MaterialLibrarySource.history,
+            'collections' => MaterialLibrarySource.collections,
+            _ => MaterialLibrarySource.browse,
+          };
+          return MaterialLibraryScreen(materialType: type, source: source);
+        },
+      ),
+      GoRoute(
+        path: '/materials/detail/:id',
+        name: 'material-detail',
+        builder: (context, state) {
+          return MaterialDetailScreen(
+            materialId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
           );
         },
       ),

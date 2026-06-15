@@ -194,8 +194,10 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
         context.push('/chat');
         return;
       case 'assessment':
-      case 'material':
         context.showCenteredNotice(context.l10n.featureComingSoon);
+        return;
+      case 'material':
+        context.push('/materials?type=education');
         return;
       default:
         context.showCenteredNotice(context.l10n.featureComingSoon);

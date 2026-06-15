@@ -6,6 +6,7 @@ import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../application/chat_controller.dart';
 import '../data/chat_models.dart';
+import 'chat_launch_sheet.dart';
 
 class ChatHomeScreen extends ConsumerWidget {
   const ChatHomeScreen({super.key});
@@ -121,6 +122,25 @@ class ChatHomeScreen extends ConsumerWidget {
     WidgetRef ref,
     String chatMode,
   ) async {
+    final option = await showChatLaunchSheet(
+      context,
+      title: _modeTitle(context, chatMode),
+    );
+    if (option == null || !context.mounted) {
+      return;
+    }
+    if (option == ChatLaunchOption.local) {
+      context.push(
+        Uri(
+          path: '/local-model',
+          queryParameters: {
+            'mode': chatMode,
+            'title': _modeTitle(context, chatMode),
+          },
+        ).toString(),
+      );
+      return;
+    }
     try {
       final session = await ref
           .read(chatRepositoryProvider)
