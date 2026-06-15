@@ -52,6 +52,13 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
     ], fallback: 'Doctor');
     final patientsQuery = const DoctorPatientsQuery(status: 1, pageSize: 100);
     final patients = ref.watch(doctorPatientsProvider(patientsQuery));
+    final plans = _selectedMemberId > 0
+        ? ref.watch(
+            doctorPatientPlansProvider(
+              DoctorPatientPlansQuery(memberId: _selectedMemberId),
+            ),
+          )
+        : const AsyncValue<List<TreatmentPlan>>.data([]);
     final tasks = _selectedMemberId > 0
         ? ref.watch(
             doctorDailyTasksProvider(
@@ -95,6 +102,66 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
                     _PatientSelectorCard(
                       patient: patient,
                       onTap: () => _selectPatient(page.list),
+                    ),
+                    const SizedBox(height: 18),
+                    plans.when(
+                      data: (items) {
+                        final taskItems = tasks.asData?.value.list ?? const [];
+                        final activePlan = _activePlan(items);
+                        if (activePlan == null) {
+                          return _PlanOverviewCard(
+                            title: _t(
+                              context,
+                              '还没有治疗计划',
+                              'No treatment plan yet',
+                            ),
+                            subtitle: _t(
+                              context,
+                              '先为当前患者配置计划、阶段和关键任务。',
+                              'Create a plan, stages, and key tasks for this patient.',
+                            ),
+                            actionLabel: _t(
+                              context,
+                              '配置治疗计划',
+                              'Configure plan',
+                            ),
+                            onTap: () => _openTreatmentPlan(patient.memberId),
+                          );
+                        }
+                        final completedCount = taskItems
+                            .where((task) => task.isDone)
+                            .length;
+                        return _PlanOverviewCard(
+                          title: activePlan.title,
+                          subtitle: [
+                            if (activePlan.startDate.trim().isNotEmpty ||
+                                activePlan.endDate.trim().isNotEmpty)
+                              '${_formatDateLabel(activePlan.startDate)} - ${_formatDateLabel(activePlan.endDate)}',
+                            if (_currentStage(
+                                  activePlan,
+                                )?.description.trim().isNotEmpty ==
+                                true)
+                              _currentStage(activePlan)!.description,
+                            _t(
+                              context,
+                              '关键任务 $completedCount/${taskItems.length}',
+                              'Key tasks $completedCount/${taskItems.length}',
+                            ),
+                          ].join('\n'),
+                          actionLabel: _t(context, '配置治疗计划', 'Configure plan'),
+                          onTap: () => _openTreatmentPlan(
+                            patient.memberId,
+                            activePlan.id,
+                          ),
+                        );
+                      },
+                      error: (error, _) => _PlanOverviewCard(
+                        title: _t(context, '治疗计划读取失败', 'Plan load failed'),
+                        subtitle: error.toString(),
+                        actionLabel: _t(context, '重新配置', 'Configure again'),
+                        onTap: () => _openTreatmentPlan(patient.memberId),
+                      ),
+                      loading: () => const _PlanOverviewSkeleton(),
                     ),
                     const SizedBox(height: 18),
                     _MonthNavigator(
@@ -202,6 +269,30 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
         patients.first;
   }
 
+  TreatmentPlan? _activePlan(List<TreatmentPlan> plans) {
+    if (plans.isEmpty) {
+      return null;
+    }
+    for (final plan in plans) {
+      if (plan.status == 1) {
+        return plan;
+      }
+    }
+    return plans.first;
+  }
+
+  TreatmentStage? _currentStage(TreatmentPlan plan) {
+    if (plan.stages.isEmpty) {
+      return null;
+    }
+    for (final stage in plan.stages) {
+      if (stage.status == 1) {
+        return stage;
+      }
+    }
+    return plan.stages.first;
+  }
+
   Future<void> _selectPatient(List<DoctorPatient> patients) async {
     final picked = await showModalBottomSheet<int>(
       context: context,
@@ -248,6 +339,22 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
     );
     if (picked != null && mounted) {
       setState(() => _selectedMemberId = picked);
+    }
+  }
+
+  Future<void> _openTreatmentPlan(int memberId, [int planId = 0]) async {
+    final changed = await context.push<bool>(
+      Uri(
+        path: '/doctor/treatment-plan',
+        queryParameters: {
+          'memberId': '$memberId',
+          if (planId > 0) 'planId': '$planId',
+        },
+      ).toString(),
+    );
+    if (changed == true) {
+      ref.invalidate(doctorPatientPlansProvider);
+      ref.invalidate(doctorDailyTasksProvider);
     }
   }
 }
@@ -343,6 +450,82 @@ class _PatientSelectorCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PlanOverviewCard extends StatelessWidget {
+  const _PlanOverviewCard({
+    required this.title,
+    required this.subtitle,
+    required this.actionLabel,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final String actionLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Color(0xFF303236),
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              color: Color(0xFF7D828A),
+              fontSize: 14,
+              height: 1.65,
+            ),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: onTap,
+            icon: const Icon(Icons.edit_note_rounded),
+            label: Text(actionLabel),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(50),
+              foregroundColor: const Color(0xFF5A81DA),
+              side: const BorderSide(color: Color(0xFF5A81DA)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanOverviewSkeleton extends StatelessWidget {
+  const _PlanOverviewSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 176,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
       ),
     );
   }
@@ -761,6 +944,15 @@ String _dateKey(DateTime date) {
   return '${date.year.toString().padLeft(4, '0')}-'
       '${date.month.toString().padLeft(2, '0')}-'
       '${date.day.toString().padLeft(2, '0')}';
+}
+
+String _formatDateLabel(String value) {
+  final parsed = DateTime.tryParse(value.trim());
+  if (parsed == null) {
+    final text = value.trim();
+    return text.isEmpty ? '--' : text;
+  }
+  return DateFormat('yyyy-MM-dd').format(parsed);
 }
 
 String _firstText(List<Object?> values, {String fallback = ''}) {

@@ -18,6 +18,7 @@ import '../features/doctor/presentation/doctor_assessment_scales_screen.dart';
 import '../features/doctor/presentation/doctor_patients_screen.dart';
 import '../features/doctor/presentation/doctor_plan_screen.dart';
 import '../features/doctor/presentation/doctor_task_templates_screen.dart';
+import '../features/doctor/presentation/doctor_treatment_plan_screen.dart';
 import '../features/home/presentation/home_shell.dart';
 import '../features/local_model/presentation/local_model_chat_screen.dart';
 import '../features/local_model/presentation/local_model_screen.dart';
@@ -138,6 +139,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return DoctorPlanScreen(
             initialMemberId:
                 int.tryParse(state.uri.queryParameters['memberId'] ?? '') ?? 0,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/doctor/treatment-plan',
+        name: 'doctor-treatment-plan',
+        builder: (context, state) {
+          return DoctorTreatmentPlanScreen(
+            initialMemberId:
+                int.tryParse(state.uri.queryParameters['memberId'] ?? '') ?? 0,
+            initialPlanId:
+                int.tryParse(state.uri.queryParameters['planId'] ?? '') ?? 0,
           );
         },
       ),

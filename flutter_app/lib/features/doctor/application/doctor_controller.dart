@@ -32,6 +32,13 @@ final doctorDailyTasksProvider = FutureProvider.autoDispose
           );
     });
 
+final doctorPatientPlansProvider = FutureProvider.autoDispose
+    .family<List<TreatmentPlan>, DoctorPatientPlansQuery>((ref, query) {
+      return ref
+          .watch(doctorRepositoryProvider)
+          .fetchPatientPlans(memberId: query.memberId, status: query.status);
+    });
+
 final doctorTaskTemplateFoldersProvider =
     FutureProvider.autoDispose<List<DoctorTaskTemplateFolder>>((ref) {
       return ref.watch(doctorRepositoryProvider).fetchTaskTemplateFolders();

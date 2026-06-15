@@ -81,6 +81,24 @@ class DoctorController extends BaseController
         return ok($this->service->saveDoctorTreatmentPlan($this->memberId, $request->post()));
     }
 
+    #[Apidoc\Title('保存治疗阶段')]
+    #[Apidoc\Url('/app/help/doctor/treatment-stage')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('member_id', type: 'int', require: true, desc: '患者会员ID')]
+    #[Apidoc\Param('plan_id', type: 'int', require: true, desc: '治疗计划ID')]
+    #[Apidoc\Param('id', type: 'int', require: false, desc: '阶段ID，空为新增')]
+    #[Apidoc\Param('stage_name', type: 'string', require: true, desc: '阶段名称')]
+    #[Apidoc\Param('start_date', type: 'string', require: true, desc: '开始日期')]
+    #[Apidoc\Param('end_date', type: 'string', require: true, desc: '结束日期')]
+    #[Apidoc\Param('stage_target', type: 'string', require: false, desc: '阶段目标')]
+    #[Apidoc\Param('sort', type: 'int', require: false, desc: '排序')]
+    #[Apidoc\Param('status', type: 'int', require: false, desc: '状态 0待开始 1进行中 2完成')]
+    #[Apidoc\Returned('id', type: 'int', desc: '阶段ID')]
+    public function saveTreatmentStage(Request $request): Response
+    {
+        return ok($this->service->saveDoctorTreatmentStage($this->memberId, $request->post()));
+    }
+
     #[Apidoc\Title('患者每日任务')]
     #[Apidoc\Url('/app/help/doctor/daily-tasks')]
     #[Apidoc\Method('GET')]
@@ -117,6 +135,20 @@ class DoctorController extends BaseController
     public function taskTemplateFolders(Request $request): Response
     {
         return ok($this->service->doctorTaskTemplateFolders($this->memberId, $request->get()));
+    }
+
+    #[Apidoc\Title('保存任务模板文件夹')]
+    #[Apidoc\Url('/app/help/doctor/task-template-folder')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('id', type: 'string', require: false, desc: '文件夹ID，空为新增')]
+    #[Apidoc\Param('name', type: 'string', require: true, desc: '文件夹名称')]
+    #[Apidoc\Param('color', type: 'string', require: false, desc: '主题颜色')]
+    #[Apidoc\Param('sort', type: 'int', require: false, desc: '排序')]
+    #[Apidoc\Param('status', type: 'int', require: false, desc: '状态 1启用 2禁用')]
+    #[Apidoc\Returned('id', type: 'string', desc: '文件夹ID')]
+    public function saveTaskTemplateFolder(Request $request): Response
+    {
+        return ok($this->service->saveDoctorTaskTemplateFolder($this->memberId, $request->post()));
     }
 
     #[Apidoc\Title('任务模板列表')]

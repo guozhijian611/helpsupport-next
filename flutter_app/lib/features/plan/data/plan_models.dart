@@ -66,6 +66,8 @@ class TreatmentStage {
     required this.planId,
     required this.stageKey,
     required this.stageName,
+    required this.startDate,
+    required this.endDate,
     required this.description,
     required this.sort,
     required this.status,
@@ -75,6 +77,8 @@ class TreatmentStage {
   final int planId;
   final String stageKey;
   final String stageName;
+  final String startDate;
+  final String endDate;
   final String description;
   final int sort;
   final int status;
@@ -85,6 +89,8 @@ class TreatmentStage {
       planId: _intValue(json['plan_id']),
       stageKey: _stringValue(json['stage_key']),
       stageName: _stringValue(json['stage_name']),
+      startDate: _stringValue(json['start_date']),
+      endDate: _stringValue(json['end_date']),
       description: _stringValue(
         json['stage_target'],
         fallback: _stringValue(json['description']),
@@ -99,6 +105,7 @@ class DailyTask {
   const DailyTask({
     required this.id,
     required this.planId,
+    required this.stageId,
     required this.taskDate,
     required this.startTime,
     required this.endTime,
@@ -114,6 +121,7 @@ class DailyTask {
 
   final int id;
   final int planId;
+  final int stageId;
   final String taskDate;
   final String startTime;
   final String endTime;
@@ -133,6 +141,7 @@ class DailyTask {
     return DailyTask(
       id: _intValue(json['id']),
       planId: _intValue(json['plan_id']),
+      stageId: _intValue(json['stage_id']),
       taskDate: _stringValue(json['task_date']),
       startTime: _stringValue(json['start_time']),
       endTime: _stringValue(json['end_time']),

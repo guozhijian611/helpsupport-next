@@ -799,6 +799,7 @@ class _BenefitStrip extends StatelessWidget {
               iconColor: MeScreen._blue,
               title: context.l10n.meFreeDoctorTitle,
               description: context.l10n.meFreeDoctorDesc,
+              route: '/appointments/doctors',
             ),
           ),
         ],
@@ -895,6 +896,7 @@ class _QuickActionsPanel extends StatelessWidget {
         title: context.l10n.meFollowing,
         icon: Icons.favorite_rounded,
         color: MeScreen._accent,
+        route: '/home?tab=community',
       ),
       _QuickActionData(
         title: context.l10n.meCollection,

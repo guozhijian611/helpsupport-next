@@ -284,6 +284,23 @@ class DoctorDailyTasksQuery {
   int get hashCode => Object.hash(memberId, date, planId);
 }
 
+class DoctorPatientPlansQuery {
+  const DoctorPatientPlansQuery({required this.memberId, this.status});
+
+  final int memberId;
+  final int? status;
+
+  @override
+  bool operator ==(Object other) {
+    return other is DoctorPatientPlansQuery &&
+        other.memberId == memberId &&
+        other.status == status;
+  }
+
+  @override
+  int get hashCode => Object.hash(memberId, status);
+}
+
 class DoctorTaskTemplatesQuery {
   const DoctorTaskTemplatesQuery({
     this.folderId = '',

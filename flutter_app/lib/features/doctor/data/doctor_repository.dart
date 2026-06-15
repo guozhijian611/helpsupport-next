@@ -66,6 +66,93 @@ class DoctorRepository {
     );
   }
 
+  Future<List<TreatmentPlan>> fetchPatientPlans({
+    required int memberId,
+    int? status,
+  }) async {
+    final result = await _apiClient.getApi<List<TreatmentPlan>>(
+      '/app/help/doctor/patient/plans',
+      queryParameters: {
+        'member_id': memberId,
+        if (status != null) 'status': status,
+      },
+      decode: (value) => _decodeList(value, TreatmentPlan.fromJson),
+    );
+    return result.data ?? const [];
+  }
+
+  Future<TreatmentPlan> saveTreatmentPlan({
+    required int memberId,
+    int id = 0,
+    required String title,
+    String description = '',
+    String startDate = '',
+    String endDate = '',
+    int status = 1,
+  }) async {
+    final result = await _apiClient.postApi<TreatmentPlan>(
+      '/app/help/doctor/treatment-plan',
+      data: {
+        'member_id': memberId,
+        if (id > 0) 'id': id,
+        'title': title.trim(),
+        'description': description.trim(),
+        'start_date': startDate.trim(),
+        'end_date': endDate.trim(),
+        'status': status,
+      },
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return TreatmentPlan.fromJson(value);
+        }
+        throw const FormatException('Unexpected treatment plan shape');
+      },
+    );
+    final plan = result.data;
+    if (plan == null || plan.id <= 0) {
+      throw const FormatException('治疗计划保存失败');
+    }
+    return plan;
+  }
+
+  Future<TreatmentStage> saveTreatmentStage({
+    required int memberId,
+    required int planId,
+    int id = 0,
+    required String stageName,
+    required String startDate,
+    required String endDate,
+    String stageTarget = '',
+    int sort = 0,
+    int status = 0,
+  }) async {
+    final result = await _apiClient.postApi<TreatmentStage>(
+      '/app/help/doctor/treatment-stage',
+      data: {
+        'member_id': memberId,
+        'plan_id': planId,
+        if (id > 0) 'id': id,
+        'stage_name': stageName.trim(),
+        'start_date': startDate.trim(),
+        'end_date': endDate.trim(),
+        'stage_target': stageTarget.trim(),
+        if (sort > 0) 'sort': sort,
+        'status': status,
+      },
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return TreatmentStage.fromJson(value);
+        }
+        throw const FormatException('Unexpected treatment stage shape');
+      },
+    );
+    final stage = result.data;
+    if (stage == null || stage.id <= 0) {
+      throw const FormatException('治疗阶段保存失败');
+    }
+    return stage;
+  }
+
   Future<PlanPage<DailyTask>> fetchDailyTasks({
     required int memberId,
     String date = '',
@@ -85,12 +172,86 @@ class DoctorRepository {
         const PlanPage(list: [], total: 0, page: 1, pageSize: 100);
   }
 
+  Future<DailyTask> saveDailyTask({
+    required int memberId,
+    int id = 0,
+    int planId = 0,
+    int stageId = 0,
+    required String taskDate,
+    String startTime = '',
+    String endTime = '',
+    required String title,
+    String description = '',
+    String taskType = 'daily',
+    int pointsReward = 10,
+    int status = 0,
+  }) async {
+    final result = await _apiClient.postApi<DailyTask>(
+      '/app/help/doctor/daily-task',
+      data: {
+        'member_id': memberId,
+        if (id > 0) 'id': id,
+        if (planId > 0) 'plan_id': planId,
+        if (stageId > 0) 'stage_id': stageId,
+        'task_date': taskDate.trim(),
+        'start_time': startTime.trim(),
+        'end_time': endTime.trim(),
+        'title': title.trim(),
+        'description': description.trim(),
+        'task_type': taskType,
+        'points_reward': pointsReward,
+        'status': status,
+      },
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return DailyTask.fromJson(value);
+        }
+        throw const FormatException('Unexpected daily task shape');
+      },
+    );
+    final task = result.data;
+    if (task == null || task.id <= 0) {
+      throw const FormatException('关键任务保存失败');
+    }
+    return task;
+  }
+
   Future<List<DoctorTaskTemplateFolder>> fetchTaskTemplateFolders() async {
     final result = await _apiClient.getApi<List<DoctorTaskTemplateFolder>>(
       '/app/help/doctor/task-template-folders',
       decode: (value) => _decodeList(value, DoctorTaskTemplateFolder.fromJson),
     );
     return result.data ?? const [];
+  }
+
+  Future<DoctorTaskTemplateFolder> saveTaskTemplateFolder({
+    String id = '',
+    required String name,
+    String color = '#5E8FE6',
+    int sort = 100,
+    int status = 1,
+  }) async {
+    final result = await _apiClient.postApi<DoctorTaskTemplateFolder>(
+      '/app/help/doctor/task-template-folder',
+      data: {
+        if (id.trim().isNotEmpty) 'id': id.trim(),
+        'name': name.trim(),
+        'color': color,
+        'sort': sort,
+        'status': status,
+      },
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return DoctorTaskTemplateFolder.fromJson(value);
+        }
+        throw const FormatException('Unexpected task template folder shape');
+      },
+    );
+    final folder = result.data;
+    if (folder == null || folder.id.isEmpty) {
+      throw const FormatException('模板文件夹保存失败');
+    }
+    return folder;
   }
 
   Future<List<DoctorTaskTemplate>> fetchTaskTemplates({

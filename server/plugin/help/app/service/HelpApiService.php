@@ -2204,6 +2204,59 @@ class HelpApiService
         return Db::table('sa_treatment_plan')->where('id', $id)->find() ?: [];
     }
 
+    public function saveDoctorTreatmentStage(int $doctorId, array $data): array
+    {
+        $memberId = (int) ($data['member_id'] ?? 0);
+        $planId = (int) ($data['plan_id'] ?? 0);
+        $this->assertDoctorPatient($doctorId, $memberId);
+        $this->assertDoctorPlan($doctorId, $memberId, $planId);
+
+        $stageName = trim((string) ($data['stage_name'] ?? ''));
+        $startDate = trim((string) ($data['start_date'] ?? ''));
+        $endDate = trim((string) ($data['end_date'] ?? ''));
+        if ($stageName === '' || $startDate === '' || $endDate === '') {
+            throw new ApiException('阶段名称、开始日期和结束日期必须填写', 400);
+        }
+
+        $stageId = (int) ($data['id'] ?? 0);
+        if ($stageId > 0) {
+            $stage = $this->assertDoctorStage($doctorId, $memberId, $stageId);
+            if ((int) ($stage['plan_id'] ?? 0) !== $planId) {
+                throw new ApiException('治疗阶段不属于所选治疗计划', 400);
+            }
+        }
+
+        $sort = isset($data['sort']) && $data['sort'] !== ''
+            ? (int) $data['sort']
+            : ((int) Db::table('sa_treatment_stage')
+                ->where('plan_id', $planId)
+                ->whereNull('delete_time')
+                ->max('sort')) + 10;
+
+        $payload = $this->only($data, [
+            'stage_key',
+            'stage_name',
+            'start_date',
+            'end_date',
+            'stage_target',
+            'sort',
+            'status',
+            'remark',
+        ]);
+        $payload['plan_id'] = $planId;
+        $payload['member_id'] = $memberId;
+        $payload['stage_name'] = $stageName;
+        $payload['start_date'] = $startDate;
+        $payload['end_date'] = $endDate;
+        $payload['sort'] = $sort > 0 ? $sort : 100;
+        $payload['status'] = isset($payload['status']) && $payload['status'] !== ''
+            ? $this->intIn($payload['status'], [0, 1, 2], '阶段状态参数错误')
+            : 0;
+
+        $id = $this->saveRow('sa_treatment_stage', $payload, $doctorId, $stageId);
+        return Db::table('sa_treatment_stage')->where('id', $id)->find() ?: [];
+    }
+
     public function doctorDailyTasks(int $doctorId, array $params): array
     {
         $memberId = (int) ($params['member_id'] ?? 0);
@@ -2343,6 +2396,68 @@ class HelpApiService
         }
 
         return $query->order('doctor_id', 'asc')->order('sort', 'asc')->order('id', 'asc')->select()->toArray();
+    }
+
+    public function saveDoctorTaskTemplateFolder(int $doctorId, array $data): array
+    {
+        $this->assertApprovedDoctor($doctorId);
+        $name = trim((string) ($data['name'] ?? ''));
+        if ($name === '') {
+            throw new ApiException('文件夹名称必须填写', 400);
+        }
+
+        $id = trim((string) ($data['id'] ?? ''));
+        if ($id !== '') {
+          $folder = Db::table('sa_doctor_task_template_folder')
+              ->where('id', $id)
+              ->where('doctor_id', $doctorId)
+              ->whereNull('delete_time')
+              ->find();
+          if (!$folder) {
+              throw new ApiException('模板文件夹不存在或无权操作', 404);
+          }
+        } else {
+            $id = bin2hex(random_bytes(16));
+        }
+
+        $payload = $this->only($data, [
+            'name',
+            'color',
+            'sort',
+            'status',
+            'remark',
+        ]);
+        foreach ([
+            'sort' => 100,
+        ] as $field => $default) {
+            if (array_key_exists($field, $payload) && $payload[$field] === '') {
+                $payload[$field] = $default;
+            }
+        }
+        $payload['doctor_id'] = $doctorId;
+        $payload['name'] = $name;
+        $payload['color'] = trim((string) ($payload['color'] ?? '')) !== ''
+            ? (string) $payload['color']
+            : '#5E8FE6';
+        $payload['status'] = isset($payload['status']) && $payload['status'] !== ''
+            ? $this->intIn($payload['status'], [1, 2], '文件夹状态参数错误')
+            : 1;
+
+        $now = date('Y-m-d H:i:s');
+        if (Db::table('sa_doctor_task_template_folder')->where('id', $id)->whereNull('delete_time')->find()) {
+            $payload['updated_by'] = $doctorId;
+            $payload['update_time'] = $now;
+            Db::table('sa_doctor_task_template_folder')->where('id', $id)->update($payload);
+        } else {
+            $payload['id'] = $id;
+            $payload['created_by'] = $doctorId;
+            $payload['updated_by'] = $doctorId;
+            $payload['create_time'] = $now;
+            $payload['update_time'] = $now;
+            Db::table('sa_doctor_task_template_folder')->insert($payload);
+        }
+
+        return Db::table('sa_doctor_task_template_folder')->where('id', $id)->find() ?: [];
     }
 
     public function doctorTaskTemplates(int $doctorId, array $params): array

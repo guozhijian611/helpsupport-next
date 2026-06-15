@@ -16,6 +16,7 @@ class DoctorTaskTemplatesScreen extends ConsumerStatefulWidget {
 class _DoctorTaskTemplatesScreenState
     extends ConsumerState<DoctorTaskTemplatesScreen> {
   String _selectedFolderId = '';
+  bool _creatingFolder = false;
 
   @override
   Widget build(BuildContext context) {
@@ -50,13 +51,7 @@ class _DoctorTaskTemplatesScreenState
             padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
             children: [
               OutlinedButton.icon(
-                onPressed: () => context.showCenteredNotice(
-                  _t(
-                    context,
-                    '当前移动端仅支持查看模板与新增模板文件夹后的同步结果。',
-                    'Mobile currently supports template browsing only.',
-                  ),
-                ),
+                onPressed: _creatingFolder ? null : _createFolder,
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(64),
                   side: const BorderSide(color: Color(0xFF5A81DA)),
@@ -147,6 +142,62 @@ class _DoctorTaskTemplatesScreenState
         ),
       ),
     );
+  }
+
+  Future<void> _createFolder() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_t(context, '添加模板文件夹', 'Add template folder')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: _t(context, '请输入文件夹名称', 'Enter a folder name'),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(_t(context, '取消', 'Cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: Text(_t(context, '确定', 'Confirm')),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name == null || name.trim().isEmpty || !mounted) {
+      return;
+    }
+
+    setState(() => _creatingFolder = true);
+    try {
+      final folder = await ref
+          .read(doctorRepositoryProvider)
+          .saveTaskTemplateFolder(name: name);
+      ref.invalidate(doctorTaskTemplateFoldersProvider);
+      setState(() => _selectedFolderId = folder.id);
+      ref.invalidate(doctorTaskTemplatesProvider);
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(
+        _t(context, '模板文件夹已添加', 'Template folder created'),
+      );
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(error.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _creatingFolder = false);
+      }
+    }
   }
 }
 
