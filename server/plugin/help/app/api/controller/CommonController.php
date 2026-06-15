@@ -51,4 +51,19 @@ class CommonController extends OpenController
 
         return ok($this->service->onboarding($scene, $version, $locale));
     }
+
+    #[Apidoc\Title('App协议详情')]
+    #[Apidoc\Url('/app/help/common/protocol')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\NotHeaders]
+    #[Apidoc\Query('type', type: 'int', require: true, desc: '协议类型，2=隐私协议，4=使用协议')]
+    #[Apidoc\Returned('id', type: 'int', desc: '协议ID')]
+    #[Apidoc\Returned('protocol_type', type: 'int', desc: '协议类型')]
+    #[Apidoc\Returned('title', type: 'string', desc: '协议标题')]
+    #[Apidoc\Returned('content', type: 'string', desc: '协议正文 HTML')]
+    #[Apidoc\Returned('update_time', type: 'string', desc: '更新时间')]
+    public function protocol(Request $request): Response
+    {
+        return ok($this->service->protocol((int) $request->get('type', 0)));
+    }
 }

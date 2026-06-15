@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/auth/data/auth_protocol.dart';
 import '../features/auth/presentation/login_screen.dart';
+import '../features/auth/presentation/auth_protocol_screen.dart';
 import '../features/auth/presentation/register_screen.dart';
 import '../features/chat/presentation/chat_home_screen.dart';
 import '../features/chat/presentation/chat_session_screen.dart';
@@ -31,6 +33,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/register',
         name: 'register',
         builder: (context, state) => const RegisterScreen(),
+      ),
+      GoRoute(
+        path: '/protocol/:type',
+        name: 'protocol',
+        builder: (context, state) {
+          final type = AuthProtocolType.fromRouteValue(
+            state.pathParameters['type'] ?? '',
+          );
+          return AuthProtocolScreen(type: type ?? AuthProtocolType.terms);
+        },
       ),
       GoRoute(
         path: '/onboarding',

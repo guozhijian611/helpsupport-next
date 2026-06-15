@@ -6,6 +6,7 @@ import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/i18n/language_switcher.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../application/auth_controller.dart';
+import '../data/auth_protocol.dart';
 import 'auth_page_frame.dart';
 
 enum _LoginMethod { email, phone }
@@ -149,6 +150,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               onChanged: (value) {
                 setState(() => _agreementAccepted = value ?? false);
               },
+              onTermsTap: () => context.push(
+                '/protocol/${AuthProtocolType.terms.routeValue}',
+              ),
+              onPrivacyTap: () => context.push(
+                '/protocol/${AuthProtocolType.privacy.routeValue}',
+              ),
             ),
           ],
         ),
@@ -396,16 +403,25 @@ class _LoginAgreement extends StatelessWidget {
     required this.value,
     required this.enabled,
     required this.onChanged,
+    required this.onTermsTap,
+    required this.onPrivacyTap,
   });
 
   final bool value;
   final bool enabled;
   final ValueChanged<bool?> onChanged;
+  final VoidCallback onTermsTap;
+  final VoidCallback onPrivacyTap;
 
   @override
   Widget build(BuildContext context) {
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     const accent = Color(0xFFFF9585);
+    final baseStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: muted,
+      height: 1.45,
+      fontWeight: FontWeight.w600,
+    );
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -427,30 +443,61 @@ class _LoginAgreement extends StatelessWidget {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: RichText(
-              text: TextSpan(
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: muted,
-                  height: 1.45,
-                  fontWeight: FontWeight.w600,
+            child: Wrap(
+              children: [
+                Text('${context.l10n.loginAgreementPrefix} ', style: baseStyle),
+                _AgreementLink(
+                  text: context.l10n.termsOfUse,
+                  enabled: enabled,
+                  onTap: onTermsTap,
                 ),
-                children: [
-                  TextSpan(text: '${context.l10n.loginAgreementPrefix} '),
-                  TextSpan(
-                    text: context.l10n.termsOfUse,
-                    style: const TextStyle(color: accent),
-                  ),
-                  TextSpan(text: ' ${context.l10n.loginAgreementJoin} '),
-                  TextSpan(
-                    text: context.l10n.privacyPolicy,
-                    style: const TextStyle(color: accent),
-                  ),
-                ],
-              ),
+                Text(' ${context.l10n.loginAgreementJoin} ', style: baseStyle),
+                _AgreementLink(
+                  text: context.l10n.privacyPolicy,
+                  enabled: enabled,
+                  onTap: onPrivacyTap,
+                ),
+              ],
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _AgreementLink extends StatelessWidget {
+  const _AgreementLink({
+    required this.text,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String text;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const accent = Color(0xFFFF9585);
+    final textWidget = Text(
+      text,
+      style: TextStyle(
+        color: enabled ? accent : accent.withValues(alpha: 0.58),
+        fontWeight: FontWeight.w600,
+      ),
+    );
+    if (!enabled) {
+      return textWidget;
+    }
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(4),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+        child: textWidget,
+      ),
     );
   }
 }

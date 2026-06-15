@@ -61,6 +61,7 @@ Route::group('/app/help', function () {
     Route::post('/auth/refresh', [AuthController::class, 'refresh']);
 
     Route::get('/common/app-config', [CommonController::class, 'appConfig']);
+    Route::get('/common/protocol', [CommonController::class, 'protocol']);
     Route::get('/common/onboarding', [CommonController::class, 'onboarding']);
     Route::post('/common/onboarding/seen', [MeController::class, 'onboardingSeen']);
 

@@ -5,6 +5,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/auth/token_storage.dart';
 import 'auth_models.dart';
+import 'auth_protocol.dart';
 
 class AuthRepository {
   AuthRepository(this._apiClient, this._tokenStorage);
@@ -113,6 +114,20 @@ class AuthRepository {
       const <String, dynamic>{},
       options: Options(headers: {'Authorization': 'Bearer $refreshToken'}),
     );
+  }
+
+  Future<AuthProtocolDocument> fetchProtocol(AuthProtocolType type) async {
+    final result = await _apiClient.getApi<AuthProtocolDocument>(
+      '/app/help/common/protocol',
+      queryParameters: {'type': type.code},
+      decode: (value) => AuthProtocolDocument.fromJson(value, type),
+    );
+    final document = result.data;
+    if (document == null) {
+      throw const FormatException('协议响应缺少 data');
+    }
+
+    return document;
   }
 
   Future<void> saveSession(AuthSession session) {

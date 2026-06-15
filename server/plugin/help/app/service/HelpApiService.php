@@ -92,6 +92,26 @@ class HelpApiService
         return $this->queryOnboarding($scene, $version, self::DEFAULT_LOCALE);
     }
 
+    public function protocol(int $type): array
+    {
+        if ($type <= 0) {
+            throw new ApiException('协议类型参数错误', 400);
+        }
+
+        $protocol = (array) Db::table('sa_member_protocol')
+            ->where('protocol_type', $type)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->field('id, protocol_type, title, content, update_time')
+            ->order('id', 'desc')
+            ->find();
+        if ($protocol === []) {
+            throw new ApiException('协议内容未配置', 404);
+        }
+
+        return $protocol;
+    }
+
     public function profile(int $memberId, array $memberInfo): array
     {
         return [
