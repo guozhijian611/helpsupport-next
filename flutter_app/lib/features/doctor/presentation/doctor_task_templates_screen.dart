@@ -20,6 +20,7 @@ class _DoctorTaskTemplatesScreenState
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTaskTemplatesPalette.of(context);
     final folders = ref.watch(doctorTaskTemplateFoldersProvider);
     final templates = ref.watch(
       doctorTaskTemplatesProvider(
@@ -28,8 +29,11 @@ class _DoctorTaskTemplatesScreenState
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(_t(context, '任务模板', 'Task templates')),
         centerTitle: true,
       ),
@@ -86,11 +90,11 @@ class _DoctorTaskTemplatesScreenState
                             () => _selectedFolderId = selected ? '' : item.id,
                           ),
                           selectedColor: const Color(0xFFFFE1DB),
-                          backgroundColor: Colors.white,
+                          backgroundColor: palette.cardBackground,
                           labelStyle: TextStyle(
                             color: selected
                                 ? const Color(0xFFFF7C69)
-                                : const Color(0xFF7D828A),
+                                : palette.mutedText,
                             fontWeight: FontWeight.w700,
                           ),
                         );
@@ -208,11 +212,12 @@ class _TemplateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTaskTemplatesPalette.of(context);
     final color = _parseColor(template.color, const Color(0xFF5A81DA));
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -229,8 +234,8 @@ class _TemplateCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   template.title,
-                  style: const TextStyle(
-                    color: Color(0xFF303236),
+                  style: TextStyle(
+                    color: palette.primaryText,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
@@ -247,8 +252,8 @@ class _TemplateCard extends StatelessWidget {
                     'Templates store schedule, frequency, and reward settings for reuse.',
                   )
                 : template.description,
-            style: const TextStyle(
-              color: Color(0xFF7D828A),
+            style: TextStyle(
+              color: palette.mutedText,
               fontSize: 14,
               height: 1.6,
             ),
@@ -291,10 +296,11 @@ class _Pill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTaskTemplatesPalette.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FC),
+        color: palette.softBackground,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -317,18 +323,19 @@ class _EmptyBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTaskTemplatesPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
@@ -337,8 +344,8 @@ class _EmptyBlock extends StatelessWidget {
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF8C919A),
+            style: TextStyle(
+              color: palette.mutedText,
               fontSize: 14,
               height: 1.6,
             ),
@@ -357,6 +364,7 @@ class _ListSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorTaskTemplatesPalette.of(context);
     return Column(
       children: List<Widget>.generate(
         count,
@@ -365,7 +373,7 @@ class _ListSkeleton extends StatelessWidget {
           child: Container(
             height: height,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: palette.cardBackground,
               borderRadius: BorderRadius.circular(24),
             ),
           ),
@@ -388,4 +396,34 @@ Color _parseColor(String value, Color fallback) {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _DoctorTaskTemplatesPalette {
+  const _DoctorTaskTemplatesPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.softBackground,
+    required this.primaryText,
+    required this.mutedText,
+  });
+
+  factory _DoctorTaskTemplatesPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _DoctorTaskTemplatesPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      softBackground: scheme.surfaceContainerLow,
+      primaryText: scheme.onSurface,
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
+          : const Color(0xFF7D828A),
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color softBackground;
+  final Color primaryText;
+  final Color mutedText;
 }

@@ -24,6 +24,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _PlanPalette.of(context);
     final authState = ref.watch(authControllerProvider);
     final session = switch (authState) {
       AsyncData(:final value) => value,
@@ -47,7 +48,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
     ], fallback: 'Alexandrina');
 
     return ColoredBox(
-      color: const Color(0xFFF4F5F9),
+      color: palette.pageBackground,
       child: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(currentPlansProvider);
@@ -100,10 +101,10 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
               onSelected: (date) => setState(() => _selectedDate = date),
             ),
             const SizedBox(height: 10),
-            const Icon(
+            Icon(
               Icons.keyboard_arrow_down_rounded,
               size: 34,
-              color: Color(0xFF9AA0A8),
+              color: palette.secondaryText,
             ),
             const SizedBox(height: 14),
             _SectionTitle(title: _t(context, '当日任务', "Today's tasks")),
@@ -217,12 +218,13 @@ class _PlanHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _PlanPalette.of(context);
     return Row(
       children: [
-        const CircleAvatar(
+        CircleAvatar(
           radius: 24,
-          backgroundColor: Color(0xFFF8E3DB),
-          child: Icon(Icons.person_rounded, color: Color(0xFFFF9585)),
+          backgroundColor: palette.avatarBackground,
+          child: const Icon(Icons.person_rounded, color: Color(0xFFFF9585)),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -231,8 +233,8 @@ class _PlanHeader extends StatelessWidget {
             children: [
               Text(
                 _t(context, 'Good morning!', 'Good morning!'),
-                style: const TextStyle(
-                  color: Color(0xFFB0B3BA),
+                style: TextStyle(
+                  color: palette.secondaryText,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -240,8 +242,8 @@ class _PlanHeader extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 name,
-                style: const TextStyle(
-                  color: Color(0xFF303236),
+                style: TextStyle(
+                  color: palette.primaryText,
                   fontSize: 21,
                   fontWeight: FontWeight.w800,
                 ),
@@ -251,8 +253,8 @@ class _PlanHeader extends StatelessWidget {
         ),
         IconButton.filledTonal(
           style: IconButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: const Color(0xFF303236),
+            backgroundColor: palette.cardBackground,
+            foregroundColor: palette.primaryText,
           ),
           onPressed: onNotificationTap,
           icon: const Icon(Icons.notifications_none_rounded),
@@ -403,6 +405,7 @@ class _WeekSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _PlanPalette.of(context);
     final title = DateFormat('yyyy-MM').format(selectedDate);
 
     return Row(
@@ -415,8 +418,8 @@ class _WeekSwitcher extends StatelessWidget {
           child: Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 22,
               fontWeight: FontWeight.w800,
             ),
@@ -436,8 +439,9 @@ class _MiniIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _PlanPalette.of(context);
     return Material(
-      color: Colors.white,
+      color: palette.cardBackground,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -445,7 +449,7 @@ class _MiniIconButton extends StatelessWidget {
         child: SizedBox(
           width: 36,
           height: 36,
-          child: Icon(icon, color: const Color(0xFF9AA0A8)),
+          child: Icon(icon, color: palette.secondaryText),
         ),
       ),
     );
@@ -496,10 +500,11 @@ class _DayCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _PlanPalette.of(context);
     final label = _weekdayLabel(context, date);
 
     return Material(
-      color: selected ? const Color(0xFF2483F0) : Colors.white,
+      color: selected ? const Color(0xFF2483F0) : palette.cardBackground,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -511,7 +516,7 @@ class _DayCell extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  color: selected ? Colors.white : const Color(0xFF7D828A),
+                  color: selected ? Colors.white : palette.mutedText,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
@@ -520,7 +525,7 @@ class _DayCell extends StatelessWidget {
               Text(
                 '${date.day}',
                 style: TextStyle(
-                  color: selected ? Colors.white : const Color(0xFF303236),
+                  color: selected ? Colors.white : palette.primaryText,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                 ),
@@ -546,6 +551,7 @@ class _TaskScheduleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _PlanPalette.of(context);
     final priority = _taskPriority(context, task);
     final doneColor = task.isDone
         ? const Color(0xFFB7E4A7)
@@ -554,7 +560,7 @@ class _TaskScheduleCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -562,8 +568,8 @@ class _TaskScheduleCard extends StatelessWidget {
         children: [
           Text(
             task.title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -572,8 +578,8 @@ class _TaskScheduleCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               task.description,
-              style: const TextStyle(
-                color: Color(0xFF50545D),
+              style: TextStyle(
+                color: palette.bodyText,
                 fontSize: 15,
                 height: 1.55,
               ),
@@ -583,7 +589,7 @@ class _TaskScheduleCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: const Color(0xFFF5F7FD),
+              color: palette.softBackground,
               borderRadius: BorderRadius.circular(22),
             ),
             child: Row(
@@ -653,8 +659,8 @@ class _TaskScheduleCard extends StatelessWidget {
                           '提醒时间 ${_taskTimeRange(task)}',
                           'Reminder ${_taskTimeRange(task)}',
                         ),
-                  style: const TextStyle(
-                    color: Color(0xFF7D828A),
+                  style: TextStyle(
+                    color: palette.mutedText,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -685,23 +691,24 @@ class _TaskMetaRow extends StatelessWidget {
   const _TaskMetaRow({
     required this.label,
     required this.value,
-    this.valueColor = const Color(0xFF303236),
+    this.valueColor,
   });
 
   final String label;
   final String value;
-  final Color valueColor;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
+    final palette = _PlanPalette.of(context);
     return Row(
       children: [
         SizedBox(
           width: 64,
           child: Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFFA5A9B0),
+            style: TextStyle(
+              color: palette.secondaryText,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -711,7 +718,7 @@ class _TaskMetaRow extends StatelessWidget {
           child: Text(
             value,
             style: TextStyle(
-              color: valueColor,
+              color: valueColor ?? palette.primaryText,
               fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
@@ -729,10 +736,11 @@ class _AssessmentInsightCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _PlanPalette.of(context);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -740,8 +748,8 @@ class _AssessmentInsightCard extends StatelessWidget {
         children: [
           Text(
             result.assessmentTitle,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -769,8 +777,8 @@ class _AssessmentInsightCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               result.suggestions,
-              style: const TextStyle(
-                color: Color(0xFF50545D),
+              style: TextStyle(
+                color: palette.bodyText,
                 fontSize: 14,
                 height: 1.55,
               ),
@@ -789,10 +797,11 @@ class _AssessmentChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _PlanPalette.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FD),
+        color: palette.softBackground,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -813,10 +822,11 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _PlanPalette.of(context);
     return Text(
       title,
-      style: const TextStyle(
-        color: Color(0xFF303236),
+      style: TextStyle(
+        color: palette.primaryText,
         fontSize: 24,
         fontWeight: FontWeight.w800,
       ),
@@ -832,10 +842,11 @@ class _StatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _PlanPalette.of(context);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -843,8 +854,8 @@ class _StatusCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 16,
               fontWeight: FontWeight.w800,
             ),
@@ -852,8 +863,8 @@ class _StatusCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             message,
-            style: const TextStyle(
-              color: Color(0xFF7D828A),
+            style: TextStyle(
+              color: palette.mutedText,
               fontSize: 14,
               height: 1.5,
             ),
@@ -871,10 +882,11 @@ class _SummaryLoadingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _PlanPalette.of(context);
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: const Center(child: CircularProgressIndicator()),
@@ -952,4 +964,47 @@ String _firstText(List<Object?> values, {String fallback = ''}) {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _PlanPalette {
+  const _PlanPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.softBackground,
+    required this.avatarBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.mutedText,
+    required this.bodyText,
+  });
+
+  factory _PlanPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _PlanPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      softBackground: scheme.surfaceContainerLow,
+      avatarBackground: isDark
+          ? scheme.primaryContainer.withValues(alpha: 0.28)
+          : const Color(0xFFF8E3DB),
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
+          : const Color(0xFF7D828A),
+      bodyText: isDark
+          ? scheme.onSurface.withValues(alpha: 0.84)
+          : const Color(0xFF50545D),
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color softBackground;
+  final Color avatarBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color mutedText;
+  final Color bodyText;
 }
