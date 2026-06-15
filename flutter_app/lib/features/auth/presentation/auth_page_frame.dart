@@ -54,7 +54,7 @@ class AuthPageFrame extends ConsumerWidget {
                   final panelTop = (isWide ? 356.0 : 286.0 * scale)
                       .clamp(282.0, height * 0.47)
                       .toDouble();
-                  final logoTop = isWide ? 72.0 : 58.0 * scale;
+                  final logoTop = isWide ? 94.0 : 78.0 * scale;
 
                   return Stack(
                     fit: StackFit.expand,
