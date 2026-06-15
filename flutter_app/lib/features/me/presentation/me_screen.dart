@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
+import '../../../core/ui/app_tab_shell_metrics.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/data/auth_models.dart';
 import '../../doctor/presentation/doctor_me_screen.dart';
@@ -31,6 +32,7 @@ class MeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = _MePalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
     final authState = ref.watch(authControllerProvider);
     final session = switch (authState) {
       AsyncData(:final value) => value,
@@ -78,7 +80,7 @@ class MeScreen extends ConsumerWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+            padding: metrics.edgeInsets(22, 20, 22, 28),
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: Column(
@@ -92,7 +94,7 @@ class MeScreen extends ConsumerWidget {
                           )
                         : null,
                   ),
-                  const SizedBox(height: 28),
+                  SizedBox(height: metrics.size(24)),
                   _SummaryGrid(
                     cards: [
                       _SummaryCardData(
@@ -103,7 +105,9 @@ class MeScreen extends ConsumerWidget {
                       ),
                       _SummaryCardData(
                         title: context.l10n.meKeyTrigger,
-                        value: profile.triggerSummary,
+                        value: profile.triggerSummary.isEmpty
+                            ? _t(context, '待补充', 'To complete')
+                            : profile.triggerSummary,
                         icon: Icons.hub_rounded,
                         color: _orange,
                       ),
@@ -183,13 +187,21 @@ class _MeProfile {
     ]);
 
     return _MeProfile(
-      name: name.isEmpty ? '316868' : name,
+      name: name.isEmpty ? _fallbackDisplayName(session) : name,
       age: age.isEmpty ? _ageFromBirthday(birthday) : age,
       gender: gender,
       avatarUrl: avatar.isEmpty ? '' : resolveUrl(avatar),
-      triggerSummary: triggers.isEmpty ? '压力 焦虑' : triggers.take(2).join(' '),
+      triggerSummary: triggers.take(2).join(' '),
       recoveryGoal: recoveryGoal,
     );
+  }
+
+  static String _fallbackDisplayName(AuthSession? session) {
+    final memberId = session?.memberId.trim() ?? '';
+    if (memberId.isNotEmpty) {
+      return 'ID $memberId';
+    }
+    return 'Member';
   }
 
   static String _firstText(List<Object?> values, {String fallback = ''}) {
@@ -204,6 +216,9 @@ class _MeProfile {
 
   static String _normalizeGender(String value) {
     final normalized = value.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return '保密';
+    }
     if (normalized == 'female' || normalized == '2' || normalized == '女') {
       return '女';
     }
@@ -216,7 +231,7 @@ class _MeProfile {
   static String _ageFromBirthday(String birthday) {
     final date = DateTime.tryParse(birthday);
     if (date == null) {
-      return '26';
+      return '';
     }
     final now = DateTime.now();
     var age = now.year - date.year;
@@ -254,6 +269,7 @@ class _ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _MePalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -264,11 +280,14 @@ class _ProfileHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(28),
               onTap: onProfileTap,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
+                padding: EdgeInsets.symmetric(vertical: metrics.size(2)),
                 child: Row(
                   children: [
-                    _MemberAvatar(avatarUrl: profile.avatarUrl),
-                    const SizedBox(width: 18),
+                    _MemberAvatar(
+                      avatarUrl: profile.avatarUrl,
+                      size: metrics.size(AppTabShellMetrics.headerAvatarSize),
+                    ),
+                    SizedBox(width: metrics.size(12)),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -279,21 +298,22 @@ class _ProfileHeader extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: palette.primaryText,
-                              fontSize: 28,
+                              fontSize: AppTabShellMetrics.headerTitleFontSize,
                               fontWeight: FontWeight.w800,
                               height: 1.1,
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: metrics.size(12)),
                           Wrap(
                             crossAxisAlignment: WrapCrossAlignment.center,
-                            spacing: 18,
+                            spacing: metrics.size(14),
                             runSpacing: 8,
                             children: [
-                              _MetaText(
-                                label: context.l10n.meAgeLabel,
-                                value: profile.age,
-                              ),
+                              if (profile.age.isNotEmpty)
+                                _MetaText(
+                                  label: context.l10n.meAgeLabel,
+                                  value: profile.age,
+                                ),
                               _GenderPill(gender: profile.gender),
                             ],
                           ),
@@ -306,7 +326,7 @@ class _ProfileHeader extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: metrics.size(12)),
         _RoundIconButton(
           icon: Icons.settings_outlined,
           onTap: () => context.push('/me/settings'),
@@ -317,24 +337,28 @@ class _ProfileHeader extends StatelessWidget {
 }
 
 class _MemberAvatar extends StatelessWidget {
-  const _MemberAvatar({required this.avatarUrl});
+  const _MemberAvatar({
+    required this.avatarUrl,
+    this.size = AppTabShellMetrics.headerAvatarSize,
+  });
 
   final String avatarUrl;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     if (avatarUrl.isEmpty) {
-      return const _RobotAvatar();
+      return _RobotAvatar(size: size);
     }
 
     return ClipOval(
       child: SizedBox(
-        width: 56,
-        height: 56,
+        width: size,
+        height: size,
         child: Image.network(
           avatarUrl,
           fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => const _RobotAvatar(),
+          errorBuilder: (_, _, _) => _RobotAvatar(size: size),
         ),
       ),
     );
@@ -342,13 +366,15 @@ class _MemberAvatar extends StatelessWidget {
 }
 
 class _RobotAvatar extends StatelessWidget {
-  const _RobotAvatar();
+  const _RobotAvatar({this.size = AppTabShellMetrics.headerAvatarSize});
+
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 56,
-      height: 56,
+      width: size,
+      height: size,
       child: CustomPaint(painter: _RobotAvatarPainter()),
     );
   }
@@ -511,6 +537,8 @@ class _RoundIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _MePalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
+    final buttonSize = metrics.size(AppTabShellMetrics.actionButtonSize);
     return Material(
       color: palette.iconButtonBackground,
       shape: const CircleBorder(),
@@ -518,9 +546,9 @@ class _RoundIconButton extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: SizedBox(
-          width: 58,
-          height: 58,
-          child: Icon(icon, size: 20, color: palette.primaryText),
+          width: buttonSize,
+          height: buttonSize,
+          child: Icon(icon, size: metrics.size(20), color: palette.primaryText),
         ),
       ),
     );
@@ -567,9 +595,10 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _MePalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
     return Container(
-      height: 112,
-      padding: const EdgeInsets.fromLTRB(18, 18, 14, 18),
+      height: metrics.size(104),
+      padding: metrics.edgeInsets(16, 16, 12, 16),
       decoration: BoxDecoration(
         color: palette.cardBackground,
         borderRadius: BorderRadius.circular(18),
@@ -587,17 +616,21 @@ class _SummaryCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: palette.mutedText,
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
                     height: 1.15,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: metrics.size(8)),
               CircleAvatar(
-                radius: 18,
+                radius: metrics.size(16),
                 backgroundColor: data.color,
-                child: Icon(data.icon, color: Colors.white, size: 22),
+                child: Icon(
+                  data.icon,
+                  color: Colors.white,
+                  size: metrics.size(20),
+                ),
               ),
             ],
           ),
@@ -608,7 +641,7 @@ class _SummaryCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: palette.primaryText,
-              fontSize: 22,
+              fontSize: 19,
               fontWeight: FontWeight.w800,
             ),
           ),

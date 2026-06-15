@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
+import '../../../core/ui/app_tab_shell_metrics.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../message/application/message_controller.dart';
 import '../application/community_controller.dart';
@@ -31,6 +32,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = _CommunityFeedPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
     final posts = _query.trim().isEmpty
         ? ref.watch(communityPostsProvider)
         : ref.watch(communityPostsSearchProvider(_query.trim()));
@@ -41,7 +43,10 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
       AsyncData(:final value) => value,
       _ => null,
     };
-    final avatarUrl = _firstText([session?.member['avatar']]);
+    final apiClient = ref.watch(apiClientProvider);
+    final avatarUrl = apiClient.resolveUrl(
+      _firstText([session?.member['avatar'], session?.profile['avatar']]),
+    );
     final badge = _badgeText(unreadCount.asData?.value ?? 0);
 
     return ColoredBox(
@@ -63,7 +68,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
           ]);
         },
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 94),
+          padding: metrics.edgeInsets(22, 18, 22, 94),
           children: [
             _CommunityTopBar(
               avatarUrl: avatarUrl,
@@ -72,12 +77,12 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
               onChanged: (value) => setState(() => _query = value),
               onNotifyTap: () => context.push('/me/messages'),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: metrics.size(16)),
             tags.when(
               data: (items) => items.isEmpty
                   ? const SizedBox.shrink()
                   : SizedBox(
-                      height: 42,
+                      height: metrics.size(42),
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemBuilder: (context, index) {
@@ -87,7 +92,8 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                             onTap: () => _toggleFollowTag(tag),
                           );
                         },
-                        separatorBuilder: (_, _) => const SizedBox(width: 8),
+                        separatorBuilder: (_, _) =>
+                            SizedBox(width: metrics.size(8)),
                         itemCount: items.length,
                       ),
                     ),
@@ -97,7 +103,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                 child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
               ),
             ),
-            const SizedBox(height: 18),
+            SizedBox(height: metrics.size(18)),
             posts.when(
               data: (page) => page.list.isEmpty
                   ? _CommunityEmptyState(query: _query)
@@ -105,7 +111,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                       children: [
                         for (final post in page.list)
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
+                            padding: EdgeInsets.only(bottom: metrics.size(14)),
                             child: CommunityPostCard(post: post),
                           ),
                       ],
@@ -449,13 +455,18 @@ class _CommunityTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _CommunityFeedPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
     return Row(
       children: [
-        _AuthorAvatar(avatarUrl: avatarUrl, isDoctor: false, size: 48),
-        const SizedBox(width: 12),
+        _AuthorAvatar(
+          avatarUrl: avatarUrl,
+          isDoctor: false,
+          size: metrics.size(AppTabShellMetrics.headerAvatarSize),
+        ),
+        SizedBox(width: metrics.size(AppTabShellMetrics.headerSpacing)),
         Expanded(
           child: Container(
-            height: 50,
+            height: metrics.size(50),
             decoration: BoxDecoration(
               color: palette.cardBackground,
               borderRadius: BorderRadius.circular(999),
@@ -472,13 +483,15 @@ class _CommunityTopBar extends StatelessWidget {
                 hintText: _t(context, '开始探索', 'Search support'),
                 hintStyle: TextStyle(color: palette.secondaryText),
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                contentPadding: EdgeInsets.symmetric(
+                  vertical: metrics.size(14),
+                ),
               ),
               style: TextStyle(color: palette.primaryText),
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: metrics.size(12)),
         _CircleButton(
           icon: Icons.notifications_none_rounded,
           badge: badge,
@@ -881,6 +894,8 @@ class _CircleButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _CommunityFeedPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
+    final buttonSize = metrics.size(AppTabShellMetrics.actionButtonSize);
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -891,9 +906,13 @@ class _CircleButton extends StatelessWidget {
             customBorder: const CircleBorder(),
             onTap: onTap,
             child: SizedBox(
-              width: 48,
-              height: 48,
-              child: Icon(icon, color: palette.primaryText),
+              width: buttonSize,
+              height: buttonSize,
+              child: Icon(
+                icon,
+                size: metrics.size(AppTabShellMetrics.actionIconSize),
+                color: palette.primaryText,
+              ),
             ),
           ),
         ),
@@ -902,8 +921,8 @@ class _CircleButton extends StatelessWidget {
             top: -2,
             right: -2,
             child: Container(
-              width: 18,
-              height: 18,
+              width: metrics.size(18),
+              height: metrics.size(18),
               decoration: const BoxDecoration(
                 color: Color(0xFFFF5B77),
                 shape: BoxShape.circle,

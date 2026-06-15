@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/providers/app_providers.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
+import '../../../core/ui/app_tab_shell_metrics.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../chat/application/chat_controller.dart';
 import '../../chat/data/chat_models.dart';
@@ -18,6 +20,7 @@ class HomeDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = _HomeDashboardPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
     final authState = ref.watch(authControllerProvider);
     final overview = ref.watch(chatOverviewProvider);
     final plans = ref.watch(currentPlansProvider);
@@ -42,7 +45,10 @@ class HomeDashboardScreen extends ConsumerWidget {
       session?.member['username'],
       session?.member['mobile'],
     ], fallback: 'Alexandrina');
-    final avatarUrl = _firstText([session?.member['avatar']]);
+    final apiClient = ref.watch(apiClientProvider);
+    final avatarUrl = apiClient.resolveUrl(
+      _firstText([session?.member['avatar'], session?.profile['avatar']]),
+    );
     final badge = _badgeText(unreadCount.asData?.value ?? 0);
 
     return ColoredBox(
@@ -61,7 +67,7 @@ class HomeDashboardScreen extends ConsumerWidget {
           ]);
         },
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
+          padding: metrics.edgeInsets(22, 18, 22, 28),
           children: [
             _HomeHeader(
               name: nickname,
@@ -323,10 +329,14 @@ class _HomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _HomeDashboardPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
     return Row(
       children: [
-        _ProfileAvatar(avatarUrl: avatarUrl, size: 56),
-        const SizedBox(width: 14),
+        _ProfileAvatar(
+          avatarUrl: avatarUrl,
+          size: metrics.size(AppTabShellMetrics.headerAvatarSize),
+        ),
+        SizedBox(width: metrics.size(AppTabShellMetrics.headerSpacing)),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -335,7 +345,7 @@ class _HomeHeader extends StatelessWidget {
                 _t(context, 'Good morning!', 'Good morning!'),
                 style: TextStyle(
                   color: palette.secondaryText,
-                  fontSize: 15,
+                  fontSize: AppTabShellMetrics.headerLabelFontSize,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -346,7 +356,7 @@ class _HomeHeader extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: palette.primaryText,
-                  fontSize: 21,
+                  fontSize: AppTabShellMetrics.headerTitleFontSize,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -959,6 +969,8 @@ class _CircularActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _HomeDashboardPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
+    final buttonSize = metrics.size(AppTabShellMetrics.actionButtonSize);
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -969,9 +981,13 @@ class _CircularActionButton extends StatelessWidget {
             customBorder: const CircleBorder(),
             onTap: onTap,
             child: SizedBox(
-              width: 50,
-              height: 50,
-              child: Icon(icon, color: palette.primaryText),
+              width: buttonSize,
+              height: buttonSize,
+              child: Icon(
+                icon,
+                size: metrics.size(AppTabShellMetrics.actionIconSize),
+                color: palette.primaryText,
+              ),
             ),
           ),
         ),

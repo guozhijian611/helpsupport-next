@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/providers/app_providers.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
+import '../../../core/ui/app_tab_shell_metrics.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../doctor/presentation/doctor_plan_screen.dart';
 import '../application/plan_controller.dart';
@@ -25,6 +27,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = _PlanPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
     final authState = ref.watch(authControllerProvider);
     final session = switch (authState) {
       AsyncData(:final value) => value,
@@ -41,11 +44,15 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
       AsyncData(:final value) => value,
       _ => null,
     };
+    final apiClient = ref.watch(apiClientProvider);
     final nickname = _firstText([
       session?.profile['nickname'],
       session?.member['nickname'],
       session?.member['username'],
     ], fallback: 'Alexandrina');
+    final avatarUrl = apiClient.resolveUrl(
+      _firstText([session?.member['avatar'], session?.profile['avatar']]),
+    );
 
     return ColoredBox(
       color: palette.pageBackground,
@@ -61,13 +68,14 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
           ]);
         },
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 32),
+          padding: metrics.edgeInsets(22, 18, 22, 32),
           children: [
             _PlanHeader(
               name: nickname,
+              avatarUrl: avatarUrl,
               onNotificationTap: () => context.push('/me/messages'),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: metrics.size(20)),
             plans.when(
               data: (items) => _PlanSummaryCard(
                 plan: items.isEmpty ? null : items.first,
@@ -82,7 +90,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
               ),
               loading: () => const _SummaryLoadingCard(),
             ),
-            const SizedBox(height: 18),
+            SizedBox(height: metrics.size(18)),
             _WeekSwitcher(
               selectedDate: _selectedDate,
               onPreviousWeek: () => setState(
@@ -95,20 +103,20 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
                     _selectedDate = _selectedDate.add(const Duration(days: 7)),
               ),
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: metrics.size(14)),
             _WeekStrip(
               selectedDate: _selectedDate,
               onSelected: (date) => setState(() => _selectedDate = date),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: metrics.size(10)),
             Icon(
               Icons.keyboard_arrow_down_rounded,
-              size: 34,
+              size: metrics.size(32),
               color: palette.secondaryText,
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: metrics.size(14)),
             _SectionTitle(title: _t(context, '当日任务', "Today's tasks")),
-            const SizedBox(height: 12),
+            SizedBox(height: metrics.size(12)),
             tasks.when(
               data: (page) => page.list.isEmpty
                   ? _StatusCard(
@@ -123,7 +131,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
                       children: [
                         for (final task in page.list)
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
+                            padding: EdgeInsets.only(bottom: metrics.size(14)),
                             child: _TaskScheduleCard(
                               task: task,
                               onStatusChanged: () => _completeTask(task),
@@ -138,9 +146,9 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
               ),
               loading: () => const _SummaryLoadingCard(height: 220),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: metrics.size(10)),
             _SectionTitle(title: _t(context, '评估量表', 'Assessments')),
-            const SizedBox(height: 12),
+            SizedBox(height: metrics.size(12)),
             assessments.when(
               data: (page) => page.list.isEmpty
                   ? _StatusCard(
@@ -155,7 +163,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
                       children: [
                         for (final item in page.list.take(3))
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
+                            padding: EdgeInsets.only(bottom: metrics.size(12)),
                             child: _AssessmentInsightCard(result: item),
                           ),
                       ],
@@ -211,22 +219,25 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
 }
 
 class _PlanHeader extends StatelessWidget {
-  const _PlanHeader({required this.name, required this.onNotificationTap});
+  const _PlanHeader({
+    required this.name,
+    required this.avatarUrl,
+    required this.onNotificationTap,
+  });
 
   final String name;
+  final String avatarUrl;
   final VoidCallback onNotificationTap;
 
   @override
   Widget build(BuildContext context) {
     final palette = _PlanPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
+    final buttonSize = metrics.size(AppTabShellMetrics.actionButtonSize);
     return Row(
       children: [
-        CircleAvatar(
-          radius: 24,
-          backgroundColor: palette.avatarBackground,
-          child: const Icon(Icons.person_rounded, color: Color(0xFFFF9585)),
-        ),
-        const SizedBox(width: 14),
+        _PlanAvatar(avatarUrl: avatarUrl),
+        SizedBox(width: metrics.size(AppTabShellMetrics.headerSpacing)),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,7 +246,7 @@ class _PlanHeader extends StatelessWidget {
                 _t(context, 'Good morning!', 'Good morning!'),
                 style: TextStyle(
                   color: palette.secondaryText,
-                  fontSize: 15,
+                  fontSize: AppTabShellMetrics.headerLabelFontSize,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -244,22 +255,72 @@ class _PlanHeader extends StatelessWidget {
                 name,
                 style: TextStyle(
                   color: palette.primaryText,
-                  fontSize: 21,
+                  fontSize: AppTabShellMetrics.headerTitleFontSize,
                   fontWeight: FontWeight.w800,
                 ),
               ),
             ],
           ),
         ),
-        IconButton.filledTonal(
-          style: IconButton.styleFrom(
-            backgroundColor: palette.cardBackground,
-            foregroundColor: palette.primaryText,
+        Material(
+          color: palette.cardBackground,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onNotificationTap,
+            child: SizedBox(
+              width: buttonSize,
+              height: buttonSize,
+              child: Icon(
+                Icons.notifications_none_rounded,
+                size: metrics.size(AppTabShellMetrics.actionIconSize),
+                color: palette.primaryText,
+              ),
+            ),
           ),
-          onPressed: onNotificationTap,
-          icon: const Icon(Icons.notifications_none_rounded),
         ),
       ],
+    );
+  }
+}
+
+class _PlanAvatar extends StatelessWidget {
+  const _PlanAvatar({required this.avatarUrl});
+
+  final String avatarUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final metrics = AppTabShellMetrics.of(context);
+    final size = metrics.size(AppTabShellMetrics.headerAvatarSize);
+    final child = avatarUrl.isNotEmpty
+        ? ClipOval(
+            child: Image.network(
+              avatarUrl,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => _fallback(context, size),
+            ),
+          )
+        : _fallback(context, size);
+    return SizedBox(width: size, height: size, child: child);
+  }
+
+  Widget _fallback(BuildContext context, double size) {
+    final palette = _PlanPalette.of(context);
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: palette.avatarBackground,
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        Icons.person_rounded,
+        size: size * 0.5,
+        color: const Color(0xFFFF9585),
+      ),
     );
   }
 }
@@ -280,11 +341,12 @@ class _PlanSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentStage = _currentStage(plan);
+    final metrics = AppTabShellMetrics.of(context);
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+      padding: metrics.edgeInsets(22, 20, 22, 18),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(metrics.radius(28)),
         gradient: const LinearGradient(
           colors: [Color(0xFF628AE1), Color(0xFF4F76D4)],
         ),
@@ -299,12 +361,12 @@ class _PlanSummaryCard extends StatelessWidget {
                 plan?.title ??
                 _t(context, '暂无计划', 'No plan'),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: metrics.size(10)),
           _SummaryLine(
             label: _t(context, '起止日期', 'Schedule'),
             value: _planRange(plan, selectedDate),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: metrics.size(10)),
           _SummaryLine(
             label: _t(context, '阶段目标', 'Goal'),
             value: currentStage?.description.isNotEmpty == true
@@ -313,7 +375,7 @@ class _PlanSummaryCard extends StatelessWidget {
                 ? plan!.description
                 : _t(context, '建立更稳定的应对机制', 'Build a steadier coping rhythm'),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: metrics.size(10)),
           _SummaryLine(
             label: _t(context, '今日任务', 'Daily progress'),
             value: totalCount == 0
@@ -362,16 +424,17 @@ class _SummaryLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final metrics = AppTabShellMetrics.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 82,
+          width: metrics.size(74),
           child: Text(
             label,
             style: const TextStyle(
               color: Color(0xFFDDE8FF),
-              fontSize: 14,
+              fontSize: AppTabShellMetrics.metaFontSize,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -381,7 +444,7 @@ class _SummaryLine extends StatelessWidget {
             value,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: AppTabShellMetrics.cardTitleFontSize,
               fontWeight: FontWeight.w700,
               height: 1.45,
             ),
@@ -420,7 +483,7 @@ class _WeekSwitcher extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: palette.primaryText,
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -440,16 +503,23 @@ class _MiniIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _PlanPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
     return Material(
       color: palette.cardBackground,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(metrics.radius(14)),
+      ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(metrics.radius(14)),
         onTap: onTap,
         child: SizedBox(
-          width: 36,
-          height: 36,
-          child: Icon(icon, color: palette.secondaryText),
+          width: metrics.size(40),
+          height: metrics.size(40),
+          child: Icon(
+            icon,
+            size: metrics.size(22),
+            color: palette.secondaryText,
+          ),
         ),
       ),
     );
@@ -502,31 +572,32 @@ class _DayCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = _PlanPalette.of(context);
     final label = _weekdayLabel(context, date);
+    final metrics = AppTabShellMetrics.of(context);
 
     return Material(
       color: selected ? const Color(0xFF2483F0) : palette.cardBackground,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(metrics.radius(16)),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(metrics.radius(16)),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+          padding: metrics.symmetric(horizontal: 4, vertical: 10),
           child: Column(
             children: [
               Text(
                 label,
                 style: TextStyle(
                   color: selected ? Colors.white : palette.mutedText,
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: metrics.size(8)),
               Text(
                 '${date.day}',
                 style: TextStyle(
                   color: selected ? Colors.white : palette.primaryText,
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -556,12 +627,13 @@ class _TaskScheduleCard extends StatelessWidget {
     final doneColor = task.isDone
         ? const Color(0xFFB7E4A7)
         : const Color(0xFFE8EEF9);
+    final metrics = AppTabShellMetrics.of(context);
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
+      padding: metrics.edgeInsets(20, 18, 20, 16),
       decoration: BoxDecoration(
         color: palette.cardBackground,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(metrics.radius(26)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -570,27 +642,27 @@ class _TaskScheduleCard extends StatelessWidget {
             task.title,
             style: TextStyle(
               color: palette.primaryText,
-              fontSize: 18,
+              fontSize: AppTabShellMetrics.cardTitleFontSize,
               fontWeight: FontWeight.w800,
             ),
           ),
           if (task.description.isNotEmpty) ...[
-            const SizedBox(height: 10),
+            SizedBox(height: metrics.size(10)),
             Text(
               task.description,
               style: TextStyle(
                 color: palette.bodyText,
-                fontSize: 15,
+                fontSize: AppTabShellMetrics.bodyFontSize,
                 height: 1.55,
               ),
             ),
           ],
-          const SizedBox(height: 16),
+          SizedBox(height: metrics.size(16)),
           Container(
-            padding: const EdgeInsets.all(18),
+            padding: EdgeInsets.all(metrics.size(16)),
             decoration: BoxDecoration(
               color: palette.softBackground,
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(metrics.radius(20)),
             ),
             child: Row(
               children: [
@@ -602,17 +674,17 @@ class _TaskScheduleCard extends StatelessWidget {
                         value: priority.$1,
                         valueColor: priority.$2,
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: metrics.size(10)),
                       _TaskMetaRow(
                         label: _t(context, '来源', 'Source'),
                         value: _taskSource(context, task.source),
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: metrics.size(10)),
                       _TaskMetaRow(
                         label: _t(context, '时间', 'Time'),
                         value: _taskTimeRange(task),
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: metrics.size(10)),
                       _TaskMetaRow(
                         label: _t(context, '分数', 'Points'),
                         value: '${task.pointsReward}',
@@ -620,10 +692,10 @@ class _TaskScheduleCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: metrics.size(14)),
                 Container(
-                  width: 92,
-                  height: 92,
+                  width: metrics.size(84),
+                  height: metrics.size(84),
                   decoration: BoxDecoration(
                     color: doneColor,
                     shape: BoxShape.circle,
@@ -634,7 +706,7 @@ class _TaskScheduleCard extends StatelessWidget {
                         : task.isSkipped
                         ? Icons.skip_next_rounded
                         : Icons.schedule_rounded,
-                    size: 46,
+                    size: metrics.size(40),
                     color: task.isDone
                         ? const Color(0xFF75BE62)
                         : const Color(0xFF5A81DA),
@@ -643,7 +715,7 @@ class _TaskScheduleCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: metrics.size(14)),
           Row(
             children: [
               Expanded(
@@ -661,7 +733,7 @@ class _TaskScheduleCard extends StatelessWidget {
                         ),
                   style: TextStyle(
                     color: palette.mutedText,
-                    fontSize: 13,
+                    fontSize: AppTabShellMetrics.metaFontSize,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -701,15 +773,16 @@ class _TaskMetaRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _PlanPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
     return Row(
       children: [
         SizedBox(
-          width: 64,
+          width: metrics.size(58),
           child: Text(
             label,
             style: TextStyle(
               color: palette.secondaryText,
-              fontSize: 14,
+              fontSize: AppTabShellMetrics.metaFontSize,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -719,7 +792,7 @@ class _TaskMetaRow extends StatelessWidget {
             value,
             style: TextStyle(
               color: valueColor ?? palette.primaryText,
-              fontSize: 15,
+              fontSize: AppTabShellMetrics.bodyFontSize,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -737,11 +810,12 @@ class _AssessmentInsightCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _PlanPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(metrics.size(18)),
       decoration: BoxDecoration(
         color: palette.cardBackground,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(metrics.radius(22)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -750,11 +824,11 @@ class _AssessmentInsightCard extends StatelessWidget {
             result.assessmentTitle,
             style: TextStyle(
               color: palette.primaryText,
-              fontSize: 18,
+              fontSize: AppTabShellMetrics.cardTitleFontSize,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: metrics.size(10)),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -774,12 +848,12 @@ class _AssessmentInsightCard extends StatelessWidget {
             ],
           ),
           if (result.suggestions.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            SizedBox(height: metrics.size(12)),
             Text(
               result.suggestions,
               style: TextStyle(
                 color: palette.bodyText,
-                fontSize: 14,
+                fontSize: AppTabShellMetrics.bodyFontSize,
                 height: 1.55,
               ),
             ),
@@ -827,7 +901,7 @@ class _SectionTitle extends StatelessWidget {
       title,
       style: TextStyle(
         color: palette.primaryText,
-        fontSize: 24,
+        fontSize: AppTabShellMetrics.sectionTitleFontSize,
         fontWeight: FontWeight.w800,
       ),
     );
@@ -843,11 +917,12 @@ class _StatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _PlanPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(metrics.size(18)),
       decoration: BoxDecoration(
         color: palette.cardBackground,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(metrics.radius(22)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -856,16 +931,16 @@ class _StatusCard extends StatelessWidget {
             title,
             style: TextStyle(
               color: palette.primaryText,
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: metrics.size(8)),
           Text(
             message,
             style: TextStyle(
               color: palette.mutedText,
-              fontSize: 14,
+              fontSize: AppTabShellMetrics.metaFontSize,
               height: 1.5,
             ),
           ),
