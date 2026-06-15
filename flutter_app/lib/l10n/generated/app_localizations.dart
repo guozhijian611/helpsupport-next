@@ -997,6 +997,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Me'**
   String get me;
+
+  /// No description provided for @meAgeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Age'**
+  String get meAgeLabel;
+
+  /// No description provided for @meGenderLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Gender'**
+  String get meGenderLabel;
+
+  /// No description provided for @meMonthPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly plan'**
+  String get meMonthPlan;
+
+  /// No description provided for @meNoTask.
+  ///
+  /// In en, this message translates to:
+  /// **'No tasks'**
+  String get meNoTask;
+
+  /// No description provided for @meKeyTrigger.
+  ///
+  /// In en, this message translates to:
+  /// **'Key triggers'**
+  String get meKeyTrigger;
+
+  /// No description provided for @mePendingSupplement.
+  ///
+  /// In en, this message translates to:
+  /// **'To complete'**
+  String get mePendingSupplement;
+
+  /// No description provided for @meRecoveryGoal.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery goal'**
+  String get meRecoveryGoal;
+
+  /// No description provided for @meCurrentLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Current level'**
+  String get meCurrentLevel;
+
+  /// No description provided for @meLevelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Lv.1 Basic member'**
+  String get meLevelTitle;
+
+  /// No description provided for @meScoreText.
+  ///
+  /// In en, this message translates to:
+  /// **'Points 0 / 300'**
+  String get meScoreText;
+
+  /// No description provided for @meNextLevelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'300 points to the next level'**
+  String get meNextLevelHint;
+
+  /// No description provided for @meMemoirBenefitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal memoir'**
+  String get meMemoirBenefitTitle;
+
+  /// No description provided for @meMemoirBenefitDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate a memoir at each level'**
+  String get meMemoirBenefitDesc;
+
+  /// No description provided for @meFreeDoctorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Free doctor booking'**
+  String get meFreeDoctorTitle;
+
+  /// No description provided for @meFreeDoctorDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'6000 points for a free booking'**
+  String get meFreeDoctorDesc;
+
+  /// No description provided for @meCommonFunctions.
+  ///
+  /// In en, this message translates to:
+  /// **'Common actions'**
+  String get meCommonFunctions;
+
+  /// No description provided for @meFollowing.
+  ///
+  /// In en, this message translates to:
+  /// **'Following'**
+  String get meFollowing;
+
+  /// No description provided for @meCollection.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get meCollection;
+
+  /// No description provided for @meHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get meHistory;
+
+  /// No description provided for @mePrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy'**
+  String get mePrivacy;
+
+  /// No description provided for @meMemoir.
+  ///
+  /// In en, this message translates to:
+  /// **'Memoir'**
+  String get meMemoir;
+
+  /// No description provided for @meJournal.
+  ///
+  /// In en, this message translates to:
+  /// **'Journal'**
+  String get meJournal;
 }
 
 class _AppLocalizationsDelegate

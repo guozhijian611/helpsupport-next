@@ -6,6 +6,7 @@ import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../community/presentation/community_feed_screen.dart';
+import '../../me/presentation/me_screen.dart';
 import '../../plan/presentation/plan_screen.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
@@ -60,6 +61,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final body = switch (_index) {
       1 => const CommunityFeedScreen(),
       2 => const PlanScreen(),
+      3 => const MeScreen(),
       _ => _HomePanel(
         icon: current.icon,
         title: current.label,
@@ -68,28 +70,30 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     };
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_index == 0 ? context.l10n.homeTitle : current.label),
-        actions: [
-          IconButton(
-            tooltip: context.l10n.chatTitle,
-            onPressed: () => context.push('/chat'),
-            icon: const Icon(Icons.auto_awesome_outlined),
-          ),
-          IconButton(
-            tooltip: context.l10n.localModelTitle,
-            onPressed: () => context.push('/local-model'),
-            icon: const Icon(Icons.memory_outlined),
-          ),
-          IconButton(
-            tooltip: context.l10n.logout,
-            onPressed: isLoggingOut
-                ? null
-                : ref.read(authControllerProvider.notifier).logout,
-            icon: const Icon(Icons.logout),
-          ),
-        ],
-      ),
+      appBar: _index == 3
+          ? null
+          : AppBar(
+              title: Text(_index == 0 ? context.l10n.homeTitle : current.label),
+              actions: [
+                IconButton(
+                  tooltip: context.l10n.chatTitle,
+                  onPressed: () => context.push('/chat'),
+                  icon: const Icon(Icons.auto_awesome_outlined),
+                ),
+                IconButton(
+                  tooltip: context.l10n.localModelTitle,
+                  onPressed: () => context.push('/local-model'),
+                  icon: const Icon(Icons.memory_outlined),
+                ),
+                IconButton(
+                  tooltip: context.l10n.logout,
+                  onPressed: isLoggingOut
+                      ? null
+                      : ref.read(authControllerProvider.notifier).logout,
+                  icon: const Icon(Icons.logout),
+                ),
+              ],
+            ),
       body: SafeArea(child: body),
       floatingActionButton: _index == 1
           ? FloatingActionButton(

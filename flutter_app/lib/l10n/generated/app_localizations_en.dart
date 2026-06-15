@@ -468,4 +468,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get me => 'Me';
+
+  @override
+  String get meAgeLabel => 'Age';
+
+  @override
+  String get meGenderLabel => 'Gender';
+
+  @override
+  String get meMonthPlan => 'Monthly plan';
+
+  @override
+  String get meNoTask => 'No tasks';
+
+  @override
+  String get meKeyTrigger => 'Key triggers';
+
+  @override
+  String get mePendingSupplement => 'To complete';
+
+  @override
+  String get meRecoveryGoal => 'Recovery goal';
+
+  @override
+  String get meCurrentLevel => 'Current level';
+
+  @override
+  String get meLevelTitle => 'Lv.1 Basic member';
+
+  @override
+  String get meScoreText => 'Points 0 / 300';
+
+  @override
+  String get meNextLevelHint => '300 points to the next level';
+
+  @override
+  String get meMemoirBenefitTitle => 'Personal memoir';
+
+  @override
+  String get meMemoirBenefitDesc => 'Generate a memoir at each level';
+
+  @override
+  String get meFreeDoctorTitle => 'Free doctor booking';
+
+  @override
+  String get meFreeDoctorDesc => '6000 points for a free booking';
+
+  @override
+  String get meCommonFunctions => 'Common actions';
+
+  @override
+  String get meFollowing => 'Following';
+
+  @override
+  String get meCollection => 'Saved';
+
+  @override
+  String get meHistory => 'History';
+
+  @override
+  String get mePrivacy => 'Privacy';
+
+  @override
+  String get meMemoir => 'Memoir';
+
+  @override
+  String get meJournal => 'Journal';
 }

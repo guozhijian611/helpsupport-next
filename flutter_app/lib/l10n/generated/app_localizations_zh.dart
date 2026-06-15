@@ -457,4 +457,70 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get me => '我的';
+
+  @override
+  String get meAgeLabel => '年龄';
+
+  @override
+  String get meGenderLabel => '性别';
+
+  @override
+  String get meMonthPlan => '本月计划';
+
+  @override
+  String get meNoTask => '暂无任务';
+
+  @override
+  String get meKeyTrigger => '重点触发';
+
+  @override
+  String get mePendingSupplement => '待补充';
+
+  @override
+  String get meRecoveryGoal => '康复目标';
+
+  @override
+  String get meCurrentLevel => '当前等级';
+
+  @override
+  String get meLevelTitle => 'Lv.1 普通会员';
+
+  @override
+  String get meScoreText => '积分 0 / 300';
+
+  @override
+  String get meNextLevelHint => '距离下一等级还差300积分';
+
+  @override
+  String get meMemoirBenefitTitle => '专属回忆录';
+
+  @override
+  String get meMemoirBenefitDesc => '每升一级可生成回忆录';
+
+  @override
+  String get meFreeDoctorTitle => '免费预约医生';
+
+  @override
+  String get meFreeDoctorDesc => '6000积分可免费预约';
+
+  @override
+  String get meCommonFunctions => '常用功能';
+
+  @override
+  String get meFollowing => '我的关注';
+
+  @override
+  String get meCollection => '我的收藏';
+
+  @override
+  String get meHistory => '历史记录';
+
+  @override
+  String get mePrivacy => '隐私设置';
+
+  @override
+  String get meMemoir => '回忆录';
+
+  @override
+  String get meJournal => '日记';
 }
