@@ -54,7 +54,7 @@ class AuthPageFrame extends ConsumerWidget {
                   final panelTop = (isWide ? 356.0 : 286.0 * scale)
                       .clamp(282.0, height * 0.47)
                       .toDouble();
-                  final logoTop = isWide ? 94.0 : 78.0 * scale;
+                  final logoTop = isWide ? 108.0 : 92.0 * scale;
 
                   return Stack(
                     fit: StackFit.expand,
@@ -85,7 +85,7 @@ class AuthPageFrame extends ConsumerWidget {
                         child: _AppLogo(logoUrl: appConfig.logo),
                       ),
                       Positioned(
-                        top: logoTop + 122,
+                        top: logoTop + 138,
                         left: 24,
                         right: 24,
                         child: Text(
@@ -96,7 +96,7 @@ class AuthPageFrame extends ConsumerWidget {
                           style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(
                                 color: Colors.white,
-                                fontSize: 36,
+                                fontSize: 40,
                                 fontWeight: FontWeight.w800,
                                 height: 1.2,
                               ),
@@ -475,7 +475,7 @@ class _AppLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: SizedBox.square(
-        dimension: 96,
+        dimension: 110,
         child: logoUrl.isEmpty
             ? const _LogoFallback()
             : Image.network(
