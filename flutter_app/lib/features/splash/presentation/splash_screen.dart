@@ -20,7 +20,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   Future<void> _routeFromSession() async {
-    await Future<void>.delayed(const Duration(milliseconds: 650));
     final token = await ref.read(tokenStorageProvider).readAccessToken();
     if (!mounted) {
       return;
@@ -68,8 +67,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   context,
                 ).textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
               ),
-              const SizedBox(height: 40),
-              const Center(child: CircularProgressIndicator()),
             ],
           ),
         ),
