@@ -7,6 +7,7 @@ class AuthPageFrame extends StatelessWidget {
     required this.subtitle,
     required this.child,
     this.leading,
+    this.trailing,
     this.footer,
   });
 
@@ -14,6 +15,7 @@ class AuthPageFrame extends StatelessWidget {
   final String subtitle;
   final Widget child;
   final Widget? leading;
+  final Widget? trailing;
   final Widget? footer;
 
   @override
@@ -44,8 +46,20 @@ class AuthPageFrame extends StatelessWidget {
                   24,
                 ),
                 children: [
-                  if (leading != null)
-                    Align(alignment: Alignment.centerLeft, child: leading!),
+                  if (leading != null || trailing != null)
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 52,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: leading,
+                          ),
+                        ),
+                        const Spacer(),
+                        ?trailing,
+                      ],
+                    ),
                   const SizedBox(height: 28),
                   const _BrandMark(),
                   const SizedBox(height: 24),

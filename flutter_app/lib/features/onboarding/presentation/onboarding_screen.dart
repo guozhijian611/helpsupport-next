@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
+import '../../../core/i18n/language_switcher.dart';
 import '../application/onboarding_controller.dart';
 import '../data/onboarding_models.dart';
 
@@ -22,27 +23,41 @@ class OnboardingScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: _onboardingGradientStart,
-      body: pages.when(
-        data: (items) => items.isEmpty
-            ? _OnboardingGradientBackground(
-                child: _EmptyOnboarding(
-                  onRetry: () => ref.invalidate(
-                    onboardingPagesProvider(OnboardingQuery(locale: locale)),
-                  ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          pages.when(
+            data: (items) => items.isEmpty
+                ? _OnboardingGradientBackground(
+                    child: _EmptyOnboarding(
+                      onRetry: () => ref.invalidate(
+                        onboardingPagesProvider(
+                          OnboardingQuery(locale: locale),
+                        ),
+                      ),
+                    ),
+                  )
+                : _OnboardingPager(items: items),
+            error: (error, stackTrace) => _OnboardingGradientBackground(
+              child: _ErrorState(
+                message: context.l10n.networkUnavailable,
+                onRetry: () => ref.invalidate(
+                  onboardingPagesProvider(OnboardingQuery(locale: locale)),
                 ),
-              )
-            : _OnboardingPager(items: items),
-        error: (error, stackTrace) => _OnboardingGradientBackground(
-          child: _ErrorState(
-            message: context.l10n.networkUnavailable,
-            onRetry: () => ref.invalidate(
-              onboardingPagesProvider(OnboardingQuery(locale: locale)),
+              ),
+            ),
+            loading: () => const _OnboardingGradientBackground(
+              child: Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
             ),
           ),
-        ),
-        loading: () => const _OnboardingGradientBackground(
-          child: Center(child: CircularProgressIndicator(color: Colors.white)),
-        ),
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + 14,
+            right: 20,
+            child: const LanguageSwitcher(onDark: true),
+          ),
+        ],
       ),
     );
   }
@@ -60,6 +75,17 @@ class _OnboardingPager extends StatefulWidget {
 class _OnboardingPagerState extends State<_OnboardingPager> {
   final _controller = PageController();
   int _index = 0;
+
+  @override
+  void didUpdateWidget(covariant _OnboardingPager oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.items != widget.items) {
+      _index = 0;
+      if (_controller.hasClients) {
+        _controller.jumpToPage(0);
+      }
+    }
+  }
 
   @override
   void dispose() {

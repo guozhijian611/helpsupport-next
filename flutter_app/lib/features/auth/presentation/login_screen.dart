@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/i18n/l10n_extensions.dart';
+import '../../../core/i18n/language_switcher.dart';
 import '../application/auth_controller.dart';
 import 'auth_page_frame.dart';
 
@@ -45,6 +46,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return AuthPageFrame(
       title: context.l10n.loginTitle,
       subtitle: context.l10n.loginSubtitle,
+      trailing: const LanguageSwitcher(onDark: true),
       footer: AuthLinkButton(
         text: context.l10n.loginNoAccount,
         actionText: context.l10n.registerAction,

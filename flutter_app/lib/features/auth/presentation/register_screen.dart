@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
+import '../../../core/i18n/language_switcher.dart';
 import '../application/auth_controller.dart';
 import 'auth_page_frame.dart';
 
@@ -62,6 +63,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         onPressed: formDisabled ? null : () => context.go('/login'),
         icon: const Icon(Icons.arrow_back),
       ),
+      trailing: const LanguageSwitcher(onDark: true),
       footer: AuthLinkButton(
         text: context.l10n.registerHasAccount,
         actionText: context.l10n.loginAction,
