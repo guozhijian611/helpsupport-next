@@ -154,6 +154,94 @@ class SecurityOverview {
   }
 }
 
+class PushPreferenceSettings {
+  const PushPreferenceSettings({
+    required this.memberId,
+    required this.isPushEnabled,
+    required this.isTaskReminderEnabled,
+    required this.isCommunityEnabled,
+    required this.isAppointmentEnabled,
+    required this.isAuditNoticeEnabled,
+    required this.isLocalCompanionEnabled,
+    required this.quietStartTime,
+    required this.quietEndTime,
+  });
+
+  final int memberId;
+  final bool isPushEnabled;
+  final bool isTaskReminderEnabled;
+  final bool isCommunityEnabled;
+  final bool isAppointmentEnabled;
+  final bool isAuditNoticeEnabled;
+  final bool isLocalCompanionEnabled;
+  final String quietStartTime;
+  final String quietEndTime;
+
+  factory PushPreferenceSettings.fromJson(Object? value) {
+    if (value is! Map<String, dynamic>) {
+      return const PushPreferenceSettings(
+        memberId: 0,
+        isPushEnabled: true,
+        isTaskReminderEnabled: true,
+        isCommunityEnabled: true,
+        isAppointmentEnabled: true,
+        isAuditNoticeEnabled: true,
+        isLocalCompanionEnabled: true,
+        quietStartTime: '',
+        quietEndTime: '',
+      );
+    }
+
+    return PushPreferenceSettings(
+      memberId: SecurityOverview._intValue(value['member_id']),
+      isPushEnabled: _enabledFlag(value['is_push_enabled'], fallback: true),
+      isTaskReminderEnabled: _enabledFlag(
+        value['is_task_reminder_enabled'],
+        fallback: true,
+      ),
+      isCommunityEnabled: _enabledFlag(
+        value['is_community_enabled'],
+        fallback: true,
+      ),
+      isAppointmentEnabled: _enabledFlag(
+        value['is_appointment_enabled'],
+        fallback: true,
+      ),
+      isAuditNoticeEnabled: _enabledFlag(
+        value['is_audit_notice_enabled'],
+        fallback: true,
+      ),
+      isLocalCompanionEnabled: _enabledFlag(
+        value['is_local_companion_enabled'],
+        fallback: true,
+      ),
+      quietStartTime: (value['quiet_start_time'] ?? '').toString().trim(),
+      quietEndTime: (value['quiet_end_time'] ?? '').toString().trim(),
+    );
+  }
+
+  bool get hasAnyEnabled =>
+      isTaskReminderEnabled ||
+      isCommunityEnabled ||
+      isAppointmentEnabled ||
+      isAuditNoticeEnabled ||
+      isLocalCompanionEnabled;
+
+  static bool _enabledFlag(Object? value, {required bool fallback}) {
+    if (value == null) {
+      return fallback;
+    }
+    final normalized = SecurityOverview._intValue(value);
+    if (normalized == 1) {
+      return true;
+    }
+    if (normalized == 2) {
+      return false;
+    }
+    return fallback;
+  }
+}
+
 class SecurityMember {
   const SecurityMember({
     required this.id,

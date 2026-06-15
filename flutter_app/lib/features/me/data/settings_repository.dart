@@ -160,6 +160,33 @@ class MeSettingsRepository {
     return result.data ?? 0;
   }
 
+  Future<PushPreferenceSettings> fetchPushPreference() async {
+    final result = await _apiClient.getApi<PushPreferenceSettings>(
+      '/app/help/push/preference',
+      decode: PushPreferenceSettings.fromJson,
+    );
+    final data = result.data;
+    if (data == null) {
+      throw const FormatException('通知偏好响应缺少 data');
+    }
+    return data;
+  }
+
+  Future<PushPreferenceSettings> savePushPreference(
+    Map<String, dynamic> data,
+  ) async {
+    final result = await _apiClient.postApi<PushPreferenceSettings>(
+      '/app/help/push/preference',
+      data: data,
+      decode: PushPreferenceSettings.fromJson,
+    );
+    final preference = result.data;
+    if (preference == null) {
+      throw const FormatException('保存通知偏好响应缺少 data');
+    }
+    return preference;
+  }
+
   Future<DiagnosticUploadReceipt> uploadDiagnosticLogs({
     required String deviceId,
     required String platform,

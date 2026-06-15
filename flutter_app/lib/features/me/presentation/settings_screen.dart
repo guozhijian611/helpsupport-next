@@ -198,10 +198,12 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   bool _communityReplies = true;
   bool _journalReminders = false;
   bool _privacySaving = false;
+  bool _notificationSaving = false;
   bool _remoteLoading = false;
   String? _remoteError;
   MeProfileBundle? _profileBundle;
   SecurityOverview? _securityOverview;
+  PushPreferenceSettings? _pushPreference;
 
   @override
   void initState() {
@@ -238,7 +240,8 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
 
   bool get _needsRemoteData =>
       widget.section == SettingsSectionType.profile ||
-      widget.section == SettingsSectionType.security;
+      widget.section == SettingsSectionType.security ||
+      widget.section == SettingsSectionType.notifications;
 
   @override
   Widget build(BuildContext context) {
@@ -262,7 +265,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
             SettingsSectionType.security => _securitySectionContent(context),
             SettingsSectionType.privacy => _privacyChildren(context),
             SettingsSectionType.system => _systemChildren(context),
-            SettingsSectionType.notifications => _notificationChildren(context),
+            SettingsSectionType.notifications => _notificationSectionContent(
+              context,
+            ),
             SettingsSectionType.about => _aboutChildren(context),
             SettingsSectionType.permissions => _permissionChildren(context),
           },
@@ -430,6 +435,17 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     return _securityChildren(context, overview);
   }
 
+  List<Widget> _notificationSectionContent(BuildContext context) {
+    if (_remoteLoading && _pushPreference == null) {
+      return [_stateSection(context, loading: true)];
+    }
+    if (_remoteError != null && _pushPreference == null) {
+      return [_stateSection(context, error: _remoteError)];
+    }
+
+    return _notificationChildren(context);
+  }
+
   Widget _stateSection(
     BuildContext context, {
     bool loading = false,
@@ -511,6 +527,14 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         setState(() {
           _securityOverview = overview;
         });
+      } else if (widget.section == SettingsSectionType.notifications) {
+        final preference = await ref
+            .read(meSettingsRepositoryProvider)
+            .fetchPushPreference();
+        if (!mounted) {
+          return;
+        }
+        _applyPushPreference(preference, syncLocalStorage: true);
       }
     } on Object catch (error) {
       if (!mounted) {
@@ -1183,12 +1207,120 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     bool value,
     void Function(bool value) update,
   ) {
+    if (_notificationSaving) {
+      return;
+    }
+
+    final previousValue = switch (key) {
+      'plan_reminders' => _planReminders,
+      'appointment_updates' => _appointmentUpdates,
+      'community_replies' => _communityReplies,
+      'journal_reminders' => _journalReminders,
+      _ => value,
+    };
     setState(() => update(value));
-    unawaited(
-      ref
-          .read(sharedPreferencesProvider)
-          .setBool('$_notificationPrefix$key', value),
-    );
+    unawaited(_saveNotificationPreference(key, value, previousValue, update));
+  }
+
+  Future<void> _saveNotificationPreference(
+    String key,
+    bool value,
+    bool previousValue,
+    void Function(bool value) update,
+  ) async {
+    setState(() => _notificationSaving = true);
+    try {
+      final preference = await ref
+          .read(meSettingsRepositoryProvider)
+          .savePushPreference(_notificationPayloadFor(key, value));
+      if (!mounted) {
+        return;
+      }
+      _applyPushPreference(preference, syncLocalStorage: true);
+      context.showCenteredNotice(
+        _t(context, '通知设置已同步', 'Notification settings synced'),
+      );
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => update(previousValue));
+      context.showCenteredNotice(_errorText(context, error));
+    } finally {
+      if (mounted) {
+        setState(() => _notificationSaving = false);
+      }
+    }
+  }
+
+  Map<String, dynamic> _notificationPayloadFor(String key, bool value) {
+    final currentTask = key == 'plan_reminders' ? value : _planReminders;
+    final currentAppointment = key == 'appointment_updates'
+        ? value
+        : _appointmentUpdates;
+    final currentCommunity = key == 'community_replies'
+        ? value
+        : _communityReplies;
+    final currentJournal = key == 'journal_reminders'
+        ? value
+        : _journalReminders;
+    final overallEnabled =
+        currentTask || currentAppointment || currentCommunity || currentJournal;
+
+    return {
+      'is_push_enabled': overallEnabled ? 1 : 2,
+      switch (key) {
+        'plan_reminders' => 'is_task_reminder_enabled',
+        'appointment_updates' => 'is_appointment_enabled',
+        'community_replies' => 'is_community_enabled',
+        'journal_reminders' => 'is_local_companion_enabled',
+        _ => 'is_push_enabled',
+      }: value
+          ? 1
+          : 2,
+    };
+  }
+
+  void _applyPushPreference(
+    PushPreferenceSettings preference, {
+    bool syncLocalStorage = false,
+  }) {
+    setState(() {
+      _pushPreference = preference;
+      _planReminders = preference.isTaskReminderEnabled;
+      _appointmentUpdates = preference.isAppointmentEnabled;
+      _communityReplies = preference.isCommunityEnabled;
+      _journalReminders = preference.isLocalCompanionEnabled;
+    });
+
+    if (!syncLocalStorage) {
+      return;
+    }
+    unawaited(_storeNotificationPrefs(preference));
+  }
+
+  Future<void> _storeNotificationPrefs(
+    PushPreferenceSettings preference,
+  ) async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    await Future.wait([
+      prefs.setBool(
+        '${_notificationPrefix}plan_reminders',
+        preference.isTaskReminderEnabled,
+      ),
+      prefs.setBool(
+        '${_notificationPrefix}appointment_updates',
+        preference.isAppointmentEnabled,
+      ),
+      prefs.setBool(
+        '${_notificationPrefix}community_replies',
+        preference.isCommunityEnabled,
+      ),
+      prefs.setBool(
+        '${_notificationPrefix}journal_reminders',
+        preference.isLocalCompanionEnabled,
+      ),
+    ]);
   }
 
   Future<void> _requestNotifications() async {
