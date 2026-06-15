@@ -23,6 +23,7 @@ class _MessageCenterScreenState extends ConsumerState<MessageCenterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MessageCenterPalette.of(context);
     final messages = ref.watch(messageListProvider(_query));
     final unreadCount = ref.watch(unreadMessageCountProvider);
     final authState = ref.watch(authControllerProvider);
@@ -33,8 +34,11 @@ class _MessageCenterScreenState extends ConsumerState<MessageCenterScreen> {
     final unreadValue = unreadCount.asData?.value ?? 0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(_t(context, '消息详情', 'Messages')),
         centerTitle: true,
         actions: [
@@ -157,14 +161,15 @@ class _MessageFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MessageCenterPalette.of(context);
     return ChoiceChip(
       label: Text(label),
       selected: selected,
       onSelected: (_) => onTap(),
-      backgroundColor: Colors.white,
-      selectedColor: const Color(0xFFFFE1DB),
+      backgroundColor: palette.chipBackground,
+      selectedColor: palette.chipSelectedBackground,
       labelStyle: TextStyle(
-        color: selected ? const Color(0xFFFF7C69) : const Color(0xFF7D828A),
+        color: selected ? palette.chipSelectedText : palette.secondaryText,
         fontWeight: FontWeight.w700,
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
@@ -180,10 +185,11 @@ class _MessageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MessageCenterPalette.of(context);
     final scheme = _messageScheme(item.messageType);
 
     return Material(
-      color: Colors.white,
+      color: palette.cardBackground,
       borderRadius: BorderRadius.circular(24),
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
@@ -214,8 +220,8 @@ class _MessageCard extends StatelessWidget {
                             item.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF303236),
+                            style: TextStyle(
+                              color: palette.primaryText,
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
                             ),
@@ -239,21 +245,21 @@ class _MessageCard extends StatelessWidget {
                           : item.content,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFFB0B3BA),
+                      style: TextStyle(
+                        color: palette.mutedText,
                         fontSize: 15,
                         height: 1.6,
                       ),
                     ),
                     const SizedBox(height: 14),
-                    const Divider(height: 1, color: Color(0xFFE9EBF0)),
+                    Divider(height: 1, color: palette.outline),
                     const SizedBox(height: 14),
                     Row(
                       children: [
                         Text(
                           _formatTime(item.createTime),
-                          style: const TextStyle(
-                            color: Color(0xFFA7ACB5),
+                          style: TextStyle(
+                            color: palette.secondaryText,
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
@@ -268,10 +274,10 @@ class _MessageCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(
+                        Icon(
                           Icons.chevron_right_rounded,
                           size: 18,
-                          color: Color(0xFFB0B3BA),
+                          color: palette.mutedText,
                         ),
                       ],
                     ),
@@ -320,10 +326,11 @@ class _MessageStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MessageCenterPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -331,8 +338,8 @@ class _MessageStatusCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -340,8 +347,8 @@ class _MessageStatusCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: const TextStyle(
-              color: Color(0xFF7D828A),
+            style: TextStyle(
+              color: palette.secondaryText,
               fontSize: 14,
               height: 1.6,
             ),
@@ -357,6 +364,7 @@ class _MessageListSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _MessageCenterPalette.of(context);
     return Column(
       children: List.generate(
         4,
@@ -365,7 +373,7 @@ class _MessageListSkeleton extends StatelessWidget {
           child: Container(
             height: 122,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: palette.cardBackground,
               borderRadius: BorderRadius.circular(24),
             ),
           ),
@@ -496,4 +504,50 @@ int _payloadInt(Object? value, {int fallback = 0}) {
     return int.tryParse(value) ?? fallback;
   }
   return fallback;
+}
+
+class _MessageCenterPalette {
+  const _MessageCenterPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.chipBackground,
+    required this.chipSelectedBackground,
+    required this.chipSelectedText,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.mutedText,
+    required this.outline,
+  });
+
+  factory _MessageCenterPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _MessageCenterPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      chipBackground: scheme.surfaceContainerLow,
+      chipSelectedBackground: isDark
+          ? const Color(0x33FF9585)
+          : const Color(0xFFFFE1DB),
+      chipSelectedText: isDark
+          ? const Color(0xFFFFB4A8)
+          : const Color(0xFFFF7C69),
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
+          : const Color(0xFFB0B3BA),
+      outline: scheme.outlineVariant,
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color chipBackground;
+  final Color chipSelectedBackground;
+  final Color chipSelectedText;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color mutedText;
+  final Color outline;
 }

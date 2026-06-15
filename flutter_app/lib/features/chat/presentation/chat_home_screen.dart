@@ -13,11 +13,15 @@ class ChatHomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _ChatHomePalette.of(context);
     final overview = ref.watch(chatOverviewProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(_t(context, 'AI 心理支持', 'AI support')),
         centerTitle: true,
       ),
@@ -31,15 +35,15 @@ class ChatHomeScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: palette.cardBackground,
                     borderRadius: BorderRadius.circular(28),
                   ),
                   child: Row(
                     children: [
-                      const CircleAvatar(
+                      CircleAvatar(
                         radius: 26,
-                        backgroundColor: Color(0xFFEAF0FF),
-                        child: Icon(
+                        backgroundColor: palette.avatarBackground,
+                        child: const Icon(
                           Icons.smart_toy_rounded,
                           color: Color(0xFF5B86DB),
                           size: 28,
@@ -52,8 +56,8 @@ class ChatHomeScreen extends ConsumerWidget {
                           children: [
                             Text(
                               context.l10n.chatTitle,
-                              style: const TextStyle(
-                                color: Color(0xFF303236),
+                              style: TextStyle(
+                                color: palette.primaryText,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -65,8 +69,8 @@ class ChatHomeScreen extends ConsumerWidget {
                                 '选择适合你当前状态的模式，开始一段真实对话。',
                                 'Choose the mode that fits your current state and begin a real conversation.',
                               ),
-                              style: const TextStyle(
-                                color: Color(0xFF7D828A),
+                              style: TextStyle(
+                                color: palette.secondaryText,
                                 height: 1.5,
                               ),
                             ),
@@ -88,8 +92,8 @@ class ChatHomeScreen extends ConsumerWidget {
                 const SizedBox(height: 8),
                 Text(
                   context.l10n.recentConversations,
-                  style: const TextStyle(
-                    color: Color(0xFF303236),
+                  style: TextStyle(
+                    color: palette.primaryText,
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
                   ),
@@ -276,9 +280,10 @@ class _SessionTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _ChatHomePalette.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: ListTile(
@@ -294,7 +299,10 @@ class _SessionTile extends ConsumerWidget {
         ),
         title: Text(
           session.sessionName,
-          style: const TextStyle(fontWeight: FontWeight.w800),
+          style: TextStyle(
+            color: palette.primaryText,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         subtitle: Text(
           session.lastMessage.isEmpty
@@ -302,6 +310,7 @@ class _SessionTile extends ConsumerWidget {
               : session.lastMessage,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: palette.secondaryText),
         ),
         trailing: IconButton(
           icon: const Icon(Icons.delete_outline_rounded),
@@ -340,10 +349,11 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _ChatHomePalette.of(context);
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Center(
@@ -466,4 +476,34 @@ String _modeDescription(BuildContext context, String mode) {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _ChatHomePalette {
+  const _ChatHomePalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.avatarBackground,
+  });
+
+  factory _ChatHomePalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _ChatHomePalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      avatarBackground: isDark
+          ? scheme.primaryContainer.withValues(alpha: 0.28)
+          : const Color(0xFFEAF0FF),
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color avatarBackground;
 }

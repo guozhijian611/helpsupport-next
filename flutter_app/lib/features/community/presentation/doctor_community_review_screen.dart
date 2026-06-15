@@ -21,12 +21,16 @@ class _DoctorCommunityReviewScreenState
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorCommunityReviewPalette.of(context);
     final posts = ref.watch(communityReviewPostsProvider(_scope));
     final apiClient = ref.watch(apiClientProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(_t(context, '社区内容审核', 'Community review')),
         centerTitle: true,
       ),
@@ -133,7 +137,7 @@ class _DoctorCommunityReviewScreenState
                         child: Container(
                           height: 212,
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: palette.cardBackground,
                             borderRadius: BorderRadius.circular(24),
                           ),
                         ),
@@ -261,6 +265,7 @@ class _ScopeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorCommunityReviewPalette.of(context);
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -271,9 +276,7 @@ class _ScopeTab extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: active
-                    ? const Color(0xFF5A81DA)
-                    : const Color(0xFF303236),
+                color: active ? const Color(0xFF5A81DA) : palette.primaryText,
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
               ),
@@ -314,6 +317,7 @@ class _ReviewPostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorCommunityReviewPalette.of(context);
     final title = post.hasTitle
         ? post.title
         : post.content.replaceAll('\n', ' ').trim();
@@ -324,7 +328,7 @@ class _ReviewPostCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -354,8 +358,8 @@ class _ReviewPostCard extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF303236),
+                      style: TextStyle(
+                        color: palette.primaryText,
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
                       ),
@@ -369,8 +373,8 @@ class _ReviewPostCard extends StatelessWidget {
                             body,
                             maxLines: 5,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF6F737B),
+                            style: TextStyle(
+                              color: palette.bodyText,
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                               height: 1.55,
@@ -397,7 +401,7 @@ class _ReviewPostCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          const Divider(height: 1, color: Color(0xFFE7EAF0)),
+          Divider(height: 1, color: palette.outline),
           const SizedBox(height: 14),
           if (!reviewedMode)
             Row(
@@ -415,7 +419,7 @@ class _ReviewPostCard extends StatelessWidget {
                     child: Text(_t(context, '拒绝', 'Reject')),
                   ),
                 ),
-                Container(width: 1, height: 34, color: const Color(0xFFE7EAF0)),
+                Container(width: 1, height: 34, color: palette.outline),
                 Expanded(
                   child: TextButton(
                     onPressed: submitting ? null : onApprove,
@@ -449,7 +453,7 @@ class _ReviewPostCard extends StatelessWidget {
                       : _t(context, '已审核', 'Reviewed'),
                   style: TextStyle(
                     color: approved
-                        ? const Color(0xFF8A8F98)
+                        ? palette.secondaryText
                         : const Color(0xFFFF9E8F),
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -460,8 +464,8 @@ class _ReviewPostCard extends StatelessWidget {
                   Text(
                     post.auditRemark,
                     textAlign: TextAlign.right,
-                    style: const TextStyle(
-                      color: Color(0xFFB0B3BA),
+                    style: TextStyle(
+                      color: palette.mutedText,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -481,8 +485,8 @@ class _ReviewPostCard extends StatelessWidget {
                   '发布时间：${post.createTime}',
                   'Published at ${post.createTime}',
                 ),
-                style: const TextStyle(
-                  color: Color(0xFF96999F),
+                style: TextStyle(
+                  color: palette.secondaryText,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -503,10 +507,11 @@ class _ReviewStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorCommunityReviewPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -514,8 +519,8 @@ class _ReviewStatusCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -523,8 +528,8 @@ class _ReviewStatusCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: const TextStyle(
-              color: Color(0xFF7D828A),
+            style: TextStyle(
+              color: palette.mutedText,
               fontSize: 14,
               height: 1.6,
             ),
@@ -537,4 +542,42 @@ class _ReviewStatusCard extends StatelessWidget {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _DoctorCommunityReviewPalette {
+  const _DoctorCommunityReviewPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.mutedText,
+    required this.bodyText,
+    required this.outline,
+  });
+
+  factory _DoctorCommunityReviewPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _DoctorCommunityReviewPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
+          : const Color(0xFF7D828A),
+      bodyText: isDark
+          ? scheme.onSurface.withValues(alpha: 0.82)
+          : const Color(0xFF6F737B),
+      outline: scheme.outlineVariant,
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color mutedText;
+  final Color bodyText;
+  final Color outline;
 }

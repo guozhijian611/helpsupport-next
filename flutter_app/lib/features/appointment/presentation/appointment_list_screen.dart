@@ -22,12 +22,16 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentListPalette.of(context);
     final query = AppointmentMineQuery(status: _status);
     final appointments = ref.watch(appointmentMineProvider(query));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(_t(context, '我的预约', 'My bookings')),
         centerTitle: true,
       ),
@@ -52,19 +56,19 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
                       selected: selected,
                       onSelected: (_) =>
                           setState(() => _status = filter.status),
-                      selectedColor: const Color(0xFFFFE1DB),
+                      selectedColor: palette.chipSelectedBackground,
                       labelStyle: TextStyle(
                         color: selected
-                            ? const Color(0xFFFF7C69)
-                            : const Color(0xFF7D828A),
+                            ? palette.chipSelectedText
+                            : palette.secondaryText,
                         fontWeight: FontWeight.w700,
                       ),
                       side: BorderSide(
                         color: selected
                             ? const Color(0xFFFFC4B9)
-                            : const Color(0xFFE4E7EC),
+                            : palette.outline,
                       ),
-                      backgroundColor: Colors.white,
+                      backgroundColor: palette.chipBackground,
                     );
                   },
                   separatorBuilder: (_, _) => const SizedBox(width: 10),
@@ -120,13 +124,14 @@ class _AppointmentRecordCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _AppointmentListPalette.of(context);
     final apiClient = ref.watch(apiClientProvider);
     final avatarUrl = apiClient.resolveUrl(record.doctorAvatar);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -156,8 +161,8 @@ class _AppointmentRecordCard extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             record.displayDoctorName,
-                            style: const TextStyle(
-                              color: Color(0xFF303236),
+                            style: TextStyle(
+                              color: palette.primaryText,
                               fontSize: 19,
                               fontWeight: FontWeight.w800,
                             ),
@@ -175,8 +180,8 @@ class _AppointmentRecordCard extends ConsumerWidget {
                           if (record.doctorHospital.isNotEmpty)
                             record.doctorHospital,
                         ].join(' / '),
-                        style: const TextStyle(
-                          color: Color(0xFF7D828A),
+                        style: TextStyle(
+                          color: palette.secondaryText,
                           fontSize: 14,
                           height: 1.45,
                         ),
@@ -184,8 +189,8 @@ class _AppointmentRecordCard extends ConsumerWidget {
                     const SizedBox(height: 8),
                     Text(
                       '${record.appointDate}  ${record.appointTimeSlot}',
-                      style: const TextStyle(
-                        color: Color(0xFF4D5562),
+                      style: TextStyle(
+                        color: palette.bodyText,
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                       ),
@@ -213,7 +218,7 @@ class _AppointmentRecordCard extends ConsumerWidget {
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
               decoration: BoxDecoration(
-                color: const Color(0xFFF7F8FB),
+                color: palette.softBackground,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
@@ -356,15 +361,16 @@ class _MiniAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentListPalette.of(context);
     return Container(
       width: 86,
       height: 86,
-      color: const Color(0xFFEDEFF4),
+      color: palette.avatarBackground,
       alignment: Alignment.center,
       child: Text(
         name.characters.first,
-        style: const TextStyle(
-          color: Color(0xFF7D828A),
+        style: TextStyle(
+          color: palette.secondaryText,
           fontSize: 28,
           fontWeight: FontWeight.w800,
         ),
@@ -414,15 +420,12 @@ class _MetaLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentListPalette.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: RichText(
         text: TextSpan(
-          style: const TextStyle(
-            color: Color(0xFF666C76),
-            fontSize: 14,
-            height: 1.55,
-          ),
+          style: TextStyle(color: palette.bodyText, fontSize: 14, height: 1.55),
           children: [
             TextSpan(
               text: '$label：',
@@ -451,10 +454,11 @@ class _AppointmentEmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentListPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -467,8 +471,8 @@ class _AppointmentEmptyCard extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 21,
               fontWeight: FontWeight.w800,
             ),
@@ -477,8 +481,8 @@ class _AppointmentEmptyCard extends StatelessWidget {
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF8C919A),
+            style: TextStyle(
+              color: palette.secondaryText,
               fontSize: 14,
               height: 1.6,
             ),
@@ -502,6 +506,7 @@ class _AppointmentListSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AppointmentListPalette.of(context);
     return Column(
       children: List<Widget>.generate(
         3,
@@ -510,7 +515,7 @@ class _AppointmentListSkeleton extends StatelessWidget {
           child: Container(
             height: 198,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: palette.cardBackground,
               borderRadius: BorderRadius.circular(28),
             ),
           ),
@@ -561,4 +566,58 @@ String _meetTypeLabel(BuildContext context, String value) {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _AppointmentListPalette {
+  const _AppointmentListPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.softBackground,
+    required this.avatarBackground,
+    required this.chipBackground,
+    required this.chipSelectedBackground,
+    required this.chipSelectedText,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.bodyText,
+    required this.outline,
+  });
+
+  factory _AppointmentListPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _AppointmentListPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      softBackground: scheme.surfaceContainerLow,
+      avatarBackground: isDark
+          ? scheme.surfaceContainerHigh
+          : const Color(0xFFEDEFF4),
+      chipBackground: scheme.surfaceContainerLow,
+      chipSelectedBackground: isDark
+          ? const Color(0x33FF9585)
+          : const Color(0xFFFFE1DB),
+      chipSelectedText: isDark
+          ? const Color(0xFFFFB4A8)
+          : const Color(0xFFFF7C69),
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      bodyText: isDark
+          ? scheme.onSurface.withValues(alpha: 0.84)
+          : const Color(0xFF4D5562),
+      outline: scheme.outlineVariant,
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color softBackground;
+  final Color avatarBackground;
+  final Color chipBackground;
+  final Color chipSelectedBackground;
+  final Color chipSelectedText;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color bodyText;
+  final Color outline;
 }

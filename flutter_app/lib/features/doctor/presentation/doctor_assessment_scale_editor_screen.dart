@@ -51,9 +51,13 @@ class _DoctorAssessmentScaleEditorScreenState
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AssessmentScaleEditorPalette.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(
           _editing
               ? _t(context, '编辑评估量表', 'Edit assessment scale')
@@ -85,15 +89,16 @@ class _DoctorAssessmentScaleEditorScreenState
                           'Example: Depression self-rating PHQ-9',
                         ),
                         border: InputBorder.none,
+                        hintStyle: TextStyle(color: palette.secondaryText),
                       ),
-                      style: const TextStyle(
-                        color: Color(0xFF303236),
+                      style: TextStyle(
+                        color: palette.primaryText,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                  const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                  Divider(height: 1, color: palette.outline),
                   _EditorField(
                     label: _t(context, '简介', 'Description'),
                     child: TextField(
@@ -107,16 +112,17 @@ class _DoctorAssessmentScaleEditorScreenState
                           'Add a short introduction or guidance',
                         ),
                         border: InputBorder.none,
+                        hintStyle: TextStyle(color: palette.secondaryText),
                       ),
-                      style: const TextStyle(
-                        color: Color(0xFF303236),
+                      style: TextStyle(
+                        color: palette.primaryText,
                         fontSize: 17,
                         height: 1.6,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                  const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                  Divider(height: 1, color: palette.outline),
                   _EditorField(
                     label: _t(context, '分值', 'Total score'),
                     child: TextField(
@@ -125,8 +131,8 @@ class _DoctorAssessmentScaleEditorScreenState
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                       ),
-                      style: const TextStyle(
-                        color: Color(0xFF303236),
+                      style: TextStyle(
+                        color: palette.primaryText,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
@@ -140,8 +146,7 @@ class _DoctorAssessmentScaleEditorScreenState
               child: Column(
                 children: [
                   for (var index = 0; index < _questions.length; index++) ...[
-                    if (index > 0)
-                      const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                    if (index > 0) Divider(height: 1, color: palette.outline),
                     _QuestionTile(
                       index: index,
                       question: _questions[index],
@@ -346,9 +351,10 @@ class _EditorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AssessmentScaleEditorPalette.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: child,
@@ -364,6 +370,7 @@ class _EditorField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AssessmentScaleEditorPalette.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       child: Column(
@@ -371,8 +378,8 @@ class _EditorField extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
@@ -381,7 +388,7 @@ class _EditorField extends StatelessWidget {
           Container(
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
             decoration: BoxDecoration(
-              color: const Color(0xFFF5F5F7),
+              color: palette.fieldBackground,
               borderRadius: BorderRadius.circular(18),
             ),
             child: child,
@@ -405,6 +412,7 @@ class _QuestionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AssessmentScaleEditorPalette.of(context);
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: onTap,
@@ -415,8 +423,8 @@ class _QuestionTile extends StatelessWidget {
           children: [
             Text(
               _t(context, '题目${index + 1}', 'Question ${index + 1}'),
-              style: const TextStyle(
-                color: Color(0xFF303236),
+              style: TextStyle(
+                color: palette.primaryText,
                 fontSize: 18,
                 fontWeight: FontWeight.w900,
               ),
@@ -425,7 +433,7 @@ class _QuestionTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F7),
+                color: palette.fieldBackground,
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Row(
@@ -435,16 +443,16 @@ class _QuestionTile extends StatelessWidget {
                       question.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF303236),
+                      style: TextStyle(
+                        color: palette.primaryText,
                         fontSize: 18,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.chevron_right_rounded,
-                    color: Color(0xFFC6CAD2),
+                    color: palette.secondaryText,
                   ),
                 ],
               ),
@@ -493,13 +501,14 @@ class _QuestionEditorSheetState extends State<_QuestionEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AssessmentScaleEditorPalette.of(context);
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: palette.cardBackground,
           borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
         ),
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
@@ -514,8 +523,8 @@ class _QuestionEditorSheetState extends State<_QuestionEditorSheet> {
                     const Spacer(),
                     Text(
                       _t(context, '添加题目', 'Add question'),
-                      style: const TextStyle(
-                        color: Color(0xFF303236),
+                      style: TextStyle(
+                        color: palette.primaryText,
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
                       ),
@@ -539,11 +548,9 @@ class _QuestionEditorSheetState extends State<_QuestionEditorSheet> {
                         'Example: I feel anxious or tense',
                       ),
                       border: InputBorder.none,
+                      hintStyle: TextStyle(color: palette.secondaryText),
                     ),
-                    style: const TextStyle(
-                      color: Color(0xFF303236),
-                      fontSize: 17,
-                    ),
+                    style: TextStyle(color: palette.primaryText, fontSize: 17),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -554,10 +561,7 @@ class _QuestionEditorSheetState extends State<_QuestionEditorSheet> {
                     keyboardType: TextInputType.number,
                     onChanged: _applyOptionCount,
                     decoration: const InputDecoration(border: InputBorder.none),
-                    style: const TextStyle(
-                      color: Color(0xFF303236),
-                      fontSize: 17,
-                    ),
+                    style: TextStyle(color: palette.primaryText, fontSize: 17),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -574,8 +578,8 @@ class _QuestionEditorSheetState extends State<_QuestionEditorSheet> {
                               '选项${index + 1}',
                               'Option ${index + 1}',
                             ),
-                            style: const TextStyle(
-                              color: Color(0xFFB0B3BA),
+                            style: TextStyle(
+                              color: palette.mutedText,
                               fontSize: 16,
                             ),
                           ),
@@ -584,7 +588,7 @@ class _QuestionEditorSheetState extends State<_QuestionEditorSheet> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF5F5F7),
+                              color: palette.fieldBackground,
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: TextField(
@@ -592,8 +596,8 @@ class _QuestionEditorSheetState extends State<_QuestionEditorSheet> {
                               decoration: const InputDecoration(
                                 border: InputBorder.none,
                               ),
-                              style: const TextStyle(
-                                color: Color(0xFF303236),
+                              style: TextStyle(
+                                color: palette.primaryText,
                                 fontSize: 17,
                               ),
                             ),
@@ -602,8 +606,8 @@ class _QuestionEditorSheetState extends State<_QuestionEditorSheet> {
                         const SizedBox(width: 12),
                         Text(
                           _t(context, '分值', 'Score'),
-                          style: const TextStyle(
-                            color: Color(0xFFB0B3BA),
+                          style: TextStyle(
+                            color: palette.mutedText,
                             fontSize: 16,
                           ),
                         ),
@@ -613,7 +617,7 @@ class _QuestionEditorSheetState extends State<_QuestionEditorSheet> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF5F5F7),
+                              color: palette.fieldBackground,
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: TextField(
@@ -623,8 +627,8 @@ class _QuestionEditorSheetState extends State<_QuestionEditorSheet> {
                               decoration: const InputDecoration(
                                 border: InputBorder.none,
                               ),
-                              style: const TextStyle(
-                                color: Color(0xFF303236),
+                              style: TextStyle(
+                                color: palette.primaryText,
                                 fontSize: 17,
                               ),
                             ),
@@ -812,4 +816,42 @@ class _OptionDraft {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _AssessmentScaleEditorPalette {
+  const _AssessmentScaleEditorPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.fieldBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.mutedText,
+    required this.outline,
+  });
+
+  factory _AssessmentScaleEditorPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _AssessmentScaleEditorPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      fieldBackground: isDark
+          ? scheme.surfaceContainerHigh
+          : const Color(0xFFF5F5F7),
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
+          : const Color(0xFFB0B3BA),
+      outline: scheme.outlineVariant,
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color fieldBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color mutedText;
+  final Color outline;
 }

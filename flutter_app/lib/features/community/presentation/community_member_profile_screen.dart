@@ -24,12 +24,13 @@ class _CommunityMemberProfileScreenState
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityMemberProfilePalette.of(context);
     final profile = ref.watch(communityMemberProfileProvider(widget.memberId));
     final posts = ref.watch(communityMemberPostsProvider(widget.memberId));
     final apiClient = ref.watch(apiClientProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       body: SafeArea(
         child: profile.when(
           data: (member) => RefreshIndicator(
@@ -76,8 +77,8 @@ class _CommunityMemberProfileScreenState
                     member.isSelf
                         ? _t(context, '我的发布', 'My posts')
                         : _t(context, '他的发布', 'Posts'),
-                    style: const TextStyle(
-                      color: Color(0xFF303236),
+                    style: TextStyle(
+                      color: palette.primaryText,
                       fontSize: 22,
                       fontWeight: FontWeight.w900,
                     ),
@@ -179,6 +180,7 @@ class _ProfileHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityMemberProfilePalette.of(context);
     return SizedBox(
       height: 330,
       child: Stack(
@@ -219,10 +221,10 @@ class _ProfileHero extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 50,
-                  backgroundColor: Colors.white.withValues(alpha: 0.96),
+                  backgroundColor: palette.avatarRingBackground,
                   child: CircleAvatar(
                     radius: 46,
-                    backgroundColor: const Color(0xFFEAF0FF),
+                    backgroundColor: palette.avatarBackground,
                     backgroundImage: avatarUrl.isEmpty
                         ? null
                         : NetworkImage(avatarUrl),
@@ -319,14 +321,15 @@ class _StatPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityMemberProfilePalette.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.96),
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: palette.shadowColor,
             blurRadius: 18,
             offset: const Offset(0, 10),
           ),
@@ -369,6 +372,7 @@ class _StatItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityMemberProfilePalette.of(context);
     final child = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -376,8 +380,8 @@ class _StatItem extends StatelessWidget {
           value,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Color(0xFF303236),
+          style: TextStyle(
+            color: palette.primaryText,
             fontSize: 20,
             fontWeight: FontWeight.w900,
           ),
@@ -385,8 +389,8 @@ class _StatItem extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF96999F),
+          style: TextStyle(
+            color: palette.secondaryText,
             fontSize: 14,
             fontWeight: FontWeight.w700,
           ),
@@ -422,13 +426,14 @@ class _FollowActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityMemberProfilePalette.of(context);
     return FilledButton(
       onPressed: busy ? null : onTap,
       style: FilledButton.styleFrom(
         backgroundColor: followed
-            ? const Color(0xFFF8D6CF)
-            : const Color(0xFFF49C8C),
-        foregroundColor: Colors.white,
+            ? palette.followedBackground
+            : const Color(0xFFFF9585),
+        foregroundColor: followed ? palette.followedForeground : Colors.white,
         minimumSize: const Size(112, 56),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
@@ -475,10 +480,11 @@ class _ProfileStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityMemberProfilePalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -486,8 +492,8 @@ class _ProfileStatusCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -495,8 +501,8 @@ class _ProfileStatusCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: const TextStyle(
-              color: Color(0xFF7D828A),
+            style: TextStyle(
+              color: palette.mutedText,
               fontSize: 14,
               height: 1.6,
             ),
@@ -512,6 +518,7 @@ class _ProfileLoadingList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _CommunityMemberProfilePalette.of(context);
     return Column(
       children: List.generate(
         3,
@@ -520,7 +527,7 @@ class _ProfileLoadingList extends StatelessWidget {
           child: Container(
             height: 224,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: palette.cardBackground,
               borderRadius: BorderRadius.circular(28),
             ),
           ),
@@ -620,4 +627,59 @@ String _countText(int value) {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _CommunityMemberProfilePalette {
+  const _CommunityMemberProfilePalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.mutedText,
+    required this.avatarBackground,
+    required this.avatarRingBackground,
+    required this.followedBackground,
+    required this.followedForeground,
+    required this.shadowColor,
+  });
+
+  factory _CommunityMemberProfilePalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _CommunityMemberProfilePalette(
+      pageBackground: scheme.surface,
+      cardBackground: isDark
+          ? scheme.surfaceContainerLow
+          : Colors.white.withValues(alpha: 0.96),
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
+          : const Color(0xFF7D828A),
+      avatarBackground: isDark
+          ? scheme.primaryContainer.withValues(alpha: 0.28)
+          : const Color(0xFFEAF0FF),
+      avatarRingBackground: isDark
+          ? scheme.surfaceContainerHighest
+          : Colors.white.withValues(alpha: 0.96),
+      followedBackground: isDark
+          ? const Color(0xFF5E4844)
+          : const Color(0xFFF8D6CF),
+      followedForeground: isDark
+          ? const Color(0xFFFFD7CF)
+          : const Color(0xFF915447),
+      shadowColor: Colors.black.withValues(alpha: isDark ? 0.16 : 0.04),
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color mutedText;
+  final Color avatarBackground;
+  final Color avatarRingBackground;
+  final Color followedBackground;
+  final Color followedForeground;
+  final Color shadowColor;
 }
