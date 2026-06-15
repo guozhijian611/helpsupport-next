@@ -130,9 +130,9 @@ class _FloatingHomeTabBar extends StatelessWidget {
     required this.onSelected,
   });
 
-  static const _barColor = Color(0xFFDADCE1);
-  static const _activeColor = Color(0xFFFF9585);
-  static const _inactiveColor = Colors.white;
+  static const _lightBarColor = Color(0xFFDADCE1);
+  static const _lightActiveColor = Color(0xFFFF9585);
+  static const _darkActiveColor = Color(0xFFFFB4A8);
 
   final List<_HomeDestination> destinations;
   final int selectedIndex;
@@ -140,12 +140,18 @@ class _FloatingHomeTabBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    final barColor = isDark ? scheme.surfaceContainerHighest : _lightBarColor;
+    final activeColor = isDark ? _darkActiveColor : _lightActiveColor;
+    final inactiveColor = isDark ? scheme.onSurfaceVariant : Colors.white;
+
     return SafeArea(
       top: false,
       minimum: const EdgeInsets.fromLTRB(22, 8, 22, 12),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: _barColor,
+          color: barColor,
           borderRadius: BorderRadius.circular(42),
         ),
         child: SizedBox(
@@ -157,8 +163,8 @@ class _FloatingHomeTabBar extends StatelessWidget {
                   child: _FloatingHomeTabItem(
                     destination: destinations[index],
                     selected: index == selectedIndex,
-                    activeColor: _activeColor,
-                    inactiveColor: _inactiveColor,
+                    activeColor: activeColor,
+                    inactiveColor: inactiveColor,
                     onTap: () => onSelected(index),
                   ),
                 ),
