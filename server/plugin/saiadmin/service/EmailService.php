@@ -9,6 +9,7 @@ namespace plugin\saiadmin\service;
 use PHPMailer\PHPMailer\Exception;
 use PHPMailer\PHPMailer\PHPMailer;
 use plugin\saiadmin\app\logic\system\SystemConfigLogic;
+use plugin\saiadmin\app\model\system\SystemMailTemplate;
 use plugin\saiadmin\exception\ApiException;
 use plugin\saiadmin\utils\Arr;
 
@@ -86,15 +87,50 @@ class EmailService
      */
     public static function sendByTemplate($to, $subject, $content, array $templateData = []): string
     {
+        [$subject, $content] = static::renderTemplate($subject, $content, $templateData);
+        $config = static::getConfig();
+        return static::send([Arr::getConfigValue($config,'From'), Arr::getConfigValue($config,'FromName')], $to, $subject, $content);
+    }
+
+    /**
+     * 按模板标识发送
+     * @param string|array $to
+     * @param string $code
+     * @param array $templateData
+     * @return string
+     * @throws Exception
+     */
+    public static function sendByTemplateCode($to, string $code, array $templateData = []): string
+    {
+        $template = SystemMailTemplate::where('code', $code)->where('status', 1)->find();
+        if (!$template) {
+            throw new ApiException('邮件模板不存在或已禁用');
+        }
+
+        [$subject, $content] = static::renderTemplate($template->subject, $template->content, $templateData);
+        $config = static::getConfig();
+        return static::send([Arr::getConfigValue($config,'From'), Arr::getConfigValue($config,'FromName')], $to, $subject, $content);
+    }
+
+    /**
+     * 渲染邮件模板变量
+     * @param string $subject
+     * @param string $content
+     * @param array $templateData
+     * @return array
+     */
+    public static function renderTemplate(string $subject, string $content, array $templateData = []): array
+    {
         if ($templateData) {
             $search = [];
             foreach ($templateData as $key => $value) {
                 $search[] = '{' . $key . '}';
             }
+            $subject = str_replace($search, array_values($templateData), $subject);
             $content = str_replace($search, array_values($templateData), $content);
         }
-        $config = static::getConfig();
-        return static::send([Arr::getConfigValue($config,'From'), Arr::getConfigValue($config,'FromName')], $to, $subject, $content);
+
+        return [$subject, $content];
     }
-    
+
 }
