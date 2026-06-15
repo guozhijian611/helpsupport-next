@@ -18,7 +18,7 @@
 - `server/`：Webman/SaiAdmin 后端，Composer 命令和 PHP 校验默认在此目录执行。
 - `saiadmin-artd/`：SaiAdmin 管理端前端，pnpm 命令默认在此目录执行。
 - `uniapp/`：uni-app/unibest 移动端，pnpm 命令默认在此目录执行。
-- `flutter_app/`：Flutter 客户端，Flutter 相关命令默认在此目录执行；模拟器构建、安装和启动统一使用 `./tool/build_ios_simulator.sh`。
+- `flutter_app/`：Flutter 客户端，Flutter 相关命令默认在此目录执行；日常开发联调优先使用 `flutter run -d ios` 获取热重载，完整构建、安装和启动验证再使用 `./tool/build_ios_simulator.sh`。
 - `packages/`：本仓库维护的扩展包或插件源码，修改后需确认是否通过 `server/vendor` 软链或 Composer 安装进入运行时。
 - `.codex/skills/`：本项目沉淀的开发技能和参考手册；涉及对应技术时优先读取相关 `SKILL.md`。
 - `Doc/`、`OpenAPI/`、`Database/`：项目文档、接口文档和数据库资料，更新时以实际路由、控制器、数据库结构、安装 SQL 或 Phinx 迁移为准。
@@ -39,13 +39,13 @@
 - 生产部署中自动执行数据库迁移必须通过显式开关启用，默认关闭；执行前需确认数据库备份、目标环境和回滚窗口。
 - Webman 是常驻进程，修改 PHP、路由、插件配置后，验证前需要考虑 reload/restart。
 - 日志、调试页和请求记录默认要脱敏 Bearer、Cookie、token、secret 等敏感信息；如需放开，只能做成显式调试开关。
-- Flutter 客户端文件变更后，必须主动在 `flutter_app/` 目录执行 `./tool/build_ios_simulator.sh`，将最新 App 构建、安装并启动到 iOS 模拟器；可按需通过 `IOS_SIMULATOR_NAME`、`IOS_SIMULATOR_UDID`、`HELP_SUPPORT_API_BASE_URL` 指定目标和接口地址。
-- Flutter 客户端变更不使用 `flutter analyze` 或所谓 `flutter analysis` 作为默认验证；如果模拟器脚本失败，记录失败阶段和原因，不改用 analyze 代替脚本验证。
+- Flutter 客户端文件变更后，日常开发联调优先在 `flutter_app/` 目录执行 `flutter run -d ios --dart-define=HELP_SUPPORT_API_BASE_URL=...`，连接 iOS 模拟器保持热重载；需要指定设备时优先用 `-d <device id>`，需要完整构建、安装、启动链路验证时再执行 `./tool/build_ios_simulator.sh`，并可按需通过 `IOS_SIMULATOR_NAME`、`IOS_SIMULATOR_UDID`、`HELP_SUPPORT_API_BASE_URL` 指定目标和接口地址。
+- Flutter 客户端变更不使用 `flutter analyze` 或所谓 `flutter analysis` 作为默认验证；如果 `flutter run` 或模拟器脚本失败，记录失败阶段和原因，不改用 analyze 代替运行验证。
 
 ## 验证要求
 - 后端 PHP 文件变更后，至少执行相关 `php -l`；路由或插件变更需结合 `php webman route:list`、相关命令帮助或运行时页面验证。SaiCode 生成 CRUD 后，如果依赖 Webman 插件默认路由，需用前端 API 中的 `/app/<插件名>/admin/...` 实际访问或运行时页面确认；如果改用显式路由，则必须在 `route:list` 中核对。
 - 管理端或移动端变更后，优先执行项目已有的类型检查、lint 或最小可行验证命令。
-- Flutter 客户端变更后的默认验证是从 `flutter_app/` 执行 `./tool/build_ios_simulator.sh`，确认构建、安装、启动到模拟器完整跑通；不要运行 `flutter analyze` 或 `flutter analysis`。
+- Flutter 客户端变更后的默认开发验证是从 `flutter_app/` 执行 `flutter run -d ios --dart-define=HELP_SUPPORT_API_BASE_URL=...`，确认 iOS 模拟器联调与热重载可用；提交前或需要完整链路验证时，再执行 `./tool/build_ios_simulator.sh` 确认构建、安装、启动到模拟器完整跑通；不要运行 `flutter analyze` 或 `flutter analysis`。
 - OpenAPI、数据库文档、数据库迁移或生成文件变更后，要用实际源头复核：`route.php`、控制器、`information_schema`、`SHOW CREATE TABLE`、`php webman b8:migrate:status`、`php webman b8:migrate --dry-run` 或生成器输出。
 - 如果某项验证无法执行，要在最终回复里说明原因和剩余风险。
 
