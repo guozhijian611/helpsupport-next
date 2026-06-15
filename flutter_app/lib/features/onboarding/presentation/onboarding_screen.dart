@@ -54,6 +54,21 @@ class OnboardingScreen extends ConsumerWidget {
           ),
           Positioned(
             top: MediaQuery.paddingOf(context).top + 14,
+            left: 18,
+            child: TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+                textStyle: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              onPressed: () => context.go('/login'),
+              child: Text(context.l10n.onboardingSkip),
+            ),
+          ),
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + 14,
             right: 20,
             child: const LanguageSwitcher(onDark: true),
           ),

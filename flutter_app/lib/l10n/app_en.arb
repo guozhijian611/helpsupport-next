@@ -42,6 +42,7 @@
   "onboardingTitle": "Onboarding",
   "onboardingLoading": "Loading onboarding content...",
   "onboardingEmpty": "No onboarding content is available yet.",
+  "onboardingSkip": "Skip",
   "retry": "Retry",
   "localModelTitle": "Local models",
   "localModelSubtitle": "Download verified models for private on-device chat.",

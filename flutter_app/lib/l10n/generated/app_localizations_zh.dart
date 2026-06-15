@@ -135,6 +135,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onboardingEmpty => '暂无可用引导页内容。';
 
   @override
+  String get onboardingSkip => '跳过';
+
+  @override
   String get retry => '重试';
 
   @override

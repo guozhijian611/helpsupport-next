@@ -350,6 +350,12 @@ abstract class AppLocalizations {
   /// **'No onboarding content is available yet.'**
   String get onboardingEmpty;
 
+  /// No description provided for @onboardingSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get onboardingSkip;
+
   /// No description provided for @retry.
   ///
   /// In en, this message translates to:

@@ -138,6 +138,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardingEmpty => 'No onboarding content is available yet.';
 
   @override
+  String get onboardingSkip => 'Skip';
+
+  @override
   String get retry => 'Retry';
 
   @override

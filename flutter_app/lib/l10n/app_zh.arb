@@ -42,6 +42,7 @@
   "onboardingTitle": "引导页",
   "onboardingLoading": "正在加载引导页内容...",
   "onboardingEmpty": "暂无可用引导页内容。",
+  "onboardingSkip": "跳过",
   "retry": "重试",
   "localModelTitle": "本地模型",
   "localModelSubtitle": "下载已校验模型，用于设备端隐私对话。",
