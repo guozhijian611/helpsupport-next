@@ -121,6 +121,7 @@
         { prop: 'id', label: '编号', width: 80 },
         { prop: 'avatar', label: '头像', saiType: 'image', width: 80 },
         { prop: 'username', label: '用户名', width: 120 },
+        { prop: 'identity_text', label: '用户身份', width: 120 },
         { prop: 'status', label: '状态', saiType: 'dict', saiDict: 'data_status', width: 100 },
         { prop: 'nickname', label: '用户昵称', width: 120 },
         { prop: 'level_name', label: '会员等级', width: 100 },

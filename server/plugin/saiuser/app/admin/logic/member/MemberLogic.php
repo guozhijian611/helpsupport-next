@@ -23,6 +23,9 @@ use Webman\Event\Event;
  */
 class MemberLogic extends BaseLogic
 {
+    private const PROFILE_ROLE_PATIENT = 'patient';
+    private const PROFILE_ROLE_DOCTOR = 'doctor';
+
     /**
      * 构造函数
      */
@@ -56,6 +59,102 @@ class MemberLogic extends BaseLogic
             ->select()
             ->toArray();
         $data['points_log'] = $pointsLog;
+        return $data;
+    }
+
+    public function appendIdentityList(array $rows): array
+    {
+        if ($rows === []) {
+            return $rows;
+        }
+
+        $memberIds = array_values(array_filter(array_map(
+            static fn(array $row): int => (int) ($row['id'] ?? 0),
+            $rows
+        )));
+        if ($memberIds === []) {
+            return $rows;
+        }
+
+        $profileRows = Db::table('sa_help_member_profile')
+            ->whereIn('member_id', $memberIds)
+            ->whereNull('delete_time')
+            ->field('member_id, member_role')
+            ->select()
+            ->toArray();
+        $doctorRows = Db::table('sa_help_doctor_profile')
+            ->whereIn('member_id', $memberIds)
+            ->whereNull('delete_time')
+            ->field('member_id, audit_status, status')
+            ->select()
+            ->toArray();
+
+        $profileMap = [];
+        foreach ($profileRows as $row) {
+            $profileMap[(int) ($row['member_id'] ?? 0)] = $row;
+        }
+
+        $doctorMap = [];
+        foreach ($doctorRows as $row) {
+            $doctorMap[(int) ($row['member_id'] ?? 0)] = $row;
+        }
+
+        foreach ($rows as &$row) {
+            $memberId = (int) ($row['id'] ?? 0);
+            $row = $this->appendIdentity(
+                $row,
+                $profileMap[$memberId] ?? [],
+                $doctorMap[$memberId] ?? []
+            );
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    public function appendIdentity(
+        array $data,
+        array $profile = [],
+        array $doctorProfile = []
+    ): array {
+        $memberId = (int) ($data['id'] ?? 0);
+        if ($memberId <= 0) {
+            return $data;
+        }
+
+        if ($profile === []) {
+            $profile = Db::table('sa_help_member_profile')
+                ->where('member_id', $memberId)
+                ->whereNull('delete_time')
+                ->field('member_id, member_role')
+                ->find() ?: [];
+        }
+        if ($doctorProfile === []) {
+            $doctorProfile = Db::table('sa_help_doctor_profile')
+                ->where('member_id', $memberId)
+                ->whereNull('delete_time')
+                ->field('member_id, audit_status, status')
+                ->find() ?: [];
+        }
+
+        $profileRole = $this->normalizeProfileRole((string) ($profile['member_role'] ?? ''));
+        $doctorAuditStatus = array_key_exists('audit_status', $doctorProfile)
+            ? (int) ($doctorProfile['audit_status'] ?? 0)
+            : null;
+        $doctorApproved = $doctorAuditStatus === 1
+            && (int) ($doctorProfile['status'] ?? 0) === 1;
+        $currentRole = $profileRole === self::PROFILE_ROLE_DOCTOR && $doctorApproved
+            ? self::PROFILE_ROLE_DOCTOR
+            : self::PROFILE_ROLE_PATIENT;
+
+        $data['profile_role'] = $profileRole;
+        $data['profile_role_text'] = $this->profileRoleText($profileRole);
+        $data['current_role'] = $currentRole;
+        $data['current_role_text'] = $this->profileRoleText($currentRole);
+        $data['doctor_audit_status'] = $doctorAuditStatus;
+        $data['doctor_audit_status_text'] = $this->doctorAuditStatusText($doctorAuditStatus);
+        $data['identity_text'] = $this->identityText($profileRole, $doctorAuditStatus);
+
         return $data;
     }
 
@@ -495,5 +594,42 @@ class MemberLogic extends BaseLogic
             Db::rollback();
             throw new ApiException($e->getMessage());
         }
+    }
+
+    private function normalizeProfileRole(string $role): string
+    {
+        $role = trim(strtolower($role));
+        return $role === self::PROFILE_ROLE_DOCTOR
+            ? self::PROFILE_ROLE_DOCTOR
+            : self::PROFILE_ROLE_PATIENT;
+    }
+
+    private function profileRoleText(string $role): string
+    {
+        return $role === self::PROFILE_ROLE_DOCTOR ? '医生' : '患者';
+    }
+
+    private function doctorAuditStatusText(?int $status): string
+    {
+        return match ($status) {
+            0 => '待审核',
+            1 => '已通过',
+            2 => '已拒绝',
+            default => '未提交',
+        };
+    }
+
+    private function identityText(string $profileRole, ?int $doctorAuditStatus): string
+    {
+        if ($profileRole !== self::PROFILE_ROLE_DOCTOR) {
+            return '患者';
+        }
+
+        return match ($doctorAuditStatus) {
+            0 => '医生待审核',
+            1 => '医生',
+            2 => '医生已拒绝',
+            default => '医生',
+        };
     }
 }

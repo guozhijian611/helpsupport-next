@@ -45,6 +45,9 @@ class MemberController extends BaseController
         $query = $this->logic->search($where);
         $query->with(['level', 'platform']);
         $data = $this->logic->getList($query);
+        if (isset($data['data']) && is_array($data['data'])) {
+            $data['data'] = $this->logic->appendIdentityList($data['data']);
+        }
         return $this->success($data);
     }
 
@@ -60,6 +63,7 @@ class MemberController extends BaseController
         $model = $this->logic->read($id);
         if ($model) {
             $data = is_array($model) ? $model : $model->toArray();
+            $data = $this->logic->appendIdentity($data);
             return $this->success($data);
         } else {
             return $this->fail('未查找到信息');

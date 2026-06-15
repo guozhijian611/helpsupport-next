@@ -29,6 +29,16 @@
             <el-input v-model="formData.nickname" placeholder="请输入用户昵称" />
           </el-form-item>
         </el-col>
+        <el-col v-if="dialogType !== 'add'" :span="24">
+          <el-form-item label="用户身份">
+            <el-input v-model="formData.identity_text" disabled />
+          </el-form-item>
+        </el-col>
+        <el-col v-if="dialogType !== 'add'" :span="24">
+          <el-form-item label="医生审核状态">
+            <el-input v-model="formData.doctor_audit_status_text" disabled />
+          </el-form-item>
+        </el-col>
         <el-col :span="24">
           <el-form-item label="头像" prop="avatar">
             <sa-image-picker v-model="formData.avatar" :limit="1" :multiple="false" />
@@ -116,6 +126,8 @@
     username: '',
     password: '',
     nickname: '',
+    identity_text: '',
+    doctor_audit_status_text: '',
     avatar: '',
     email: '',
     mobile: '',

@@ -9,6 +9,18 @@
       <el-descriptions-item label="用户昵称">
         <div v-text="formData?.nickname"></div>
       </el-descriptions-item>
+      <el-descriptions-item label="用户身份">
+        <div v-text="formData?.identity_text"></div>
+      </el-descriptions-item>
+      <el-descriptions-item label="资料身份">
+        <div v-text="formData?.profile_role_text"></div>
+      </el-descriptions-item>
+      <el-descriptions-item label="当前生效身份">
+        <div v-text="formData?.current_role_text"></div>
+      </el-descriptions-item>
+      <el-descriptions-item label="医生审核状态">
+        <div v-text="formData?.doctor_audit_status_text"></div>
+      </el-descriptions-item>
       <el-descriptions-item :span="2" label="头像">
         <img :src="formData?.avatar" style="width: 80px" />
       </el-descriptions-item>
@@ -109,6 +121,10 @@
   const initialFormData = {
     username: '',
     nickname: '',
+    identity_text: '',
+    profile_role_text: '',
+    current_role_text: '',
+    doctor_audit_status_text: '',
     avatar: '',
     email: '',
     mobile: '',
