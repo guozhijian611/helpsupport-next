@@ -14,8 +14,10 @@ class HelpSupportApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
     final locale = ref.watch(appLocaleProvider);
-    final appConfig =
-        ref.watch(appConfigProvider).valueOrNull ?? AppConfig.fallback;
+    final appConfigState = ref.watch(appConfigProvider);
+    final appConfig = appConfigState.hasValue
+        ? appConfigState.value ?? AppConfig.fallback
+        : AppConfig.fallback;
 
     return MaterialApp.router(
       title: appConfig.name,

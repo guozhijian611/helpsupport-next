@@ -25,8 +25,10 @@ class AuthPageFrame extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final size = MediaQuery.sizeOf(context);
     final isWide = size.width >= 720;
-    final appConfig =
-        ref.watch(appConfigProvider).valueOrNull ?? AppConfig.fallback;
+    final appConfigState = ref.watch(appConfigProvider);
+    final appConfig = appConfigState.hasValue
+        ? appConfigState.value ?? AppConfig.fallback
+        : AppConfig.fallback;
 
     return Scaffold(
       backgroundColor: _gradientStart,
