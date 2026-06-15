@@ -165,6 +165,47 @@
   "meMemoirBenefitDesc": "每升一级可生成回忆录",
   "meFreeDoctorTitle": "免费预约医生",
   "meFreeDoctorDesc": "6000积分可免费预约",
+  "meHonorBadgesTitle": "荣誉徽章",
+  "meHonorLevelApprentice": "见习者",
+  "meHonorLevelPersistent": "坚持者",
+  "meHonorLevelInspired": "启迪者",
+  "meHonorLevelReborn": "重生者",
+  "meHonorUnlocked": "已解锁",
+  "meHonorLocked": "待解锁",
+  "meHonorPointsProgress": "积分 {current} / {target}",
+  "@meHonorPointsProgress": {
+    "placeholders": {
+      "current": {},
+      "target": {}
+    }
+  },
+  "meHonorPointsProgressOpen": "积分 {current} / -",
+  "@meHonorPointsProgressOpen": {
+    "placeholders": {
+      "current": {}
+    }
+  },
+  "meHonorNextHint": "距离下一等级还差{points}积分",
+  "@meHonorNextHint": {
+    "placeholders": {
+      "points": {}
+    }
+  },
+  "meHonorFinalHint": "恭喜你已经到达了最终阶段，祝你在新的阶段一帆风顺！",
+  "meHonorRecentBadges": "最近获得",
+  "meHonorNoBadges": "暂未获得徽章",
+  "meHonorBadgeCount": "已获得 {count} 枚徽章",
+  "@meHonorBadgeCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "meHonorPointsBalance": "当前积分 {points}",
+  "@meHonorPointsBalance": {
+    "placeholders": {
+      "points": {}
+    }
+  },
   "meCommonFunctions": "常用功能",
   "meFollowing": "我的关注",
   "meCollection": "我的收藏",

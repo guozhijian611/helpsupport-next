@@ -504,6 +504,61 @@ class AppLocalizationsZh extends AppLocalizations {
   String get meFreeDoctorDesc => '6000积分可免费预约';
 
   @override
+  String get meHonorBadgesTitle => '荣誉徽章';
+
+  @override
+  String get meHonorLevelApprentice => '见习者';
+
+  @override
+  String get meHonorLevelPersistent => '坚持者';
+
+  @override
+  String get meHonorLevelInspired => '启迪者';
+
+  @override
+  String get meHonorLevelReborn => '重生者';
+
+  @override
+  String get meHonorUnlocked => '已解锁';
+
+  @override
+  String get meHonorLocked => '待解锁';
+
+  @override
+  String meHonorPointsProgress(Object current, Object target) {
+    return '积分 $current / $target';
+  }
+
+  @override
+  String meHonorPointsProgressOpen(Object current) {
+    return '积分 $current / -';
+  }
+
+  @override
+  String meHonorNextHint(Object points) {
+    return '距离下一等级还差$points积分';
+  }
+
+  @override
+  String get meHonorFinalHint => '恭喜你已经到达了最终阶段，祝你在新的阶段一帆风顺！';
+
+  @override
+  String get meHonorRecentBadges => '最近获得';
+
+  @override
+  String get meHonorNoBadges => '暂未获得徽章';
+
+  @override
+  String meHonorBadgeCount(Object count) {
+    return '已获得 $count 枚徽章';
+  }
+
+  @override
+  String meHonorPointsBalance(Object points) {
+    return '当前积分 $points';
+  }
+
+  @override
   String get meCommonFunctions => '常用功能';
 
   @override

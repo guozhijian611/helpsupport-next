@@ -185,6 +185,7 @@ class DoctorRepository {
     String taskType = 'daily',
     String source = 'manual',
     String sourceId = '',
+    List<String> attachments = const [],
     int pointsReward = 10,
     int status = 0,
   }) async {
@@ -203,6 +204,7 @@ class DoctorRepository {
         'task_type': taskType,
         'source': source.trim(),
         if (sourceId.trim().isNotEmpty) 'source_id': sourceId.trim(),
+        if (attachments.isNotEmpty) 'attachments': attachments,
         'points_reward': pointsReward,
         'status': status,
       },

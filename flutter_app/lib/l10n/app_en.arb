@@ -165,6 +165,47 @@
   "meMemoirBenefitDesc": "Generate a memoir at each level",
   "meFreeDoctorTitle": "Free doctor booking",
   "meFreeDoctorDesc": "6000 points for a free booking",
+  "meHonorBadgesTitle": "Honor badges",
+  "meHonorLevelApprentice": "Apprentice",
+  "meHonorLevelPersistent": "Persistent",
+  "meHonorLevelInspired": "Inspired",
+  "meHonorLevelReborn": "Reborn",
+  "meHonorUnlocked": "Unlocked",
+  "meHonorLocked": "Locked",
+  "meHonorPointsProgress": "Points {current} / {target}",
+  "@meHonorPointsProgress": {
+    "placeholders": {
+      "current": {},
+      "target": {}
+    }
+  },
+  "meHonorPointsProgressOpen": "Points {current} / -",
+  "@meHonorPointsProgressOpen": {
+    "placeholders": {
+      "current": {}
+    }
+  },
+  "meHonorNextHint": "{points} points to the next level",
+  "@meHonorNextHint": {
+    "placeholders": {
+      "points": {}
+    }
+  },
+  "meHonorFinalHint": "You have reached the final level. Wishing you steady progress in the next chapter.",
+  "meHonorRecentBadges": "Recent badges",
+  "meHonorNoBadges": "No badges yet",
+  "meHonorBadgeCount": "{count} badges earned",
+  "@meHonorBadgeCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "meHonorPointsBalance": "Current points {points}",
+  "@meHonorPointsBalance": {
+    "placeholders": {
+      "points": {}
+    }
+  },
   "meCommonFunctions": "Common actions",
   "meFollowing": "Following",
   "meCollection": "Saved",

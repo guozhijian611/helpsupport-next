@@ -1088,6 +1088,96 @@ abstract class AppLocalizations {
   /// **'6000 points for a free booking'**
   String get meFreeDoctorDesc;
 
+  /// No description provided for @meHonorBadgesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Honor badges'**
+  String get meHonorBadgesTitle;
+
+  /// No description provided for @meHonorLevelApprentice.
+  ///
+  /// In en, this message translates to:
+  /// **'Apprentice'**
+  String get meHonorLevelApprentice;
+
+  /// No description provided for @meHonorLevelPersistent.
+  ///
+  /// In en, this message translates to:
+  /// **'Persistent'**
+  String get meHonorLevelPersistent;
+
+  /// No description provided for @meHonorLevelInspired.
+  ///
+  /// In en, this message translates to:
+  /// **'Inspired'**
+  String get meHonorLevelInspired;
+
+  /// No description provided for @meHonorLevelReborn.
+  ///
+  /// In en, this message translates to:
+  /// **'Reborn'**
+  String get meHonorLevelReborn;
+
+  /// No description provided for @meHonorUnlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlocked'**
+  String get meHonorUnlocked;
+
+  /// No description provided for @meHonorLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked'**
+  String get meHonorLocked;
+
+  /// No description provided for @meHonorPointsProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Points {current} / {target}'**
+  String meHonorPointsProgress(Object current, Object target);
+
+  /// No description provided for @meHonorPointsProgressOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Points {current} / -'**
+  String meHonorPointsProgressOpen(Object current);
+
+  /// No description provided for @meHonorNextHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{points} points to the next level'**
+  String meHonorNextHint(Object points);
+
+  /// No description provided for @meHonorFinalHint.
+  ///
+  /// In en, this message translates to:
+  /// **'You have reached the final level. Wishing you steady progress in the next chapter.'**
+  String get meHonorFinalHint;
+
+  /// No description provided for @meHonorRecentBadges.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent badges'**
+  String get meHonorRecentBadges;
+
+  /// No description provided for @meHonorNoBadges.
+  ///
+  /// In en, this message translates to:
+  /// **'No badges yet'**
+  String get meHonorNoBadges;
+
+  /// No description provided for @meHonorBadgeCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} badges earned'**
+  String meHonorBadgeCount(Object count);
+
+  /// No description provided for @meHonorPointsBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Current points {points}'**
+  String meHonorPointsBalance(Object points);
+
   /// No description provided for @meCommonFunctions.
   ///
   /// In en, this message translates to:

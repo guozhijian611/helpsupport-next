@@ -10,8 +10,11 @@ import '../../../core/notifications/centered_notice.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/data/auth_models.dart';
 import '../../doctor/presentation/doctor_me_screen.dart';
+import '../application/me_content_controller.dart';
+import '../data/me_content_models.dart';
 import '../../plan/application/plan_controller.dart';
 import '../../plan/data/plan_models.dart';
+import 'honor_badges_support.dart';
 
 class MeScreen extends ConsumerWidget {
   const MeScreen({super.key});
@@ -38,6 +41,20 @@ class MeScreen extends ConsumerWidget {
     final currentMemberId = int.tryParse(session?.memberId ?? '') ?? 0;
     final apiClient = ref.watch(apiClientProvider);
     final profile = _MeProfile.fromSession(session, apiClient.resolveUrl);
+    final badges = switch (ref.watch(memberBadgesProvider)) {
+      AsyncData(:final value) => value.list,
+      _ => const <MemberBadge>[],
+    };
+    final pointLogs = ref.watch(pointLogsProvider);
+    final honorBalance = switch (pointLogs) {
+      AsyncData(:final value) => value.balance,
+      _ => _intValue(session?.member['points_balance']),
+    };
+    final honorSummary = buildHonorSummary(
+      context,
+      balance: honorBalance,
+      badgeCount: latestDistinctBadges(badges).length,
+    );
     final plans = switch (ref.watch(currentPlansProvider)) {
       AsyncData(:final value) => value,
       _ => const <TreatmentPlan>[],
@@ -104,7 +121,10 @@ class MeScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 36),
-                  const _HonorPreview(),
+                  _HonorPreview(
+                    summary: honorSummary,
+                    onTap: () => context.push('/me/honors'),
+                  ),
                   const SizedBox(height: 20),
                   const _BenefitStrip(),
                   const SizedBox(height: 24),
@@ -593,85 +613,108 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _HonorPreview extends StatelessWidget {
-  const _HonorPreview();
+  const _HonorPreview({required this.summary, required this.onTap});
+
+  final HonorSummaryData summary;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 174,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
           borderRadius: BorderRadius.circular(24),
-          gradient: const LinearGradient(
-            colors: [Color(0xFFB6B6B6), Color(0xFFE3E3E3)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: Stack(
-            children: [
-              Positioned.fill(child: CustomPaint(painter: _HonorCardPainter())),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 16, 22, 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      context.l10n.meCurrentLevel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      context.l10n.meLevelTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 23,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      context.l10n.meScoreText,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      context.l10n.meNextLevelHint,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.82),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
+          onTap: onTap,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: LinearGradient(
+                colors: summary.currentLevel.gradientColors,
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
               ),
-              const Positioned(
-                left: 22,
-                right: 22,
-                bottom: 14,
-                child: _HonorProgressBar(),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: CustomPaint(painter: _HonorCardPainter()),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 16, 22, 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          context.l10n.meCurrentLevel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Lv.${summary.currentLevel.level} ${summary.currentLevel.title}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 23,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          honorPointsLabel(
+                            context,
+                            summary.currentLevel,
+                            summary.balance,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          honorHintText(context, summary, summary.currentIndex),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.82),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    left: 22,
+                    right: 22,
+                    bottom: 14,
+                    child: _HonorProgressBar(
+                      progress: summary.currentProgress,
+                      knobColor: summary.currentLevel.progressDotColor,
+                    ),
+                  ),
+                  Positioned(
+                    top: 18,
+                    right: 18,
+                    child: _Medal(color: summary.currentLevel.medalColor),
+                  ),
+                ],
               ),
-              const Positioned(top: 18, right: 18, child: _Medal()),
-            ],
+            ),
           ),
         ),
       ),
@@ -710,7 +753,9 @@ class _HonorCardPainter extends CustomPainter {
 }
 
 class _Medal extends StatelessWidget {
-  const _Medal();
+  const _Medal({required this.color});
+
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -735,7 +780,7 @@ class _Medal extends StatelessWidget {
               height: 86,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFC4C4C4),
+                color: color,
                 border: Border.all(
                   color: Colors.white.withValues(alpha: 0.72),
                   width: 4,
@@ -767,32 +812,44 @@ class _Medal extends StatelessWidget {
 }
 
 class _HonorProgressBar extends StatelessWidget {
-  const _HonorProgressBar();
+  const _HonorProgressBar({required this.progress, required this.knobColor});
+
+  final double progress;
+  final Color knobColor;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 30,
-      child: Stack(
-        alignment: Alignment.centerLeft,
-        children: [
-          Container(
-            height: 12,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.86),
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFFC9C9C9),
-              border: Border.all(color: Colors.white, width: 4),
-            ),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = math.max(0, constraints.maxWidth - 30);
+          final left = width * progress.clamp(0, 1).toDouble();
+          return Stack(
+            alignment: Alignment.centerLeft,
+            children: [
+              Container(
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.86),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Positioned(
+                left: left,
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: knobColor,
+                    border: Border.all(color: Colors.white, width: 4),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1048,4 +1105,11 @@ class _QuickActionTile extends StatelessWidget {
       ),
     );
   }
+}
+
+int _intValue(Object? value, {int fallback = 0}) {
+  if (value is num) {
+    return value.toInt();
+  }
+  return int.tryParse((value ?? '').toString()) ?? fallback;
 }

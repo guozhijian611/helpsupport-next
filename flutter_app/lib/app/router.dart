@@ -33,6 +33,7 @@ import '../features/material/presentation/material_library_screen.dart';
 import '../features/message/presentation/message_center_screen.dart';
 import '../features/me/presentation/journal_screen.dart';
 import '../features/me/presentation/memoir_screen.dart';
+import '../features/me/presentation/honor_badges_screen.dart';
 import '../features/me/presentation/settings_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
 import '../features/plan/data/plan_models.dart';
@@ -257,6 +258,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/me/memoirs',
         name: 'me-memoirs',
         builder: (context, state) => const MemoirScreen(),
+      ),
+      GoRoute(
+        path: '/me/honors',
+        name: 'me-honors',
+        builder: (context, state) => const HonorBadgesScreen(),
       ),
       GoRoute(
         path: '/local-model',

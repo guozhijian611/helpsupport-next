@@ -515,6 +515,62 @@ class AppLocalizationsEn extends AppLocalizations {
   String get meFreeDoctorDesc => '6000 points for a free booking';
 
   @override
+  String get meHonorBadgesTitle => 'Honor badges';
+
+  @override
+  String get meHonorLevelApprentice => 'Apprentice';
+
+  @override
+  String get meHonorLevelPersistent => 'Persistent';
+
+  @override
+  String get meHonorLevelInspired => 'Inspired';
+
+  @override
+  String get meHonorLevelReborn => 'Reborn';
+
+  @override
+  String get meHonorUnlocked => 'Unlocked';
+
+  @override
+  String get meHonorLocked => 'Locked';
+
+  @override
+  String meHonorPointsProgress(Object current, Object target) {
+    return 'Points $current / $target';
+  }
+
+  @override
+  String meHonorPointsProgressOpen(Object current) {
+    return 'Points $current / -';
+  }
+
+  @override
+  String meHonorNextHint(Object points) {
+    return '$points points to the next level';
+  }
+
+  @override
+  String get meHonorFinalHint =>
+      'You have reached the final level. Wishing you steady progress in the next chapter.';
+
+  @override
+  String get meHonorRecentBadges => 'Recent badges';
+
+  @override
+  String get meHonorNoBadges => 'No badges yet';
+
+  @override
+  String meHonorBadgeCount(Object count) {
+    return '$count badges earned';
+  }
+
+  @override
+  String meHonorPointsBalance(Object points) {
+    return 'Current points $points';
+  }
+
+  @override
   String get meCommonFunctions => 'Common actions';
 
   @override

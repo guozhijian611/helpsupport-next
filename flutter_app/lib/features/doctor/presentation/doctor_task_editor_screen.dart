@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/notifications/centered_notice.dart';
+import '../../material/application/material_controller.dart';
+import '../../material/data/material_models.dart';
 import '../application/doctor_controller.dart';
 import '../data/doctor_models.dart';
 
@@ -35,6 +37,7 @@ class _DoctorTaskEditorScreenState
   TimeOfDay? _endTime;
   String _taskType = 'daily';
   DoctorAssessmentScale? _selectedAssessmentScale;
+  List<String> _selectedAttachments = const [];
   bool _saving = false;
 
   @override
@@ -132,9 +135,10 @@ class _DoctorTaskEditorScreenState
                     keyboardType: TextInputType.number,
                   ),
                   const Divider(height: 1, color: Color(0xFFE8EBF1)),
-                  _EditorStaticRow(
+                  _EditorActionRow(
                     label: _t(context, '附件选择', 'Attachments'),
-                    value: _t(context, '无', 'None'),
+                    value: _attachmentSummary(context, _selectedAttachments),
+                    onTap: _pickAttachments,
                   ),
                 ],
               ),
@@ -182,6 +186,33 @@ class _DoctorTaskEditorScreenState
           _endTime = picked;
         }
       });
+    }
+  }
+
+  Future<void> _pickAttachments() async {
+    try {
+      final page = await ref
+          .read(materialRepositoryProvider)
+          .fetchMaterials(materialType: 'education', pageSize: 100);
+      if (!mounted) {
+        return;
+      }
+      final selected = await showModalBottomSheet<List<String>>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => _AttachmentSelectionSheet(
+          items: page.list,
+          selectedTitles: _selectedAttachments,
+        ),
+      );
+      if (selected != null && mounted) {
+        setState(() => _selectedAttachments = selected);
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(error.toString());
+      }
     }
   }
 
@@ -351,6 +382,7 @@ class _DoctorTaskEditorScreenState
             sourceId: _taskType == 'assessment'
                 ? (_selectedAssessmentScale?.id ?? '')
                 : '',
+            attachments: _selectedAttachments,
             pointsReward: int.tryParse(_rewardController.text.trim()) ?? 20,
           );
       if (!mounted) {
@@ -368,6 +400,163 @@ class _DoctorTaskEditorScreenState
         setState(() => _saving = false);
       }
     }
+  }
+}
+
+class _AttachmentSelectionSheet extends StatefulWidget {
+  const _AttachmentSelectionSheet({
+    required this.items,
+    required this.selectedTitles,
+  });
+
+  final List<MaterialItem> items;
+  final List<String> selectedTitles;
+
+  @override
+  State<_AttachmentSelectionSheet> createState() =>
+      _AttachmentSelectionSheetState();
+}
+
+class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
+  late final Set<String> _selectedTitles;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTitles = widget.selectedTitles.toSet();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _t(context, '附件选择', 'Attachments'),
+                style: const TextStyle(
+                  color: Color(0xFF303236),
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 18),
+              if (widget.items.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 42),
+                  child: Text(
+                    _t(
+                      context,
+                      '还没有可用的教育素材',
+                      'No learning materials available yet',
+                    ),
+                    style: const TextStyle(
+                      color: Color(0xFF9AA0A8),
+                      fontSize: 15,
+                    ),
+                  ),
+                )
+              else
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.52,
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: widget.items.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final item = widget.items[index];
+                      final selected = _selectedTitles.contains(item.title);
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () {
+                          setState(() {
+                            if (selected) {
+                              _selectedTitles.remove(item.title);
+                            } else {
+                              _selectedTitles.add(item.title);
+                            }
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? const Color(0xFFEAF0FF)
+                                : const Color(0xFFF7F8FB),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFEAF7E7),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  _materialIcon(item.mediaType),
+                                  color: const Color(0xFF69CB69),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Text(
+                                  item.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFF303236),
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Icon(
+                                selected
+                                    ? Icons.check_circle_rounded
+                                    : Icons.circle_outlined,
+                                color: selected
+                                    ? const Color(0xFF68C140)
+                                    : const Color(0xFFC8CDD6),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              const SizedBox(height: 18),
+              FilledButton(
+                onPressed: () => Navigator.of(
+                  context,
+                ).pop(_selectedTitles.toList(growable: false)),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(56),
+                  backgroundColor: const Color(0xFF5A81DA),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                child: Text(_t(context, '完成', 'Done')),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -494,38 +683,6 @@ class _EditorActionRow extends StatelessWidget {
   }
 }
 
-class _EditorStaticRow extends StatelessWidget {
-  const _EditorStaticRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 92,
-            child: Text(
-              label,
-              style: const TextStyle(color: Color(0xFF9AA0A8), fontSize: 16),
-            ),
-          ),
-          const Spacer(),
-          Text(
-            value,
-            style: const TextStyle(color: Color(0xFF9AA0A8), fontSize: 16),
-          ),
-          const SizedBox(width: 6),
-          const Icon(Icons.chevron_right_rounded, color: Color(0xFFC8CDD6)),
-        ],
-      ),
-    );
-  }
-}
-
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
 }
@@ -560,4 +717,32 @@ String _timeValue(TimeOfDay? value) {
 DateTime? _parseDate(String value) {
   final parsed = DateTime.tryParse(value.trim());
   return parsed;
+}
+
+String _attachmentSummary(BuildContext context, List<String> attachments) {
+  if (attachments.isEmpty) {
+    return _t(context, '无', 'None');
+  }
+  if (attachments.length == 1) {
+    return attachments.first;
+  }
+  return _t(
+    context,
+    '${attachments.first} 等${attachments.length}项',
+    '${attachments.length} selected',
+  );
+}
+
+IconData _materialIcon(String mediaType) {
+  switch (mediaType) {
+    case 'video':
+      return Icons.play_circle_fill_rounded;
+    case 'audio':
+      return Icons.headphones_rounded;
+    case 'pdf':
+    case 'document':
+      return Icons.description_rounded;
+    default:
+      return Icons.menu_book_rounded;
+  }
 }

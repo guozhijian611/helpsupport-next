@@ -36,6 +36,7 @@ class _DoctorTreatmentPlanScreenState
   DateTime? _endDate;
   int _hydratedMemberId = -1;
   int _hydratedPlanId = -1;
+  bool _keyTasksExpanded = true;
   bool _saving = false;
 
   @override
@@ -125,139 +126,129 @@ class _DoctorTreatmentPlanScreenState
               const SizedBox(height: 16),
               if (_selectedMemberId > 0)
                 plans.when(
-                  data: (items) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (items.isNotEmpty) ...[
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _t(context, '已有计划', 'Existing plans'),
-                                style: const TextStyle(
-                                  color: Color(0xFF303236),
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
+                  data: (items) {
+                    final activePlan = _activePlan(items);
+                    final taskList = _sortTasks(
+                      tasks.asData?.value.list ?? const <DailyTask>[],
+                    );
+                    final groupedTasks = _groupTasksByStage(taskList);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (items.isNotEmpty) ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _t(context, '已有计划', 'Existing plans'),
+                                  style: const TextStyle(
+                                    color: Color(0xFF303236),
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                               ),
-                            ),
-                            TextButton(
-                              onPressed: _createBlankPlan,
-                              child: Text(_t(context, '新建', 'New')),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: [
-                            for (final plan in items)
-                              ChoiceChip(
-                                label: Text(plan.title),
-                                selected: plan.id == _selectedPlanId,
-                                onSelected: (_) => _selectPlan(plan),
-                                selectedColor: const Color(0xFFEAF0FF),
-                                backgroundColor: Colors.white,
-                                labelStyle: TextStyle(
-                                  color: plan.id == _selectedPlanId
-                                      ? const Color(0xFF5A81DA)
-                                      : const Color(0xFF7D828A),
-                                  fontWeight: FontWeight.w700,
-                                ),
+                              TextButton(
+                                onPressed: _createBlankPlan,
+                                child: Text(_t(context, '新建', 'New')),
                               ),
-                          ],
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            height: 40,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemBuilder: (context, index) {
+                                final plan = items[index];
+                                final selected = plan.id == _selectedPlanId;
+                                return ChoiceChip(
+                                  label: Text(plan.title),
+                                  selected: selected,
+                                  onSelected: (_) => _selectPlan(plan),
+                                  selectedColor: const Color(0xFFEAF0FF),
+                                  backgroundColor: Colors.white,
+                                  labelStyle: TextStyle(
+                                    color: selected
+                                        ? const Color(0xFF5A81DA)
+                                        : const Color(0xFF7D828A),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                );
+                              },
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 10),
+                              itemCount: items.length,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        _KeyTaskPanel(
+                          expanded: _keyTasksExpanded,
+                          tasks: taskList,
+                          onToggle: () => setState(
+                            () => _keyTasksExpanded = !_keyTasksExpanded,
+                          ),
+                          onAddTask: () => _addTaskFromKeySection(activePlan),
+                          onTaskTap: _showTaskSummary,
                         ),
                         const SizedBox(height: 16),
+                        if (activePlan != null)
+                          Column(
+                            children: [
+                              for (
+                                var index = 0;
+                                index < activePlan.stages.length;
+                                index += 1
+                              ) ...[
+                                _TreatmentStageCard(
+                                  order: index + 1,
+                                  stage: activePlan.stages[index],
+                                  tasks:
+                                      groupedTasks[activePlan
+                                          .stages[index]
+                                          .id] ??
+                                      const <DailyTask>[],
+                                  onEdit: () =>
+                                      _editStage(activePlan.stages[index]),
+                                  onAddTask: () =>
+                                      _addTask(activePlan.stages[index]),
+                                  onTaskTap: _showTaskSummary,
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                            ],
+                          ),
+                        OutlinedButton(
+                          onPressed: _saving ? null : _addStage,
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(62),
+                            side: const BorderSide(
+                              color: Color(0xFF5A81DA),
+                              width: 1.5,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                          child: Text(
+                            _t(context, '+ 添加阶段', '+ Add stage'),
+                            style: const TextStyle(
+                              color: Color(0xFF5A81DA),
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                       ],
-                      _PlanFormCard(
-                        titleController: _titleController,
-                        descriptionController: _descriptionController,
-                        startDate: _startDate,
-                        endDate: _endDate,
-                        statusLabel: _planStatusLabel(context, _status),
-                        onPickStart: () => _pickDate(isStart: true),
-                        onPickEnd: () => _pickDate(isStart: false),
-                        onPickStatus: _pickStatus,
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                   error: (error, _) => _InlineCard(
                     title: _t(context, '治疗计划加载失败', 'Failed to load plans'),
                     subtitle: error.toString(),
                   ),
                   loading: () => const _LoadingCard(height: 260),
                 ),
-              if (_selectedMemberId > 0) ...[
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _t(context, '阶段设置', 'Stages'),
-                        style: const TextStyle(
-                          color: Color(0xFF303236),
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _saving ? null : _addStage,
-                      icon: const Icon(Icons.add_rounded),
-                      label: Text(_t(context, '添加阶段', 'Add stage')),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                plans.when(
-                  data: (items) {
-                    final plan = _activePlan(items);
-                    if (plan == null) {
-                      return _InlineCard(
-                        title: _t(context, '先保存治疗计划', 'Save the plan first'),
-                        subtitle: _t(
-                          context,
-                          '保存计划后再继续配置阶段和任务。',
-                          'Save the plan before adding stages and tasks.',
-                        ),
-                      );
-                    }
-                    if (plan.stages.isEmpty) {
-                      return _InlineCard(
-                        title: _t(context, '还没有阶段', 'No stages yet'),
-                        subtitle: _t(
-                          context,
-                          '先添加阶段，再给每个阶段配置关键任务。',
-                          'Add a stage before configuring key tasks.',
-                        ),
-                      );
-                    }
-                    final groupedTasks = _groupTasksByStage(
-                      tasks.asData?.value.list ?? const [],
-                    );
-                    return Column(
-                      children: [
-                        for (final stage in plan.stages)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _StageCard(
-                              stage: stage,
-                              taskCount: groupedTasks[stage.id]?.length ?? 0,
-                              onEdit: () => _editStage(stage),
-                              onAddTask: () => _addTask(stage),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                  error: (error, _) => _InlineCard(
-                    title: _t(context, '阶段读取失败', 'Failed to load stages'),
-                    subtitle: error.toString(),
-                  ),
-                  loading: () => const _LoadingCard(height: 200),
-                ),
-              ],
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: _saving ? null : _savePlan,
@@ -268,7 +259,7 @@ class _DoctorTreatmentPlanScreenState
                     borderRadius: BorderRadius.circular(20),
                   ),
                 ),
-                child: Text(_t(context, '完成', 'Done')),
+                child: Text(_t(context, '完成配置', 'Finish setup')),
               ),
             ],
           ),
@@ -317,6 +308,22 @@ class _DoctorTreatmentPlanScreenState
       result.putIfAbsent(task.stageId, () => <DailyTask>[]).add(task);
     }
     return result;
+  }
+
+  List<DailyTask> _sortTasks(List<DailyTask> tasks) {
+    final sorted = tasks.toList(growable: false);
+    sorted.sort((left, right) {
+      final dateCompare = left.taskDate.compareTo(right.taskDate);
+      if (dateCompare != 0) {
+        return dateCompare;
+      }
+      final startCompare = left.startTime.compareTo(right.startTime);
+      if (startCompare != 0) {
+        return startCompare;
+      }
+      return left.id.compareTo(right.id);
+    });
+    return sorted;
   }
 
   void _syncPlans(List<TreatmentPlan> plans) {
@@ -497,20 +504,19 @@ class _DoctorTreatmentPlanScreenState
     if (_selectedMemberId <= 0) {
       throw StateError(_t(context, '请先选择患者', 'Please select a patient'));
     }
-    if (_titleController.text.trim().isEmpty) {
-      throw StateError(_t(context, '请先填写计划标题', 'Please enter a plan title'));
-    }
+    final title = _effectivePlanTitle();
     final plan = await ref
         .read(doctorRepositoryProvider)
         .saveTreatmentPlan(
           memberId: _selectedMemberId,
           id: _selectedPlanId,
-          title: _titleController.text,
+          title: title,
           description: _descriptionController.text,
           startDate: _formatNullableDate(_startDate),
           endDate: _formatNullableDate(_endDate),
           status: _status,
         );
+    _titleController.text = plan.title.isEmpty ? title : plan.title;
     _selectedPlanId = plan.id;
     _hydratedPlanId = plan.id;
     _hydratedMemberId = _selectedMemberId;
@@ -524,12 +530,6 @@ class _DoctorTreatmentPlanScreenState
     if (_selectedMemberId <= 0) {
       context.showCenteredNotice(
         _t(context, '请先选择患者', 'Please select a patient'),
-      );
-      return;
-    }
-    if (_titleController.text.trim().isEmpty) {
-      context.showCenteredNotice(
-        _t(context, '请先填写计划标题', 'Please enter a plan title'),
       );
       return;
     }
@@ -625,6 +625,637 @@ class _DoctorTreatmentPlanScreenState
     if (changed == true && mounted) {
       ref.invalidate(doctorDailyTasksProvider);
     }
+  }
+
+  Future<void> _addTaskFromKeySection(TreatmentPlan? plan) async {
+    if (plan == null || plan.id <= 0) {
+      context.showCenteredNotice(
+        _t(context, '请先添加阶段', 'Please add a stage first'),
+      );
+      return;
+    }
+    if (plan.stages.isEmpty) {
+      context.showCenteredNotice(
+        _t(context, '请先添加阶段', 'Please add a stage first'),
+      );
+      return;
+    }
+    if (plan.stages.length == 1) {
+      await _addTask(plan.stages.first);
+      return;
+    }
+    final pickedStageId = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+            children: [
+              Text(
+                _t(context, '选择任务所属阶段', 'Choose a stage'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF303236),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 16),
+              for (final stage in plan.stages)
+                ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  tileColor: const Color(0xFFF7F8FB),
+                  title: Text(stage.stageName),
+                  subtitle: Text(
+                    '${_formatDateString(stage.startDate)} - ${_formatDateString(stage.endDate)}',
+                  ),
+                  onTap: () => Navigator.of(context).pop(stage.id),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (pickedStageId == null || !mounted) {
+      return;
+    }
+    final pickedStage = plan.stages.cast<TreatmentStage?>().firstWhere(
+      (item) => item?.id == pickedStageId,
+      orElse: () => null,
+    );
+    if (pickedStage != null) {
+      await _addTask(pickedStage);
+    }
+  }
+
+  void _showTaskSummary(DailyTask task) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+            children: [
+              Text(
+                task.title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF303236),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 18),
+              _TaskSummaryRow(
+                label: _t(context, '日期', 'Date'),
+                value: task.taskDate,
+              ),
+              _TaskSummaryRow(
+                label: _t(context, '时间', 'Time'),
+                value: [
+                  task.startTime.trim(),
+                  task.endTime.trim(),
+                ].where((item) => item.isNotEmpty).join(' - '),
+              ),
+              _TaskSummaryRow(
+                label: _t(context, '任务类型', 'Type'),
+                value: task.taskType,
+              ),
+              _TaskSummaryRow(
+                label: _t(context, '奖励积分', 'Reward'),
+                value: '${task.pointsReward}',
+              ),
+              if (task.description.trim().isNotEmpty)
+                _TaskSummaryRow(
+                  label: _t(context, '说明', 'Description'),
+                  value: task.description,
+                  multiline: true,
+                ),
+              if (task.attachments.isNotEmpty)
+                _TaskSummaryRow(
+                  label: _t(context, '附件', 'Attachments'),
+                  value: task.attachments.join('、'),
+                  multiline: true,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _effectivePlanTitle() {
+    final trimmed = _titleController.text.trim();
+    if (trimmed.isNotEmpty) {
+      return trimmed;
+    }
+    final patientName = _selectedPatientName();
+    final generic = _t(context, '治疗计划', 'Treatment plan');
+    if (patientName.isEmpty) {
+      return generic;
+    }
+    return '$patientName $generic';
+  }
+
+  String _selectedPatientName() {
+    final state = ref.read(
+      doctorPatientsProvider(
+        const DoctorPatientsQuery(status: 1, pageSize: 100),
+      ),
+    );
+    final patients = state.asData?.value.list ?? const <DoctorPatient>[];
+    for (final patient in patients) {
+      if (patient.memberId == _selectedMemberId) {
+        return patient.displayName;
+      }
+    }
+    return '';
+  }
+}
+
+class _KeyTaskPanel extends StatelessWidget {
+  const _KeyTaskPanel({
+    required this.expanded,
+    required this.tasks,
+    required this.onToggle,
+    required this.onAddTask,
+    required this.onTaskTap,
+  });
+
+  final bool expanded;
+  final List<DailyTask> tasks;
+  final VoidCallback onToggle;
+  final VoidCallback onAddTask;
+  final ValueChanged<DailyTask> onTaskTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: onToggle,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _t(context, '关键任务', 'Key tasks'),
+                    style: const TextStyle(
+                      color: Color(0xFF303236),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Icon(
+                  expanded
+                      ? Icons.keyboard_arrow_down_rounded
+                      : Icons.chevron_right_rounded,
+                  color: const Color(0xFFC5CAD4),
+                  size: 28,
+                ),
+              ],
+            ),
+          ),
+          if (expanded) ...[
+            const SizedBox(height: 16),
+            if (tasks.isNotEmpty) ...[
+              for (final task in tasks.take(3)) ...[
+                _KeyTaskTile(task: task, onTap: () => onTaskTap(task)),
+                const SizedBox(height: 12),
+              ],
+            ],
+            OutlinedButton(
+              onPressed: onAddTask,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(72),
+                side: const BorderSide(color: Color(0xFF5A81DA), width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              child: Text(
+                _t(context, '+ 添加任务', '+ Add task'),
+                style: const TextStyle(
+                  color: Color(0xFF5A81DA),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _KeyTaskTile extends StatelessWidget {
+  const _KeyTaskTile({required this.task, required this.onTap});
+
+  final DailyTask task;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final trailing = task.isDone
+        ? Text(
+            _t(context, '已完成', 'Done'),
+            style: const TextStyle(
+              color: Color(0xFFA9ACB2),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          )
+        : Icon(
+            task.taskType == 'assessment'
+                ? Icons.edit_note_rounded
+                : Icons.chevron_right_rounded,
+            color: const Color(0xFF5A81DA),
+            size: 28,
+          );
+
+    return Material(
+      color: const Color(0xFFF7F7FA),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      task.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF303236),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      task.taskDate,
+                      style: const TextStyle(
+                        color: Color(0xFFA5A9B0),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              trailing,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TreatmentStageCard extends StatelessWidget {
+  const _TreatmentStageCard({
+    required this.order,
+    required this.stage,
+    required this.tasks,
+    required this.onEdit,
+    required this.onAddTask,
+    required this.onTaskTap,
+  });
+
+  final int order;
+  final TreatmentStage stage;
+  final List<DailyTask> tasks;
+  final VoidCallback onEdit;
+  final VoidCallback onAddTask;
+  final ValueChanged<DailyTask> onTaskTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _t(context, '阶段$order', 'Stage $order'),
+                  style: const TextStyle(
+                    color: Color(0xFF303236),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: onEdit,
+                icon: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFFC5CAD4),
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 24, color: Color(0xFFE8EBF1)),
+          _StageDetailRow(
+            label: _t(context, '阶段名称', 'Stage name'),
+            value: stage.stageName,
+            onTap: onEdit,
+          ),
+          _StageDetailRow(
+            label: _t(context, '起始日期', 'Start date'),
+            value: _formatDateString(stage.startDate),
+            onTap: onEdit,
+          ),
+          _StageDetailRow(
+            label: _t(context, '结束日期', 'End date'),
+            value: _formatDateString(stage.endDate),
+            onTap: onEdit,
+          ),
+          _StageDetailRow(
+            label: _t(context, '阶段目标', 'Stage goal'),
+            value: stage.description.trim().isEmpty
+                ? _t(context, '待补充', 'To be filled')
+                : stage.description,
+            onTap: onEdit,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _t(context, '任务设置', 'Task settings'),
+            style: const TextStyle(
+              color: Color(0xFF9AA0A8),
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _StageTaskWrap(
+            tasks: tasks,
+            onAddTask: onAddTask,
+            onTaskTap: onTaskTap,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StageDetailRow extends StatelessWidget {
+  const _StageDetailRow({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 94,
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xFFB2B5BB),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF303236),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Icon(Icons.chevron_right_rounded, color: Color(0xFFC8CDD6)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StageTaskWrap extends StatelessWidget {
+  const _StageTaskWrap({
+    required this.tasks,
+    required this.onAddTask,
+    required this.onTaskTap,
+  });
+
+  final List<DailyTask> tasks;
+  final VoidCallback onAddTask;
+  final ValueChanged<DailyTask> onTaskTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleTasks = tasks.take(2).toList(growable: false);
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        for (var index = 0; index < visibleTasks.length; index += 1)
+          _StageTaskTile(
+            task: visibleTasks[index],
+            color: index.isEven
+                ? const Color(0xFFA7BDF2)
+                : const Color(0xFFF5C0B4),
+            onTap: () => onTaskTap(visibleTasks[index]),
+          ),
+        _AddTaskTile(onTap: onAddTask),
+      ],
+    );
+  }
+}
+
+class _StageTaskTile extends StatelessWidget {
+  const _StageTaskTile({
+    required this.task,
+    required this.color,
+    required this.onTap,
+  });
+
+  final DailyTask task;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 128,
+      height: 132,
+      child: Material(
+        color: color,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  task.title,
+                  textAlign: TextAlign.center,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
+                  ),
+                ),
+                if (task.taskDate.trim().isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    task.taskDate,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddTaskTile extends StatelessWidget {
+  const _AddTaskTile({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 100,
+      height: 132,
+      child: Material(
+        color: const Color(0xFFF7F7FA),
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: const Center(
+            child: Icon(Icons.add_rounded, color: Color(0xFF9EA3AB), size: 34),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TaskSummaryRow extends StatelessWidget {
+  const _TaskSummaryRow({
+    required this.label,
+    required this.value,
+    this.multiline = false,
+  });
+
+  final String label;
+  final String value;
+  final bool multiline;
+
+  @override
+  Widget build(BuildContext context) {
+    if (value.trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: multiline
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 76,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF9AA0A8),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Color(0xFF303236),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

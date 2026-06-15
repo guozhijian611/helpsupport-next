@@ -117,4 +117,44 @@ class MeContentRepository {
     );
     return result.data ?? const [];
   }
+
+  Future<MePage<MemberBadge>> fetchBadges({
+    int status = 1,
+    int page = 1,
+    int pageSize = 50,
+  }) async {
+    final result = await _apiClient.getApi<MePage<MemberBadge>>(
+      '/app/help/me/badges',
+      queryParameters: {'status': status, 'page': page, 'page_size': pageSize},
+      decode: (value) => MePage.fromJson(value, MemberBadge.fromJson),
+    );
+    return result.data ??
+        const MePage(list: [], total: 0, page: 1, pageSize: 50);
+  }
+
+  Future<PointLogPage> fetchPointLogs({
+    String changeType = '',
+    String sourceType = '',
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final result = await _apiClient.getApi<PointLogPage>(
+      '/app/help/me/points',
+      queryParameters: {
+        if (changeType.trim().isNotEmpty) 'change_type': changeType.trim(),
+        if (sourceType.trim().isNotEmpty) 'source_type': sourceType.trim(),
+        'page': page,
+        'page_size': pageSize,
+      },
+      decode: PointLogPage.fromJson,
+    );
+    return result.data ??
+        const PointLogPage(
+          list: [],
+          total: 0,
+          page: 1,
+          pageSize: 20,
+          balance: 0,
+        );
+  }
 }

@@ -31,3 +31,13 @@ final memoirConfigsProvider = FutureProvider.autoDispose<List<MemoirConfig>>((
 ) {
   return ref.watch(meContentRepositoryProvider).fetchMemoirConfigs();
 });
+
+final memberBadgesProvider = FutureProvider.autoDispose<MePage<MemberBadge>>((
+  ref,
+) {
+  return ref.watch(meContentRepositoryProvider).fetchBadges();
+});
+
+final pointLogsProvider = FutureProvider.autoDispose<PointLogPage>((ref) {
+  return ref.watch(meContentRepositoryProvider).fetchPointLogs();
+});

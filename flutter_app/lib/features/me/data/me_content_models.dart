@@ -164,6 +164,123 @@ class MemoirConfig {
   }
 }
 
+class MemberBadge {
+  const MemberBadge({
+    required this.id,
+    required this.memberId,
+    required this.ruleId,
+    required this.badgeCode,
+    required this.badgeName,
+    required this.sourceType,
+    required this.sourceId,
+    required this.awardTime,
+    required this.status,
+  });
+
+  final int id;
+  final int memberId;
+  final int ruleId;
+  final String badgeCode;
+  final String badgeName;
+  final String sourceType;
+  final int sourceId;
+  final String awardTime;
+  final int status;
+
+  factory MemberBadge.fromJson(Map<String, dynamic> json) {
+    return MemberBadge(
+      id: _intValue(json['id']),
+      memberId: _intValue(json['member_id']),
+      ruleId: _intValue(json['rule_id']),
+      badgeCode: _stringValue(json['badge_code']),
+      badgeName: _stringValue(json['badge_name']),
+      sourceType: _stringValue(json['source_type']),
+      sourceId: _intValue(json['source_id']),
+      awardTime: _stringValue(json['award_time']),
+      status: _intValue(json['status'], fallback: 1),
+    );
+  }
+}
+
+class PointLogItem {
+  const PointLogItem({
+    required this.id,
+    required this.memberId,
+    required this.points,
+    required this.changeType,
+    required this.sourceType,
+    required this.sourceId,
+    required this.title,
+    required this.remark,
+    required this.balanceAfter,
+    required this.createTime,
+  });
+
+  final int id;
+  final int memberId;
+  final int points;
+  final String changeType;
+  final String sourceType;
+  final int sourceId;
+  final String title;
+  final String remark;
+  final int balanceAfter;
+  final String createTime;
+
+  bool get isIncome => points >= 0;
+
+  factory PointLogItem.fromJson(Map<String, dynamic> json) {
+    return PointLogItem(
+      id: _intValue(json['id']),
+      memberId: _intValue(json['member_id']),
+      points: _intValue(json['points']),
+      changeType: _stringValue(json['change_type']),
+      sourceType: _stringValue(json['source_type']),
+      sourceId: _intValue(json['source_id']),
+      title: _stringValue(json['title']),
+      remark: _stringValue(json['remark']),
+      balanceAfter: _intValue(json['balance_after']),
+      createTime: _stringValue(json['create_time']),
+    );
+  }
+}
+
+class PointLogPage {
+  const PointLogPage({
+    required this.list,
+    required this.total,
+    required this.page,
+    required this.pageSize,
+    required this.balance,
+  });
+
+  final List<PointLogItem> list;
+  final int total;
+  final int page;
+  final int pageSize;
+  final int balance;
+
+  factory PointLogPage.fromJson(Object? value) {
+    if (value is! Map<String, dynamic>) {
+      return const PointLogPage(
+        list: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        balance: 0,
+      );
+    }
+
+    return PointLogPage(
+      list: _list(value['list'], PointLogItem.fromJson),
+      total: _intValue(value['total']),
+      page: _intValue(value['page'], fallback: 1),
+      pageSize: _intValue(value['page_size'], fallback: 20),
+      balance: _intValue(value['balance']),
+    );
+  }
+}
+
 List<T> _list<T>(Object? value, T Function(Map<String, dynamic> json) decode) {
   if (value is! List) {
     return const [];
