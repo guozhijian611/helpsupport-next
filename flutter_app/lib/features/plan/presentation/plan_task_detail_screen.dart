@@ -23,23 +23,32 @@ class _PlanTaskDetailScreenState extends ConsumerState<PlanTaskDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _PlanTaskDetailPalette.of(context);
     final task = _task;
     if (task == null) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF4F5F9),
-        appBar: AppBar(title: Text(_t(context, '任务详情', 'Task detail'))),
+        backgroundColor: palette.pageBackground,
+        appBar: AppBar(
+          backgroundColor: palette.pageBackground,
+          foregroundColor: palette.primaryText,
+          surfaceTintColor: Colors.transparent,
+          title: Text(_t(context, '任务详情', 'Task detail')),
+        ),
         body: Center(
           child: Text(
             _t(context, '任务信息不存在', 'Task information is unavailable'),
-            style: const TextStyle(color: Color(0xFF8C919A), fontSize: 15),
+            style: TextStyle(color: palette.mutedText, fontSize: 15),
           ),
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(_t(context, '任务详情', 'Task detail')),
         centerTitle: true,
       ),
@@ -55,8 +64,8 @@ class _PlanTaskDetailScreenState extends ConsumerState<PlanTaskDetailScreen> {
                   children: [
                     Text(
                       task.title,
-                      style: const TextStyle(
-                        color: Color(0xFF303236),
+                      style: TextStyle(
+                        color: palette.primaryText,
                         fontSize: 24,
                         fontWeight: FontWeight.w900,
                       ),
@@ -65,8 +74,8 @@ class _PlanTaskDetailScreenState extends ConsumerState<PlanTaskDetailScreen> {
                       const SizedBox(height: 14),
                       Text(
                         task.description,
-                        style: const TextStyle(
-                          color: Color(0xFF7D828A),
+                        style: TextStyle(
+                          color: palette.mutedText,
                           fontSize: 16,
                           height: 1.7,
                         ),
@@ -97,25 +106,25 @@ class _PlanTaskDetailScreenState extends ConsumerState<PlanTaskDetailScreen> {
                     label: _t(context, '任务日期', 'Task date'),
                     value: task.taskDate,
                   ),
-                  _divider(),
+                  _divider(context),
                   _DetailRow(
                     label: _t(context, '任务来源', 'Source'),
                     value: _sourceLabel(context, task),
                   ),
-                  _divider(),
+                  _divider(context),
                   _DetailRow(
                     label: _t(context, '奖励分数', 'Reward'),
                     value: '${task.pointsReward}',
                   ),
                   if (task.reminders.isNotEmpty) ...[
-                    _divider(),
+                    _divider(context),
                     _DetailWrapRow(
                       label: _t(context, '提醒时间', 'Reminders'),
                       values: task.reminders,
                     ),
                   ],
                   if (task.attachments.isNotEmpty) ...[
-                    _divider(),
+                    _divider(context),
                     _DetailWrapRow(
                       label: _t(context, '附件', 'Attachments'),
                       values: task.attachments,
@@ -147,7 +156,7 @@ class _PlanTaskDetailScreenState extends ConsumerState<PlanTaskDetailScreen> {
                 onPressed: _submitting ? null : () => _updateStatus(task, 2),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(52),
-                  side: const BorderSide(color: Color(0xFFE4E7EC)),
+                  side: BorderSide(color: palette.outline),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -201,9 +210,10 @@ class _DetailCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _PlanTaskDetailPalette.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: child,
@@ -219,21 +229,22 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _PlanTaskDetailPalette.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       child: Row(
         children: [
           Text(
             label,
-            style: const TextStyle(color: Color(0xFF9AA0A8), fontSize: 15),
+            style: TextStyle(color: palette.secondaryText, fontSize: 15),
           ),
           const SizedBox(width: 18),
           Expanded(
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: Color(0xFF303236),
+              style: TextStyle(
+                color: palette.primaryText,
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
               ),
@@ -253,6 +264,7 @@ class _DetailWrapRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _PlanTaskDetailPalette.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       child: Column(
@@ -260,7 +272,7 @@ class _DetailWrapRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(color: Color(0xFF9AA0A8), fontSize: 15),
+            style: TextStyle(color: palette.secondaryText, fontSize: 15),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -274,13 +286,13 @@ class _DetailWrapRow extends StatelessWidget {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF5F7FB),
+                    color: palette.softBackground,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
                     value,
-                    style: const TextStyle(
-                      color: Color(0xFF303236),
+                    style: TextStyle(
+                      color: palette.primaryText,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -301,10 +313,11 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _PlanTaskDetailPalette.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FB),
+        color: palette.softBackground,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -319,7 +332,45 @@ class _InfoChip extends StatelessWidget {
   }
 }
 
-Widget _divider() => const Divider(height: 1, color: Color(0xFFE8EBF1));
+Widget _divider(BuildContext context) {
+  return Divider(height: 1, color: _PlanTaskDetailPalette.of(context).outline);
+}
+
+class _PlanTaskDetailPalette {
+  const _PlanTaskDetailPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.softBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.mutedText,
+    required this.outline,
+  });
+
+  factory _PlanTaskDetailPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _PlanTaskDetailPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      softBackground: scheme.surfaceContainerLow,
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
+          : const Color(0xFF8C919A),
+      outline: scheme.outlineVariant,
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color softBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color mutedText;
+  final Color outline;
+}
 
 String _statusLabel(BuildContext context, DailyTask task) {
   if (task.isDone) {

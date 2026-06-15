@@ -22,11 +22,15 @@ class _AssessmentTaskScreenState extends ConsumerState<AssessmentTaskScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AssessmentTaskPalette.of(context);
     final detail = ref.watch(assessmentTaskDetailProvider(widget.taskId));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(_t(context, '评估量表', 'Assessment')),
         centerTitle: true,
         actions: [
@@ -56,8 +60,8 @@ class _AssessmentTaskScreenState extends ConsumerState<AssessmentTaskScreen> {
                     child: Text(
                       item.scale.title,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Color(0xFF303236),
+                      style: TextStyle(
+                        color: palette.primaryText,
                         fontSize: 23,
                         fontWeight: FontWeight.w500,
                       ),
@@ -70,8 +74,8 @@ class _AssessmentTaskScreenState extends ConsumerState<AssessmentTaskScreen> {
                     child: Text(
                       item.scale.description,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Color(0xFF8C919A),
+                      style: TextStyle(
+                        color: palette.mutedText,
                         fontSize: 14,
                         height: 1.6,
                       ),
@@ -112,7 +116,7 @@ class _AssessmentTaskScreenState extends ConsumerState<AssessmentTaskScreen> {
               child: Text(
                 error.toString(),
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF8C919A)),
+                style: TextStyle(color: palette.mutedText),
               ),
             ),
           ),
@@ -251,10 +255,11 @@ class _QuestionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AssessmentTaskPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -262,8 +267,8 @@ class _QuestionCard extends StatelessWidget {
         children: [
           Text(
             '${index + 1}. ${question.title}',
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
@@ -311,6 +316,7 @@ class _OptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _AssessmentTaskPalette.of(context);
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
@@ -325,9 +331,7 @@ class _OptionTile extends StatelessWidget {
                 color: selected ? const Color(0xFF5A81DA) : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: selected
-                      ? const Color(0xFF5A81DA)
-                      : const Color(0xFFB0B3BA),
+                  color: selected ? const Color(0xFF5A81DA) : palette.outline,
                 ),
               ),
               child: selected
@@ -342,8 +346,8 @@ class _OptionTile extends StatelessWidget {
             Expanded(
               child: Text(
                 option.label,
-                style: const TextStyle(
-                  color: Color(0xFF8C919A),
+                style: TextStyle(
+                  color: palette.bodyText,
                   fontSize: 17,
                   fontWeight: FontWeight.w500,
                 ),
@@ -414,4 +418,39 @@ String _resultSuggestion(
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _AssessmentTaskPalette {
+  const _AssessmentTaskPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.primaryText,
+    required this.bodyText,
+    required this.mutedText,
+    required this.outline,
+  });
+
+  factory _AssessmentTaskPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _AssessmentTaskPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      primaryText: scheme.onSurface,
+      bodyText: isDark
+          ? scheme.onSurface.withValues(alpha: 0.84)
+          : const Color(0xFF8C919A),
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
+          : const Color(0xFF8C919A),
+      outline: scheme.outlineVariant,
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color primaryText;
+  final Color bodyText;
+  final Color mutedText;
+  final Color outline;
 }

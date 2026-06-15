@@ -20,12 +20,16 @@ class _DoctorAssessmentScalesScreenState
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorAssessmentScalesPalette.of(context);
     final query = DoctorAssessmentScalesQuery(status: _status);
     final scales = ref.watch(doctorAssessmentScalesProvider(query));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(_t(context, '评估量表', 'Assessment scales')),
         centerTitle: true,
         actions: [
@@ -171,6 +175,7 @@ class _TabItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorAssessmentScalesPalette.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -179,7 +184,7 @@ class _TabItem extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: active ? const Color(0xFF5A81DA) : const Color(0xFF303236),
+              color: active ? const Color(0xFF5A81DA) : palette.primaryText,
               fontSize: 18,
               fontWeight: active ? FontWeight.w800 : FontWeight.w600,
             ),
@@ -214,8 +219,9 @@ class _ScaleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorAssessmentScalesPalette.of(context);
     return Material(
-      color: Colors.white,
+      color: palette.cardBackground,
       borderRadius: BorderRadius.circular(24),
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
@@ -245,8 +251,8 @@ class _ScaleCard extends StatelessWidget {
                       scale.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF303236),
+                      style: TextStyle(
+                        color: palette.primaryText,
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                       ),
@@ -265,10 +271,7 @@ class _ScaleCard extends StatelessWidget {
                           'Score ${scale.totalScore}',
                         ),
                       ].join(' · '),
-                      style: const TextStyle(
-                        color: Color(0xFF7D828A),
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(color: palette.mutedText, fontSize: 14),
                     ),
                   ],
                 ),
@@ -283,10 +286,7 @@ class _ScaleCard extends StatelessWidget {
                   ),
                 )
               else if (onTap != null)
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Color(0xFFC6CAD2),
-                ),
+                Icon(Icons.chevron_right_rounded, color: palette.outline),
             ],
           ),
         ),
@@ -308,18 +308,19 @@ class _EmptyScaleBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorAssessmentScalesPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
@@ -328,8 +329,8 @@ class _EmptyScaleBlock extends StatelessWidget {
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF8C919A),
+            style: TextStyle(
+              color: palette.mutedText,
               fontSize: 14,
               height: 1.6,
             ),
@@ -353,6 +354,7 @@ class _ScaleListSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorAssessmentScalesPalette.of(context);
     return Column(
       children: List<Widget>.generate(
         6,
@@ -361,7 +363,7 @@ class _ScaleListSkeleton extends StatelessWidget {
           child: Container(
             height: 92,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: palette.cardBackground,
               borderRadius: BorderRadius.circular(24),
             ),
           ),
@@ -373,4 +375,34 @@ class _ScaleListSkeleton extends StatelessWidget {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _DoctorAssessmentScalesPalette {
+  const _DoctorAssessmentScalesPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.primaryText,
+    required this.mutedText,
+    required this.outline,
+  });
+
+  factory _DoctorAssessmentScalesPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _DoctorAssessmentScalesPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      primaryText: scheme.onSurface,
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
+          : const Color(0xFF7D828A),
+      outline: scheme.outlineVariant,
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color primaryText;
+  final Color mutedText;
+  final Color outline;
 }

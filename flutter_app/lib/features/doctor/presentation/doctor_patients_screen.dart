@@ -27,12 +27,16 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPatientsPalette.of(context);
     final query = DoctorPatientsQuery(keyword: _keyword);
     final patients = ref.watch(doctorPatientsProvider(query));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: palette.pageBackground,
       appBar: AppBar(
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
         title: Text(_t(context, '我的患者', 'My patients')),
         centerTitle: true,
         actions: [
@@ -209,14 +213,15 @@ class _SearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPatientsPalette.of(context);
     return Row(
       children: [
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: palette.cardBackground,
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: const Color(0xFFE4E7EC)),
+              border: Border.all(color: palette.outline),
             ),
             child: TextField(
               controller: controller,
@@ -229,11 +234,13 @@ class _SearchBar extends StatelessWidget {
                   vertical: 16,
                 ),
                 hintText: _t(context, '开始探索', 'Search patient'),
-                prefixIcon: const Icon(
+                prefixIcon: Icon(
                   Icons.search_rounded,
-                  color: Color(0xFFA1A6AF),
+                  color: palette.secondaryText,
                 ),
+                hintStyle: TextStyle(color: palette.secondaryText),
               ),
+              style: TextStyle(color: palette.primaryText),
             ),
           ),
         ),
@@ -255,6 +262,7 @@ class _PatientCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _DoctorPatientsPalette.of(context);
     final avatarUrl = ref.watch(apiClientProvider).resolveUrl(patient.avatar);
 
     return Material(
@@ -265,7 +273,7 @@ class _PatientCard extends ConsumerWidget {
         child: Ink(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: palette.cardBackground,
             borderRadius: BorderRadius.circular(28),
           ),
           child: Row(
@@ -289,8 +297,8 @@ class _PatientCard extends ConsumerWidget {
                   children: [
                     Text(
                       patient.displayName,
-                      style: const TextStyle(
-                        color: Color(0xFF303236),
+                      style: TextStyle(
+                        color: palette.primaryText,
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                       ),
@@ -333,12 +341,13 @@ class _PatientAvatarPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPatientsPalette.of(context);
     return Container(
       width: 66,
       height: 66,
-      color: const Color(0xFFEDEFF4),
+      color: palette.avatarBackground,
       alignment: Alignment.center,
-      child: const Icon(Icons.person_rounded, color: Color(0xFF8C919A)),
+      child: Icon(Icons.person_rounded, color: palette.secondaryText),
     );
   }
 }
@@ -351,22 +360,23 @@ class _Meta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPatientsPalette.of(context);
     return RichText(
       text: TextSpan(
         style: const TextStyle(fontSize: 15, height: 1.2),
         children: [
           TextSpan(
             text: label,
-            style: const TextStyle(
-              color: Color(0xFF96999F),
+            style: TextStyle(
+              color: palette.secondaryText,
               fontWeight: FontWeight.w700,
             ),
           ),
           const TextSpan(text: '  '),
           TextSpan(
             text: value,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -391,10 +401,11 @@ class _EmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPatientsPalette.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.cardBackground,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -407,8 +418,8 @@ class _EmptyCard extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF303236),
+            style: TextStyle(
+              color: palette.primaryText,
               fontSize: 21,
               fontWeight: FontWeight.w800,
             ),
@@ -417,8 +428,8 @@ class _EmptyCard extends StatelessWidget {
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF8C919A),
+            style: TextStyle(
+              color: palette.mutedText,
               fontSize: 14,
               height: 1.6,
             ),
@@ -442,6 +453,7 @@ class _PatientsSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPatientsPalette.of(context);
     return Column(
       children: List<Widget>.generate(
         5,
@@ -450,7 +462,7 @@ class _PatientsSkeleton extends StatelessWidget {
           child: Container(
             height: 114,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: palette.cardBackground,
               borderRadius: BorderRadius.circular(28),
             ),
           ),
@@ -462,4 +474,42 @@ class _PatientsSkeleton extends StatelessWidget {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _DoctorPatientsPalette {
+  const _DoctorPatientsPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.avatarBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.mutedText,
+    required this.outline,
+  });
+
+  factory _DoctorPatientsPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _DoctorPatientsPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      avatarBackground: isDark
+          ? scheme.surfaceContainerHigh
+          : const Color(0xFFEDEFF4),
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      mutedText: isDark
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
+          : const Color(0xFF8C919A),
+      outline: scheme.outlineVariant,
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color avatarBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color mutedText;
+  final Color outline;
 }
