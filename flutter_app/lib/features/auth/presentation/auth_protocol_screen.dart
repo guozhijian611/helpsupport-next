@@ -117,13 +117,18 @@ class _ProtocolErrorView extends StatelessWidget {
 }
 
 class _HtmlProtocolFormatter {
-  static final RegExp _breakTag = RegExp(r'(?i)<br\s*/?>');
-  static final RegExp _listItemOpen = RegExp(r'(?i)<li[^>]*>');
+  static final RegExp _breakTag = RegExp(r'<br\s*/?>', caseSensitive: false);
+  static final RegExp _listItemOpen = RegExp(
+    r'<li[^>]*>',
+    caseSensitive: false,
+  );
   static final RegExp _blockOpen = RegExp(
-    r'(?i)<(p|div|h[1-6]|ul|ol|blockquote)[^>]*>',
+    r'<(p|div|h[1-6]|ul|ol|blockquote)[^>]*>',
+    caseSensitive: false,
   );
   static final RegExp _blockClose = RegExp(
-    r'(?i)</(p|div|h[1-6]|li|ul|ol|blockquote)>',
+    r'</(p|div|h[1-6]|li|ul|ol|blockquote)>',
+    caseSensitive: false,
   );
   static final RegExp _allTags = RegExp(r'<[^>]+>');
   static final RegExp _lineSpaces = RegExp(r'[ \t\u00A0]+');

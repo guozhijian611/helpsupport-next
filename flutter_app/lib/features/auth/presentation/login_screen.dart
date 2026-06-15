@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -398,7 +399,7 @@ class _GoogleMark extends StatelessWidget {
   }
 }
 
-class _LoginAgreement extends StatelessWidget {
+class _LoginAgreement extends StatefulWidget {
   const _LoginAgreement({
     required this.value,
     required this.enabled,
@@ -414,12 +415,45 @@ class _LoginAgreement extends StatelessWidget {
   final VoidCallback onPrivacyTap;
 
   @override
+  State<_LoginAgreement> createState() => _LoginAgreementState();
+}
+
+class _LoginAgreementState extends State<_LoginAgreement> {
+  late final TapGestureRecognizer _termsRecognizer;
+  late final TapGestureRecognizer _privacyRecognizer;
+
+  @override
+  void initState() {
+    super.initState();
+    _termsRecognizer = TapGestureRecognizer()..onTap = widget.onTermsTap;
+    _privacyRecognizer = TapGestureRecognizer()..onTap = widget.onPrivacyTap;
+  }
+
+  @override
+  void didUpdateWidget(covariant _LoginAgreement oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _termsRecognizer.onTap = widget.enabled ? widget.onTermsTap : null;
+    _privacyRecognizer.onTap = widget.enabled ? widget.onPrivacyTap : null;
+  }
+
+  @override
+  void dispose() {
+    _termsRecognizer.dispose();
+    _privacyRecognizer.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     const accent = Color(0xFFFF9585);
     final baseStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
       color: muted,
       height: 1.45,
+      fontWeight: FontWeight.w600,
+    );
+    final linkStyle = TextStyle(
+      color: widget.enabled ? accent : accent.withValues(alpha: 0.58),
       fontWeight: FontWeight.w600,
     );
 
@@ -430,8 +464,8 @@ class _LoginAgreement extends StatelessWidget {
           width: 34,
           height: 34,
           child: Checkbox(
-            value: value,
-            onChanged: enabled ? onChanged : null,
+            value: widget.value,
+            onChanged: widget.enabled ? widget.onChanged : null,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(5),
             ),
@@ -443,61 +477,28 @@ class _LoginAgreement extends StatelessWidget {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Wrap(
-              children: [
-                Text('${context.l10n.loginAgreementPrefix} ', style: baseStyle),
-                _AgreementLink(
-                  text: context.l10n.termsOfUse,
-                  enabled: enabled,
-                  onTap: onTermsTap,
-                ),
-                Text(' ${context.l10n.loginAgreementJoin} ', style: baseStyle),
-                _AgreementLink(
-                  text: context.l10n.privacyPolicy,
-                  enabled: enabled,
-                  onTap: onPrivacyTap,
-                ),
-              ],
+            child: Text.rich(
+              TextSpan(
+                style: baseStyle,
+                children: [
+                  TextSpan(text: '${context.l10n.loginAgreementPrefix} '),
+                  TextSpan(
+                    text: context.l10n.termsOfUse,
+                    style: linkStyle,
+                    recognizer: _termsRecognizer,
+                  ),
+                  TextSpan(text: ' ${context.l10n.loginAgreementJoin} '),
+                  TextSpan(
+                    text: context.l10n.privacyPolicy,
+                    style: linkStyle,
+                    recognizer: _privacyRecognizer,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ],
-    );
-  }
-}
-
-class _AgreementLink extends StatelessWidget {
-  const _AgreementLink({
-    required this.text,
-    required this.enabled,
-    required this.onTap,
-  });
-
-  final String text;
-  final bool enabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    const accent = Color(0xFFFF9585);
-    final textWidget = Text(
-      text,
-      style: TextStyle(
-        color: enabled ? accent : accent.withValues(alpha: 0.58),
-        fontWeight: FontWeight.w600,
-      ),
-    );
-    if (!enabled) {
-      return textWidget;
-    }
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(4),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
-        child: textWidget,
-      ),
     );
   }
 }
