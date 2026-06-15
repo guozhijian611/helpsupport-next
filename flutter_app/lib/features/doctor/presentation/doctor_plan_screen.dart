@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/i18n/member_text_localizer.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../plan/data/plan_models.dart';
@@ -384,7 +385,7 @@ class _DoctorPlanHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Good morning!',
+                localizedGreeting(context),
                 style: TextStyle(
                   color: palette.secondaryText,
                   fontSize: 15,

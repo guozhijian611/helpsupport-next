@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/i18n/l10n_extensions.dart';
+import '../../../core/i18n/member_text_localizer.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../auth/application/auth_controller.dart';
@@ -144,12 +146,15 @@ class DoctorMeScreen extends ConsumerWidget {
                                         WrapCrossAlignment.center,
                                     children: [
                                       _MetaText(
-                                        label: _t(context, '年龄', 'Age'),
+                                        label: context.l10n.meAgeLabel,
                                         value: profile.age,
                                       ),
                                       _MetaText(
-                                        label: _t(context, '性别', 'Gender'),
-                                        value: profile.gender,
+                                        label: context.l10n.meGenderLabel,
+                                        value: localizedGender(
+                                          context,
+                                          profile.gender,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -244,7 +249,7 @@ class _DoctorMeProfile {
       profile['age'],
       member['age'],
     ], fallback: _ageFromBirthday(birthday));
-    final gender = _normalizeGender(
+    final gender = normalizeGenderKey(
       _firstText([profile['gender'], member['gender']], fallback: '男'),
     );
     final avatar = _firstText([member['avatar']]);
@@ -418,17 +423,6 @@ String _firstText(List<Object?> values, {String fallback = ''}) {
     }
   }
   return fallback;
-}
-
-String _normalizeGender(String value) {
-  final normalized = value.trim().toLowerCase();
-  if (normalized == 'female' || normalized == '2' || normalized == '女') {
-    return '女';
-  }
-  if (normalized == 'private' || normalized == '0' || normalized == '保密') {
-    return '保密';
-  }
-  return '男';
 }
 
 String _ageFromBirthday(String birthday) {

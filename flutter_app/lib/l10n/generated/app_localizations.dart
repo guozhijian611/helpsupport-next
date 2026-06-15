@@ -554,6 +554,30 @@ abstract class AppLocalizations {
   /// **'Your support space is ready.'**
   String get homeGreeting;
 
+  /// No description provided for @greetingMorning.
+  ///
+  /// In en, this message translates to:
+  /// **'Good morning!'**
+  String get greetingMorning;
+
+  /// No description provided for @greetingNoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Good afternoon!'**
+  String get greetingNoon;
+
+  /// No description provided for @greetingAfternoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Good afternoon!'**
+  String get greetingAfternoon;
+
+  /// No description provided for @greetingEvening.
+  ///
+  /// In en, this message translates to:
+  /// **'Good evening!'**
+  String get greetingEvening;
+
   /// No description provided for @onboardingTitle.
   ///
   /// In en, this message translates to:

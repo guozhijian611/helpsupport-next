@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/i18n/member_text_localizer.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../auth/application/auth_controller.dart';
@@ -133,7 +134,7 @@ class _HonorProfile {
         member['mobile'],
       ], fallback: 'Alexandrina'),
       age: _firstText([profile['age'], member['age']], fallback: '24'),
-      gender: _normalizeGender(
+      gender: normalizeGenderKey(
         _firstText([profile['gender'], member['gender']], fallback: '男'),
       ),
       avatarUrl: avatar.isEmpty ? '' : resolveUrl(avatar),
@@ -169,7 +170,7 @@ class _HonorProfileHeader extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                '${context.l10n.meAgeLabel}  ${profile.age}      ${context.l10n.meGenderLabel}  ${profile.gender}',
+                '${context.l10n.meAgeLabel}  ${profile.age}      ${context.l10n.meGenderLabel}  ${localizedGender(context, profile.gender)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -611,17 +612,6 @@ String _firstText(List<Object?> values, {String fallback = ''}) {
     }
   }
   return fallback;
-}
-
-String _normalizeGender(String value) {
-  final normalized = value.trim().toLowerCase();
-  if (normalized == 'female' || normalized == '2' || normalized == '女') {
-    return '女';
-  }
-  if (normalized == 'private' || normalized == '0' || normalized == '保密') {
-    return '保密';
-  }
-  return '男';
 }
 
 int _intValue(Object? value, {int fallback = 0}) {

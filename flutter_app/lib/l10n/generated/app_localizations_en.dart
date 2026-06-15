@@ -243,6 +243,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeGreeting => 'Your support space is ready.';
 
   @override
+  String get greetingMorning => 'Good morning!';
+
+  @override
+  String get greetingNoon => 'Good afternoon!';
+
+  @override
+  String get greetingAfternoon => 'Good afternoon!';
+
+  @override
+  String get greetingEvening => 'Good evening!';
+
+  @override
   String get onboardingTitle => 'Onboarding';
 
   @override

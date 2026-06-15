@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/i18n/member_text_localizer.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
@@ -246,7 +247,7 @@ class _PlanHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _t(context, 'Good morning!', 'Good morning!'),
+                  localizedGreeting(context),
                   style: TextStyle(
                     color: palette.secondaryText,
                     fontSize: AppTabShellMetrics.headerLabelFontSize,

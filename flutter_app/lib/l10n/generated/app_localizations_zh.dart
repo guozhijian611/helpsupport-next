@@ -237,6 +237,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeGreeting => '你的支持空间已准备好。';
 
   @override
+  String get greetingMorning => '早上好！';
+
+  @override
+  String get greetingNoon => '中午好！';
+
+  @override
+  String get greetingAfternoon => '下午好！';
+
+  @override
+  String get greetingEvening => '晚上好！';
+
+  @override
   String get onboardingTitle => '引导页';
 
   @override

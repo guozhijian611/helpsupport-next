@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/i18n/member_text_localizer.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
@@ -174,7 +175,7 @@ class _MeProfile {
       member['username'],
       member['mobile'],
     ]);
-    final gender = _normalizeGender(
+    final gender = normalizeGenderKey(
       _firstText([profile['gender'], member['gender']], fallback: '男'),
     );
     final age = _firstText([profile['age'], member['age']]);
@@ -212,20 +213,6 @@ class _MeProfile {
       }
     }
     return fallback;
-  }
-
-  static String _normalizeGender(String value) {
-    final normalized = value.trim().toLowerCase();
-    if (normalized.isEmpty) {
-      return '保密';
-    }
-    if (normalized == 'female' || normalized == '2' || normalized == '女') {
-      return '女';
-    }
-    if (normalized == 'private' || normalized == '0' || normalized == '保密') {
-      return '保密';
-    }
-    return '男';
   }
 
   static String _ageFromBirthday(String birthday) {
@@ -513,7 +500,10 @@ class _GenderPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _MetaText(label: context.l10n.meGenderLabel, value: gender),
+          _MetaText(
+            label: context.l10n.meGenderLabel,
+            value: localizedGender(context, gender),
+          ),
           const SizedBox(width: 6),
           Transform.rotate(
             angle: -math.pi / 2,
