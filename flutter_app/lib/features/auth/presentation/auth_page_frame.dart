@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AuthPageFrame extends StatelessWidget {
+import '../../../core/config/app_config.dart';
+
+class AuthPageFrame extends ConsumerWidget {
   const AuthPageFrame({
     super.key,
     required this.title,
@@ -19,10 +22,11 @@ class AuthPageFrame extends StatelessWidget {
   final Widget? footer;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final size = MediaQuery.sizeOf(context);
     final isWide = size.width >= 720;
-    final cardWidth = isWide ? 430.0 : double.infinity;
+    final appConfig =
+        ref.watch(appConfigProvider).valueOrNull ?? AppConfig.fallback;
 
     return Scaffold(
       backgroundColor: _gradientStart,
@@ -35,80 +39,138 @@ class AuthPageFrame extends StatelessWidget {
           ),
         ),
         child: SafeArea(
+          bottom: false,
           child: Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: isWide ? 520 : 480),
-              child: ListView(
-                padding: EdgeInsets.fromLTRB(
-                  isWide ? 44 : 24,
-                  18,
-                  isWide ? 44 : 24,
-                  24,
-                ),
-                children: [
-                  if (leading != null || trailing != null)
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 52,
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: leading,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final height = constraints.maxHeight;
+                  final scale = (constraints.maxWidth / 375)
+                      .clamp(0.92, 1.08)
+                      .toDouble();
+                  final panelTop = (isWide ? 292.0 : 264.0 * scale)
+                      .clamp(244.0, height * 0.54)
+                      .toDouble();
+                  final logoTop = isWide ? 72.0 : 92.0 * scale;
+
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (leading != null || trailing != null)
+                        Positioned(
+                          top: 18,
+                          left: isWide ? 44 : 24,
+                          right: isWide ? 44 : 24,
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 52,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: leading,
+                                ),
+                              ),
+                              const Spacer(),
+                              if (trailing != null) trailing!,
+                            ],
                           ),
                         ),
-                        const Spacer(),
-                        ?trailing,
-                      ],
-                    ),
-                  const SizedBox(height: 28),
-                  const _BrandMark(),
-                  const SizedBox(height: 24),
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      height: 1.15,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    subtitle,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.78),
-                      height: 1.45,
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  Center(
-                    child: SizedBox(
-                      width: cardWidth,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.12),
-                              blurRadius: 24,
-                              offset: const Offset(0, 16),
-                            ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(22),
-                          child: child,
+                      Positioned(
+                        top: logoTop,
+                        left: 0,
+                        right: 0,
+                        child: _AppLogo(logoUrl: appConfig.logo),
+                      ),
+                      Positioned(
+                        top: logoTop + 98,
+                        left: 24,
+                        right: 24,
+                        child: Text(
+                          appConfig.name,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                height: 1.2,
+                              ),
                         ),
                       ),
-                    ),
-                  ),
-                  if (footer != null) ...[
-                    const SizedBox(height: 18),
-                    Center(child: footer!),
-                  ],
-                ],
+                      Positioned(
+                        top: panelTop,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: DecoratedBox(
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(30),
+                            ),
+                          ),
+                          child: ListView(
+                            padding: EdgeInsets.fromLTRB(
+                              isWide ? 44 : 40,
+                              28,
+                              isWide ? 44 : 40,
+                              28 + MediaQuery.paddingOf(context).bottom,
+                            ),
+                            children: [
+                              Center(
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth: isWide ? 430 : double.infinity,
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        title,
+                                        textAlign: TextAlign.center,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .headlineSmall
+                                            ?.copyWith(
+                                              color: _gradientStart,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                      ),
+                                      if (subtitle.trim().isNotEmpty) ...[
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          subtitle,
+                                          textAlign: TextAlign.center,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                color: _mutedTextColor,
+                                                height: 1.35,
+                                              ),
+                                        ),
+                                      ],
+                                      const SizedBox(height: 24),
+                                      child,
+                                      if (footer != null) ...[
+                                        const SizedBox(height: 18),
+                                        footer!,
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -140,12 +202,12 @@ class AuthPrimaryButton extends StatelessWidget {
       child: FilledButton.icon(
         onPressed: isLoading ? null : onPressed,
         style: FilledButton.styleFrom(
-          backgroundColor: _primaryButtonColor,
+          backgroundColor: _gradientStart,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: _primaryButtonColor.withValues(alpha: 0.55),
+          disabledBackgroundColor: _gradientStart.withValues(alpha: 0.42),
           disabledForegroundColor: Colors.white.withValues(alpha: 0.72),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(15),
           ),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
@@ -170,24 +232,32 @@ class AuthSecondaryButton extends StatelessWidget {
     required this.onPressed,
     required this.label,
     required this.icon,
+    this.backgroundColor = Colors.white,
+    this.foregroundColor,
+    this.borderColor = _softBorderColor,
   });
 
   final VoidCallback? onPressed;
   final String label;
   final IconData icon;
+  final Color backgroundColor;
+  final Color? foregroundColor;
+  final Color borderColor;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 48,
+      height: 50,
       child: OutlinedButton.icon(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          foregroundColor: Theme.of(context).colorScheme.onSurface,
-          side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+          backgroundColor: backgroundColor,
+          foregroundColor:
+              foregroundColor ?? Theme.of(context).colorScheme.onSurface,
+          side: BorderSide(color: borderColor),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(50),
           ),
           textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
@@ -230,28 +300,37 @@ class AuthLinkButton extends StatelessWidget {
     required this.text,
     required this.actionText,
     required this.onPressed,
+    this.onDark = true,
   });
 
   final String text;
   final String actionText;
   final VoidCallback onPressed;
+  final bool onDark;
 
   @override
   Widget build(BuildContext context) {
+    final baseColor = onDark
+        ? Colors.white.withValues(alpha: 0.82)
+        : Theme.of(context).colorScheme.onSurfaceVariant;
+    final actionColor = onDark
+        ? Colors.white
+        : Theme.of(context).colorScheme.primary;
+
     return Wrap(
       alignment: WrapAlignment.center,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Text(
           text,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Colors.white.withValues(alpha: 0.82),
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: baseColor),
         ),
         TextButton(
           onPressed: onPressed,
           style: TextButton.styleFrom(
-            foregroundColor: Colors.white,
+            foregroundColor: actionColor,
             textStyle: const TextStyle(fontWeight: FontWeight.w800),
           ),
           child: Text(actionText),
@@ -298,51 +377,117 @@ class AuthTextField extends StatelessWidget {
       onFieldSubmitted: onFieldSubmitted,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon),
+        errorMaxLines: 2,
+        filled: true,
+        fillColor: _fieldFillColor,
+        prefixIcon: Icon(icon, color: _gradientStart),
         suffixIcon: suffix,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _gradientStart),
+        ),
       ),
       validator: validator,
     );
   }
 }
 
-class _BrandMark extends StatelessWidget {
-  const _BrandMark();
+class AuthAgreementNotice extends StatelessWidget {
+  const AuthAgreementNotice({super.key, required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      textAlign: TextAlign.center,
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        height: 1.45,
+      ),
+    );
+  }
+}
+
+class _AppLogo extends StatelessWidget {
+  const _AppLogo({required this.logoUrl});
+
+  final String logoUrl;
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Container(
-        width: 78,
-        height: 78,
+        width: 86,
+        height: 86,
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.18),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: Colors.white.withValues(alpha: 0.34)),
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Icon(
-              Icons.favorite_rounded,
-              color: Colors.white.withValues(alpha: 0.96),
-              size: 34,
-            ),
-            Transform.translate(
-              offset: const Offset(19, -17),
-              child: Icon(
-                Icons.add_circle,
-                color: Colors.white.withValues(alpha: 0.84),
-                size: 18,
-              ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 20,
+              offset: const Offset(0, 12),
             ),
           ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: logoUrl.isEmpty
+              ? const _LogoFallback()
+              : Image.network(
+                  logoUrl,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) {
+                      return child;
+                    }
+                    return const Center(
+                      child: SizedBox.square(
+                        dimension: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: _gradientStart,
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return const _LogoFallback();
+                  },
+                ),
         ),
       ),
     );
   }
 }
 
+class _LogoFallback extends StatelessWidget {
+  const _LogoFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Icon(
+      Icons.volunteer_activism_rounded,
+      color: _gradientStart,
+      size: 44,
+    );
+  }
+}
+
 const _gradientStart = Color(0xFFFF9585);
 const _gradientEnd = Color(0xFFFCB08E);
-const _primaryButtonColor = Color(0xFF2E7D6B);
+const _fieldFillColor = Color(0xFFFBF4F1);
+const _mutedTextColor = Color(0xFFA28D86);
+const _softBorderColor = Color(0xFFECE7E4);

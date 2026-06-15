@@ -32,6 +32,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginNoAccount => 'No account yet?';
 
   @override
+  String get loginAgreementNotice =>
+      'By signing in, you confirm that you have read and agree to the privacy policy.';
+
+  @override
   String get loginAction => 'Sign in';
 
   @override

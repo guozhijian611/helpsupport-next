@@ -1119,7 +1119,21 @@
                   "properties": {
                     "app": {
                       "type": "object",
-                      "description": "App基础配置"
+                      "description": "App基础配置",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "description": "App名称，读取 SAIUSER 站点配置"
+                        },
+                        "logo": {
+                          "type": "string",
+                          "description": "App logo，读取 SAIUSER 站点配置"
+                        },
+                        "description": {
+                          "type": "string",
+                          "description": "App描述，读取 SAIUSER 站点配置"
+                        }
+                      }
                     },
                     "oauth": {
                       "type": "object",

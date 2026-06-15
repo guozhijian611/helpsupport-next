@@ -140,6 +140,12 @@ abstract class AppLocalizations {
   /// **'No account yet?'**
   String get loginNoAccount;
 
+  /// No description provided for @loginAgreementNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'By signing in, you confirm that you have read and agree to the privacy policy.'**
+  String get loginAgreementNotice;
+
   /// No description provided for @loginAction.
   ///
   /// In en, this message translates to:

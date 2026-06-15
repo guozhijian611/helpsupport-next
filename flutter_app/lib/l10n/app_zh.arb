@@ -7,6 +7,7 @@
   "loginTitle": "登录",
   "loginSubtitle": "使用账号或可信身份服务登录。",
   "loginNoAccount": "还没有账号？",
+  "loginAgreementNotice": "登录即表示你已阅读并同意隐私政策",
   "loginAction": "去登录",
   "registerAction": "立即注册",
   "registerTitle": "创建账号",

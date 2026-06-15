@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/api/api_client.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/i18n/language_switcher.dart';
 import '../application/auth_controller.dart';
@@ -47,11 +46,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       title: context.l10n.loginTitle,
       subtitle: context.l10n.loginSubtitle,
       trailing: const LanguageSwitcher(onDark: true),
-      footer: AuthLinkButton(
-        text: context.l10n.loginNoAccount,
-        actionText: context.l10n.registerAction,
-        onPressed: () => context.go('/register'),
-      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -107,10 +101,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ? null
                 : ref.read(authControllerProvider.notifier).appleLogin,
             icon: Icons.apple,
+            backgroundColor: const Color(0xFF101010),
+            foregroundColor: Colors.white,
+            borderColor: const Color(0xFF101010),
             label: context.l10n.appleLogin,
           ),
           const SizedBox(height: 18),
-          _ApiBaseUrlTile(baseUrl: ApiClient.apiBaseUrl),
+          AuthAgreementNotice(text: context.l10n.loginAgreementNotice),
+          const SizedBox(height: 12),
+          AuthLinkButton(
+            text: context.l10n.loginNoAccount,
+            actionText: context.l10n.registerAction,
+            onPressed: () => context.go('/register'),
+            onDark: false,
+          ),
         ],
       ),
     );
@@ -144,55 +148,5 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return text
         .replaceFirst(RegExp(r'^.*message: '), '')
         .replaceFirst(RegExp(r', traceId: .*$'), '');
-  }
-}
-
-class _ApiBaseUrlTile extends StatelessWidget {
-  const _ApiBaseUrlTile({required this.baseUrl});
-
-  final String baseUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Theme.of(
-          context,
-        ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.56),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            Icon(
-              Icons.dns_outlined,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              size: 20,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    context.l10n.apiBaseUrlLabel,
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    baseUrl,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

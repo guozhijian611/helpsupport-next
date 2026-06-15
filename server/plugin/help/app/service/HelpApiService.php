@@ -21,6 +21,11 @@ class HelpApiService
             'help_apple_oauth',
             'help_firebase_push',
         ]);
+        $siteInfo = (array) Db::table('sa_site_info')
+            ->where('id', 1)
+            ->whereNull('delete_time')
+            ->field('site_name, site_logo, site_desc')
+            ->find();
         $platforms = Db::table('sa_member_platform')
             ->whereIn('platform_code', ['GOOGLE', 'APPLE'])
             ->whereNull('delete_time')
@@ -30,7 +35,9 @@ class HelpApiService
 
         return [
             'app' => [
-                'name' => 'HelpSupport',
+                'name' => $this->firstFilled($siteInfo['site_name'] ?? null, 'HelpSupport'),
+                'logo' => $this->firstFilled($siteInfo['site_logo'] ?? null),
+                'description' => $this->firstFilled($siteInfo['site_desc'] ?? null),
                 'api_prefix' => '/app/help',
                 'default_locale' => self::DEFAULT_LOCALE,
                 'supported_locales' => ['en-US', 'zh-CN'],
@@ -60,6 +67,18 @@ class HelpApiService
             ],
             'member_platforms' => $platforms,
         ];
+    }
+
+    private function firstFilled(?string ...$values): string
+    {
+        foreach ($values as $value) {
+            $trimmed = trim((string) $value);
+            if ($trimmed !== '') {
+                return $trimmed;
+            }
+        }
+
+        return '';
     }
 
     public function onboarding(string $scene, string $version, string $locale): array

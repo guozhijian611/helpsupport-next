@@ -30,6 +30,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get loginNoAccount => '还没有账号？';
 
   @override
+  String get loginAgreementNotice => '登录即表示你已阅读并同意隐私政策';
+
+  @override
   String get loginAction => '去登录';
 
   @override

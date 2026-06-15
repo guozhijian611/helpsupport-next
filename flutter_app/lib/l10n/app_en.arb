@@ -7,6 +7,7 @@
   "loginTitle": "Sign in",
   "loginSubtitle": "Use your account or a trusted identity provider.",
   "loginNoAccount": "No account yet?",
+  "loginAgreementNotice": "By signing in, you confirm that you have read and agree to the privacy policy.",
   "loginAction": "Sign in",
   "registerAction": "Create one",
   "registerTitle": "Create account",
