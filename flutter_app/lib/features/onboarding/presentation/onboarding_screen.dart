@@ -158,17 +158,19 @@ class _OnboardingPagerState extends State<_OnboardingPager> {
               bottom: 124 * scale,
               child: Center(
                 child: SizedBox(
-                  width: 240 * scale,
-                  height: 49 * scale,
+                  width: 256 * scale,
+                  height: 64 * scale,
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white,
                       side: BorderSide(color: Colors.white, width: 2 * scale),
+                      padding: EdgeInsets.symmetric(horizontal: 18 * scale),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(50 * scale),
                       ),
                       textStyle: const TextStyle(
-                        fontSize: 18,
+                        fontSize: 17,
+                        height: 1.15,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -178,6 +180,8 @@ class _OnboardingPagerState extends State<_OnboardingPager> {
                           ? item.buttonText
                           : context.l10n.continueLabel,
                       textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -270,6 +274,7 @@ class _OnboardingSlide extends StatelessWidget {
   Widget build(BuildContext context) {
     final scale = _onboardingLayoutScale(context);
     final safeTop = MediaQuery.paddingOf(context).top;
+    final copyTop = math.max(78.0, 96 * scale + safeTop * 0.15);
     final imageTop =
         switch (variant) {
           'cat' => 251.0,
@@ -296,31 +301,41 @@ class _OnboardingSlide extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         Positioned(
-          top: math.max(72, 100 * scale + safeTop * 0.15),
+          top: copyTop,
           left: 20 * scale,
           right: 20 * scale,
-          child: Text(
-            page.title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              height: 1.4,
-              fontWeight: FontWeight.w700,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: math.max(124, imageTop - copyTop - 18 * scale),
             ),
-          ),
-        ),
-        Positioned(
-          top: math.max(116, 150 * scale + safeTop * 0.15),
-          left: 24 * scale,
-          right: 24 * scale,
-          child: Text(
-            page.description,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.78),
-              fontSize: 12,
-              height: 1.45,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  page.title,
+                  textAlign: TextAlign.center,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    height: 1.18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 12 * scale),
+                Text(
+                  page.description,
+                  textAlign: TextAlign.center,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.78),
+                    fontSize: 13,
+                    height: 1.35,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

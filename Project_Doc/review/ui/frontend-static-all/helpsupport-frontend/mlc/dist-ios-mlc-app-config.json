@@ -1,0 +1,28 @@
+{
+  "model_list": [
+    {
+      "model_id": "Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
+      "model_lib": "qwen2_q4f16_1_a5957f0280477f325ed1e1b20f388afa",
+      "model_url": "https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
+      "estimated_vram_bytes": 2000000000
+    },
+    {
+      "model_id": "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+      "model_lib": "qwen2_q4f16_1_901834a9753aa1ed373195cd0402089a",
+      "model_url": "https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+      "estimated_vram_bytes": 3000000000
+    },
+    {
+      "model_id": "Llama-3.2-1B-Instruct-q4f16_1-MLC",
+      "model_lib": "llama_q4f16_1_003dbf71c679e31108baf45b4016fe04",
+      "model_url": "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f16_1-MLC",
+      "estimated_vram_bytes": 2600000000
+    },
+    {
+      "model_id": "SmolLM2-1.7B-Instruct-q4f16_1-MLC",
+      "model_lib": "llama_q4f16_1_b01922526d51045e33aea88e36a566e9",
+      "model_url": "https://huggingface.co/mlc-ai/SmolLM2-1.7B-Instruct-q4f16_1-MLC",
+      "estimated_vram_bytes": 3000000000
+    }
+  ]
+}
