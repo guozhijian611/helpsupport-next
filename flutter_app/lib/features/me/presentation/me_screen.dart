@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/providers/app_providers.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../auth/application/auth_controller.dart';
@@ -28,7 +29,8 @@ class MeScreen extends ConsumerWidget {
       AsyncData(:final value) => value,
       _ => null,
     };
-    final profile = _MeProfile.fromSession(session);
+    final apiClient = ref.watch(apiClientProvider);
+    final profile = _MeProfile.fromSession(session, apiClient.resolveUrl);
 
     return ColoredBox(
       color: _pageBackground,
@@ -86,13 +88,18 @@ class _MeProfile {
     required this.name,
     required this.age,
     required this.gender,
+    required this.avatarUrl,
   });
 
   final String name;
   final String age;
   final String gender;
+  final String avatarUrl;
 
-  factory _MeProfile.fromSession(AuthSession? session) {
+  factory _MeProfile.fromSession(
+    AuthSession? session,
+    String Function(String value) resolveUrl,
+  ) {
     final profile = session?.profile ?? const <String, dynamic>{};
     final member = session?.member ?? const <String, dynamic>{};
     final name = _firstText([
@@ -107,11 +114,13 @@ class _MeProfile {
     );
     final age = _firstText([profile['age'], member['age']]);
     final birthday = _firstText([profile['birthday'], member['birthday']]);
+    final avatar = _firstText([member['avatar']]);
 
     return _MeProfile(
       name: name.isEmpty ? '316868' : name,
       age: age.isEmpty ? _ageFromBirthday(birthday) : age,
       gender: gender,
+      avatarUrl: avatar.isEmpty ? '' : resolveUrl(avatar),
     );
   }
 
@@ -161,7 +170,7 @@ class _ProfileHeader extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        const _RobotAvatar(),
+        _MemberAvatar(avatarUrl: profile.avatarUrl),
         const SizedBox(width: 18),
         Expanded(
           child: Column(
@@ -197,6 +206,31 @@ class _ProfileHeader extends StatelessWidget {
           onTap: () => context.push('/me/settings'),
         ),
       ],
+    );
+  }
+}
+
+class _MemberAvatar extends StatelessWidget {
+  const _MemberAvatar({required this.avatarUrl});
+
+  final String avatarUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    if (avatarUrl.isEmpty) {
+      return const _RobotAvatar();
+    }
+
+    return ClipOval(
+      child: SizedBox(
+        width: 56,
+        height: 56,
+        child: Image.network(
+          avatarUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => const _RobotAvatar(),
+        ),
+      ),
     );
   }
 }

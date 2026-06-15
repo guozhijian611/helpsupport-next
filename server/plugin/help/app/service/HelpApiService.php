@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace plugin\help\app\service;
 
+use plugin\saiadmin\app\logic\system\SystemAttachmentLogic;
 use plugin\saiai\app\service\AiFactory;
 use plugin\saiadmin\exception\ApiException;
+use plugin\saiuser\app\api\logic\common\IndexLogic;
 use plugin\saiuser\app\admin\logic\member\MemberLogic;
+use support\Request;
 use think\facade\Db;
 use Throwable;
 
@@ -15,6 +18,7 @@ class HelpApiService
     private const DEFAULT_LOCALE = 'en-US';
     private const DEFAULT_PROTOCOL_LOCALE = 'zh-CN';
     private const RISK_REVIEW_REMARK = '命中风控规则，需人工审核';
+    private const EMAIL_CODE_EXPIRES_IN = 600;
     private const SMS_CODE_EXPIRES_IN = 300;
     private const CODE_RESEND_AFTER = 120;
 
@@ -188,6 +192,29 @@ class HelpApiService
         return $this->profile($memberId, $this->member($memberId));
     }
 
+    public function updateProfileAvatar(int $memberId, Request $request): array
+    {
+        if ($request->file() === []) {
+            throw new ApiException('头像图片必须上传', 400);
+        }
+
+        $upload = (new SystemAttachmentLogic())->uploadBase('image');
+        $avatar = trim((string) ($upload['url'] ?? ''));
+        if ($avatar === '') {
+            throw new ApiException('头像上传失败，请稍后重试', 500);
+        }
+
+        Db::table('sa_member')
+            ->where('id', $memberId)
+            ->whereNull('delete_time')
+            ->update([
+                'avatar' => $avatar,
+                'update_time' => date('Y-m-d H:i:s'),
+            ]);
+
+        return $this->profile($memberId, $this->member($memberId));
+    }
+
     public function securityOverview(int $memberId): array
     {
         $member = $this->memberWithPassword($memberId);
@@ -248,9 +275,81 @@ class HelpApiService
         ];
     }
 
+    public function sendSecurityEmailCode(int $memberId, array $data): array
+    {
+        $email = $this->normalizeEmail($data['email'] ?? '');
+        $this->assertEmailChangeTarget($memberId, $email);
+        $this->assertEmailBindable($memberId, $email);
+        $this->sendEmailCode($email);
+
+        return [
+            'sent' => true,
+            'target' => $this->maskEmail($email),
+            'expires_in' => self::EMAIL_CODE_EXPIRES_IN,
+            'resend_after' => self::CODE_RESEND_AFTER,
+        ];
+    }
+
+    public function bindSecurityEmail(int $memberId, array $data): array
+    {
+        $email = $this->normalizeEmail($data['email'] ?? '');
+        $emailCode = trim((string) ($data['email_code'] ?? ''));
+        if ($emailCode === '') {
+            throw new ApiException('邮箱验证码必须填写', 400);
+        }
+
+        $this->assertEmailChangeTarget($memberId, $email);
+        $this->assertEmailBindable($memberId, $email);
+        $this->consumeEmailCode($email, $emailCode);
+
+        $platformId = $this->memberPlatformId('EMAIL');
+        $now = date('Y-m-d H:i:s');
+
+        Db::transaction(function () use ($memberId, $email, $platformId, $now) {
+            Db::table('sa_member')
+                ->where('id', $memberId)
+                ->whereNull('delete_time')
+                ->update([
+                    'email' => $email,
+                    'update_time' => $now,
+                ]);
+
+            $rel = Db::table('sa_member_platform_rel')
+                ->where('member_id', $memberId)
+                ->where('platform_id', $platformId)
+                ->whereNull('delete_time')
+                ->find();
+
+            if ($rel) {
+                Db::table('sa_member_platform_rel')->where('id', (int) $rel['id'])->update([
+                    'platform_openid' => $email,
+                    'is_bind' => 1,
+                    'bind_time' => $now,
+                    'update_time' => $now,
+                ]);
+            } else {
+                Db::table('sa_member_platform_rel')->insert([
+                    'member_id' => $memberId,
+                    'platform_id' => $platformId,
+                    'platform_openid' => $email,
+                    'is_bind' => 1,
+                    'bind_time' => $now,
+                    'create_time' => $now,
+                    'update_time' => $now,
+                ]);
+            }
+        });
+
+        return [
+            'email' => $email,
+            'email_bound' => true,
+        ];
+    }
+
     public function sendSecurityMobileCode(int $memberId, array $data): array
     {
         $mobile = $this->normalizeMobile($data['mobile'] ?? '');
+        $this->assertMobileChangeTarget($memberId, $mobile);
         $this->assertMobileBindable($memberId, $mobile);
         $this->sendSmsCode($mobile);
 
@@ -270,6 +369,7 @@ class HelpApiService
             throw new ApiException('短信验证码必须填写', 400);
         }
 
+        $this->assertMobileChangeTarget($memberId, $mobile);
         $this->assertMobileBindable($memberId, $mobile);
         $this->consumeSmsCode($mobile, $mobileCode);
 
@@ -3533,6 +3633,44 @@ class HelpApiService
         return $mobile;
     }
 
+    private function normalizeEmail(mixed $email): string
+    {
+        $email = trim((string) $email);
+        if ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            throw new ApiException('请输入正确的邮箱格式', 400);
+        }
+
+        return $email;
+    }
+
+    private function assertEmailChangeTarget(int $memberId, string $email): void
+    {
+        $currentEmail = trim((string) ($this->memberWithPassword($memberId)['email'] ?? ''));
+        if ($currentEmail !== '' && strcasecmp($currentEmail, $email) === 0) {
+            throw new ApiException('新邮箱与当前绑定邮箱一致', 400);
+        }
+    }
+
+    private function assertMobileChangeTarget(int $memberId, string $mobile): void
+    {
+        $currentMobile = trim((string) ($this->memberWithPassword($memberId)['mobile'] ?? ''));
+        if ($currentMobile !== '' && $currentMobile === $mobile) {
+            throw new ApiException('新手机号与当前绑定手机号一致', 400);
+        }
+    }
+
+    private function assertEmailBindable(int $memberId, string $email): void
+    {
+        $member = (array) Db::table('sa_member')
+            ->where('email', $email)
+            ->whereNull('delete_time')
+            ->field('id')
+            ->find();
+        if ($member !== [] && (int) ($member['id'] ?? 0) !== $memberId) {
+            throw new ApiException('该邮箱已经绑定其他账号', 400);
+        }
+    }
+
     private function assertMobileBindable(int $memberId, string $mobile): void
     {
         $member = (array) Db::table('sa_member')
@@ -3545,11 +3683,34 @@ class HelpApiService
         }
     }
 
+    private function sendEmailCode(string $email): void
+    {
+        (new IndexLogic())->emailSend($email, 1);
+    }
+
     private function sendSmsCode(string $mobile): void
     {
         $result = (new MemberLogic())->sendCode($mobile);
         if (!$result) {
             throw new ApiException('验证码发送失败，请稍后重试', 500);
+        }
+    }
+
+    private function consumeEmailCode(string $email, string $code): void
+    {
+        $record = Db::table('sa_system_mail')
+            ->where('email', $email)
+            ->where('status', 'success')
+            ->order('update_time', 'desc')
+            ->find();
+        if (!$record) {
+            throw new ApiException('邮箱验证码错误或已过期，请填写正确的验证码', 400);
+        }
+        if ((string) ($record['code'] ?? '') !== $code) {
+            throw new ApiException('邮箱验证码错误或已过期，请填写正确的验证码', 400);
+        }
+        if (time() - strtotime((string) ($record['update_time'] ?? $record['create_time'] ?? '')) > self::EMAIL_CODE_EXPIRES_IN) {
+            throw new ApiException('邮箱验证码错误或已过期，请填写正确的验证码', 400);
         }
     }
 
@@ -3601,6 +3762,19 @@ class HelpApiService
         }
 
         return substr($mobile, 0, 3) . '****' . substr($mobile, -4);
+    }
+
+    private function maskEmail(string $email): string
+    {
+        [$name, $domain] = array_pad(explode('@', $email, 2), 2, '');
+        if ($name === '' || $domain === '') {
+            return $email;
+        }
+        if (mb_strlen($name) <= 2) {
+            return mb_substr($name, 0, 1) . '***@' . $domain;
+        }
+
+        return mb_substr($name, 0, 1) . '***' . mb_substr($name, -1) . '@' . $domain;
     }
 
     private function rowByMember(string $table, int $memberId): array

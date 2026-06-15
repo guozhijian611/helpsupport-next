@@ -54,6 +54,20 @@ class MeController extends BaseController
         return ok($this->service->saveProfile($this->memberId, $request->all()));
     }
 
+    #[Apidoc\Title('上传或更换头像')]
+    #[Apidoc\Url('/app/help/me/profile/avatar')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('file', type: 'file', require: true, desc: '头像图片文件')]
+    #[Apidoc\Returned('member', type: 'object', desc: '父框架会员资料')]
+    #[Apidoc\Returned('profile', type: 'object', desc: 'HelpSupport会员扩展资料')]
+    #[Apidoc\Returned('doctor_profile', type: 'object', desc: '医生资质资料')]
+    #[Apidoc\Returned('current_role', type: 'string', desc: '当前生效身份 patient/doctor')]
+    #[Apidoc\Returned('role_flags', type: 'object', desc: '身份标记 profile_role/is_patient/is_doctor/doctor_profile_submitted/doctor_approved')]
+    public function updateAvatar(Request $request): Response
+    {
+        return ok($this->service->updateProfileAvatar($this->memberId, $request));
+    }
+
     #[Apidoc\Title('账号安全概览')]
     #[Apidoc\Url('/app/help/me/security')]
     #[Apidoc\Method('GET')]
@@ -78,6 +92,31 @@ class MeController extends BaseController
     public function changePassword(Request $request): Response
     {
         return ok($this->service->changeSecurityPassword($this->memberId, $request->post()));
+    }
+
+    #[Apidoc\Title('发送绑定或更换邮箱验证码')]
+    #[Apidoc\Url('/app/help/me/security/email-code')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('email', type: 'string', require: true, desc: '待绑定邮箱')]
+    #[Apidoc\Returned('sent', type: 'boolean', desc: '是否发送成功')]
+    #[Apidoc\Returned('target', type: 'string', desc: '脱敏邮箱')]
+    #[Apidoc\Returned('expires_in', type: 'int', desc: '验证码有效期秒数')]
+    #[Apidoc\Returned('resend_after', type: 'int', desc: '再次发送等待秒数')]
+    public function sendEmailCode(Request $request): Response
+    {
+        return ok($this->service->sendSecurityEmailCode($this->memberId, $request->post()));
+    }
+
+    #[Apidoc\Title('绑定或更换邮箱')]
+    #[Apidoc\Url('/app/help/me/security/email')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('email', type: 'string', require: true, desc: '待绑定邮箱')]
+    #[Apidoc\Param('email_code', type: 'string', require: true, desc: '邮箱验证码')]
+    #[Apidoc\Returned('email', type: 'string', desc: '当前绑定邮箱')]
+    #[Apidoc\Returned('email_bound', type: 'boolean', desc: '是否已绑定邮箱')]
+    public function bindEmail(Request $request): Response
+    {
+        return ok($this->service->bindSecurityEmail($this->memberId, $request->post()));
     }
 
     #[Apidoc\Title('发送绑定手机号验证码')]

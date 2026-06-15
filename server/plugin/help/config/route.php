@@ -95,8 +95,11 @@ Route::group('/app/help', function () {
 
     Route::get('/me/profile', [MeController::class, 'profile']);
     Route::post('/me/profile/save', [MeController::class, 'saveProfile']);
+    Route::post('/me/profile/avatar', [MeController::class, 'updateAvatar']);
     Route::get('/me/security', [MeController::class, 'security']);
     Route::post('/me/security/password', [MeController::class, 'changePassword']);
+    Route::post('/me/security/email-code', [MeController::class, 'sendEmailCode']);
+    Route::post('/me/security/email', [MeController::class, 'bindEmail']);
     Route::post('/me/security/mobile-code', [MeController::class, 'sendMobileCode']);
     Route::post('/me/security/mobile', [MeController::class, 'bindMobile']);
     Route::post('/me/security/logout-other-devices', [MeController::class, 'logoutOtherDevices']);

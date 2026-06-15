@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -181,6 +182,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   static const _privacyPrefix = 'settings.privacy.';
   static const _notificationPrefix = 'settings.notification.';
   final _dateFormat = DateFormat('yyyy-MM-dd');
+  final _imagePicker = ImagePicker();
 
   _PrivacyVisibility _communityVisibility = _PrivacyVisibility.mutual;
   bool _anonymousPosting = true;
@@ -402,6 +404,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     final mobile = bundle.mobile.isEmpty
         ? _t(context, '未绑定', 'Not linked')
         : _maskMobile(bundle.mobile);
+    final email = bundle.email.isEmpty
+        ? _t(context, '未绑定', 'Not linked')
+        : _maskEmail(bundle.email);
     final avatarValue = bundle.avatarUrl.isEmpty
         ? _t(context, '默认头像', 'Default')
         : _t(context, '已设置', 'Set');
@@ -416,7 +421,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
           _SettingsNavRow(
             title: _t(context, '头像', 'Avatar'),
             value: avatarValue,
-            onTap: () => _previewAvatar(bundle.avatarUrl),
+            onTap: () => _manageAvatar(bundle),
           ),
           _SettingsNavRow(
             title: _t(context, '昵称', 'Nickname'),
@@ -437,6 +442,11 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
             title: _t(context, '手机号', 'Phone number'),
             value: mobile,
             onTap: () => _bindMobile(),
+          ),
+          _SettingsNavRow(
+            title: _t(context, '邮箱', 'Email'),
+            value: email,
+            onTap: () => _bindEmail(),
           ),
         ],
       ),
@@ -487,7 +497,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
             value: overview.member.email.isEmpty
                 ? _t(context, '未绑定', 'Not linked')
                 : _maskEmail(overview.member.email),
-            showChevron: false,
+            onTap: () => _bindEmail(),
           ),
           _SettingsNavRow(
             title: overview.member.hasPassword
@@ -496,7 +506,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
             onTap: () => _changePassword(),
           ),
           _SettingsNavRow(
-            title: _t(context, '绑定手机号', 'Linked phone'),
+            title: _t(context, '手机号', 'Phone number'),
             value: overview.member.mobile.isEmpty
                 ? _t(context, '未绑定', 'Not linked')
                 : _maskMobile(overview.member.mobile),
@@ -986,6 +996,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       );
       return;
     }
+    final previewUrl = ref.read(apiClientProvider).resolveUrl(avatarUrl);
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => Dialog(
@@ -998,7 +1009,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(24),
                 child: Image.network(
-                  avatarUrl,
+                  previewUrl,
                   width: 180,
                   height: 180,
                   fit: BoxFit.cover,
@@ -1021,6 +1032,116 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _manageAvatar(MeProfileBundle bundle) async {
+    if (bundle.avatarUrl.isEmpty) {
+      await _pickAvatar();
+      return;
+    }
+
+    final action = await showModalBottomSheet<_AvatarAction>(
+      context: context,
+      backgroundColor: _SettingsPalette.of(context).pageBackground,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final palette = _SettingsPalette.of(sheetContext);
+        final theme = Theme.of(sheetContext);
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    _t(context, '头像操作', 'Avatar actions'),
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: palette.primaryText,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                _SettingsNavRow(
+                  title: _t(context, '查看当前头像', 'Preview current avatar'),
+                  onTap: () =>
+                      Navigator.of(sheetContext).pop(_AvatarAction.preview),
+                ),
+                Divider(height: 1, color: palette.divider),
+                _SettingsNavRow(
+                  title: _t(context, '从相册选择新头像', 'Choose a new avatar'),
+                  onTap: () =>
+                      Navigator.of(sheetContext).pop(_AvatarAction.choose),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (!mounted || action == null) {
+      return;
+    }
+    if (action == _AvatarAction.preview) {
+      await _previewAvatar(bundle.avatarUrl);
+      return;
+    }
+    await _pickAvatar();
+  }
+
+  Future<void> _pickAvatar() async {
+    final permission = await ref
+        .read(permissionServiceProvider)
+        .requestMediaLibrary();
+    final granted =
+        permission == PermissionStatus.granted ||
+        permission == PermissionStatus.limited;
+    if (!granted) {
+      if (mounted) {
+        context.showCenteredNotice(
+          _t(
+            context,
+            '需要开启相册权限后才能更换头像',
+            'Photo permission is required to change your avatar',
+          ),
+        );
+      }
+      return;
+    }
+
+    final file = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 90,
+      maxWidth: 1440,
+    );
+    if (file == null) {
+      return;
+    }
+
+    try {
+      final bundle = await ref
+          .read(meSettingsRepositoryProvider)
+          .uploadAvatar(file: file);
+      await ref.read(authControllerProvider.notifier).refreshCurrentSession();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _profileBundle = bundle;
+      });
+      context.showCenteredNotice(_t(context, '头像已更新', 'Avatar updated'));
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(_errorText(context, error));
+      }
+    }
   }
 
   Future<void> _editNickname(MeProfileBundle bundle) async {
@@ -1140,9 +1261,12 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     final initialMobile = _securityOverview?.member.mobile.isNotEmpty == true
         ? _securityOverview!.member.mobile
         : (_profileBundle?.mobile ?? '');
+    final hadMobile = initialMobile.trim().isNotEmpty;
     final mobile = await _showTextInputDialog(
       context: context,
-      title: _t(context, '绑定手机号', 'Bind phone number'),
+      title: hadMobile
+          ? _t(context, '更换手机号', 'Change phone number')
+          : _t(context, '绑定手机号', 'Bind phone number'),
       initialValue: initialMobile,
       hintText: _t(context, '请输入手机号', 'Enter phone number'),
       keyboardType: TextInputType.phone,
@@ -1151,6 +1275,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       return;
     }
     final normalizedMobile = mobile.trim();
+    if (normalizedMobile == initialMobile.trim()) {
+      return;
+    }
 
     try {
       final delivery = await ref
@@ -1179,7 +1306,70 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       await _loadRemoteSection();
       if (mounted) {
         context.showCenteredNotice(
-          _t(context, '手机号已绑定', 'Phone number linked'),
+          hadMobile
+              ? _t(context, '手机号已更换', 'Phone number updated')
+              : _t(context, '手机号已绑定', 'Phone number linked'),
+        );
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(_errorText(context, error));
+      }
+    }
+  }
+
+  Future<void> _bindEmail() async {
+    final initialEmail = _securityOverview?.member.email.isNotEmpty == true
+        ? _securityOverview!.member.email
+        : (_profileBundle?.email ?? '');
+    final hadEmail = initialEmail.trim().isNotEmpty;
+    final email = await _showTextInputDialog(
+      context: context,
+      title: hadEmail
+          ? _t(context, '更换邮箱', 'Change email')
+          : _t(context, '绑定邮箱', 'Bind email'),
+      initialValue: initialEmail,
+      hintText: _t(context, '请输入邮箱', 'Enter email'),
+      keyboardType: TextInputType.emailAddress,
+    );
+    if (email == null || email.trim().isEmpty) {
+      return;
+    }
+    final normalizedEmail = email.trim();
+    if (normalizedEmail.toLowerCase() == initialEmail.trim().toLowerCase()) {
+      return;
+    }
+
+    try {
+      final delivery = await ref
+          .read(meSettingsRepositoryProvider)
+          .sendEmailCode(email: normalizedEmail);
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(
+        _t(context, '验证码已发送至', 'Code sent to ') + delivery.target,
+      );
+      final code = await _showTextInputDialog(
+        context: context,
+        title: _t(context, '输入验证码', 'Enter verification code'),
+        initialValue: '',
+        hintText: _t(context, '请输入邮箱验证码', 'Enter email verification code'),
+        keyboardType: TextInputType.number,
+      );
+      if (code == null || code.trim().isEmpty) {
+        return;
+      }
+      await ref
+          .read(meSettingsRepositoryProvider)
+          .bindEmail(email: normalizedEmail, code: code.trim());
+      await ref.read(authControllerProvider.notifier).refreshCurrentSession();
+      await _loadRemoteSection();
+      if (mounted) {
+        context.showCenteredNotice(
+          hadEmail
+              ? _t(context, '邮箱已更换', 'Email updated')
+              : _t(context, '邮箱已绑定', 'Email linked'),
         );
       }
     } on Object catch (error) {
@@ -1607,6 +1797,8 @@ enum SettingsSectionType {
     };
   }
 }
+
+enum _AvatarAction { preview, choose }
 
 enum _PrivacyVisibility {
   private('private'),

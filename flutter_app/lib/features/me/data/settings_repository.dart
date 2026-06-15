@@ -1,4 +1,6 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/providers/app_providers.dart';
@@ -37,6 +39,23 @@ class MeSettingsRepository {
       throw const FormatException('保存个人资料响应缺少 data');
     }
     return profile;
+  }
+
+  Future<MeProfileBundle> uploadAvatar({required XFile file}) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(file.path, filename: file.name),
+    });
+    final result = await _apiClient.postApi<MeProfileBundle>(
+      '/app/help/me/profile/avatar',
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
+      decode: MeProfileBundle.fromJson,
+    );
+    final data = result.data;
+    if (data == null) {
+      throw const FormatException('头像上传响应缺少 data');
+    }
+    return data;
   }
 
   Future<SecurityOverview> fetchSecurityOverview() async {
@@ -79,6 +98,29 @@ class MeSettingsRepository {
       throw const FormatException('绑定手机号验证码响应缺少 data');
     }
     return delivery;
+  }
+
+  Future<VerificationCodeDelivery> sendEmailCode({
+    required String email,
+  }) async {
+    final result = await _apiClient.postApi<VerificationCodeDelivery>(
+      '/app/help/me/security/email-code',
+      data: {'email': email.trim()},
+      decode: VerificationCodeDelivery.fromJson,
+    );
+    final delivery = result.data;
+    if (delivery == null) {
+      throw const FormatException('绑定邮箱验证码响应缺少 data');
+    }
+    return delivery;
+  }
+
+  Future<void> bindEmail({required String email, required String code}) async {
+    await _apiClient.postApi<bool>(
+      '/app/help/me/security/email',
+      data: {'email': email.trim(), 'email_code': code.trim()},
+      decode: (_) => true,
+    );
   }
 
   Future<void> bindMobile({
