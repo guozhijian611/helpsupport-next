@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -5,6 +8,8 @@ import 'package:timezone/data/latest.dart' as timezone;
 
 import '../core/api/api_client.dart';
 import '../core/auth/token_storage.dart';
+import '../core/config/build_info.dart';
+import '../core/diagnostics/diagnostic_log_service.dart';
 import '../core/notifications/local_notification_service.dart';
 import '../core/permissions/permission_service.dart';
 import '../core/providers/app_providers.dart';
@@ -18,12 +23,40 @@ Future<void> bootstrap() async {
 
   final sharedPreferences = await SharedPreferences.getInstance();
   const tokenStorage = SecureTokenStorage();
-  final apiClient = ApiClient(tokenStorage: tokenStorage);
+  final diagnosticLogService = DiagnosticLogService();
+  final apiClient = ApiClient(
+    tokenStorage: tokenStorage,
+    diagnosticLogService: diagnosticLogService,
+  );
   final notificationService = LocalNotificationService();
   final firebasePushService = FirebasePushService();
 
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    unawaited(
+      diagnosticLogService.recordFlutterError(details).catchError((_) {}),
+    );
+  };
+  PlatformDispatcher.instance.onError = (error, stackTrace) {
+    unawaited(
+      diagnosticLogService
+          .recordUnhandledError(error, stackTrace)
+          .catchError((_) {}),
+    );
+    return false;
+  };
+
   await notificationService.initialize();
   await firebasePushService.initialize();
+  unawaited(
+    diagnosticLogService
+        .recordInfo(
+          category: 'app.lifecycle',
+          message: 'Application started',
+          details: {'app_version': BuildInfo.appVersion},
+        )
+        .catchError((_) {}),
+  );
 
   runApp(
     ProviderScope(
@@ -31,6 +64,7 @@ Future<void> bootstrap() async {
         sharedPreferencesProvider.overrideWithValue(sharedPreferences),
         tokenStorageProvider.overrideWithValue(tokenStorage),
         apiClientProvider.overrideWithValue(apiClient),
+        diagnosticLogServiceProvider.overrideWithValue(diagnosticLogService),
         onboardingRepositoryProvider.overrideWithValue(
           OnboardingRepository(apiClient),
         ),

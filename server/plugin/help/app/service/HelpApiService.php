@@ -450,6 +450,101 @@ class HelpApiService
         ];
     }
 
+    public function saveDiagnosticLogUpload(int $memberId, array $data): array
+    {
+        $deviceId = mb_substr(trim((string) ($data['device_id'] ?? '')), 0, 64);
+        $platform = strtolower(trim((string) ($data['platform'] ?? '')));
+        $appVersion = mb_substr(trim((string) ($data['app_version'] ?? '')), 0, 40);
+        $locale = mb_substr(trim((string) ($data['locale'] ?? '')), 0, 20);
+        $timezone = mb_substr(trim((string) ($data['timezone'] ?? '')), 0, 64);
+        $source = strtolower(trim((string) ($data['source'] ?? 'manual')));
+        $entries = $data['entries'] ?? [];
+
+        if ($platform !== '' && !in_array($platform, ['ios', 'android'], true)) {
+            throw new ApiException('客户端平台参数错误', 400);
+        }
+        if (!in_array($source, ['manual', 'auto'], true)) {
+            throw new ApiException('诊断日志来源参数错误', 400);
+        }
+        if (!is_array($entries) || $entries === []) {
+            throw new ApiException('诊断日志内容不能为空', 400);
+        }
+
+        $entries = array_slice($entries, -200);
+        $normalizedEntries = [];
+        foreach ($entries as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $message = mb_substr(trim((string) ($entry['message'] ?? '')), 0, 400);
+            if ($message === '') {
+                continue;
+            }
+            $level = strtolower(trim((string) ($entry['level'] ?? 'info')));
+            if (!in_array($level, ['info', 'warning', 'error'], true)) {
+                $level = 'info';
+            }
+            $category = mb_substr(trim((string) ($entry['category'] ?? 'app')), 0, 80);
+            $details = mb_substr(trim((string) ($entry['details'] ?? '')), 0, 12000);
+            $createdAt = trim((string) ($entry['created_at'] ?? ''));
+
+            $normalizedEntries[] = [
+                'id' => mb_substr(trim((string) ($entry['id'] ?? '')), 0, 64),
+                'level' => $level,
+                'category' => $category === '' ? 'app' : $category,
+                'message' => $message,
+                'details' => $details,
+                'created_at' => $createdAt,
+            ];
+        }
+
+        if ($normalizedEntries === []) {
+            throw new ApiException('诊断日志内容不能为空', 400);
+        }
+
+        $logEntries = json_encode($normalizedEntries, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($logEntries === false) {
+            throw new ApiException('诊断日志编码失败', 500);
+        }
+        if (strlen($logEntries) > 300000) {
+            throw new ApiException('诊断日志内容过大，请精简后重试', 400);
+        }
+
+        $firstLogAt = trim((string) ($data['first_log_at'] ?? ''));
+        $lastLogAt = trim((string) ($data['last_log_at'] ?? ''));
+        $firstLogAt = $firstLogAt !== '' && strtotime($firstLogAt) !== false
+            ? date('Y-m-d H:i:s', strtotime($firstLogAt))
+            : null;
+        $lastLogAt = $lastLogAt !== '' && strtotime($lastLogAt) !== false
+            ? date('Y-m-d H:i:s', strtotime($lastLogAt))
+            : null;
+
+        $uploadedAt = date('Y-m-d H:i:s');
+        $payload = [
+            'device_id' => $deviceId,
+            'platform' => $platform,
+            'app_version' => $appVersion,
+            'locale' => $locale,
+            'timezone' => $timezone,
+            'source' => $source,
+            'entry_count' => count($normalizedEntries),
+            'first_log_time' => $firstLogAt,
+            'last_log_time' => $lastLogAt,
+            'log_summary' => mb_substr((string) ($normalizedEntries[array_key_last($normalizedEntries)]['message'] ?? ''), 0, 255),
+            'log_entries' => $logEntries,
+            'status' => 1,
+            'remark' => null,
+        ];
+        $id = $this->saveRow('sa_member_diagnostic_log', $payload, $memberId);
+
+        return [
+            'id' => $id,
+            'entry_count' => count($normalizedEntries),
+            'uploaded_at' => $uploadedAt,
+        ];
+    }
+
     public function markOnboardingSeen(int $memberId, string $version): array
     {
         $version = trim($version);

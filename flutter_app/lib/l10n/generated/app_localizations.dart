@@ -1219,6 +1219,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Journal'**
   String get meJournal;
+
+  /// No description provided for @diagnosticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics'**
+  String get diagnosticsTitle;
+
+  /// No description provided for @diagnosticsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'View local runtime logs and upload them to the server when support asks for troubleshooting data.'**
+  String get diagnosticsSubtitle;
+
+  /// No description provided for @diagnosticsUpload.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload'**
+  String get diagnosticsUpload;
+
+  /// No description provided for @diagnosticsUploadSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostic logs uploaded'**
+  String get diagnosticsUploadSuccess;
+
+  /// No description provided for @diagnosticsUploadEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'There are no local diagnostic logs to upload yet.'**
+  String get diagnosticsUploadEmpty;
+
+  /// No description provided for @diagnosticsRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get diagnosticsRefresh;
+
+  /// No description provided for @diagnosticsEntriesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Local logs'**
+  String get diagnosticsEntriesTitle;
+
+  /// No description provided for @diagnosticsDetailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get diagnosticsDetailsTitle;
+
+  /// No description provided for @diagnosticsNoDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'No extra details were recorded for this entry.'**
+  String get diagnosticsNoDetails;
+
+  /// No description provided for @diagnosticsEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No diagnostic logs yet'**
+  String get diagnosticsEmptyTitle;
+
+  /// No description provided for @diagnosticsEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'When network errors, handled exceptions, or diagnostic uploads happen, they will appear here for review.'**
+  String get diagnosticsEmptyBody;
+
+  /// No description provided for @diagnosticsMetaVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get diagnosticsMetaVersion;
+
+  /// No description provided for @diagnosticsMetaEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'Entries'**
+  String get diagnosticsMetaEntries;
+
+  /// No description provided for @diagnosticsMetaPlatform.
+  ///
+  /// In en, this message translates to:
+  /// **'Platform'**
+  String get diagnosticsMetaPlatform;
+
+  /// No description provided for @diagnosticsMetaLocale.
+  ///
+  /// In en, this message translates to:
+  /// **'Locale'**
+  String get diagnosticsMetaLocale;
+
+  /// No description provided for @diagnosticsMetaTimezone.
+  ///
+  /// In en, this message translates to:
+  /// **'Timezone'**
+  String get diagnosticsMetaTimezone;
+
+  /// No description provided for @diagnosticsMetaDeviceId.
+  ///
+  /// In en, this message translates to:
+  /// **'Device ID'**
+  String get diagnosticsMetaDeviceId;
+
+  /// No description provided for @diagnosticsLevelInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Info'**
+  String get diagnosticsLevelInfo;
+
+  /// No description provided for @diagnosticsLevelWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Warning'**
+  String get diagnosticsLevelWarning;
+
+  /// No description provided for @diagnosticsLevelError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get diagnosticsLevelError;
 }
 
 class _AppLocalizationsDelegate

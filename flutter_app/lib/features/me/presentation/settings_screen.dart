@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../core/config/build_info.dart';
 import '../../../core/i18n/app_locale_controller.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
@@ -121,7 +122,7 @@ class SettingsScreen extends ConsumerWidget {
                 _SettingsNavRow(
                   icon: Icons.info_outline_rounded,
                   title: _t(context, '关于 APP', 'About app'),
-                  value: '1.0.0',
+                  value: BuildInfo.shortVersion,
                   onTap: () => _openDetail(context, SettingsSectionType.about),
                 ),
                 _SettingsNavRow(
@@ -990,12 +991,12 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         children: [
           _SettingsNavRow(
             title: _t(context, '应用名称', 'App name'),
-            value: 'HelpSupport',
+            value: BuildInfo.appName,
             showChevron: false,
           ),
           _SettingsNavRow(
             title: _t(context, '版本号', 'Version'),
-            value: '1.0.0',
+            value: BuildInfo.shortVersion,
             showChevron: false,
           ),
           _SettingsNavRow(
@@ -1013,13 +1014,13 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
             title: _t(context, '开源许可', 'Open source licenses'),
             onTap: () => showLicensePage(
               context: context,
-              applicationName: 'HelpSupport',
-              applicationVersion: '1.0.0',
+              applicationName: BuildInfo.appName,
+              applicationVersion: BuildInfo.appVersion,
             ),
           ),
           _SettingsNavRow(
             title: _t(context, '诊断信息', 'Diagnostics'),
-            onTap: () => _comingSoon(context),
+            onTap: () => context.push('/me/settings/about/diagnostics'),
           ),
         ],
       ),

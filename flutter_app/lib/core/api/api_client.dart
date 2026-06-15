@@ -1,15 +1,21 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 
 import '../auth/token_storage.dart';
+import '../diagnostics/diagnostic_log_interceptor.dart';
+import '../diagnostics/diagnostic_log_service.dart';
 import 'api_result.dart';
 import 'auth_interceptor.dart';
 
 class ApiClient {
   ApiClient({
     required SecureTokenStorage tokenStorage,
+    DiagnosticLogService? diagnosticLogService,
     String? baseUrl,
     Dio? dio,
-  }) : dio =
+  }) : _diagnosticLogService = diagnosticLogService,
+       dio =
            dio ??
            Dio(
              BaseOptions(
@@ -20,6 +26,9 @@ class ApiClient {
              ),
            ) {
     this.dio.interceptors.add(AuthInterceptor(tokenStorage));
+    if (diagnosticLogService != null) {
+      this.dio.interceptors.add(DiagnosticLogInterceptor(diagnosticLogService));
+    }
   }
 
   static const apiBaseUrl = String.fromEnvironment(
@@ -27,6 +36,7 @@ class ApiClient {
     defaultValue: 'http://10.0.0.6:8787',
   );
 
+  final DiagnosticLogService? _diagnosticLogService;
   final Dio dio;
 
   String resolveUrl(String value) {
@@ -59,7 +69,7 @@ class ApiClient {
       path,
       queryParameters: queryParameters,
     );
-    return _decode(response.data, decode);
+    return _decode(response.data, decode, path: path);
   }
 
   Future<ApiResult<T>> postApi<T>(
@@ -73,7 +83,7 @@ class ApiClient {
       data: data,
       options: options,
     );
-    return _decode(response.data, decode);
+    return _decode(response.data, decode, path: path);
   }
 
   Future<ApiResult<T>> putApi<T>(
@@ -82,16 +92,29 @@ class ApiClient {
     required T Function(Object? value) decode,
   }) async {
     final response = await dio.put<Object?>(path, data: data);
-    return _decode(response.data, decode);
+    return _decode(response.data, decode, path: path);
   }
 
-  ApiResult<T> _decode<T>(Object? data, T Function(Object? value) decode) {
+  ApiResult<T> _decode<T>(
+    Object? data,
+    T Function(Object? value) decode, {
+    required String path,
+  }) {
     if (data is! Map<String, dynamic>) {
       throw const FormatException('Unexpected API response shape');
     }
 
     final result = ApiResult<T>.fromJson(data, decode);
     if (!result.isSuccess) {
+      final future = _diagnosticLogService?.recordApiFailure(
+        path: path,
+        code: result.code,
+        message: result.message,
+        traceId: result.traceId,
+      );
+      if (future != null) {
+        unawaited(future.catchError((_) {}));
+      }
       throw ApiException(
         code: result.code,
         message: result.message,

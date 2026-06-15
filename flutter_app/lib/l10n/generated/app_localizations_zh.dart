@@ -578,4 +578,64 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get meJournal => '日记';
+
+  @override
+  String get diagnosticsTitle => '诊断信息';
+
+  @override
+  String get diagnosticsSubtitle => '查看本地运行日志，并在排查问题时手动上传到服务器。';
+
+  @override
+  String get diagnosticsUpload => '上传';
+
+  @override
+  String get diagnosticsUploadSuccess => '诊断日志上传成功';
+
+  @override
+  String get diagnosticsUploadEmpty => '当前还没有可上传的本地诊断日志。';
+
+  @override
+  String get diagnosticsRefresh => '刷新';
+
+  @override
+  String get diagnosticsEntriesTitle => '本地日志';
+
+  @override
+  String get diagnosticsDetailsTitle => '详细信息';
+
+  @override
+  String get diagnosticsNoDetails => '这条日志没有额外详情。';
+
+  @override
+  String get diagnosticsEmptyTitle => '暂无诊断日志';
+
+  @override
+  String get diagnosticsEmptyBody => '当出现网络错误、已处理异常或执行诊断上传后，对应日志会展示在这里，方便排查。';
+
+  @override
+  String get diagnosticsMetaVersion => '版本';
+
+  @override
+  String get diagnosticsMetaEntries => '条目数';
+
+  @override
+  String get diagnosticsMetaPlatform => '平台';
+
+  @override
+  String get diagnosticsMetaLocale => '语言';
+
+  @override
+  String get diagnosticsMetaTimezone => '时区';
+
+  @override
+  String get diagnosticsMetaDeviceId => '设备 ID';
+
+  @override
+  String get diagnosticsLevelInfo => '信息';
+
+  @override
+  String get diagnosticsLevelWarning => '警告';
+
+  @override
+  String get diagnosticsLevelError => '错误';
 }

@@ -31,6 +31,7 @@ import '../features/material/data/material_models.dart';
 import '../features/material/presentation/material_detail_screen.dart';
 import '../features/material/presentation/material_library_screen.dart';
 import '../features/message/presentation/message_center_screen.dart';
+import '../features/me/presentation/diagnostic_logs_screen.dart';
 import '../features/me/presentation/journal_screen.dart';
 import '../features/me/presentation/memoir_screen.dart';
 import '../features/me/presentation/honor_badges_screen.dart';
@@ -237,6 +238,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/me/settings',
         name: 'me-settings',
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/me/settings/about/diagnostics',
+        name: 'me-settings-diagnostics',
+        builder: (context, state) => const DiagnosticLogsScreen(),
       ),
       GoRoute(
         path: '/me/settings/:section',

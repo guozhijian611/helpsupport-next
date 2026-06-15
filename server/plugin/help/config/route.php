@@ -110,6 +110,7 @@ Route::group('/app/help', function () {
     Route::post('/me/security/mobile-code', [MeController::class, 'sendMobileCode']);
     Route::post('/me/security/mobile', [MeController::class, 'bindMobile']);
     Route::post('/me/security/logout-other-devices', [MeController::class, 'logoutOtherDevices']);
+    Route::post('/me/diagnostic-log/upload', [MeController::class, 'uploadDiagnosticLog']);
     Route::post('/me/doctor-certification', [MeController::class, 'doctorCertification']);
     Route::get('/me/journals', [MeController::class, 'journals']);
     Route::post('/me/journal', [MeController::class, 'saveJournal']);

@@ -317,3 +317,31 @@ class SecurityLoginLog {
     );
   }
 }
+
+class DiagnosticUploadReceipt {
+  const DiagnosticUploadReceipt({
+    required this.id,
+    required this.entryCount,
+    required this.uploadedAt,
+  });
+
+  final int id;
+  final int entryCount;
+  final String uploadedAt;
+
+  factory DiagnosticUploadReceipt.fromJson(Object? value) {
+    if (value is! Map<String, dynamic>) {
+      return const DiagnosticUploadReceipt(
+        id: 0,
+        entryCount: 0,
+        uploadedAt: '',
+      );
+    }
+
+    return DiagnosticUploadReceipt(
+      id: SecurityOverview._intValue(value['id']),
+      entryCount: SecurityOverview._intValue(value['entry_count']),
+      uploadedAt: (value['uploaded_at'] ?? '').toString().trim(),
+    );
+  }
+}

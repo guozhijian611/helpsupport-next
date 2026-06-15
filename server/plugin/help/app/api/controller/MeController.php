@@ -155,6 +155,26 @@ class MeController extends BaseController
         return ok($this->service->logoutOtherDevices($this->memberId, $request->post()));
     }
 
+    #[Apidoc\Title('上传诊断日志')]
+    #[Apidoc\Url('/app/help/me/diagnostic-log/upload')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('device_id', type: 'string', require: false, desc: '当前设备标识')]
+    #[Apidoc\Param('platform', type: 'string', require: false, desc: '客户端平台 ios/android')]
+    #[Apidoc\Param('app_version', type: 'string', require: false, desc: 'App 版本')]
+    #[Apidoc\Param('locale', type: 'string', require: false, desc: '客户端语言')]
+    #[Apidoc\Param('timezone', type: 'string', require: false, desc: '客户端时区')]
+    #[Apidoc\Param('source', type: 'string', require: false, default: 'manual', desc: '上传来源 manual/auto')]
+    #[Apidoc\Param('first_log_at', type: 'string', require: false, desc: '首条日志时间 ISO8601')]
+    #[Apidoc\Param('last_log_at', type: 'string', require: false, desc: '末条日志时间 ISO8601')]
+    #[Apidoc\Param('entries', type: 'array', require: true, desc: '诊断日志条目列表')]
+    #[Apidoc\Returned('id', type: 'int', desc: '上传记录 ID')]
+    #[Apidoc\Returned('entry_count', type: 'int', desc: '本次保存的日志条数')]
+    #[Apidoc\Returned('uploaded_at', type: 'string', desc: '服务端保存时间')]
+    public function uploadDiagnosticLog(Request $request): Response
+    {
+        return ok($this->service->saveDiagnosticLogUpload($this->memberId, $request->post()));
+    }
+
     #[Apidoc\Title('上报已看引导页版本')]
     #[Apidoc\Url('/app/help/common/onboarding/seen')]
     #[Apidoc\Method('POST')]

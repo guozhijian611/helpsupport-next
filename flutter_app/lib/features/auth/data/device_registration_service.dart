@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/config/build_info.dart';
 import '../../../core/push/firebase_push_service.dart';
 
 class DeviceRegistrationService {
@@ -14,10 +15,6 @@ class DeviceRegistrationService {
   );
 
   static const _deviceIdKey = 'helpsupport.device_id';
-  static const _appVersion = String.fromEnvironment(
-    'HELP_SUPPORT_APP_VERSION',
-    defaultValue: '1.0.0+1',
-  );
 
   final ApiClient _apiClient;
   final FirebasePushService _firebasePushService;
@@ -40,7 +37,7 @@ class DeviceRegistrationService {
         'platform': platform,
         'fcm_token': fcmToken ?? '',
         'apns_token': apnsToken ?? '',
-        'app_version': _appVersion,
+        'app_version': BuildInfo.appVersion,
         'locale': PlatformDispatcher.instance.locale.toLanguageTag(),
         'timezone': DateTime.now().timeZoneName,
       },

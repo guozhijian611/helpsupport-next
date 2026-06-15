@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../features/onboarding/data/onboarding_repository.dart';
 import '../api/api_client.dart';
 import '../auth/token_storage.dart';
+import '../diagnostics/diagnostic_log_service.dart';
 import '../notifications/local_notification_service.dart';
 import '../permissions/permission_service.dart';
 import '../push/firebase_push_service.dart';
@@ -17,7 +18,14 @@ final tokenStorageProvider = Provider<SecureTokenStorage>((ref) {
 });
 
 final apiClientProvider = Provider<ApiClient>((ref) {
-  return ApiClient(tokenStorage: ref.watch(tokenStorageProvider));
+  return ApiClient(
+    tokenStorage: ref.watch(tokenStorageProvider),
+    diagnosticLogService: ref.watch(diagnosticLogServiceProvider),
+  );
+});
+
+final diagnosticLogServiceProvider = Provider<DiagnosticLogService>((ref) {
+  return DiagnosticLogService();
 });
 
 final onboardingRepositoryProvider = Provider<OnboardingRepository>((ref) {

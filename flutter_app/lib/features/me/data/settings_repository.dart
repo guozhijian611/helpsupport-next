@@ -159,4 +159,39 @@ class MeSettingsRepository {
     );
     return result.data ?? 0;
   }
+
+  Future<DiagnosticUploadReceipt> uploadDiagnosticLogs({
+    required String deviceId,
+    required String platform,
+    required String appVersion,
+    required String locale,
+    required String timezone,
+    required List<Map<String, dynamic>> entries,
+    required String source,
+    String? firstLogAt,
+    String? lastLogAt,
+  }) async {
+    final result = await _apiClient.postApi<DiagnosticUploadReceipt>(
+      '/app/help/me/diagnostic-log/upload',
+      data: {
+        'device_id': deviceId.trim(),
+        'platform': platform.trim(),
+        'app_version': appVersion.trim(),
+        'locale': locale.trim(),
+        'timezone': timezone.trim(),
+        'source': source.trim(),
+        if (firstLogAt != null && firstLogAt.trim().isNotEmpty)
+          'first_log_at': firstLogAt.trim(),
+        if (lastLogAt != null && lastLogAt.trim().isNotEmpty)
+          'last_log_at': lastLogAt.trim(),
+        'entries': entries,
+      },
+      decode: DiagnosticUploadReceipt.fromJson,
+    );
+    final data = result.data;
+    if (data == null) {
+      throw const FormatException('诊断日志上传响应缺少 data');
+    }
+    return data;
+  }
 }

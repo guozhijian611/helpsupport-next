@@ -590,4 +590,68 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get meJournal => 'Journal';
+
+  @override
+  String get diagnosticsTitle => 'Diagnostics';
+
+  @override
+  String get diagnosticsSubtitle =>
+      'View local runtime logs and upload them to the server when support asks for troubleshooting data.';
+
+  @override
+  String get diagnosticsUpload => 'Upload';
+
+  @override
+  String get diagnosticsUploadSuccess => 'Diagnostic logs uploaded';
+
+  @override
+  String get diagnosticsUploadEmpty =>
+      'There are no local diagnostic logs to upload yet.';
+
+  @override
+  String get diagnosticsRefresh => 'Refresh';
+
+  @override
+  String get diagnosticsEntriesTitle => 'Local logs';
+
+  @override
+  String get diagnosticsDetailsTitle => 'Details';
+
+  @override
+  String get diagnosticsNoDetails =>
+      'No extra details were recorded for this entry.';
+
+  @override
+  String get diagnosticsEmptyTitle => 'No diagnostic logs yet';
+
+  @override
+  String get diagnosticsEmptyBody =>
+      'When network errors, handled exceptions, or diagnostic uploads happen, they will appear here for review.';
+
+  @override
+  String get diagnosticsMetaVersion => 'Version';
+
+  @override
+  String get diagnosticsMetaEntries => 'Entries';
+
+  @override
+  String get diagnosticsMetaPlatform => 'Platform';
+
+  @override
+  String get diagnosticsMetaLocale => 'Locale';
+
+  @override
+  String get diagnosticsMetaTimezone => 'Timezone';
+
+  @override
+  String get diagnosticsMetaDeviceId => 'Device ID';
+
+  @override
+  String get diagnosticsLevelInfo => 'Info';
+
+  @override
+  String get diagnosticsLevelWarning => 'Warning';
+
+  @override
+  String get diagnosticsLevelError => 'Error';
 }
