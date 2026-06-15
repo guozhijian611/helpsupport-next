@@ -8,18 +8,20 @@ import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/i18n/language_switcher.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../application/auth_controller.dart';
+import '../data/auth_repository.dart';
 import 'auth_page_frame.dart';
 
-enum _RegisterMethod { email, phone }
+enum _ResetMethod { email, phone }
 
-class RegisterScreen extends ConsumerStatefulWidget {
-  const RegisterScreen({super.key});
+class ForgotPasswordScreen extends ConsumerStatefulWidget {
+  const ForgotPasswordScreen({super.key});
 
   @override
-  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
-class _RegisterScreenState extends ConsumerState<RegisterScreen> {
+class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _identifierController = TextEditingController();
   final _codeController = TextEditingController();
@@ -29,10 +31,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Timer? _cooldownTimer;
   int _codeCooldown = 0;
   bool _isSendingCode = false;
-  bool _agreementAccepted = false;
-  bool _awaitingProfileCompletion = false;
-  String _memberRole = 'patient';
-  _RegisterMethod _method = _RegisterMethod.email;
+  bool _isSubmitting = false;
+  _ResetMethod _method = _ResetMethod.email;
 
   @override
   void dispose() {
@@ -46,24 +46,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(authControllerProvider, (previous, next) {
-      if (_awaitingProfileCompletion && next.hasValue && next.value != null) {
-        _awaitingProfileCompletion = false;
-        context.go('/register/profile');
-      }
-      if (next.hasError) {
-        _awaitingProfileCompletion = false;
-        _showError(next.error);
-      }
-    });
-
-    final authState = ref.watch(authControllerProvider);
-    final isLoading = authState.isLoading;
-    final formDisabled = isLoading || _isSendingCode;
+    final formDisabled = _isSendingCode || _isSubmitting;
 
     return AuthPageFrame(
-      title: context.l10n.registerTitle,
-      subtitle: context.l10n.registerSubtitle,
+      title: context.l10n.forgotPasswordTitle,
+      subtitle: context.l10n.forgotPasswordSubtitle,
       leading: IconButton.filledTonal(
         onPressed: formDisabled ? null : () => context.go('/login'),
         icon: const Icon(Icons.arrow_back),
@@ -74,23 +61,40 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _RegisterMethodTabs(
-              selected: _method,
-              enabled: !formDisabled,
-              onChanged: _changeMethod,
+            SegmentedButton<_ResetMethod>(
+              segments: [
+                ButtonSegment(
+                  value: _ResetMethod.email,
+                  label: Text(context.l10n.email),
+                  icon: const Icon(Icons.mail_outline_rounded),
+                ),
+                ButtonSegment(
+                  value: _ResetMethod.phone,
+                  label: Text(context.l10n.phoneNumber),
+                  icon: const Icon(Icons.phone_iphone_rounded),
+                ),
+              ],
+              selected: {_method},
+              onSelectionChanged: formDisabled
+                  ? null
+                  : (values) {
+                      if (values.isNotEmpty) {
+                        _changeMethod(values.first);
+                      }
+                    },
             ),
             const SizedBox(height: 14),
             AuthTextField(
               controller: _identifierController,
               enabled: !formDisabled,
-              keyboardType: _method == _RegisterMethod.email
+              keyboardType: _method == _ResetMethod.email
                   ? TextInputType.emailAddress
                   : TextInputType.phone,
               textInputAction: TextInputAction.next,
-              label: _method == _RegisterMethod.email
+              label: _method == _ResetMethod.email
                   ? context.l10n.email
                   : context.l10n.phoneNumber,
-              icon: _method == _RegisterMethod.email
+              icon: _method == _ResetMethod.email
                   ? Icons.mail_outline_rounded
                   : Icons.phone_iphone_rounded,
               validator: _validateIdentifier,
@@ -106,7 +110,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               validator: _required,
               suffix: _VerificationCodeButton(
                 text: _codeButtonText(context),
-                enabled: _canSendCode(formDisabled),
+                enabled: !formDisabled && _codeCooldown <= 0,
                 isLoading: _isSendingCode,
                 onPressed: _sendVerificationCode,
               ),
@@ -117,7 +121,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               enabled: !formDisabled,
               obscureText: true,
               textInputAction: TextInputAction.next,
-              label: context.l10n.password,
+              label: context.l10n.newPassword,
               icon: Icons.lock_outline,
               validator: _validatePassword,
             ),
@@ -130,42 +134,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               label: context.l10n.confirmPassword,
               icon: Icons.lock_reset_outlined,
               validator: _validateConfirmPassword,
-              onFieldSubmitted: (_) => _submitRegister(),
+              onFieldSubmitted: (_) => _submitReset(),
             ),
             const SizedBox(height: 18),
-            _RoleSelector(
-              selected: _memberRole,
-              enabled: !formDisabled,
-              onChanged: (value) => setState(() => _memberRole = value),
-            ),
-            const SizedBox(height: 10),
-            CheckboxListTile(
-              value: _agreementAccepted,
-              onChanged: formDisabled
-                  ? null
-                  : (value) {
-                      setState(() => _agreementAccepted = value ?? false);
-                    },
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-              controlAffinity: ListTileControlAffinity.leading,
-              title: Text(
-                context.l10n.authAgreementText,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-            const SizedBox(height: 12),
             AuthPrimaryButton(
-              onPressed: _submitRegister,
-              icon: Icons.arrow_forward_rounded,
-              isLoading: isLoading,
-              label: isLoading
-                  ? context.l10n.registering
-                  : context.l10n.continueLabel,
+              onPressed: _submitReset,
+              isLoading: _isSubmitting,
+              icon: Icons.restart_alt_rounded,
+              label: _isSubmitting
+                  ? context.l10n.resettingPassword
+                  : context.l10n.resetPasswordAction,
             ),
             const SizedBox(height: 12),
             AuthLinkButton(
-              text: context.l10n.registerHasAccount,
+              text: context.l10n.forgotPasswordHasAccount,
               actionText: context.l10n.loginAction,
               onPressed: () => context.go('/login'),
               onDark: false,
@@ -176,7 +158,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  void _changeMethod(_RegisterMethod method) {
+  void _changeMethod(_ResetMethod method) {
     if (_method == method) {
       return;
     }
@@ -188,10 +170,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       _codeController.clear();
       _codeCooldown = 0;
     });
-  }
-
-  bool _canSendCode(bool formDisabled) {
-    return !formDisabled && _codeCooldown <= 0;
   }
 
   String _codeButtonText(BuildContext context) {
@@ -211,11 +189,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     setState(() => _isSendingCode = true);
     try {
       final controller = ref.read(authControllerProvider.notifier);
-      final delivery = _method == _RegisterMethod.email
-          ? await controller.sendRegisterEmailCode(
+      final delivery = _method == _ResetMethod.email
+          ? await controller.sendForgotEmailCode(
               email: _identifierController.text.trim(),
             )
-          : await controller.sendRegisterPhoneCode(
+          : await controller.sendForgotPhoneCode(
               mobile: _identifierController.text.trim(),
             );
       if (!mounted) {
@@ -236,37 +214,45 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
-  Future<void> _submitRegister() async {
+  Future<void> _submitReset() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
-    if (!_agreementAccepted) {
-      _showSnackBar(context.l10n.agreementRequired);
-      return;
-    }
 
-    _awaitingProfileCompletion = true;
-    await ref
-        .read(authControllerProvider.notifier)
-        .accountRegister(
-          registerType: _method == _RegisterMethod.email ? 'email' : 'phone',
-          email: _method == _RegisterMethod.email
-              ? _identifierController.text.trim()
-              : null,
-          mobile: _method == _RegisterMethod.phone
-              ? _identifierController.text.trim()
-              : null,
-          password: _passwordController.text,
-          emailCode: _method == _RegisterMethod.email
-              ? _codeController.text.trim()
-              : null,
-          mobileCode: _method == _RegisterMethod.phone
-              ? _codeController.text.trim()
-              : null,
-          memberRole: _memberRole,
-          locale: Localizations.localeOf(context).toLanguageTag(),
-          timezone: DateTime.now().timeZoneName,
-        );
+    setState(() => _isSubmitting = true);
+    try {
+      await ref
+          .read(authRepositoryProvider)
+          .passwordReset(
+            resetType: _method == _ResetMethod.email ? 'email' : 'phone',
+            email: _method == _ResetMethod.email
+                ? _identifierController.text.trim()
+                : null,
+            mobile: _method == _ResetMethod.phone
+                ? _identifierController.text.trim()
+                : null,
+            emailCode: _method == _ResetMethod.email
+                ? _codeController.text.trim()
+                : null,
+            mobileCode: _method == _ResetMethod.phone
+                ? _codeController.text.trim()
+                : null,
+            password: _passwordController.text,
+          );
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar(context.l10n.passwordResetSuccess);
+      context.go('/login');
+    } on Object catch (error) {
+      if (mounted) {
+        _showError(error);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 
   void _startCodeCooldown(int seconds) {
@@ -299,14 +285,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (text.isEmpty) {
       return context.l10n.requiredField;
     }
-    if (_method == _RegisterMethod.email) {
+    if (_method == _ResetMethod.email) {
       final pattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
       if (!pattern.hasMatch(text)) {
         return context.l10n.invalidEmail;
       }
       return null;
     }
-
     if (!RegExp(r'^1\d{10}$').hasMatch(text)) {
       return context.l10n.invalidPhone;
     }
@@ -354,82 +339,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 }
 
-class _RegisterMethodTabs extends StatelessWidget {
-  const _RegisterMethodTabs({
-    required this.selected,
-    required this.enabled,
-    required this.onChanged,
-  });
-
-  final _RegisterMethod selected;
-  final bool enabled;
-  final ValueChanged<_RegisterMethod> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _RegisterMethodTab(
-            label: context.l10n.emailRegister,
-            selected: selected == _RegisterMethod.email,
-            enabled: enabled,
-            onTap: () => onChanged(_RegisterMethod.email),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: _RegisterMethodTab(
-            label: context.l10n.phoneRegister,
-            selected: selected == _RegisterMethod.phone,
-            enabled: enabled,
-            onTap: () => onChanged(_RegisterMethod.phone),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _RegisterMethodTab extends StatelessWidget {
-  const _RegisterMethodTab({
-    required this.label,
-    required this.selected,
-    required this.enabled,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final bool enabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final backgroundColor = selected
-        ? const Color(0xFFFFE2DD)
-        : const Color(0xFFF3E5DF);
-    final foregroundColor = selected
-        ? const Color(0xFFFF8E80)
-        : const Color(0xFFB59A92);
-
-    return FilledButton(
-      onPressed: enabled ? onTap : null,
-      style: FilledButton.styleFrom(
-        backgroundColor: backgroundColor,
-        foregroundColor: foregroundColor,
-        disabledBackgroundColor: backgroundColor.withValues(alpha: 0.7),
-        disabledForegroundColor: foregroundColor.withValues(alpha: 0.7),
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        minimumSize: const Size.fromHeight(48),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-      ),
-      child: Text(label),
-    );
-  }
-}
-
 class _VerificationCodeButton extends StatelessWidget {
   const _VerificationCodeButton({
     required this.text,
@@ -461,59 +370,6 @@ class _VerificationCodeButton extends StatelessWidget {
               )
             : Text(text),
       ),
-    );
-  }
-}
-
-class _RoleSelector extends StatelessWidget {
-  const _RoleSelector({
-    required this.selected,
-    required this.enabled,
-    required this.onChanged,
-  });
-
-  final String selected;
-  final bool enabled;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            context.l10n.memberRoleLabel,
-            style: Theme.of(context).textTheme.labelLarge,
-          ),
-        ),
-        SizedBox(
-          width: double.infinity,
-          child: SegmentedButton<String>(
-            segments: [
-              ButtonSegment(
-                value: 'patient',
-                icon: const Icon(Icons.favorite_border_rounded),
-                label: Text(context.l10n.patient),
-              ),
-              ButtonSegment(
-                value: 'doctor',
-                icon: const Icon(Icons.medical_services_outlined),
-                label: Text(context.l10n.doctor),
-              ),
-            ],
-            selected: {selected},
-            onSelectionChanged: enabled
-                ? (values) {
-                    if (values.isNotEmpty) {
-                      onChanged(values.first);
-                    }
-                  }
-                : null,
-          ),
-        ),
-      ],
     );
   }
 }

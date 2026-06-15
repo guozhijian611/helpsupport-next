@@ -54,31 +54,59 @@ class AuthController extends AsyncNotifier<AuthSession?> {
     );
   }
 
-  Future<RegisterEmailCodeDelivery> sendRegisterEmailCode({
+  Future<VerificationCodeDelivery> sendRegisterEmailCode({
     required String email,
   }) {
     return ref.read(authRepositoryProvider).sendRegisterEmailCode(email: email);
   }
 
-  Future<void> accountRegister({
-    required String username,
+  Future<VerificationCodeDelivery> sendRegisterPhoneCode({
+    required String mobile,
+  }) {
+    return ref
+        .read(authRepositoryProvider)
+        .sendRegisterPhoneCode(mobile: mobile);
+  }
+
+  Future<VerificationCodeDelivery> sendForgotEmailCode({
     required String email,
+  }) {
+    return ref.read(authRepositoryProvider).sendForgotEmailCode(email: email);
+  }
+
+  Future<VerificationCodeDelivery> sendForgotPhoneCode({
+    required String mobile,
+  }) {
+    return ref.read(authRepositoryProvider).sendForgotPhoneCode(mobile: mobile);
+  }
+
+  Future<void> accountRegister({
+    required String registerType,
+    String? username,
+    String? email,
+    String? mobile,
     required String password,
-    required String emailCode,
+    String? emailCode,
+    String? mobileCode,
     required String memberRole,
     String? locale,
+    String? timezone,
     String? nickname,
   }) {
     return _login(
       () => ref
           .read(authRepositoryProvider)
           .accountRegister(
+            registerType: registerType,
             username: username,
             email: email,
+            mobile: mobile,
             password: password,
             emailCode: emailCode,
+            mobileCode: mobileCode,
             memberRole: memberRole,
             locale: locale,
+            timezone: timezone,
             nickname: nickname,
           ),
     );

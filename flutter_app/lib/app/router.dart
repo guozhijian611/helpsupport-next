@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/data/auth_protocol.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/auth_protocol_screen.dart';
+import '../features/auth/presentation/complete_profile_screen.dart';
+import '../features/auth/presentation/forgot_password_screen.dart';
 import '../features/auth/presentation/register_screen.dart';
 import '../features/chat/presentation/chat_home_screen.dart';
 import '../features/chat/presentation/chat_session_screen.dart';
@@ -33,6 +35,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/register',
         name: 'register',
         builder: (context, state) => const RegisterScreen(),
+      ),
+      GoRoute(
+        path: '/register/profile',
+        name: 'register-profile',
+        builder: (context, state) => const CompleteProfileScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        name: 'forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
       ),
       GoRoute(
         path: '/protocol/:type',

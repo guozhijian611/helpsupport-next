@@ -61,27 +61,27 @@ class AuthToken {
   }
 }
 
-class RegisterEmailCodeDelivery {
-  const RegisterEmailCodeDelivery({
+class VerificationCodeDelivery {
+  const VerificationCodeDelivery({
     required this.sent,
-    required this.email,
+    required this.target,
     required this.expiresIn,
     required this.resendAfter,
   });
 
   final bool sent;
-  final String email;
+  final String target;
   final int expiresIn;
   final int resendAfter;
 
-  factory RegisterEmailCodeDelivery.fromJson(Object? value) {
+  factory VerificationCodeDelivery.fromJson(Object? value) {
     if (value is! Map<String, dynamic>) {
-      throw const FormatException('Unexpected register email code shape');
+      throw const FormatException('Unexpected verification code shape');
     }
 
-    return RegisterEmailCodeDelivery(
+    return VerificationCodeDelivery(
       sent: value['sent'] == true || value['sent'] == 'true',
-      email: (value['email'] as String?) ?? '',
+      target: (value['target'] as String?) ?? '',
       expiresIn: (value['expires_in'] as num?)?.toInt() ?? 0,
       resendAfter: (value['resend_after'] as num?)?.toInt() ?? 0,
     );

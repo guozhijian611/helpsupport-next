@@ -57,6 +57,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgotPassword => 'Forgot password';
 
   @override
+  String get forgotPasswordTitle => 'Reset password';
+
+  @override
+  String get forgotPasswordSubtitle =>
+      'Use an email or phone verification code to reset your password.';
+
+  @override
+  String get forgotPasswordHasAccount => 'Remembered your password?';
+
+  @override
   String get phoneLogin => 'Phone sign in';
 
   @override
@@ -64,6 +74,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get loginEmailPlaceholder => 'Email';
+
+  @override
+  String get invalidPhone => 'Enter a valid mainland China phone number';
 
   @override
   String get featureComingSoon => 'This feature is not available yet';
@@ -76,7 +89,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get registerSubtitle =>
-      'Use an email verification code to create your HelpSupport space.';
+      'Use an email or phone verification code to create your HelpSupport space.';
 
   @override
   String get registerSubmit => 'Register';
@@ -88,22 +101,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String get registerHasAccount => 'Already have an account?';
 
   @override
+  String get emailRegister => 'Email sign up';
+
+  @override
+  String get phoneRegister => 'Phone sign up';
+
+  @override
   String get email => 'Email';
 
   @override
   String get emailCode => 'Email code';
 
   @override
+  String get verificationCode => 'Verification code';
+
+  @override
   String get confirmPassword => 'Confirm password';
+
+  @override
+  String get newPassword => 'New password';
 
   @override
   String get sendEmailCode => 'Send code';
 
   @override
+  String get sendVerificationCode => 'Send code';
+
+  @override
   String get resendEmailCodeIn => 'Resend in';
 
   @override
+  String get resendVerificationCodeIn => 'Resend in';
+
+  @override
   String get registerEmailCodeSent => 'Code sent to';
+
+  @override
+  String get verificationCodeSentTo => 'Code sent to';
 
   @override
   String get authOtherMethods => 'Other sign-in methods';
@@ -127,6 +161,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get passwordMismatch => 'Passwords do not match';
 
   @override
+  String get resetPasswordAction => 'Reset password';
+
+  @override
+  String get resettingPassword => 'Resetting...';
+
+  @override
+  String get passwordResetSuccess => 'Password reset. Please sign in again.';
+
+  @override
   String get memberRoleLabel => 'Role';
 
   @override
@@ -146,6 +189,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get requiredField => 'Required';
+
+  @override
+  String get profileCompleteTitle => 'Complete profile';
+
+  @override
+  String get profileCompleteSubtitle =>
+      'Add your display name, gender, and birthday before entering HelpSupport.';
+
+  @override
+  String get profileDisplayName => 'Display name';
+
+  @override
+  String get profileGender => 'Gender';
+
+  @override
+  String get profileBirthday => 'Birthday';
+
+  @override
+  String get genderMale => 'Male';
+
+  @override
+  String get genderFemale => 'Female';
+
+  @override
+  String get genderPrivate => 'Prefer not to say';
+
+  @override
+  String get profileSaving => 'Saving...';
+
+  @override
+  String get enterAppAction => 'Enter';
 
   @override
   String get logout => 'Sign out';

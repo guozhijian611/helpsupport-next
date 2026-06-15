@@ -55,7 +55,11 @@ use Webman\Route;
 Route::group('/app/help', function () {
     Route::post('/auth/account-login', [AuthController::class, 'accountLogin']);
     Route::post('/auth/register-email-code', [AuthController::class, 'sendRegisterEmail']);
+    Route::post('/auth/register-phone-code', [AuthController::class, 'sendRegisterPhone']);
+    Route::post('/auth/forgot-email-code', [AuthController::class, 'sendForgotEmail']);
+    Route::post('/auth/forgot-phone-code', [AuthController::class, 'sendForgotPhone']);
     Route::post('/auth/account-register', [AuthController::class, 'accountRegister']);
+    Route::post('/auth/password-reset', [AuthController::class, 'passwordReset']);
     Route::post('/auth/google', [AuthController::class, 'google']);
     Route::post('/auth/apple', [AuthController::class, 'apple']);
     Route::post('/auth/refresh', [AuthController::class, 'refresh']);

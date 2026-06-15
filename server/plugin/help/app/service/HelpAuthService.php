@@ -9,12 +9,18 @@ use Firebase\JWT\JWT;
 use plugin\saiadmin\exception\ApiException;
 use plugin\saiuser\app\api\logic\common\IndexLogic;
 use plugin\saiuser\app\admin\logic\member\MemberLogic;
+use plugin\saiuser\app\model\member\Member;
 use think\facade\Db;
 use Tinywan\Jwt\JwtToken;
 use Throwable;
 
 class HelpAuthService
 {
+    private const REGISTER_TYPE_EMAIL = 'email';
+    private const REGISTER_TYPE_PHONE = 'phone';
+    private const EMAIL_CODE_EXPIRES_IN = 600;
+    private const SMS_CODE_EXPIRES_IN = 300;
+    private const CODE_RESEND_AFTER = 120;
     private const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
     private const APPLE_JWKS_URL = 'https://appleid.apple.com/auth/keys';
     private const CALLBACK_STRATEGY_ID_TOKEN = 'id_token';
@@ -24,17 +30,19 @@ class HelpAuthService
 
     public function accountLogin(array $data): array
     {
-        $username = trim((string) ($data['username'] ?? ''));
+        $identifier = trim((string) ($data['username'] ?? $data['account'] ?? ''));
         $password = (string) ($data['password'] ?? '');
-        if ($username === '' || $password === '') {
+        if ($identifier === '' || $password === '') {
             throw new ApiException('账号和密码必须填写', 400);
         }
 
-        $token = (new MemberLogic())->login($username, $password, '1');
-        $memberId = (int) Db::table('sa_member')
-            ->where('username', $username)
-            ->whereNull('delete_time')
-            ->value('id');
+        $member = $this->resolveMemberByIdentifier($identifier);
+        if ($member === []) {
+            throw new ApiException('账号或密码错误，请重新输入!', 400);
+        }
+
+        $token = (new MemberLogic())->login((string) $member['username'], $password, '1');
+        $memberId = (int) ($member['id'] ?? 0);
 
         return $this->sessionPayload($token, $memberId);
     }
@@ -50,52 +58,98 @@ class HelpAuthService
 
         return [
             'sent' => true,
-            'email' => $this->maskEmail($email),
-            'expires_in' => 600,
-            'resend_after' => 120,
+            'target' => $this->maskEmail($email),
+            'expires_in' => self::EMAIL_CODE_EXPIRES_IN,
+            'resend_after' => self::CODE_RESEND_AFTER,
+        ];
+    }
+
+    public function sendRegisterPhone(array $data): array
+    {
+        $mobile = $this->normalizeMobile($data['mobile'] ?? '');
+        $this->assertMobileAvailable($mobile, true);
+        $this->sendSmsCode($mobile);
+
+        return [
+            'sent' => true,
+            'target' => $this->maskMobile($mobile),
+            'expires_in' => self::SMS_CODE_EXPIRES_IN,
+            'resend_after' => self::CODE_RESEND_AFTER,
+        ];
+    }
+
+    public function sendForgotEmail(array $data): array
+    {
+        $email = trim((string) ($data['email'] ?? ''));
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new ApiException('请输入正确的邮箱格式', 400);
+        }
+
+        (new IndexLogic())->emailSend($email, 2);
+
+        return [
+            'sent' => true,
+            'target' => $this->maskEmail($email),
+            'expires_in' => self::EMAIL_CODE_EXPIRES_IN,
+            'resend_after' => self::CODE_RESEND_AFTER,
+        ];
+    }
+
+    public function sendForgotPhone(array $data): array
+    {
+        $mobile = $this->normalizeMobile($data['mobile'] ?? '');
+        $this->assertMobileAvailable($mobile, false);
+        $this->sendSmsCode($mobile);
+
+        return [
+            'sent' => true,
+            'target' => $this->maskMobile($mobile),
+            'expires_in' => self::SMS_CODE_EXPIRES_IN,
+            'resend_after' => self::CODE_RESEND_AFTER,
         ];
     }
 
     public function accountRegister(array $data): array
     {
-        $username = trim((string) ($data['username'] ?? ''));
-        $email = trim((string) ($data['email'] ?? ''));
         $password = (string) ($data['password'] ?? '');
-        $emailCode = trim((string) ($data['email_code'] ?? ''));
-        if ($username === '' || $email === '' || $password === '' || $emailCode === '') {
-            throw new ApiException('账号、邮箱、密码和邮箱验证码必须填写', 400);
-        }
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new ApiException('请输入正确的邮箱格式', 400);
-        }
-        if (mb_strlen($username) < 3 || mb_strlen($username) > 32) {
-            throw new ApiException('账号长度需为 3-32 个字符', 400);
-        }
-        if (strlen($password) < 6) {
-            throw new ApiException('密码长度不能少于 6 位', 400);
-        }
-        $memberRole = trim((string) ($data['member_role'] ?? 'patient'));
-        if (!in_array($memberRole, ['patient', 'doctor'], true)) {
-            throw new ApiException('会员身份参数错误', 400);
-        }
+        $registerType = $this->resolveAuthType(
+            (string) ($data['register_type'] ?? ''),
+            array_key_exists('mobile', $data) || array_key_exists('mobile_code', $data),
+            array_key_exists('email', $data) || array_key_exists('email_code', $data)
+        );
+        $this->assertPassword($password);
+        $memberRole = $this->memberRoleFromData($data);
 
-        (new MemberLogic())->emailReg([
-            'username' => $username,
-            'email' => $email,
-            'password' => $password,
-            'email_code' => $emailCode,
-        ]);
+        $account = $registerType === self::REGISTER_TYPE_PHONE
+            ? $this->registerByPhone($data)
+            : $this->registerByEmail($data);
 
-        $memberId = (int) Db::table('sa_member')
-            ->where('username', $username)
-            ->whereNull('delete_time')
-            ->value('id');
+        $memberId = (int) ($account['member_id'] ?? 0);
         $data['member_role'] = $memberRole;
         $this->syncRegisterProfile($memberId, $data);
         $this->syncNickname($memberId, (string) ($data['nickname'] ?? ''));
 
-        $token = (new MemberLogic())->login($username, $password, '1');
+        $token = (new MemberLogic())->login((string) ($account['username'] ?? ''), $password, '1');
         return $this->sessionPayload($token, $memberId);
+    }
+
+    public function passwordReset(array $data): array
+    {
+        $resetType = $this->resolveAuthType(
+            (string) ($data['reset_type'] ?? ''),
+            array_key_exists('mobile', $data) || array_key_exists('mobile_code', $data),
+            array_key_exists('email', $data) || array_key_exists('email_code', $data)
+        );
+        $password = (string) ($data['password'] ?? '');
+        $this->assertPassword($password);
+
+        if ($resetType === self::REGISTER_TYPE_PHONE) {
+            $this->resetPasswordByPhone($data);
+        } else {
+            $this->resetPasswordByEmail($data);
+        }
+
+        return ['reset' => true];
     }
 
     public function refreshToken(): array
@@ -283,6 +337,313 @@ class HelpAuthService
         }
 
         return $groups;
+    }
+
+    private function resolveMemberByIdentifier(string $identifier): array
+    {
+        $identifier = trim($identifier);
+        if ($identifier === '') {
+            return [];
+        }
+
+        return (array) Db::table('sa_member')
+            ->whereNull('delete_time')
+            ->where(function ($query) use ($identifier) {
+                $query->where('username', $identifier)
+                    ->whereOr('email', $identifier)
+                    ->whereOr('mobile', $identifier);
+            })
+            ->find();
+    }
+
+    private function resolveAuthType(string $type, bool $hasPhoneSignal, bool $hasEmailSignal): string
+    {
+        $type = strtolower(trim($type));
+        if (in_array($type, [self::REGISTER_TYPE_EMAIL, self::REGISTER_TYPE_PHONE], true)) {
+            return $type;
+        }
+        if ($hasPhoneSignal && !$hasEmailSignal) {
+            return self::REGISTER_TYPE_PHONE;
+        }
+
+        return self::REGISTER_TYPE_EMAIL;
+    }
+
+    private function memberRoleFromData(array $data): string
+    {
+        $memberRole = trim((string) ($data['member_role'] ?? 'patient'));
+        if (!in_array($memberRole, ['patient', 'doctor'], true)) {
+            throw new ApiException('会员身份参数错误', 400);
+        }
+
+        return $memberRole;
+    }
+
+    private function registerByEmail(array $data): array
+    {
+        $email = trim((string) ($data['email'] ?? ''));
+        $emailCode = trim((string) ($data['email_code'] ?? ''));
+        if ($email === '' || $emailCode === '') {
+            throw new ApiException('邮箱、邮箱验证码和密码必须填写', 400);
+        }
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new ApiException('请输入正确的邮箱格式', 400);
+        }
+        $this->assertEmailAvailable($email, true);
+        $this->assertEmailCode($email, $emailCode);
+
+        return $this->createMemberAccount([
+            'platform_code' => 'EMAIL',
+            'email' => $email,
+            'password' => (string) ($data['password'] ?? ''),
+            'username' => (string) ($data['username'] ?? ''),
+            'nickname' => (string) ($data['nickname'] ?? ''),
+        ]);
+    }
+
+    private function registerByPhone(array $data): array
+    {
+        $mobile = $this->normalizeMobile($data['mobile'] ?? '');
+        $mobileCode = trim((string) ($data['mobile_code'] ?? ''));
+        if ($mobileCode === '') {
+            throw new ApiException('手机号验证码必须填写', 400);
+        }
+        $this->assertMobileAvailable($mobile, true);
+        $this->consumeSmsCode($mobile, $mobileCode);
+
+        return $this->createMemberAccount([
+            'platform_code' => 'MOBILE',
+            'mobile' => $mobile,
+            'password' => (string) ($data['password'] ?? ''),
+            'username' => (string) ($data['username'] ?? ''),
+            'nickname' => (string) ($data['nickname'] ?? ''),
+        ]);
+    }
+
+    private function resetPasswordByEmail(array $data): void
+    {
+        $email = trim((string) ($data['email'] ?? ''));
+        $emailCode = trim((string) ($data['email_code'] ?? ''));
+        if ($email === '' || $emailCode === '') {
+            throw new ApiException('邮箱、邮箱验证码和新密码必须填写', 400);
+        }
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new ApiException('请输入正确的邮箱格式', 400);
+        }
+
+        $member = $this->memberByField('email', $email);
+        if ($member === []) {
+            throw new ApiException('邮箱查找失败，请检查邮箱是否正确', 404);
+        }
+
+        $this->assertEmailCode($email, $emailCode);
+        $this->updateMemberPassword((int) $member['id'], (string) ($data['password'] ?? ''));
+    }
+
+    private function resetPasswordByPhone(array $data): void
+    {
+        $mobile = $this->normalizeMobile($data['mobile'] ?? '');
+        $mobileCode = trim((string) ($data['mobile_code'] ?? ''));
+        if ($mobileCode === '') {
+            throw new ApiException('手机号验证码和新密码必须填写', 400);
+        }
+
+        $member = $this->memberByField('mobile', $mobile);
+        if ($member === []) {
+            throw new ApiException('手机号查找失败，请检查手机号是否正确', 404);
+        }
+
+        $this->consumeSmsCode($mobile, $mobileCode);
+        $this->updateMemberPassword((int) $member['id'], (string) ($data['password'] ?? ''));
+    }
+
+    private function createMemberAccount(array $data): array
+    {
+        $username = $this->normalizeUsername((string) ($data['username'] ?? ''));
+        $nickname = $this->normalizeNickname((string) ($data['nickname'] ?? ''), $username);
+        $platformCode = trim((string) ($data['platform_code'] ?? ''));
+        $email = trim((string) ($data['email'] ?? ''));
+        $mobile = trim((string) ($data['mobile'] ?? ''));
+        $avatarBase = rtrim((string) config('plugin.saiuser.saithink.avatar', ''), '/');
+        $avatar = $avatarBase !== '' ? $avatarBase . '/' . rawurlencode($username) . '.png' : '';
+        $platformId = $this->platformId($platformCode);
+        $now = date('Y-m-d H:i:s');
+
+        return Db::transaction(function () use ($username, $nickname, $email, $mobile, $avatar, $platformId, $now, $data) {
+            $memberId = (int) Db::table('sa_member')->insertGetId([
+                'username' => $username,
+                'nickname' => $nickname,
+                'avatar' => $avatar,
+                'password_hash' => password_hash((string) $data['password'], PASSWORD_DEFAULT),
+                'email' => $email !== '' ? $email : null,
+                'mobile' => $mobile !== '' ? $mobile : null,
+                'member_level_id' => 1,
+                'points_balance' => 0,
+                'register_platform_id' => $platformId,
+                'status' => 1,
+                'create_time' => $now,
+                'update_time' => $now,
+            ]);
+
+            Db::table('sa_member_platform_rel')->insert([
+                'member_id' => $memberId,
+                'platform_id' => $platformId,
+                'platform_openid' => $email !== '' ? $email : $mobile,
+                'is_bind' => 1,
+                'bind_time' => $now,
+                'create_time' => $now,
+                'update_time' => $now,
+            ]);
+
+            return [
+                'member_id' => $memberId,
+                'username' => $username,
+            ];
+        });
+    }
+
+    private function normalizeUsername(string $username): string
+    {
+        $username = trim($username);
+        if ($username === '') {
+            return 'u' . Member::createUserSn();
+        }
+        if (mb_strlen($username) < 3 || mb_strlen($username) > 32) {
+            throw new ApiException('账号长度需为 3-32 个字符', 400);
+        }
+
+        $exists = Db::table('sa_member')
+            ->where('username', $username)
+            ->whereNull('delete_time')
+            ->find();
+        if ($exists) {
+            throw new ApiException('账号已存在，请更换后重试', 400);
+        }
+
+        return $username;
+    }
+
+    private function normalizeNickname(string $nickname, string $username): string
+    {
+        $nickname = trim($nickname);
+        if ($nickname === '') {
+            return $username;
+        }
+
+        return mb_substr($nickname, 0, 80);
+    }
+
+    private function assertPassword(string $password): void
+    {
+        if ($password === '') {
+            throw new ApiException('密码必须填写', 400);
+        }
+        if (strlen($password) < 6) {
+            throw new ApiException('密码长度不能少于 6 位', 400);
+        }
+    }
+
+    private function assertEmailAvailable(string $email, bool $shouldBeAvailable): void
+    {
+        $member = $this->memberByField('email', $email);
+        if ($shouldBeAvailable && $member !== []) {
+            throw new ApiException('该邮箱账号已经注册，请更换邮箱或者直接登录！', 400);
+        }
+        if (!$shouldBeAvailable && $member === []) {
+            throw new ApiException('邮箱查找失败，请检查邮箱是否正确', 404);
+        }
+    }
+
+    private function assertMobileAvailable(string $mobile, bool $shouldBeAvailable): void
+    {
+        $member = $this->memberByField('mobile', $mobile);
+        if ($shouldBeAvailable && $member !== []) {
+            throw new ApiException('该手机号已经注册，请直接登录或找回密码', 400);
+        }
+        if (!$shouldBeAvailable && $member === []) {
+            throw new ApiException('手机号查找失败，请检查手机号是否正确', 404);
+        }
+    }
+
+    private function memberByField(string $field, string $value): array
+    {
+        return (array) Db::table('sa_member')
+            ->where($field, $value)
+            ->whereNull('delete_time')
+            ->find();
+    }
+
+    private function assertEmailCode(string $email, string $code): void
+    {
+        $model = Db::table('sa_system_mail')
+            ->where('email', $email)
+            ->where('status', 'success')
+            ->order('update_time', 'desc')
+            ->find();
+        if (!$model) {
+            throw new ApiException('邮箱验证码获取失败，请确认邮件是否正确发送', 400);
+        }
+        if ((string) ($model['code'] ?? '') !== $code) {
+            throw new ApiException('邮箱验证码错误或已过期，请填写正确的验证码', 400);
+        }
+        if (time() - strtotime((string) ($model['update_time'] ?? $model['create_time'] ?? '')) > self::EMAIL_CODE_EXPIRES_IN) {
+            throw new ApiException('邮箱验证码错误或已过期，请填写正确的验证码', 400);
+        }
+    }
+
+    private function sendSmsCode(string $mobile): void
+    {
+        $result = (new MemberLogic())->sendCode($mobile);
+        if (!$result) {
+            throw new ApiException('验证码发送失败，请稍后重试', 500);
+        }
+    }
+
+    private function consumeSmsCode(string $mobile, string $code): void
+    {
+        $record = Db::table('saisms_record')
+            ->where('mobile', $mobile)
+            ->where('status', 'success')
+            ->whereNull('delete_time')
+            ->order('create_time', 'desc')
+            ->find();
+        if (!$record) {
+            throw new ApiException('验证码错误或已过期', 400);
+        }
+        if ((int) ($record['is_verify'] ?? 2) === 1) {
+            throw new ApiException('验证码错误或已过期', 400);
+        }
+        if (strtotime((string) ($record['create_time'] ?? '')) < time() - self::SMS_CODE_EXPIRES_IN) {
+            throw new ApiException('验证码错误或已过期', 400);
+        }
+        if ((string) ($record['code'] ?? '') !== $code) {
+            throw new ApiException('验证码错误或已过期', 400);
+        }
+
+        Db::table('saisms_record')->where('id', (int) $record['id'])->update([
+            'is_verify' => 1,
+            'update_time' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    private function updateMemberPassword(int $memberId, string $password): void
+    {
+        Db::table('sa_member')
+            ->where('id', $memberId)
+            ->update([
+                'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                'update_time' => date('Y-m-d H:i:s'),
+            ]);
+    }
+
+    private function normalizeMobile(mixed $mobile): string
+    {
+        $mobile = trim((string) $mobile);
+        if ($mobile === '' || !preg_match('/^1\d{10}$/', $mobile)) {
+            throw new ApiException('请输入正确格式的手机号码', 400);
+        }
+
+        return $mobile;
     }
 
     private function decodeJwtByJwks(string $token, string $jwksUrl, string $message): array
@@ -579,6 +940,15 @@ class HelpAuthService
         }
 
         return mb_substr($name, 0, 1) . '***@' . $domain;
+    }
+
+    private function maskMobile(string $mobile): string
+    {
+        if (strlen($mobile) !== 11) {
+            return '';
+        }
+
+        return substr($mobile, 0, 3) . '****' . substr($mobile, -4);
     }
 
     private function nonEmptyValues(array $data, array $keys): array

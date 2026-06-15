@@ -23,7 +23,7 @@ class AuthController extends OpenController
     #[Apidoc\Url('/app/help/auth/account-login')]
     #[Apidoc\Method('POST')]
     #[Apidoc\NotHeaders]
-    #[Apidoc\Param('username', type: 'string', require: true, desc: '会员用户名')]
+    #[Apidoc\Param('username', type: 'string', require: true, desc: '账号、邮箱或手机号')]
     #[Apidoc\Param('password', type: 'string', require: true, desc: '会员密码')]
     #[Apidoc\Returned('token', type: 'object', desc: 'Bearer access_token 与 refresh_token')]
     #[Apidoc\Returned('member', type: 'object', desc: '会员基础资料')]
@@ -40,7 +40,7 @@ class AuthController extends OpenController
     #[Apidoc\NotHeaders]
     #[Apidoc\Param('email', type: 'string', require: true, desc: '注册邮箱')]
     #[Apidoc\Returned('sent', type: 'boolean', desc: '是否发送成功')]
-    #[Apidoc\Returned('email', type: 'string', desc: '脱敏邮箱')]
+    #[Apidoc\Returned('target', type: 'string', desc: '脱敏邮箱')]
     #[Apidoc\Returned('expires_in', type: 'int', desc: '验证码有效期秒数')]
     #[Apidoc\Returned('resend_after', type: 'int', desc: '再次发送等待秒数')]
     public function sendRegisterEmail(Request $request): Response
@@ -48,14 +48,59 @@ class AuthController extends OpenController
         return ok($this->service->sendRegisterEmail($request->post()));
     }
 
+    #[Apidoc\Title('发送注册手机验证码')]
+    #[Apidoc\Url('/app/help/auth/register-phone-code')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\NotHeaders]
+    #[Apidoc\Param('mobile', type: 'string', require: true, desc: '注册手机号')]
+    #[Apidoc\Returned('sent', type: 'boolean', desc: '是否发送成功')]
+    #[Apidoc\Returned('target', type: 'string', desc: '脱敏手机号')]
+    #[Apidoc\Returned('expires_in', type: 'int', desc: '验证码有效期秒数')]
+    #[Apidoc\Returned('resend_after', type: 'int', desc: '再次发送等待秒数')]
+    public function sendRegisterPhone(Request $request): Response
+    {
+        return ok($this->service->sendRegisterPhone($request->post()));
+    }
+
+    #[Apidoc\Title('发送找回密码邮箱验证码')]
+    #[Apidoc\Url('/app/help/auth/forgot-email-code')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\NotHeaders]
+    #[Apidoc\Param('email', type: 'string', require: true, desc: '找回密码邮箱')]
+    #[Apidoc\Returned('sent', type: 'boolean', desc: '是否发送成功')]
+    #[Apidoc\Returned('target', type: 'string', desc: '脱敏邮箱')]
+    #[Apidoc\Returned('expires_in', type: 'int', desc: '验证码有效期秒数')]
+    #[Apidoc\Returned('resend_after', type: 'int', desc: '再次发送等待秒数')]
+    public function sendForgotEmail(Request $request): Response
+    {
+        return ok($this->service->sendForgotEmail($request->post()));
+    }
+
+    #[Apidoc\Title('发送找回密码手机验证码')]
+    #[Apidoc\Url('/app/help/auth/forgot-phone-code')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\NotHeaders]
+    #[Apidoc\Param('mobile', type: 'string', require: true, desc: '找回密码手机号')]
+    #[Apidoc\Returned('sent', type: 'boolean', desc: '是否发送成功')]
+    #[Apidoc\Returned('target', type: 'string', desc: '脱敏手机号')]
+    #[Apidoc\Returned('expires_in', type: 'int', desc: '验证码有效期秒数')]
+    #[Apidoc\Returned('resend_after', type: 'int', desc: '再次发送等待秒数')]
+    public function sendForgotPhone(Request $request): Response
+    {
+        return ok($this->service->sendForgotPhone($request->post()));
+    }
+
     #[Apidoc\Title('邮箱账号注册')]
     #[Apidoc\Url('/app/help/auth/account-register')]
     #[Apidoc\Method('POST')]
     #[Apidoc\NotHeaders]
-    #[Apidoc\Param('username', type: 'string', require: true, desc: '会员用户名')]
-    #[Apidoc\Param('email', type: 'string', require: true, desc: '注册邮箱')]
+    #[Apidoc\Param('register_type', type: 'string', require: false, default: 'email', desc: '注册方式 email/phone，不传时按字段推断')]
+    #[Apidoc\Param('username', type: 'string', require: false, desc: '可选账号名，不传时自动生成')]
+    #[Apidoc\Param('email', type: 'string', require: false, desc: '注册邮箱')]
+    #[Apidoc\Param('mobile', type: 'string', require: false, desc: '注册手机号')]
     #[Apidoc\Param('password', type: 'string', require: true, desc: '登录密码')]
-    #[Apidoc\Param('email_code', type: 'string', require: true, desc: '邮箱验证码')]
+    #[Apidoc\Param('email_code', type: 'string', require: false, desc: '邮箱验证码')]
+    #[Apidoc\Param('mobile_code', type: 'string', require: false, desc: '手机验证码')]
     #[Apidoc\Param('nickname', type: 'string', require: false, desc: '会员昵称')]
     #[Apidoc\Param('member_role', type: 'string', require: false, default: 'patient', desc: '业务身份 patient/doctor')]
     #[Apidoc\Param('locale', type: 'string', require: false, desc: '语言')]
@@ -67,6 +112,22 @@ class AuthController extends OpenController
     public function accountRegister(Request $request): Response
     {
         return ok($this->service->accountRegister($request->post()));
+    }
+
+    #[Apidoc\Title('找回密码')]
+    #[Apidoc\Url('/app/help/auth/password-reset')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\NotHeaders]
+    #[Apidoc\Param('reset_type', type: 'string', require: false, default: 'email', desc: '找回方式 email/phone，不传时按字段推断')]
+    #[Apidoc\Param('email', type: 'string', require: false, desc: '找回邮箱')]
+    #[Apidoc\Param('mobile', type: 'string', require: false, desc: '找回手机号')]
+    #[Apidoc\Param('email_code', type: 'string', require: false, desc: '邮箱验证码')]
+    #[Apidoc\Param('mobile_code', type: 'string', require: false, desc: '手机验证码')]
+    #[Apidoc\Param('password', type: 'string', require: true, desc: '新密码')]
+    #[Apidoc\Returned('reset', type: 'boolean', desc: '是否重置成功')]
+    public function passwordReset(Request $request): Response
+    {
+        return ok($this->service->passwordReset($request->post()));
     }
 
     #[Apidoc\Title('Google登录')]

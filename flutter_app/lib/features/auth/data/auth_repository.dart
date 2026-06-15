@@ -24,13 +24,13 @@ class AuthRepository {
     });
   }
 
-  Future<RegisterEmailCodeDelivery> sendRegisterEmailCode({
+  Future<VerificationCodeDelivery> sendRegisterEmailCode({
     required String email,
   }) async {
-    final result = await _apiClient.postApi<RegisterEmailCodeDelivery>(
+    final result = await _apiClient.postApi<VerificationCodeDelivery>(
       '/app/help/auth/register-email-code',
       data: {'email': email},
-      decode: RegisterEmailCodeDelivery.fromJson,
+      decode: VerificationCodeDelivery.fromJson,
     );
     final delivery = result.data;
     if (delivery == null) {
@@ -39,24 +39,112 @@ class AuthRepository {
     return delivery;
   }
 
-  Future<AuthSession> accountRegister({
-    required String username,
+  Future<VerificationCodeDelivery> sendRegisterPhoneCode({
+    required String mobile,
+  }) async {
+    final result = await _apiClient.postApi<VerificationCodeDelivery>(
+      '/app/help/auth/register-phone-code',
+      data: {'mobile': mobile},
+      decode: VerificationCodeDelivery.fromJson,
+    );
+    final delivery = result.data;
+    if (delivery == null) {
+      throw const FormatException('注册手机验证码响应缺少 data');
+    }
+    return delivery;
+  }
+
+  Future<VerificationCodeDelivery> sendForgotEmailCode({
     required String email,
+  }) async {
+    final result = await _apiClient.postApi<VerificationCodeDelivery>(
+      '/app/help/auth/forgot-email-code',
+      data: {'email': email},
+      decode: VerificationCodeDelivery.fromJson,
+    );
+    final delivery = result.data;
+    if (delivery == null) {
+      throw const FormatException('找回密码邮箱验证码响应缺少 data');
+    }
+    return delivery;
+  }
+
+  Future<VerificationCodeDelivery> sendForgotPhoneCode({
+    required String mobile,
+  }) async {
+    final result = await _apiClient.postApi<VerificationCodeDelivery>(
+      '/app/help/auth/forgot-phone-code',
+      data: {'mobile': mobile},
+      decode: VerificationCodeDelivery.fromJson,
+    );
+    final delivery = result.data;
+    if (delivery == null) {
+      throw const FormatException('找回密码手机验证码响应缺少 data');
+    }
+    return delivery;
+  }
+
+  Future<AuthSession> accountRegister({
+    required String registerType,
+    String? username,
+    String? email,
+    String? mobile,
     required String password,
-    required String emailCode,
+    String? emailCode,
+    String? mobileCode,
     required String memberRole,
     String? locale,
+    String? timezone,
     String? nickname,
   }) {
     return _postSession('/app/help/auth/account-register', {
-      'username': username,
-      'email': email,
+      'register_type': registerType,
+      if (username != null && username.trim().isNotEmpty)
+        'username': username.trim(),
+      if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
+      if (mobile != null && mobile.trim().isNotEmpty) 'mobile': mobile.trim(),
       'password': password,
-      'email_code': emailCode,
+      if (emailCode != null && emailCode.trim().isNotEmpty)
+        'email_code': emailCode.trim(),
+      if (mobileCode != null && mobileCode.trim().isNotEmpty)
+        'mobile_code': mobileCode.trim(),
       'member_role': memberRole,
       if (locale != null && locale.trim().isNotEmpty) 'locale': locale,
+      if (timezone != null && timezone.trim().isNotEmpty) 'timezone': timezone,
       if (nickname != null && nickname.trim().isNotEmpty)
         'nickname': nickname.trim(),
+    });
+  }
+
+  Future<void> passwordReset({
+    required String resetType,
+    String? email,
+    String? mobile,
+    String? emailCode,
+    String? mobileCode,
+    required String password,
+  }) {
+    return _postSuccess('/app/help/auth/password-reset', {
+      'reset_type': resetType,
+      if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
+      if (mobile != null && mobile.trim().isNotEmpty) 'mobile': mobile.trim(),
+      if (emailCode != null && emailCode.trim().isNotEmpty)
+        'email_code': emailCode.trim(),
+      if (mobileCode != null && mobileCode.trim().isNotEmpty)
+        'mobile_code': mobileCode.trim(),
+      'password': password,
+    });
+  }
+
+  Future<void> saveProfile({
+    required String nickname,
+    int? gender,
+    String? birthday,
+  }) {
+    return _postSuccess('/app/help/me/profile/save', {
+      'nickname': nickname.trim(),
+      if (gender != null) 'gender': gender,
+      if (birthday != null && birthday.trim().isNotEmpty) 'birthday': birthday,
     });
   }
 
@@ -178,5 +266,13 @@ class AuthRepository {
     }
     await GoogleSignIn.instance.initialize();
     _googleInitialized = true;
+  }
+
+  Future<void> _postSuccess(String path, Map<String, dynamic> data) async {
+    await _apiClient.postApi<Object?>(
+      path,
+      data: data,
+      decode: (value) => value,
+    );
   }
 }

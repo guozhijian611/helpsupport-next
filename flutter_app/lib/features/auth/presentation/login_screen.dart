@@ -95,7 +95,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   text: context.l10n.forgotPassword,
                   onPressed: isLoading
                       ? null
-                      : () => _showSnackBar(context.l10n.featureComingSoon),
+                      : () => context.go('/forgot-password'),
                 ),
                 const Spacer(),
                 _InlineActionButton(

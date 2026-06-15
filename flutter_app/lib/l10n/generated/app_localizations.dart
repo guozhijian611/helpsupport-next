@@ -188,6 +188,24 @@ abstract class AppLocalizations {
   /// **'Forgot password'**
   String get forgotPassword;
 
+  /// No description provided for @forgotPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset password'**
+  String get forgotPasswordTitle;
+
+  /// No description provided for @forgotPasswordSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use an email or phone verification code to reset your password.'**
+  String get forgotPasswordSubtitle;
+
+  /// No description provided for @forgotPasswordHasAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Remembered your password?'**
+  String get forgotPasswordHasAccount;
+
   /// No description provided for @phoneLogin.
   ///
   /// In en, this message translates to:
@@ -205,6 +223,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Email'**
   String get loginEmailPlaceholder;
+
+  /// No description provided for @invalidPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid mainland China phone number'**
+  String get invalidPhone;
 
   /// No description provided for @featureComingSoon.
   ///
@@ -227,7 +251,7 @@ abstract class AppLocalizations {
   /// No description provided for @registerSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Use an email verification code to create your HelpSupport space.'**
+  /// **'Use an email or phone verification code to create your HelpSupport space.'**
   String get registerSubtitle;
 
   /// No description provided for @registerSubmit.
@@ -248,6 +272,18 @@ abstract class AppLocalizations {
   /// **'Already have an account?'**
   String get registerHasAccount;
 
+  /// No description provided for @emailRegister.
+  ///
+  /// In en, this message translates to:
+  /// **'Email sign up'**
+  String get emailRegister;
+
+  /// No description provided for @phoneRegister.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone sign up'**
+  String get phoneRegister;
+
   /// No description provided for @email.
   ///
   /// In en, this message translates to:
@@ -260,11 +296,23 @@ abstract class AppLocalizations {
   /// **'Email code'**
   String get emailCode;
 
+  /// No description provided for @verificationCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification code'**
+  String get verificationCode;
+
   /// No description provided for @confirmPassword.
   ///
   /// In en, this message translates to:
   /// **'Confirm password'**
   String get confirmPassword;
+
+  /// No description provided for @newPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'New password'**
+  String get newPassword;
 
   /// No description provided for @sendEmailCode.
   ///
@@ -272,17 +320,35 @@ abstract class AppLocalizations {
   /// **'Send code'**
   String get sendEmailCode;
 
+  /// No description provided for @sendVerificationCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Send code'**
+  String get sendVerificationCode;
+
   /// No description provided for @resendEmailCodeIn.
   ///
   /// In en, this message translates to:
   /// **'Resend in'**
   String get resendEmailCodeIn;
 
+  /// No description provided for @resendVerificationCodeIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend in'**
+  String get resendVerificationCodeIn;
+
   /// No description provided for @registerEmailCodeSent.
   ///
   /// In en, this message translates to:
   /// **'Code sent to'**
   String get registerEmailCodeSent;
+
+  /// No description provided for @verificationCodeSentTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Code sent to'**
+  String get verificationCodeSentTo;
 
   /// No description provided for @authOtherMethods.
   ///
@@ -326,6 +392,24 @@ abstract class AppLocalizations {
   /// **'Passwords do not match'**
   String get passwordMismatch;
 
+  /// No description provided for @resetPasswordAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset password'**
+  String get resetPasswordAction;
+
+  /// No description provided for @resettingPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Resetting...'**
+  String get resettingPassword;
+
+  /// No description provided for @passwordResetSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Password reset. Please sign in again.'**
+  String get passwordResetSuccess;
+
   /// No description provided for @memberRoleLabel.
   ///
   /// In en, this message translates to:
@@ -367,6 +451,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Required'**
   String get requiredField;
+
+  /// No description provided for @profileCompleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete profile'**
+  String get profileCompleteTitle;
+
+  /// No description provided for @profileCompleteSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your display name, gender, and birthday before entering HelpSupport.'**
+  String get profileCompleteSubtitle;
+
+  /// No description provided for @profileDisplayName.
+  ///
+  /// In en, this message translates to:
+  /// **'Display name'**
+  String get profileDisplayName;
+
+  /// No description provided for @profileGender.
+  ///
+  /// In en, this message translates to:
+  /// **'Gender'**
+  String get profileGender;
+
+  /// No description provided for @profileBirthday.
+  ///
+  /// In en, this message translates to:
+  /// **'Birthday'**
+  String get profileBirthday;
+
+  /// No description provided for @genderMale.
+  ///
+  /// In en, this message translates to:
+  /// **'Male'**
+  String get genderMale;
+
+  /// No description provided for @genderFemale.
+  ///
+  /// In en, this message translates to:
+  /// **'Female'**
+  String get genderFemale;
+
+  /// No description provided for @genderPrivate.
+  ///
+  /// In en, this message translates to:
+  /// **'Prefer not to say'**
+  String get genderPrivate;
+
+  /// No description provided for @profileSaving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving...'**
+  String get profileSaving;
+
+  /// No description provided for @enterAppAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter'**
+  String get enterAppAction;
 
   /// No description provided for @logout.
   ///

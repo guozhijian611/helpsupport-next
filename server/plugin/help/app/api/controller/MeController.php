@@ -33,6 +33,7 @@ class MeController extends BaseController
     #[Apidoc\Title('保存我的资料')]
     #[Apidoc\Url('/app/help/me/profile/save')]
     #[Apidoc\Method('POST')]
+    #[Apidoc\Param('nickname', type: 'string', require: false, desc: '昵称/显示名称')]
     #[Apidoc\Param('member_role', type: 'string', require: false, desc: '业务身份 patient/doctor')]
     #[Apidoc\Param('gender', type: 'int', require: false, desc: '性别 1男 2女 3保密')]
     #[Apidoc\Param('birthday', type: 'string', require: false, desc: '生日 YYYY-MM-DD')]

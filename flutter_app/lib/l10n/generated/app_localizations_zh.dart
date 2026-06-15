@@ -54,6 +54,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get forgotPassword => '忘记密码';
 
   @override
+  String get forgotPasswordTitle => '找回密码';
+
+  @override
+  String get forgotPasswordSubtitle => '用邮箱或手机号验证码重置你的登录密码。';
+
+  @override
+  String get forgotPasswordHasAccount => '想起密码了？';
+
+  @override
   String get phoneLogin => '手机号登录';
 
   @override
@@ -61,6 +70,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get loginEmailPlaceholder => '电子邮件';
+
+  @override
+  String get invalidPhone => '请输入正确格式的手机号码';
 
   @override
   String get featureComingSoon => '该功能暂未开放';
@@ -72,7 +84,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get registerTitle => '创建账号';
 
   @override
-  String get registerSubtitle => '用邮箱验证码创建你的 HelpSupport 支持空间。';
+  String get registerSubtitle => '使用邮箱或手机号验证码创建你的 HelpSupport 支持空间。';
 
   @override
   String get registerSubmit => '注册';
@@ -84,22 +96,43 @@ class AppLocalizationsZh extends AppLocalizations {
   String get registerHasAccount => '已有账号？';
 
   @override
+  String get emailRegister => '邮箱注册';
+
+  @override
+  String get phoneRegister => '手机号注册';
+
+  @override
   String get email => '邮箱';
 
   @override
   String get emailCode => '邮箱验证码';
 
   @override
+  String get verificationCode => '验证码';
+
+  @override
   String get confirmPassword => '确认密码';
+
+  @override
+  String get newPassword => '设置密码';
 
   @override
   String get sendEmailCode => '发送验证码';
 
   @override
+  String get sendVerificationCode => '获取验证码';
+
+  @override
   String get resendEmailCodeIn => '重新发送';
 
   @override
+  String get resendVerificationCodeIn => '重新发送';
+
+  @override
   String get registerEmailCodeSent => '验证码已发送至';
+
+  @override
+  String get verificationCodeSentTo => '验证码已发送至';
 
   @override
   String get authOtherMethods => '其他登录方式';
@@ -123,6 +156,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get passwordMismatch => '两次输入密码不一致';
 
   @override
+  String get resetPasswordAction => '重置密码';
+
+  @override
+  String get resettingPassword => '重置中...';
+
+  @override
+  String get passwordResetSuccess => '密码已重置，请重新登录';
+
+  @override
   String get memberRoleLabel => '身份';
 
   @override
@@ -142,6 +184,36 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get requiredField => '必填';
+
+  @override
+  String get profileCompleteTitle => '填写个人信息';
+
+  @override
+  String get profileCompleteSubtitle => '补全昵称、性别和生日后进入 HelpSupport。';
+
+  @override
+  String get profileDisplayName => '账号名称';
+
+  @override
+  String get profileGender => '性别';
+
+  @override
+  String get profileBirthday => '出生日期';
+
+  @override
+  String get genderMale => '男';
+
+  @override
+  String get genderFemale => '女';
+
+  @override
+  String get genderPrivate => '保密';
+
+  @override
+  String get profileSaving => '保存中...';
+
+  @override
+  String get enterAppAction => '进入';
 
   @override
   String get logout => '退出登录';

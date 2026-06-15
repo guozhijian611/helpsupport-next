@@ -126,6 +126,12 @@ class HelpApiService
 
     public function saveProfile(int $memberId, array $data): array
     {
+        $hasNickname = array_key_exists('nickname', $data);
+        $nickname = trim((string) ($data['nickname'] ?? ''));
+        if ($hasNickname && $nickname === '') {
+            throw new ApiException('昵称必须填写', 400);
+        }
+
         $payload = $this->only($data, [
             'member_role',
             'gender',
@@ -160,7 +166,16 @@ class HelpApiService
             }
         }
 
-        $this->upsertByMember('sa_help_member_profile', $memberId, $payload);
+        Db::transaction(function () use ($memberId, $payload, $hasNickname, $nickname) {
+            if ($hasNickname) {
+                Db::table('sa_member')->where('id', $memberId)->update([
+                    'nickname' => mb_substr($nickname, 0, 80),
+                    'update_time' => date('Y-m-d H:i:s'),
+                ]);
+            }
+            $this->upsertByMember('sa_help_member_profile', $memberId, $payload);
+        });
+
         return $this->rowByMember('sa_help_member_profile', $memberId);
     }
 
