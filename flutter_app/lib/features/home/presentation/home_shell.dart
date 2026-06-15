@@ -36,27 +36,30 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final isLoggingOut = ref.watch(authControllerProvider).isLoading;
     final destinations = [
       _HomeDestination(
-        label: context.l10n.patient,
-        icon: Icons.favorite_border,
-      ),
-      _HomeDestination(
-        label: context.l10n.plan,
-        icon: Icons.event_available_outlined,
+        label: context.l10n.homeTab,
+        icon: Icons.home_outlined,
+        selectedIcon: Icons.home_rounded,
       ),
       _HomeDestination(
         label: context.l10n.community,
-        icon: Icons.forum_outlined,
+        icon: Icons.public_outlined,
+        selectedIcon: Icons.public_rounded,
       ),
       _HomeDestination(
-        label: context.l10n.notifications,
-        icon: Icons.notifications_none,
+        label: context.l10n.plan,
+        icon: Icons.article_outlined,
+        selectedIcon: Icons.article_rounded,
       ),
-      _HomeDestination(label: context.l10n.me, icon: Icons.person_outline),
+      _HomeDestination(
+        label: context.l10n.me,
+        icon: Icons.person_outline_rounded,
+        selectedIcon: Icons.person_rounded,
+      ),
     ];
     final current = destinations[_index];
     final body = switch (_index) {
-      1 => const PlanScreen(),
-      2 => const CommunityFeedScreen(),
+      1 => const CommunityFeedScreen(),
+      2 => const PlanScreen(),
       _ => _HomePanel(
         icon: current.icon,
         title: current.label,
@@ -88,33 +91,134 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         ],
       ),
       body: SafeArea(child: body),
-      floatingActionButton: _index == 2
+      floatingActionButton: _index == 1
           ? FloatingActionButton(
               tooltip: context.l10n.communityNewPost,
               onPressed: () => context.push('/community/new'),
               child: const Icon(Icons.edit_outlined),
             )
           : null,
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: _FloatingHomeTabBar(
+        destinations: destinations,
         selectedIndex: _index,
-        onDestinationSelected: (value) => setState(() => _index = value),
-        destinations: [
-          for (final destination in destinations)
-            NavigationDestination(
-              icon: Icon(destination.icon),
-              label: destination.label,
-            ),
-        ],
+        onSelected: (value) => setState(() => _index = value),
       ),
     );
   }
 }
 
 class _HomeDestination {
-  const _HomeDestination({required this.label, required this.icon});
+  const _HomeDestination({
+    required this.label,
+    required this.icon,
+    required this.selectedIcon,
+  });
 
   final String label;
   final IconData icon;
+  final IconData selectedIcon;
+}
+
+class _FloatingHomeTabBar extends StatelessWidget {
+  const _FloatingHomeTabBar({
+    required this.destinations,
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  static const _barColor = Color(0xFFDADCE1);
+  static const _activeColor = Color(0xFFFF9585);
+  static const _inactiveColor = Colors.white;
+
+  final List<_HomeDestination> destinations;
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(22, 8, 22, 12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: _barColor,
+          borderRadius: BorderRadius.circular(42),
+        ),
+        child: SizedBox(
+          height: 86,
+          child: Row(
+            children: [
+              for (var index = 0; index < destinations.length; index += 1)
+                Expanded(
+                  child: _FloatingHomeTabItem(
+                    destination: destinations[index],
+                    selected: index == selectedIndex,
+                    activeColor: _activeColor,
+                    inactiveColor: _inactiveColor,
+                    onTap: () => onSelected(index),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FloatingHomeTabItem extends StatelessWidget {
+  const _FloatingHomeTabItem({
+    required this.destination,
+    required this.selected,
+    required this.activeColor,
+    required this.inactiveColor,
+    required this.onTap,
+  });
+
+  final _HomeDestination destination;
+  final bool selected;
+  final Color activeColor;
+  final Color inactiveColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? activeColor : inactiveColor;
+
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: destination.label,
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                selected ? destination.selectedIcon : destination.icon,
+                size: 32,
+                color: color,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                destination.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  height: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _HomePanel extends StatelessWidget {

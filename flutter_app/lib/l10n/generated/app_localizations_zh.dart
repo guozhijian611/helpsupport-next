@@ -228,6 +228,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appleLogin => '使用 Apple 账号登录';
 
   @override
+  String get homeTab => '首页';
+
+  @override
   String get homeTitle => '今日';
 
   @override

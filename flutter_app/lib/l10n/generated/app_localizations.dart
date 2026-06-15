@@ -536,6 +536,12 @@ abstract class AppLocalizations {
   /// **'Sign in with Apple'**
   String get appleLogin;
 
+  /// No description provided for @homeTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get homeTab;
+
   /// No description provided for @homeTitle.
   ///
   /// In en, this message translates to:

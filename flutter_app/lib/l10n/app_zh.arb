@@ -73,6 +73,7 @@
   "logout": "退出登录",
   "googleLogin": "使用 Google 账号登录",
   "appleLogin": "使用 Apple 账号登录",
+  "homeTab": "首页",
   "homeTitle": "今日",
   "homeGreeting": "你的支持空间已准备好。",
   "onboardingTitle": "引导页",

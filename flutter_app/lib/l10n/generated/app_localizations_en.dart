@@ -234,6 +234,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appleLogin => 'Sign in with Apple';
 
   @override
+  String get homeTab => 'Home';
+
+  @override
   String get homeTitle => 'Today';
 
   @override

@@ -73,6 +73,7 @@
   "logout": "Sign out",
   "googleLogin": "Sign in with Google",
   "appleLogin": "Sign in with Apple",
+  "homeTab": "Home",
   "homeTitle": "Today",
   "homeGreeting": "Your support space is ready.",
   "onboardingTitle": "Onboarding",
