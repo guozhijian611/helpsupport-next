@@ -9,6 +9,7 @@ import '../../chat/application/chat_controller.dart';
 import '../../chat/data/chat_models.dart';
 import '../../chat/presentation/chat_launch_sheet.dart';
 import '../../community/application/community_controller.dart';
+import '../../message/application/message_controller.dart';
 import '../../plan/application/plan_controller.dart';
 
 class HomeDashboardScreen extends ConsumerWidget {
@@ -22,6 +23,7 @@ class HomeDashboardScreen extends ConsumerWidget {
     final overview = ref.watch(chatOverviewProvider);
     final plans = ref.watch(currentPlansProvider);
     final community = ref.watch(communityPostsProvider);
+    final unreadCount = ref.watch(unreadMessageCountProvider);
     final plansData = switch (plans) {
       AsyncData(:final value) => value,
       _ => null,
@@ -34,6 +36,7 @@ class HomeDashboardScreen extends ConsumerWidget {
       AsyncData(:final value) => value,
       _ => null,
     };
+    final isDoctor = session?.currentRole == 'doctor';
     final nickname = _firstText([
       session?.profile['nickname'],
       session?.member['nickname'],
@@ -41,6 +44,7 @@ class HomeDashboardScreen extends ConsumerWidget {
       session?.member['mobile'],
     ], fallback: 'Alexandrina');
     final avatarUrl = _firstText([session?.member['avatar']]);
+    final badge = _badgeText(unreadCount.asData?.value ?? 0);
 
     return ColoredBox(
       color: _pageBackground,
@@ -49,10 +53,12 @@ class HomeDashboardScreen extends ConsumerWidget {
           ref.invalidate(chatOverviewProvider);
           ref.invalidate(currentPlansProvider);
           ref.invalidate(communityPostsProvider);
+          ref.invalidate(unreadMessageCountProvider);
           await Future.wait([
             ref.read(chatOverviewProvider.future),
             ref.read(currentPlansProvider.future),
             ref.read(communityPostsProvider.future),
+            ref.read(unreadMessageCountProvider.future),
           ]);
         },
         child: ListView(
@@ -61,19 +67,27 @@ class HomeDashboardScreen extends ConsumerWidget {
             _HomeHeader(
               name: nickname,
               avatarUrl: avatarUrl,
-              onNotificationTap: () =>
-                  context.showCenteredNotice(context.l10n.featureComingSoon),
+              badge: badge,
+              onNotificationTap: () => context.push('/me/messages'),
             ),
             const SizedBox(height: 22),
             _HeroPanel(
-              title: _t(context, '为康复做出关键决策', 'Make decisive recovery choices'),
+              title: isDoctor
+                  ? _t(context, '社区内容审核', 'Community review')
+                  : _t(context, '为康复做出关键决策', 'Make decisive recovery choices'),
               subtitle: _t(
                 context,
-                '最好的治疗方案，源于更深的病情沟通。',
-                'Better treatment plans begin with deeper clinical dialogue.',
+                isDoctor ? '审核患者社区发布的内容' : '最好的治疗方案，源于更深的病情沟通。',
+                isDoctor
+                    ? 'Review content published by patients in the community.'
+                    : 'Better treatment plans begin with deeper clinical dialogue.',
               ),
-              buttonLabel: _t(context, '立即预约', 'Book now'),
-              onTap: () => context.push('/appointments/doctors'),
+              buttonLabel: isDoctor
+                  ? _t(context, '立即查看', 'Review now')
+                  : _t(context, '立即预约', 'Book now'),
+              onTap: () => isDoctor
+                  ? context.go('/home?tab=community')
+                  : context.push('/appointments/doctors'),
             ),
             const SizedBox(height: 18),
             Row(
@@ -298,11 +312,13 @@ class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
     required this.name,
     required this.avatarUrl,
+    required this.badge,
     required this.onNotificationTap,
   });
 
   final String name;
   final String avatarUrl;
+  final String? badge;
   final VoidCallback onNotificationTap;
 
   @override
@@ -339,12 +355,19 @@ class _HomeHeader extends StatelessWidget {
         ),
         _CircularActionButton(
           icon: Icons.notifications_none_rounded,
-          badge: '5',
+          badge: badge,
           onTap: onNotificationTap,
         ),
       ],
     );
   }
+}
+
+String? _badgeText(int count) {
+  if (count <= 0) {
+    return null;
+  }
+  return count > 99 ? '99+' : '$count';
 }
 
 class _HeroPanel extends StatelessWidget {

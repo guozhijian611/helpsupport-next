@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../doctor/presentation/doctor_plan_screen.dart';
 import '../application/plan_controller.dart';
 import '../data/plan_models.dart';
 
@@ -23,15 +24,19 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authControllerProvider);
+    final session = switch (authState) {
+      AsyncData(:final value) => value,
+      _ => null,
+    };
+    if (session?.currentRole == 'doctor') {
+      return const DoctorPlanScreen();
+    }
+
     final plans = ref.watch(currentPlansProvider);
     final tasks = ref.watch(dailyTasksByDateProvider(_selectedKey));
     final assessments = ref.watch(assessmentResultsProvider);
     final taskPage = switch (tasks) {
-      AsyncData(:final value) => value,
-      _ => null,
-    };
-    final authState = ref.watch(authControllerProvider);
-    final session = switch (authState) {
       AsyncData(:final value) => value,
       _ => null,
     };
@@ -59,8 +64,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
           children: [
             _PlanHeader(
               name: nickname,
-              onNotificationTap: () =>
-                  context.showCenteredNotice(context.l10n.featureComingSoon),
+              onNotificationTap: () => context.push('/me/messages'),
             ),
             const SizedBox(height: 20),
             plans.when(

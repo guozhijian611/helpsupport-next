@@ -6,6 +6,7 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../message/application/message_controller.dart';
 import '../application/community_controller.dart';
 import '../data/community_models.dart';
 
@@ -33,12 +34,14 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
         ? ref.watch(communityPostsProvider)
         : ref.watch(communityPostsSearchProvider(_query.trim()));
     final tags = ref.watch(communityTagsProvider);
+    final unreadCount = ref.watch(unreadMessageCountProvider);
     final authState = ref.watch(authControllerProvider);
     final session = switch (authState) {
       AsyncData(:final value) => value,
       _ => null,
     };
     final avatarUrl = _firstText([session?.member['avatar']]);
+    final badge = _badgeText(unreadCount.asData?.value ?? 0);
 
     return ColoredBox(
       color: const Color(0xFFF4F5F9),
@@ -46,11 +49,13 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
         onRefresh: () async {
           ref.invalidate(communityTagsProvider);
           ref.invalidate(communityPostsProvider);
+          ref.invalidate(unreadMessageCountProvider);
           if (_query.trim().isNotEmpty) {
             ref.invalidate(communityPostsSearchProvider(_query.trim()));
           }
           await Future.wait([
             ref.read(communityTagsProvider.future),
+            ref.read(unreadMessageCountProvider.future),
             _query.trim().isEmpty
                 ? ref.read(communityPostsProvider.future)
                 : ref.read(communityPostsSearchProvider(_query.trim()).future),
@@ -61,10 +66,10 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
           children: [
             _CommunityTopBar(
               avatarUrl: avatarUrl,
+              badge: badge,
               controller: _searchController,
               onChanged: (value) => setState(() => _query = value),
-              onNotifyTap: () =>
-                  context.showCenteredNotice(context.l10n.featureComingSoon),
+              onNotifyTap: () => context.push('/me/messages'),
             ),
             const SizedBox(height: 16),
             tags.when(
@@ -398,12 +403,14 @@ class CommunityPostCard extends ConsumerWidget {
 class _CommunityTopBar extends StatelessWidget {
   const _CommunityTopBar({
     required this.avatarUrl,
+    required this.badge,
     required this.controller,
     required this.onChanged,
     required this.onNotifyTap,
   });
 
   final String avatarUrl;
+  final String? badge;
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final VoidCallback onNotifyTap;
@@ -437,12 +444,19 @@ class _CommunityTopBar extends StatelessWidget {
         const SizedBox(width: 12),
         _CircleButton(
           icon: Icons.notifications_none_rounded,
-          badge: '5',
+          badge: badge,
           onTap: onNotifyTap,
         ),
       ],
     );
   }
+}
+
+String? _badgeText(int count) {
+  if (count <= 0) {
+    return null;
+  }
+  return count > 99 ? '99+' : '$count';
 }
 
 class _TopicChip extends StatelessWidget {

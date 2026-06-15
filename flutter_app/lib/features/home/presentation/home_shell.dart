@@ -11,14 +11,31 @@ import '../../plan/presentation/plan_screen.dart';
 import 'home_dashboard_screen.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
-  const HomeShell({super.key});
+  const HomeShell({super.key, this.initialIndex = 0});
+
+  final int initialIndex;
 
   @override
   ConsumerState<HomeShell> createState() => _HomeShellState();
 }
 
 class _HomeShellState extends ConsumerState<HomeShell> {
-  int _index = 0;
+  late int _index;
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.initialIndex.clamp(0, 3);
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextIndex = widget.initialIndex.clamp(0, 3);
+    if (widget.initialIndex != oldWidget.initialIndex && nextIndex != _index) {
+      _index = nextIndex;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

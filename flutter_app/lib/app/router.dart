@@ -14,12 +14,17 @@ import '../features/chat/presentation/chat_home_screen.dart';
 import '../features/chat/presentation/chat_session_screen.dart';
 import '../features/community/presentation/community_post_detail_screen.dart';
 import '../features/community/presentation/community_post_editor_screen.dart';
+import '../features/doctor/presentation/doctor_assessment_scales_screen.dart';
+import '../features/doctor/presentation/doctor_patients_screen.dart';
+import '../features/doctor/presentation/doctor_plan_screen.dart';
+import '../features/doctor/presentation/doctor_task_templates_screen.dart';
 import '../features/home/presentation/home_shell.dart';
 import '../features/local_model/presentation/local_model_chat_screen.dart';
 import '../features/local_model/presentation/local_model_screen.dart';
 import '../features/material/data/material_models.dart';
 import '../features/material/presentation/material_detail_screen.dart';
 import '../features/material/presentation/material_library_screen.dart';
+import '../features/message/presentation/message_center_screen.dart';
 import '../features/me/presentation/journal_screen.dart';
 import '../features/me/presentation/memoir_screen.dart';
 import '../features/me/presentation/settings_screen.dart';
@@ -73,7 +78,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/home',
         name: 'home',
-        builder: (context, state) => const HomeShell(),
+        builder: (context, state) => HomeShell(
+          initialIndex: _homeTabIndex(state.uri.queryParameters['tab']),
+        ),
       ),
       GoRoute(
         path: '/chat',
@@ -123,6 +130,36 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             postId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
           );
         },
+      ),
+      GoRoute(
+        path: '/doctor/plan',
+        name: 'doctor-plan',
+        builder: (context, state) {
+          return DoctorPlanScreen(
+            initialMemberId:
+                int.tryParse(state.uri.queryParameters['memberId'] ?? '') ?? 0,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/doctor/patients',
+        name: 'doctor-patients',
+        builder: (context, state) => const DoctorPatientsScreen(),
+      ),
+      GoRoute(
+        path: '/doctor/task-templates',
+        name: 'doctor-task-templates',
+        builder: (context, state) => const DoctorTaskTemplatesScreen(),
+      ),
+      GoRoute(
+        path: '/doctor/assessment-scales',
+        name: 'doctor-assessment-scales',
+        builder: (context, state) => const DoctorAssessmentScalesScreen(),
+      ),
+      GoRoute(
+        path: '/me/messages',
+        name: 'me-messages',
+        builder: (context, state) => const MessageCenterScreen(),
       ),
       GoRoute(
         path: '/me/settings',
@@ -195,3 +232,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+int _homeTabIndex(String? value) {
+  return switch (value) {
+    '1' || 'community' => 1,
+    '2' || 'plan' => 2,
+    '3' || 'me' => 3,
+    _ => 0,
+  };
+}

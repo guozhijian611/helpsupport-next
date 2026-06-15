@@ -9,6 +9,7 @@ import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/data/auth_models.dart';
+import '../../doctor/presentation/doctor_me_screen.dart';
 import '../../plan/application/plan_controller.dart';
 import '../../plan/data/plan_models.dart';
 
@@ -31,6 +32,9 @@ class MeScreen extends ConsumerWidget {
       AsyncData(:final value) => value,
       _ => null,
     };
+    if (session?.currentRole == 'doctor') {
+      return const DoctorMeScreen();
+    }
     final apiClient = ref.watch(apiClientProvider);
     final profile = _MeProfile.fromSession(session, apiClient.resolveUrl);
     final plans = switch (ref.watch(currentPlansProvider)) {
