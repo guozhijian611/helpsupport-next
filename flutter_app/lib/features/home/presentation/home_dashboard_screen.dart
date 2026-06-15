@@ -73,8 +73,7 @@ class HomeDashboardScreen extends ConsumerWidget {
                 'Better treatment plans begin with deeper clinical dialogue.',
               ),
               buttonLabel: _t(context, '立即预约', 'Book now'),
-              onTap: () =>
-                  context.showCenteredNotice(context.l10n.featureComingSoon),
+              onTap: () => context.push('/appointments/doctors'),
             ),
             const SizedBox(height: 18),
             Row(

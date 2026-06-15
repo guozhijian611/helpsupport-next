@@ -7,6 +7,9 @@ import '../features/auth/presentation/auth_protocol_screen.dart';
 import '../features/auth/presentation/complete_profile_screen.dart';
 import '../features/auth/presentation/forgot_password_screen.dart';
 import '../features/auth/presentation/register_screen.dart';
+import '../features/appointment/presentation/appointment_doctor_detail_screen.dart';
+import '../features/appointment/presentation/appointment_doctor_list_screen.dart';
+import '../features/appointment/presentation/appointment_list_screen.dart';
 import '../features/chat/presentation/chat_home_screen.dart';
 import '../features/chat/presentation/chat_session_screen.dart';
 import '../features/community/presentation/community_post_detail_screen.dart';
@@ -17,6 +20,8 @@ import '../features/local_model/presentation/local_model_screen.dart';
 import '../features/material/data/material_models.dart';
 import '../features/material/presentation/material_detail_screen.dart';
 import '../features/material/presentation/material_library_screen.dart';
+import '../features/me/presentation/journal_screen.dart';
+import '../features/me/presentation/memoir_screen.dart';
 import '../features/me/presentation/settings_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
@@ -76,6 +81,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ChatHomeScreen(),
       ),
       GoRoute(
+        path: '/appointments/doctors',
+        name: 'appointment-doctors',
+        builder: (context, state) => const AppointmentDoctorListScreen(),
+      ),
+      GoRoute(
+        path: '/appointments/doctors/:id',
+        name: 'appointment-doctor-detail',
+        builder: (context, state) {
+          return AppointmentDoctorDetailScreen(
+            doctorId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/appointments/mine',
+        name: 'appointment-mine',
+        builder: (context, state) => const AppointmentListScreen(),
+      ),
+      GoRoute(
         path: '/chat/session/:id',
         name: 'chat-session',
         builder: (context, state) {
@@ -115,6 +139,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           );
         },
+      ),
+      GoRoute(
+        path: '/me/journals',
+        name: 'me-journals',
+        builder: (context, state) => const JournalScreen(),
+      ),
+      GoRoute(
+        path: '/me/memoirs',
+        name: 'me-memoirs',
+        builder: (context, state) => const MemoirScreen(),
       ),
       GoRoute(
         path: '/local-model',

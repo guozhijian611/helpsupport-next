@@ -785,6 +785,7 @@ class _BenefitStrip extends StatelessWidget {
               iconColor: MeScreen._accent,
               title: context.l10n.meMemoirBenefitTitle,
               description: context.l10n.meMemoirBenefitDesc,
+              route: '/me/memoirs',
             ),
           ),
           Container(width: 1, height: 40, color: const Color(0xFFE3E7EF)),
@@ -808,18 +809,27 @@ class _BenefitItem extends StatelessWidget {
     required this.iconColor,
     required this.title,
     required this.description,
+    this.route,
   });
 
   final IconData icon;
   final Color iconColor;
   final String title;
   final String description;
+  final String? route;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(18),
-      onTap: () => context.showCenteredNotice(context.l10n.featureComingSoon),
+      onTap: () {
+        final route = this.route;
+        if (route == null) {
+          context.showCenteredNotice(context.l10n.featureComingSoon);
+          return;
+        }
+        context.push(route);
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Row(
@@ -886,11 +896,13 @@ class _QuickActionsPanel extends StatelessWidget {
         title: context.l10n.meCollection,
         icon: Icons.star_rounded,
         color: MeScreen._orange,
+        route: '/materials?type=education&source=collections',
       ),
       _QuickActionData(
         title: context.l10n.meHistory,
         icon: Icons.schedule_rounded,
         color: MeScreen._blue,
+        route: '/materials?type=education&source=history',
       ),
       _QuickActionData(
         title: context.l10n.mePrivacy,
@@ -902,11 +914,13 @@ class _QuickActionsPanel extends StatelessWidget {
         title: context.l10n.meMemoir,
         icon: Icons.near_me_rounded,
         color: MeScreen._purple,
+        route: '/me/memoirs',
       ),
       _QuickActionData(
         title: context.l10n.meJournal,
         icon: Icons.notes_rounded,
         color: MeScreen._blue,
+        route: '/me/journals',
       ),
     ];
 
