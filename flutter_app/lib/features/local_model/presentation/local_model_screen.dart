@@ -102,14 +102,16 @@ class _LocalModelScreenState extends ConsumerState<LocalModelScreen> {
                             crossAxisCount: 2,
                             crossAxisSpacing: 14,
                             mainAxisSpacing: 14,
-                            childAspectRatio: 0.58,
+                            childAspectRatio: 0.54,
                           ),
                       itemCount: filtered.length,
                       itemBuilder: (context, index) {
                         final item = filtered[index];
                         final state =
                             states[item.id] ??
-                            const LocalModelDownloadState.notDownloaded();
+                            (downloadStates.isLoading
+                                ? const LocalModelDownloadState.verifying()
+                                : const LocalModelDownloadState.notDownloaded());
                         return _ModelCard(
                           item: item,
                           state: state,

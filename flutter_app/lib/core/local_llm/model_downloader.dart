@@ -19,21 +19,22 @@ class ModelDownloader {
     required String memberId,
   }) async {
     final manifest = _readManifest(model, memberId: memberId);
+    final target = await _modelFile(model, memberId: memberId);
     final filePath = manifest['file_path'] as String? ?? '';
     final storedSha256 = manifest['sha256'] as String? ?? '';
     if (filePath.isEmpty || storedSha256.isEmpty) {
-      return const LocalModelDownloadState.notDownloaded();
+      return _restoreExistingFileState(model, memberId: memberId, file: target);
     }
 
     final file = File(filePath);
     if (!await file.exists()) {
       await _preferences.remove(_manifestKey(model, memberId: memberId));
-      return const LocalModelDownloadState.notDownloaded();
+      return _restoreExistingFileState(model, memberId: memberId, file: target);
     }
 
     if (model.sha256.isNotEmpty &&
         storedSha256.toLowerCase() != model.sha256.toLowerCase()) {
-      return const LocalModelDownloadState.notDownloaded();
+      return _restoreExistingFileState(model, memberId: memberId, file: target);
     }
 
     return LocalModelDownloadState.ready(
@@ -57,6 +58,15 @@ class ModelDownloader {
     }
 
     final target = await _modelFile(model, memberId: memberId);
+    final restored = await _restoreExistingFileState(
+      model,
+      memberId: memberId,
+      file: target,
+    );
+    if (restored.isReady) {
+      return restored;
+    }
+
     final temp = File('${target.path}.download');
     await target.parent.create(recursive: true);
     if (await temp.exists()) {
@@ -108,6 +118,37 @@ class ModelDownloader {
       }
     }
     await _preferences.remove(_manifestKey(model, memberId: memberId));
+  }
+
+  Future<LocalModelDownloadState> _restoreExistingFileState(
+    LocalModelItem model, {
+    required String memberId,
+    required File file,
+  }) async {
+    if (!await file.exists()) {
+      return const LocalModelDownloadState.notDownloaded();
+    }
+
+    final expectedSha256 = model.sha256.trim();
+    if (expectedSha256.isEmpty) {
+      return const LocalModelDownloadState.notDownloaded();
+    }
+
+    final actualSha256 = await _sha256(file);
+    if (actualSha256.toLowerCase() != expectedSha256.toLowerCase()) {
+      return const LocalModelDownloadState.notDownloaded();
+    }
+
+    final state = LocalModelDownloadState.ready(
+      filePath: file.path,
+      sha256: actualSha256,
+    );
+    await _writeManifest(model, memberId: memberId, state: state);
+    final temp = File('${file.path}.download');
+    if (await temp.exists()) {
+      await temp.delete();
+    }
+    return state;
   }
 
   Future<File> _modelFile(
