@@ -21,7 +21,8 @@ Environment:
   IOS_BUNDLE_ID            Bundle id override. Default is read from Runner.app.
   HELP_SUPPORT_API_BASE_URL API base URL. Default: http://10.0.0.6:8787
   IOS_DEPLOYMENT_TARGET    iOS deployment target for generated Swift package. Default: 15.0
-  REFRESH_IOS_SPM=0        Skip Swift Package cache cleanup and dependency refresh.
+  REFRESH_IOS_SPM=1        Repair Swift Package cache and dependency resolution.
+  PUB_GET=1                Force flutter pub get.
   CLEAN=1                  Run flutter clean before building.
 
 Examples:
@@ -147,7 +148,7 @@ patch_generated_plugin_package() {
 }
 
 clear_ios_spm_cache() {
-  if [[ "${REFRESH_IOS_SPM:-1}" == "0" ]]; then
+  if [[ "${REFRESH_IOS_SPM:-0}" != "1" ]]; then
     return
   fi
 
@@ -166,9 +167,24 @@ dart_define_value() {
   printf '%s' "HELP_SUPPORT_API_BASE_URL=${API_BASE_URL}" | base64 | tr -d '\n'
 }
 
+run_pub_get_if_needed() {
+  local package_config=".dart_tool/package_config.json"
+
+  if [[ "${PUB_GET:-0}" == "1" ||
+    ! -f "${package_config}" ||
+    pubspec.yaml -nt "${package_config}" ||
+    pubspec.lock -nt "${package_config}" ]]; then
+    log "Running flutter pub get"
+    flutter pub get
+    return
+  fi
+
+  log "Skipping flutter pub get"
+}
+
 resolve_ios_packages() {
   local simulator_udid="$1"
-  if [[ "${REFRESH_IOS_SPM:-1}" == "0" ]]; then
+  if [[ "${REFRESH_IOS_SPM:-0}" != "1" ]]; then
     return
   fi
 
@@ -210,25 +226,26 @@ main() {
     flutter clean
   fi
 
-  log "Running flutter pub get"
-  flutter pub get
+  run_pub_get_if_needed
   patch_generated_plugin_package
   clear_ios_spm_cache
   resolve_ios_packages "${simulator_udid}"
+  local xcodebuild_args=(
+    -quiet
+    -workspace ios/Runner.xcworkspace
+    -scheme Runner
+    -configuration Debug
+    -sdk iphonesimulator
+    -destination "platform=iOS Simulator,id=${simulator_udid}"
+    -derivedDataPath "${DERIVED_DATA_PATH}"
+  )
+  if [[ "${REFRESH_IOS_SPM:-0}" == "1" ]]; then
+    xcodebuild_args+=(-disablePackageRepositoryCache)
+  fi
+  xcodebuild_args+=(ONLY_ACTIVE_ARCH=YES "$@" build)
 
   log "Building iOS simulator app with xcodebuild"
-  DART_DEFINES="$(dart_define_value)" xcodebuild \
-    -quiet \
-    -workspace ios/Runner.xcworkspace \
-    -scheme Runner \
-    -configuration Debug \
-    -sdk iphonesimulator \
-    -destination "platform=iOS Simulator,id=${simulator_udid}" \
-    -derivedDataPath "${DERIVED_DATA_PATH}" \
-    -disablePackageRepositoryCache \
-    ONLY_ACTIVE_ARCH=YES \
-    "$@" \
-    build
+  DART_DEFINES="$(dart_define_value)" xcodebuild "${xcodebuild_args[@]}"
 
   [[ -d "${APP_PATH}" ]] || fail "Build output not found: ${APP_PATH}"
   bundle_id="$(read_bundle_id)"

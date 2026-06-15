@@ -23,16 +23,18 @@ flutter run -d ios --dart-define=HELP_SUPPORT_API_BASE_URL=http://10.0.0.6:8787
 IOS_SIMULATOR_NAME="iPhone 17" HELP_SUPPORT_API_BASE_URL=http://127.0.0.1:8787 ./tool/build_ios_simulator.sh
 ```
 
+脚本默认走增量构建，不清理 Flutter/Xcode 产物，也不刷新 Swift Package 缓存；只有依赖配置缺失或 `pubspec` 变更时才会执行 `flutter pub get`。日常推送模拟器直接运行上面的命令即可。
+
 如需强制清理后重建：
 
 ```bash
 CLEAN=1 ./tool/build_ios_simulator.sh
 ```
 
-脚本默认会清理本项目 Swift Package repository 缓存并用 Xcode 强制刷新依赖，避免本机缓存缺少 Firebase 等版本导致构建失败；如确认缓存正常，可跳过刷新以缩短时间：
+如遇到 Firebase 这类 Swift Package 版本解析失败，再显式刷新 Swift Package 缓存：
 
 ```bash
-REFRESH_IOS_SPM=0 ./tool/build_ios_simulator.sh
+REFRESH_IOS_SPM=1 ./tool/build_ios_simulator.sh
 ```
 
 ## 引导页配置
