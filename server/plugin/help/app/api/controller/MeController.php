@@ -25,6 +25,8 @@ class MeController extends BaseController
     #[Apidoc\Returned('member', type: 'object', desc: '父框架会员资料')]
     #[Apidoc\Returned('profile', type: 'object', desc: 'HelpSupport会员扩展资料')]
     #[Apidoc\Returned('doctor_profile', type: 'object', desc: '医生资质资料')]
+    #[Apidoc\Returned('current_role', type: 'string', desc: '当前生效身份 patient/doctor')]
+    #[Apidoc\Returned('role_flags', type: 'object', desc: '身份标记 profile_role/is_patient/is_doctor/doctor_profile_submitted/doctor_approved')]
     public function profile(Request $request): Response
     {
         return ok($this->service->profile($this->memberId, $this->memberInfo));
@@ -42,7 +44,11 @@ class MeController extends BaseController
     #[Apidoc\Param('trigger_tags', type: 'array', require: false, desc: '重点触发因素')]
     #[Apidoc\Param('locale', type: 'string', require: false, desc: '语言')]
     #[Apidoc\Param('timezone', type: 'string', require: false, desc: '时区')]
-    #[Apidoc\Returned('id', type: 'int', desc: '资料ID')]
+    #[Apidoc\Returned('member', type: 'object', desc: '父框架会员资料')]
+    #[Apidoc\Returned('profile', type: 'object', desc: 'HelpSupport会员扩展资料')]
+    #[Apidoc\Returned('doctor_profile', type: 'object', desc: '医生资质资料')]
+    #[Apidoc\Returned('current_role', type: 'string', desc: '当前生效身份 patient/doctor')]
+    #[Apidoc\Returned('role_flags', type: 'object', desc: '身份标记 profile_role/is_patient/is_doctor/doctor_profile_submitted/doctor_approved')]
     public function saveProfile(Request $request): Response
     {
         return ok($this->service->saveProfile($this->memberId, $request->all()));

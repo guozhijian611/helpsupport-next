@@ -142,9 +142,7 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
         .trim();
     final gender = int.tryParse((profile['gender'] ?? '').toString());
     final birthdayText = (profile['birthday'] ?? '').toString().trim();
-    final memberRole = (profile['member_role'] ?? member['member_role'] ?? '')
-        .toString()
-        .trim();
+    final memberRole = session.profileRole;
 
     if (nickname.isNotEmpty) {
       _nicknameController.text = nickname;
@@ -256,6 +254,7 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                 : _birthdayController.text.trim(),
             memberRole: _memberRole,
           );
+      await ref.read(authControllerProvider.notifier).refreshCurrentSession();
       if (!mounted) {
         return;
       }

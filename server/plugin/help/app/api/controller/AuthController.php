@@ -29,6 +29,8 @@ class AuthController extends OpenController
     #[Apidoc\Returned('member', type: 'object', desc: '会员基础资料')]
     #[Apidoc\Returned('profile', type: 'object', desc: 'HelpSupport会员扩展资料')]
     #[Apidoc\Returned('doctor_profile', type: 'object', desc: '医生认证资料')]
+    #[Apidoc\Returned('current_role', type: 'string', desc: '当前生效身份 patient/doctor')]
+    #[Apidoc\Returned('role_flags', type: 'object', desc: '身份标记 profile_role/is_patient/is_doctor/doctor_profile_submitted/doctor_approved')]
     public function accountLogin(Request $request): Response
     {
         return ok($this->service->accountLogin($request->post()));
@@ -109,6 +111,8 @@ class AuthController extends OpenController
     #[Apidoc\Returned('member', type: 'object', desc: '会员基础资料')]
     #[Apidoc\Returned('profile', type: 'object', desc: 'HelpSupport会员扩展资料')]
     #[Apidoc\Returned('doctor_profile', type: 'object', desc: '医生认证资料')]
+    #[Apidoc\Returned('current_role', type: 'string', desc: '当前生效身份 patient/doctor')]
+    #[Apidoc\Returned('role_flags', type: 'object', desc: '身份标记 profile_role/is_patient/is_doctor/doctor_profile_submitted/doctor_approved')]
     public function accountRegister(Request $request): Response
     {
         return ok($this->service->accountRegister($request->post()));
@@ -142,6 +146,8 @@ class AuthController extends OpenController
     #[Apidoc\Returned('member', type: 'object', desc: '会员基础资料')]
     #[Apidoc\Returned('profile', type: 'object', desc: 'HelpSupport会员扩展资料')]
     #[Apidoc\Returned('doctor_profile', type: 'object', desc: '医生认证资料')]
+    #[Apidoc\Returned('current_role', type: 'string', desc: '当前生效身份 patient/doctor')]
+    #[Apidoc\Returned('role_flags', type: 'object', desc: '身份标记 profile_role/is_patient/is_doctor/doctor_profile_submitted/doctor_approved')]
     public function google(Request $request): Response
     {
         return ok($this->service->googleLogin($request->post()));
@@ -160,6 +166,8 @@ class AuthController extends OpenController
     #[Apidoc\Returned('member', type: 'object', desc: '会员基础资料')]
     #[Apidoc\Returned('profile', type: 'object', desc: 'HelpSupport会员扩展资料')]
     #[Apidoc\Returned('doctor_profile', type: 'object', desc: '医生认证资料')]
+    #[Apidoc\Returned('current_role', type: 'string', desc: '当前生效身份 patient/doctor')]
+    #[Apidoc\Returned('role_flags', type: 'object', desc: '身份标记 profile_role/is_patient/is_doctor/doctor_profile_submitted/doctor_approved')]
     public function apple(Request $request): Response
     {
         return ok($this->service->appleLogin($request->post()));
@@ -172,6 +180,8 @@ class AuthController extends OpenController
     #[Apidoc\Returned('member', type: 'object', desc: '会员基础资料')]
     #[Apidoc\Returned('profile', type: 'object', desc: 'HelpSupport会员扩展资料')]
     #[Apidoc\Returned('doctor_profile', type: 'object', desc: '医生认证资料')]
+    #[Apidoc\Returned('current_role', type: 'string', desc: '当前生效身份 patient/doctor')]
+    #[Apidoc\Returned('role_flags', type: 'object', desc: '身份标记 profile_role/is_patient/is_doctor/doctor_profile_submitted/doctor_approved')]
     public function refresh(Request $request): Response
     {
         return ok($this->service->refreshToken());

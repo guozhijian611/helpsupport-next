@@ -117,10 +117,16 @@ class HelpApiService
 
     public function profile(int $memberId, array $memberInfo): array
     {
+        $member = $this->member($memberId);
+        $profile = $this->rowByMember('sa_help_member_profile', $memberId);
+        $doctorProfile = $this->rowByMember('sa_help_doctor_profile', $memberId);
+
         return [
-            'member' => $memberInfo,
-            'profile' => $this->rowByMember('sa_help_member_profile', $memberId),
-            'doctor_profile' => $this->rowByMember('sa_help_doctor_profile', $memberId),
+            'member' => $member,
+            'profile' => $profile,
+            'doctor_profile' => $doctorProfile,
+            'current_role' => $this->currentRole($profile, $doctorProfile),
+            'role_flags' => $this->roleFlags($profile, $doctorProfile),
         ];
     }
 
@@ -176,7 +182,7 @@ class HelpApiService
             $this->upsertByMember('sa_help_member_profile', $memberId, $payload);
         });
 
-        return $this->rowByMember('sa_help_member_profile', $memberId);
+        return $this->profile($memberId, $this->member($memberId));
     }
 
     public function markOnboardingSeen(int $memberId, string $version): array
@@ -2747,6 +2753,45 @@ class HelpApiService
             ->count() > 0;
     }
 
+    private function roleFlags(array $profile, array $doctorProfile): array
+    {
+        $profileRole = $this->profileRole($profile);
+        $doctorProfileSubmitted = $doctorProfile !== [];
+        $doctorApproved = $this->isDoctorApproved($doctorProfile);
+        $currentRole = $this->currentRole($profile, $doctorProfile);
+
+        return [
+            'profile_role' => $profileRole,
+            'is_patient' => $currentRole === 'patient',
+            'is_doctor' => $currentRole === 'doctor',
+            'doctor_profile_submitted' => $doctorProfileSubmitted,
+            'doctor_approved' => $doctorApproved,
+        ];
+    }
+
+    private function currentRole(array $profile, array $doctorProfile): string
+    {
+        return $this->profileRole($profile) === 'doctor' && $this->isDoctorApproved($doctorProfile)
+            ? 'doctor'
+            : 'patient';
+    }
+
+    private function profileRole(array $profile): string
+    {
+        $role = trim((string) ($profile['member_role'] ?? ''));
+        return in_array($role, ['patient', 'doctor'], true) ? $role : 'patient';
+    }
+
+    private function isDoctorApproved(array $doctorProfile): bool
+    {
+        if ($doctorProfile === []) {
+            return false;
+        }
+
+        return (int) ($doctorProfile['audit_status'] ?? 0) === 1
+            && (int) ($doctorProfile['status'] ?? 0) === 1;
+    }
+
     private function assertMemberExists(int $memberId): array
     {
         if ($memberId <= 0) {
@@ -2759,6 +2804,20 @@ class HelpApiService
             ->find();
         if (!$member) {
             throw new ApiException('会员不存在', 404);
+        }
+
+        return $member;
+    }
+
+    private function member(int $memberId): array
+    {
+        $member = Db::table('sa_member')
+            ->where('id', $memberId)
+            ->whereNull('delete_time')
+            ->field('id, username, nickname, avatar, mobile, email, member_level_id, points_balance, last_login_ip, last_login_time, register_platform_id, status, create_time, update_time')
+            ->find();
+        if (!$member || (int) ($member['status'] ?? 0) !== 1) {
+            throw new ApiException('会员不存在或状态异常', 401);
         }
 
         return $member;

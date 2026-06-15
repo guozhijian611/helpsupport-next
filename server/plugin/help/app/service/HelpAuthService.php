@@ -279,11 +279,17 @@ class HelpAuthService
         $token['token_type'] = $token['token_type'] ?? 'Bearer';
         $token['expires_in'] = $token['expires_in'] ?? config('plugin.saiuser.saithink.access_exp', 24 * 3600);
 
+        $member = $this->member($memberId);
+        $profile = $this->rowByMember('sa_help_member_profile', $memberId);
+        $doctorProfile = $this->rowByMember('sa_help_doctor_profile', $memberId);
+
         return [
             'token' => $token,
-            'member' => $this->member($memberId),
-            'profile' => $this->rowByMember('sa_help_member_profile', $memberId),
-            'doctor_profile' => $this->rowByMember('sa_help_doctor_profile', $memberId),
+            'member' => $member,
+            'profile' => $profile,
+            'doctor_profile' => $doctorProfile,
+            'current_role' => $this->currentRole($profile, $doctorProfile),
+            'role_flags' => $this->roleFlags($profile, $doctorProfile),
         ];
     }
 
@@ -309,6 +315,45 @@ class HelpAuthService
             ->find();
 
         return $row ?: [];
+    }
+
+    private function roleFlags(array $profile, array $doctorProfile): array
+    {
+        $profileRole = $this->profileRole($profile);
+        $doctorProfileSubmitted = $doctorProfile !== [];
+        $doctorApproved = $this->isDoctorApproved($doctorProfile);
+        $currentRole = $this->currentRole($profile, $doctorProfile);
+
+        return [
+            'profile_role' => $profileRole,
+            'is_patient' => $currentRole === 'patient',
+            'is_doctor' => $currentRole === 'doctor',
+            'doctor_profile_submitted' => $doctorProfileSubmitted,
+            'doctor_approved' => $doctorApproved,
+        ];
+    }
+
+    private function currentRole(array $profile, array $doctorProfile): string
+    {
+        return $this->profileRole($profile) === 'doctor' && $this->isDoctorApproved($doctorProfile)
+            ? 'doctor'
+            : 'patient';
+    }
+
+    private function profileRole(array $profile): string
+    {
+        $role = trim((string) ($profile['member_role'] ?? ''));
+        return in_array($role, ['patient', 'doctor'], true) ? $role : 'patient';
+    }
+
+    private function isDoctorApproved(array $doctorProfile): bool
+    {
+        if ($doctorProfile === []) {
+            return false;
+        }
+
+        return (int) ($doctorProfile['audit_status'] ?? 0) === 1
+            && (int) ($doctorProfile['status'] ?? 0) === 1;
     }
 
     private function oauthConfig(string $code): array

@@ -120,6 +120,13 @@ class AuthController extends AsyncNotifier<AuthSession?> {
     return _login(ref.read(authRepositoryProvider).appleLogin);
   }
 
+  Future<AuthSession> refreshCurrentSession() async {
+    final session = await ref.read(authRepositoryProvider).refreshSession();
+    await ref.read(authRepositoryProvider).saveSession(session);
+    state = AsyncValue.data(session);
+    return session;
+  }
+
   Future<void> logout() async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
