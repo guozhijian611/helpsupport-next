@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/notifications/centered_notice.dart';
 import '../application/doctor_controller.dart';
+import '../data/doctor_models.dart';
 
 class DoctorTaskEditorScreen extends ConsumerStatefulWidget {
   const DoctorTaskEditorScreen({
@@ -33,6 +34,7 @@ class _DoctorTaskEditorScreenState
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
   String _taskType = 'daily';
+  DoctorAssessmentScale? _selectedAssessmentScale;
   bool _saving = false;
 
   @override
@@ -94,6 +96,16 @@ class _DoctorTaskEditorScreenState
                     value: _taskTypeLabel(context, _taskType),
                     onTap: _pickTaskType,
                   ),
+                  if (_taskType == 'assessment') ...[
+                    const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                    _EditorActionRow(
+                      label: _t(context, '量表选择', 'Assessment scale'),
+                      value:
+                          _selectedAssessmentScale?.title ??
+                          _t(context, '请选择', 'Select'),
+                      onTap: _pickAssessmentScale,
+                    ),
+                  ],
                   const Divider(height: 1, color: Color(0xFFE8EBF1)),
                   _EditorActionRow(
                     label: _t(context, '日期选择', 'Task date'),
@@ -220,7 +232,90 @@ class _DoctorTaskEditorScreenState
       ),
     );
     if (value != null && mounted) {
-      setState(() => _taskType = value);
+      setState(() {
+        _taskType = value;
+        if (value != 'assessment') {
+          _selectedAssessmentScale = null;
+        }
+      });
+    }
+  }
+
+  Future<void> _pickAssessmentScale() async {
+    final scales = await ref
+        .read(doctorRepositoryProvider)
+        .fetchAssessmentScales(status: 'published');
+    if (!mounted) {
+      return;
+    }
+    if (scales.isEmpty) {
+      context.showCenteredNotice(
+        _t(
+          context,
+          '还没有已发布量表，请先去量表页创建并发布',
+          'No published scales yet. Please create and publish one first.',
+        ),
+      );
+      return;
+    }
+    final selected = await showModalBottomSheet<DoctorAssessmentScale>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+            children: [
+              Text(
+                _t(context, '量表选择', 'Assessment scale'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF303236),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 16),
+              for (final scale in scales)
+                ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  tileColor: _selectedAssessmentScale?.id == scale.id
+                      ? const Color(0xFFEAF0FF)
+                      : const Color(0xFFF7F8FB),
+                  title: Text(scale.title),
+                  subtitle: Text(
+                    _t(
+                      context,
+                      '${scale.questions.length} 题 · 总分 ${scale.totalScore}',
+                      '${scale.questions.length} questions · ${scale.totalScore} points',
+                    ),
+                  ),
+                  onTap: () => Navigator.of(context).pop(scale),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedAssessmentScale = selected;
+        if (_titleController.text.trim().isEmpty) {
+          _titleController.text = selected.title;
+        }
+        if (_descriptionController.text.trim().isEmpty &&
+            selected.description.trim().isNotEmpty) {
+          _descriptionController.text = selected.description;
+        }
+      });
     }
   }
 
@@ -228,6 +323,12 @@ class _DoctorTaskEditorScreenState
     if (_titleController.text.trim().isEmpty) {
       context.showCenteredNotice(
         _t(context, '请先填写任务名称', 'Please enter a task name'),
+      );
+      return;
+    }
+    if (_taskType == 'assessment' && _selectedAssessmentScale == null) {
+      context.showCenteredNotice(
+        _t(context, '请先选择评估量表', 'Please choose an assessment scale'),
       );
       return;
     }
@@ -246,6 +347,10 @@ class _DoctorTaskEditorScreenState
             title: _titleController.text,
             description: _descriptionController.text,
             taskType: _taskType,
+            source: _taskType == 'assessment' ? 'assessment' : 'manual',
+            sourceId: _taskType == 'assessment'
+                ? (_selectedAssessmentScale?.id ?? '')
+                : '',
             pointsReward: int.tryParse(_rewardController.text.trim()) ?? 20,
           );
       if (!mounted) {

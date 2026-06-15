@@ -72,6 +72,21 @@ class PlanController extends BaseController
         return ok($this->service->assessmentResults($this->memberId, $request->get()));
     }
 
+    #[Apidoc\Title('评估任务详情')]
+    #[Apidoc\Url('/app/help/plan/assessment-task')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('task_id', type: 'int', require: true, desc: '任务ID')]
+    #[Apidoc\Returned('task', type: 'object', desc: '任务信息')]
+    #[Apidoc\Returned('scale', type: 'object', desc: '量表信息')]
+    #[Apidoc\Returned('result', type: 'object', desc: '已保存的评估结果')]
+    public function assessmentTask(Request $request): Response
+    {
+        return ok($this->service->assessmentTaskDetail(
+            $this->memberId,
+            (int) $request->get('task_id', 0)
+        ));
+    }
+
     #[Apidoc\Title('提交评估结果')]
     #[Apidoc\Url('/app/help/plan/assessment-result')]
     #[Apidoc\Method('POST')]

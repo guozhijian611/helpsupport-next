@@ -2119,6 +2119,49 @@ class HelpApiService
             ->order('id', 'desc'), $params);
     }
 
+    public function assessmentTaskDetail(int $memberId, int $taskId): array
+    {
+        $task = $this->assertMemberDailyTask($memberId, $taskId);
+        if ((string) ($task['task_type'] ?? '') !== 'assessment'
+            && (string) ($task['source'] ?? '') !== 'assessment') {
+            throw new ApiException('当前任务不是评估量表任务', 400);
+        }
+
+        $scaleId = trim((string) ($task['source_id'] ?? ''));
+        if ($scaleId === '') {
+            throw new ApiException('当前评估任务未关联量表', 404);
+        }
+
+        $scale = Db::table('sa_doctor_assessment_scale')
+            ->where('id', $scaleId)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$scale) {
+            throw new ApiException('评估量表不存在或已删除', 404);
+        }
+
+        $result = Db::table('sa_member_assessment_result')
+            ->where('member_id', $memberId)
+            ->where('task_id', $taskId)
+            ->whereNull('delete_time')
+            ->find() ?: [];
+
+        $task['attachments'] = $this->decodeJsonArray($task['attachments'] ?? null);
+        $task['reminders'] = $this->decodeJsonArray($task['reminders'] ?? null);
+        $scale['questions'] = $this->decodeJsonArray($scale['questions'] ?? null);
+        $scale['scoring_rule'] = $this->decodeJsonArray($scale['scoring_rule'] ?? null);
+        if ($result !== []) {
+            $result['answers'] = $this->decodeJsonArray($result['answers'] ?? null);
+            $result['assessment_snapshot'] = $this->decodeJsonArray($result['assessment_snapshot'] ?? null);
+        }
+
+        return [
+            'task' => $task,
+            'scale' => $scale,
+            'result' => $result,
+        ];
+    }
+
     public function saveAssessmentResult(int $memberId, array $data): array
     {
         $title = trim((string) ($data['assessment_title'] ?? ''));
@@ -3556,6 +3599,24 @@ class HelpApiService
         }
 
         return $relation;
+    }
+
+    private function assertMemberDailyTask(int $memberId, int $taskId): array
+    {
+        if ($taskId <= 0) {
+            throw new ApiException('任务ID必须填写', 400);
+        }
+
+        $task = Db::table('sa_daily_task')
+            ->where('id', $taskId)
+            ->where('member_id', $memberId)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$task) {
+            throw new ApiException('任务不存在或无权访问', 404);
+        }
+
+        return $task;
     }
 
     private function awardTaskCompletionRewards(int $memberId, array $task): void

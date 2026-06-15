@@ -18,6 +18,8 @@ import '../features/community/presentation/community_member_profile_screen.dart'
 import '../features/community/presentation/community_member_relations_screen.dart';
 import '../features/community/presentation/doctor_community_review_screen.dart';
 import '../features/doctor/presentation/doctor_assessment_scales_screen.dart';
+import '../features/doctor/presentation/doctor_assessment_scale_editor_screen.dart';
+import '../features/doctor/data/doctor_models.dart';
 import '../features/doctor/presentation/doctor_patients_screen.dart';
 import '../features/doctor/presentation/doctor_plan_screen.dart';
 import '../features/doctor/presentation/doctor_task_templates_screen.dart';
@@ -33,6 +35,9 @@ import '../features/me/presentation/journal_screen.dart';
 import '../features/me/presentation/memoir_screen.dart';
 import '../features/me/presentation/settings_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
+import '../features/plan/data/plan_models.dart';
+import '../features/plan/presentation/assessment_task_screen.dart';
+import '../features/plan/presentation/plan_task_detail_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -198,6 +203,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/doctor/assessment-scales',
         name: 'doctor-assessment-scales',
         builder: (context, state) => const DoctorAssessmentScalesScreen(),
+      ),
+      GoRoute(
+        path: '/doctor/assessment-scales/editor',
+        name: 'doctor-assessment-scale-editor',
+        builder: (context, state) => DoctorAssessmentScaleEditorScreen(
+          initialScale: state.extra is DoctorAssessmentScale
+              ? state.extra as DoctorAssessmentScale
+              : null,
+        ),
+      ),
+      GoRoute(
+        path: '/plan/assessment/:taskId',
+        name: 'plan-assessment-task',
+        builder: (context, state) => AssessmentTaskScreen(
+          taskId: int.tryParse(state.pathParameters['taskId'] ?? '') ?? 0,
+        ),
+      ),
+      GoRoute(
+        path: '/plan/task/:taskId',
+        name: 'plan-task-detail',
+        builder: (context, state) => PlanTaskDetailScreen(
+          task: state.extra is DailyTask ? state.extra as DailyTask : null,
+        ),
       ),
       GoRoute(
         path: '/me/messages',

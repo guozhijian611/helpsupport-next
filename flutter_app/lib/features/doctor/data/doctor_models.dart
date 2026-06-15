@@ -203,6 +203,8 @@ class DoctorAssessmentScale {
     required this.stage,
     required this.description,
     required this.totalScore,
+    required this.questions,
+    required this.scoringRule,
     required this.status,
     required this.publishedAt,
     required this.createTime,
@@ -216,6 +218,11 @@ class DoctorAssessmentScale {
       stage: _stringValue(json['stage']),
       description: _stringValue(json['description']),
       totalScore: _intValue(json['total_score']),
+      questions: _mapList(json['questions'], DoctorAssessmentQuestion.fromJson),
+      scoringRule: _mapList(
+        json['scoring_rule'],
+        DoctorAssessmentScoreRule.fromJson,
+      ),
       status: _stringValue(json['status'], fallback: 'draft'),
       publishedAt: _stringValue(json['published_at']),
       createTime: _stringValue(json['create_time']),
@@ -228,11 +235,117 @@ class DoctorAssessmentScale {
   final String stage;
   final String description;
   final int totalScore;
+  final List<DoctorAssessmentQuestion> questions;
+  final List<DoctorAssessmentScoreRule> scoringRule;
   final String status;
   final String publishedAt;
   final String createTime;
 
   bool get isPublished => status == 'published';
+}
+
+class DoctorAssessmentQuestion {
+  const DoctorAssessmentQuestion({
+    required this.id,
+    required this.title,
+    required this.options,
+  });
+
+  final String id;
+  final String title;
+  final List<DoctorAssessmentOption> options;
+
+  factory DoctorAssessmentQuestion.fromJson(Map<String, dynamic> json) {
+    return DoctorAssessmentQuestion(
+      id: _stringValue(json['id']),
+      title: _stringValue(json['title']),
+      options: _mapList(json['options'], DoctorAssessmentOption.fromJson),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'options': options.map((item) => item.toJson()).toList(growable: false),
+    };
+  }
+
+  DoctorAssessmentQuestion copyWith({
+    String? id,
+    String? title,
+    List<DoctorAssessmentOption>? options,
+  }) {
+    return DoctorAssessmentQuestion(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      options: options ?? this.options,
+    );
+  }
+}
+
+class DoctorAssessmentOption {
+  const DoctorAssessmentOption({
+    required this.id,
+    required this.label,
+    required this.score,
+  });
+
+  final String id;
+  final String label;
+  final int score;
+
+  factory DoctorAssessmentOption.fromJson(Map<String, dynamic> json) {
+    return DoctorAssessmentOption(
+      id: _stringValue(json['id']),
+      label: _stringValue(json['label']),
+      score: _intValue(json['score']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'id': id, 'label': label, 'score': score};
+  }
+
+  DoctorAssessmentOption copyWith({String? id, String? label, int? score}) {
+    return DoctorAssessmentOption(
+      id: id ?? this.id,
+      label: label ?? this.label,
+      score: score ?? this.score,
+    );
+  }
+}
+
+class DoctorAssessmentScoreRule {
+  const DoctorAssessmentScoreRule({
+    required this.label,
+    required this.minScore,
+    required this.maxScore,
+    required this.suggestion,
+  });
+
+  final String label;
+  final int minScore;
+  final int maxScore;
+  final String suggestion;
+
+  factory DoctorAssessmentScoreRule.fromJson(Map<String, dynamic> json) {
+    return DoctorAssessmentScoreRule(
+      label: _stringValue(json['label']),
+      minScore: _intValue(json['min_score']),
+      maxScore: _intValue(json['max_score']),
+      suggestion: _stringValue(json['suggestion']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'label': label,
+      'min_score': minScore,
+      'max_score': maxScore,
+      'suggestion': suggestion,
+    };
+  }
 }
 
 class DoctorPatientsQuery {
@@ -350,6 +463,21 @@ List<T> _list<T>(Object? value, T Function(Map<String, dynamic> json) decode) {
   }
   return value
       .whereType<Map<String, dynamic>>()
+      .map(decode)
+      .toList(growable: false);
+}
+
+List<T> _mapList<T>(
+  Object? value,
+  T Function(Map<String, dynamic> json) decode,
+) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return value
+      .whereType<Map>()
+      .map((item) => item.map((key, value) => MapEntry(key.toString(), value)))
       .map(decode)
       .toList(growable: false);
 }

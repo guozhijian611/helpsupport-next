@@ -113,6 +113,9 @@ class DailyTask {
     required this.description,
     required this.taskType,
     required this.source,
+    required this.sourceId,
+    required this.reminders,
+    required this.attachments,
     required this.pointsReward,
     required this.completedTime,
     required this.completionNote,
@@ -129,6 +132,9 @@ class DailyTask {
   final String description;
   final String taskType;
   final String source;
+  final String sourceId;
+  final List<String> reminders;
+  final List<String> attachments;
   final int pointsReward;
   final String completedTime;
   final String completionNote;
@@ -149,6 +155,9 @@ class DailyTask {
       description: _stringValue(json['description']),
       taskType: _stringValue(json['task_type'], fallback: 'daily'),
       source: _stringValue(json['source'], fallback: 'manual'),
+      sourceId: _stringValue(json['source_id']),
+      reminders: _stringList(json['reminders']),
+      attachments: _stringList(json['attachments']),
       pointsReward: _intValue(json['points_reward']),
       completedTime: _stringValue(json['completed_time']),
       completionNote: _stringValue(json['completion_note']),
@@ -195,6 +204,199 @@ class AssessmentResult {
   }
 }
 
+class AssessmentTaskDetail {
+  const AssessmentTaskDetail({
+    required this.task,
+    required this.scale,
+    required this.result,
+  });
+
+  final DailyTask task;
+  final AssessmentScaleDetail scale;
+  final AssessmentResultDetail? result;
+
+  factory AssessmentTaskDetail.fromJson(Object? value) {
+    if (value is! Map<String, dynamic>) {
+      throw const FormatException('Unexpected assessment task detail shape');
+    }
+    final taskJson = value['task'];
+    final scaleJson = value['scale'];
+    if (taskJson is! Map<String, dynamic> ||
+        scaleJson is! Map<String, dynamic>) {
+      throw const FormatException(
+        'Assessment task detail missing task or scale',
+      );
+    }
+    final resultJson = value['result'];
+    return AssessmentTaskDetail(
+      task: DailyTask.fromJson(taskJson),
+      scale: AssessmentScaleDetail.fromJson(scaleJson),
+      result: resultJson is Map<String, dynamic>
+          ? AssessmentResultDetail.fromJson(resultJson)
+          : null,
+    );
+  }
+}
+
+class AssessmentScaleDetail {
+  const AssessmentScaleDetail({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.totalScore,
+    required this.status,
+    required this.scoringRule,
+    required this.questions,
+  });
+
+  final String id;
+  final String title;
+  final String description;
+  final int totalScore;
+  final String status;
+  final List<AssessmentScoreRule> scoringRule;
+  final List<AssessmentQuestion> questions;
+
+  factory AssessmentScaleDetail.fromJson(Map<String, dynamic> json) {
+    return AssessmentScaleDetail(
+      id: _stringValue(json['id']),
+      title: _stringValue(json['title']),
+      description: _stringValue(json['description']),
+      totalScore: _intValue(json['total_score']),
+      status: _stringValue(json['status'], fallback: 'draft'),
+      scoringRule: _mapList(json['scoring_rule'], AssessmentScoreRule.fromJson),
+      questions: _mapList(json['questions'], AssessmentQuestion.fromJson),
+    );
+  }
+}
+
+class AssessmentScoreRule {
+  const AssessmentScoreRule({
+    required this.label,
+    required this.minScore,
+    required this.maxScore,
+    required this.suggestion,
+  });
+
+  final String label;
+  final int minScore;
+  final int maxScore;
+  final String suggestion;
+
+  factory AssessmentScoreRule.fromJson(Map<String, dynamic> json) {
+    return AssessmentScoreRule(
+      label: _stringValue(json['label']),
+      minScore: _intValue(json['min_score']),
+      maxScore: _intValue(json['max_score']),
+      suggestion: _stringValue(json['suggestion']),
+    );
+  }
+}
+
+class AssessmentQuestion {
+  const AssessmentQuestion({
+    required this.id,
+    required this.title,
+    required this.options,
+  });
+
+  final String id;
+  final String title;
+  final List<AssessmentQuestionOption> options;
+
+  factory AssessmentQuestion.fromJson(Map<String, dynamic> json) {
+    return AssessmentQuestion(
+      id: _stringValue(json['id']),
+      title: _stringValue(json['title']),
+      options: _mapList(json['options'], AssessmentQuestionOption.fromJson),
+    );
+  }
+}
+
+class AssessmentQuestionOption {
+  const AssessmentQuestionOption({
+    required this.id,
+    required this.label,
+    required this.score,
+  });
+
+  final String id;
+  final String label;
+  final int score;
+
+  factory AssessmentQuestionOption.fromJson(Map<String, dynamic> json) {
+    return AssessmentQuestionOption(
+      id: _stringValue(json['id']),
+      label: _stringValue(json['label']),
+      score: _intValue(json['score']),
+    );
+  }
+}
+
+class AssessmentResultDetail {
+  const AssessmentResultDetail({
+    required this.id,
+    required this.assessmentId,
+    required this.assessmentTitle,
+    required this.taskId,
+    required this.achievedScore,
+    required this.totalScore,
+    required this.resultLevel,
+    required this.suggestions,
+    required this.answers,
+  });
+
+  final int id;
+  final String assessmentId;
+  final String assessmentTitle;
+  final int taskId;
+  final int achievedScore;
+  final int totalScore;
+  final String resultLevel;
+  final String suggestions;
+  final List<AssessmentAnswer> answers;
+
+  factory AssessmentResultDetail.fromJson(Map<String, dynamic> json) {
+    return AssessmentResultDetail(
+      id: _intValue(json['id']),
+      assessmentId: _stringValue(json['assessment_id']),
+      assessmentTitle: _stringValue(json['assessment_title']),
+      taskId: _intValue(json['task_id']),
+      achievedScore: _intValue(json['achieved_score']),
+      totalScore: _intValue(json['total_score']),
+      resultLevel: _stringValue(json['result_level']),
+      suggestions: _stringValue(json['suggestions']),
+      answers: _mapList(json['answers'], AssessmentAnswer.fromJson),
+    );
+  }
+}
+
+class AssessmentAnswer {
+  const AssessmentAnswer({
+    required this.questionId,
+    required this.questionTitle,
+    required this.optionId,
+    required this.optionLabel,
+    required this.score,
+  });
+
+  final String questionId;
+  final String questionTitle;
+  final String optionId;
+  final String optionLabel;
+  final int score;
+
+  factory AssessmentAnswer.fromJson(Map<String, dynamic> json) {
+    return AssessmentAnswer(
+      questionId: _stringValue(json['question_id']),
+      questionTitle: _stringValue(json['question_title']),
+      optionId: _stringValue(json['option_id']),
+      optionLabel: _stringValue(json['option_label']),
+      score: _intValue(json['score']),
+    );
+  }
+}
+
 List<T> _list<T>(Object? value, T Function(Map<String, dynamic> json) decode) {
   if (value is! List) {
     return const [];
@@ -204,6 +406,29 @@ List<T> _list<T>(Object? value, T Function(Map<String, dynamic> json) decode) {
       .whereType<Map<String, dynamic>>()
       .map(decode)
       .toList(growable: false);
+}
+
+List<T> _mapList<T>(
+  Object? value,
+  T Function(Map<String, dynamic> json) decode,
+) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return value
+      .whereType<Map>()
+      .map((item) => item.map((key, value) => MapEntry(key.toString(), value)))
+      .map(decode)
+      .toList(growable: false);
+}
+
+List<String> _stringList(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return value.map((item) => item.toString()).toList(growable: false);
 }
 
 int _intValue(Object? value, {int fallback = 0}) {

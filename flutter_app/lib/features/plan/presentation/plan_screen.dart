@@ -191,22 +191,21 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
   }
 
   void _openTask(BuildContext context, DailyTask task) {
-    switch (task.source) {
-      case 'chat':
-      case 'doctor':
-      case 'ai':
-        context.push('/chat');
-        return;
-      case 'assessment':
-        context.showCenteredNotice(context.l10n.featureComingSoon);
-        return;
-      case 'material':
-        context.push('/materials?type=education');
-        return;
-      default:
-        context.showCenteredNotice(context.l10n.featureComingSoon);
-        return;
+    if (task.taskType == 'assessment' || task.source == 'assessment') {
+      context.push('/plan/assessment/${task.id}');
+      return;
     }
+    if (task.taskType == 'material' || task.source == 'material') {
+      context.push('/materials?type=education');
+      return;
+    }
+    if (task.source == 'chat' ||
+        task.source == 'doctor' ||
+        task.source == 'ai') {
+      context.push('/chat');
+      return;
+    }
+    context.push('/plan/task/${task.id}', extra: task);
   }
 }
 

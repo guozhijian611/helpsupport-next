@@ -145,6 +145,7 @@ Route::group('/app/help', function () {
     Route::get('/plan/tasks', [PlanController::class, 'tasks']);
     Route::put('/plan/task/status', [PlanController::class, 'saveTaskStatus']);
     Route::get('/plan/assessment-results', [PlanController::class, 'assessmentResults']);
+    Route::get('/plan/assessment-task', [PlanController::class, 'assessmentTask']);
     Route::post('/plan/assessment-result', [PlanController::class, 'saveAssessmentResult']);
 
     Route::get('/appointment/doctors', [AppointmentController::class, 'doctors']);

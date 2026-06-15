@@ -30,6 +30,13 @@ final assessmentResultsProvider =
       return ref.watch(planRepositoryProvider).fetchAssessmentResults();
     });
 
+final assessmentTaskDetailProvider = FutureProvider.autoDispose
+    .family<AssessmentTaskDetail, int>((ref, taskId) {
+      return ref
+          .watch(planRepositoryProvider)
+          .fetchAssessmentTaskDetail(taskId: taskId);
+    });
+
 String _today() {
   final now = DateTime.now();
   return '${now.year.toString().padLeft(4, '0')}-'

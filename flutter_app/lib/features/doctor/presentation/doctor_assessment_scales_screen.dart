@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/notifications/centered_notice.dart';
 import '../application/doctor_controller.dart';
@@ -29,8 +30,8 @@ class _DoctorAssessmentScalesScreenState
         centerTitle: true,
         actions: [
           IconButton(
-            onPressed: _openCreateScaleSheet,
-            icon: const Icon(Icons.add_circle_outline_rounded),
+            onPressed: _openEditor,
+            icon: const Icon(Icons.add_circle, color: Color(0xFF5A81DA)),
           ),
         ],
         bottom: PreferredSize(
@@ -71,10 +72,10 @@ class _DoctorAssessmentScalesScreenState
                       title: _t(context, '还没有量表', 'No scales yet'),
                       subtitle: _t(
                         context,
-                        '可以通过右上角创建新的量表草稿。',
-                        'Create a new draft scale from the top-right action.',
+                        '先创建量表草稿，再补充题目并发布给患者使用。',
+                        'Create a draft scale, add questions, then publish it for patients.',
                       ),
-                      onCreate: _openCreateScaleSheet,
+                      onCreate: _openEditor,
                     );
                   }
                   return Column(
@@ -84,9 +85,13 @@ class _DoctorAssessmentScalesScreenState
                           padding: const EdgeInsets.only(bottom: 14),
                           child: _ScaleCard(
                             scale: scale,
-                            showPublishButton:
-                                _status == 'draft' && scale.doctorId > 0,
-                            onPublish: () => _publishScale(scale),
+                            draftMode: _status == 'draft',
+                            onTap: _status == 'draft' && scale.doctorId > 0
+                                ? () => _openEditor(scale)
+                                : null,
+                            onPublish: _status == 'draft' && scale.doctorId > 0
+                                ? () => _publishScale(scale)
+                                : null,
                           ),
                         ),
                     ],
@@ -107,136 +112,43 @@ class _DoctorAssessmentScalesScreenState
     );
   }
 
+  Future<void> _openEditor([DoctorAssessmentScale? scale]) async {
+    final changed = await context.push<bool>(
+      '/doctor/assessment-scales/editor',
+      extra: scale,
+    );
+    if (changed == true) {
+      ref.invalidate(doctorAssessmentScalesProvider);
+    }
+  }
+
   Future<void> _publishScale(DoctorAssessmentScale scale) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_t(context, '保存', 'Save')),
+        content: Text(_t(context, '保存到已完成？', 'Move to published?')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(_t(context, '取消', 'Cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(_t(context, '确认', 'Confirm')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+
     try {
       await ref.read(doctorRepositoryProvider).publishAssessmentScale(scale.id);
       ref.invalidate(doctorAssessmentScalesProvider);
       if (mounted) {
         context.showCenteredNotice(_t(context, '量表已发布', 'Scale published'));
-      }
-    } on Object catch (error) {
-      if (mounted) {
-        context.showCenteredNotice(error.toString());
-      }
-    }
-  }
-
-  Future<void> _openCreateScaleSheet() async {
-    final titleController = TextEditingController();
-    final stageController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final scoreController = TextEditingController(text: '0');
-    final created = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _t(context, '新建量表', 'New scale'),
-                style: const TextStyle(
-                  color: Color(0xFF303236),
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 16),
-              _SheetField(
-                controller: titleController,
-                hintText: _t(context, '量表名称', 'Scale title'),
-              ),
-              const SizedBox(height: 12),
-              _SheetField(
-                controller: stageController,
-                hintText: _t(context, '所属阶段（可选）', 'Stage (optional)'),
-              ),
-              const SizedBox(height: 12),
-              _SheetField(
-                controller: scoreController,
-                hintText: _t(context, '总分', 'Total score'),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              _SheetField(
-                controller: descriptionController,
-                hintText: _t(context, '量表简介', 'Description'),
-                maxLines: 4,
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: Text(_t(context, '取消', 'Cancel')),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF9585),
-                      ),
-                      child: Text(_t(context, '保存', 'Save')),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    if (created != true) {
-      titleController.dispose();
-      stageController.dispose();
-      descriptionController.dispose();
-      scoreController.dispose();
-      return;
-    }
-
-    final title = titleController.text.trim();
-    final stage = stageController.text.trim();
-    final description = descriptionController.text.trim();
-    final score = int.tryParse(scoreController.text.trim()) ?? 0;
-    titleController.dispose();
-    stageController.dispose();
-    descriptionController.dispose();
-    scoreController.dispose();
-    if (title.isEmpty) {
-      if (mounted) {
-        context.showCenteredNotice(
-          _t(context, '请先填写量表名称', 'Please enter a scale title'),
-        );
-      }
-      return;
-    }
-    try {
-      await ref
-          .read(doctorRepositoryProvider)
-          .saveAssessmentScale(
-            title: title,
-            stage: stage,
-            description: description,
-            totalScore: score,
-          );
-      ref.invalidate(doctorAssessmentScalesProvider);
-      if (mounted) {
-        context.showCenteredNotice(_t(context, '量表草稿已保存', 'Draft scale saved'));
       }
     } on Object catch (error) {
       if (mounted) {
@@ -290,78 +202,94 @@ class _TabItem extends StatelessWidget {
 class _ScaleCard extends StatelessWidget {
   const _ScaleCard({
     required this.scale,
-    required this.showPublishButton,
-    required this.onPublish,
+    required this.draftMode,
+    this.onTap,
+    this.onPublish,
   });
 
   final DoctorAssessmentScale scale;
-  final bool showPublishButton;
-  final VoidCallback onPublish;
+  final bool draftMode;
+  final VoidCallback? onTap;
+  final VoidCallback? onPublish;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
         borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              color: Color(0xFFEAF7E7),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.fact_check_outlined,
-              color: Color(0xFF69CB69),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  scale.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF303236),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFEAF7E7),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  [
-                    if (scale.stage.isNotEmpty) scale.stage,
-                    _t(
-                      context,
-                      '总分 ${scale.totalScore}',
-                      'Score ${scale.totalScore}',
+                child: const Icon(
+                  Icons.fact_check_outlined,
+                  color: Color(0xFF69CB69),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      scale.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF303236),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                    scale.isPublished
-                        ? _t(context, '已发布', 'Published')
-                        : _t(context, '草稿', 'Draft'),
-                  ].join(' · '),
-                  style: const TextStyle(
-                    color: Color(0xFF7D828A),
-                    fontSize: 14,
-                  ),
+                    const SizedBox(height: 8),
+                    Text(
+                      [
+                        _t(
+                          context,
+                          '${scale.questions.length} 题',
+                          '${scale.questions.length} questions',
+                        ),
+                        _t(
+                          context,
+                          '总分 ${scale.totalScore}',
+                          'Score ${scale.totalScore}',
+                        ),
+                      ].join(' · '),
+                      style: const TextStyle(
+                        color: Color(0xFF7D828A),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              if (draftMode && onPublish != null)
+                IconButton(
+                  onPressed: onPublish,
+                  icon: const Icon(
+                    Icons.check_circle_rounded,
+                    color: Color(0xFF68C140),
+                    size: 32,
+                  ),
+                )
+              else if (onTap != null)
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFFC6CAD2),
+                ),
+            ],
           ),
-          if (showPublishButton)
-            TextButton(
-              onPressed: onPublish,
-              child: Text(_t(context, '发布', 'Publish')),
-            ),
-        ],
+        ),
       ),
     );
   }
@@ -410,7 +338,7 @@ class _EmptyScaleBlock extends StatelessWidget {
           FilledButton(
             onPressed: onCreate,
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFFF9585),
+              backgroundColor: const Color(0xFF5A81DA),
             ),
             child: Text(_t(context, '新建量表', 'Create scale')),
           ),
@@ -437,38 +365,6 @@ class _ScaleListSkeleton extends StatelessWidget {
               borderRadius: BorderRadius.circular(24),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SheetField extends StatelessWidget {
-  const _SheetField({
-    required this.controller,
-    required this.hintText,
-    this.keyboardType,
-    this.maxLines = 1,
-  });
-
-  final TextEditingController controller;
-  final String hintText;
-  final TextInputType? keyboardType;
-  final int maxLines;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      maxLines: maxLines,
-      decoration: InputDecoration(
-        hintText: hintText,
-        filled: true,
-        fillColor: const Color(0xFFF7F8FB),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
         ),
       ),
     );

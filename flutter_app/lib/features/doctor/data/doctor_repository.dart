@@ -183,6 +183,8 @@ class DoctorRepository {
     required String title,
     String description = '',
     String taskType = 'daily',
+    String source = 'manual',
+    String sourceId = '',
     int pointsReward = 10,
     int status = 0,
   }) async {
@@ -199,6 +201,8 @@ class DoctorRepository {
         'title': title.trim(),
         'description': description.trim(),
         'task_type': taskType,
+        'source': source.trim(),
+        if (sourceId.trim().isNotEmpty) 'source_id': sourceId.trim(),
         'points_reward': pointsReward,
         'status': status,
       },
@@ -292,6 +296,8 @@ class DoctorRepository {
     String stage = '',
     String description = '',
     int totalScore = 0,
+    List<Map<String, dynamic>> questions = const [],
+    List<Map<String, dynamic>> scoringRule = const [],
   }) async {
     final result = await _apiClient.postApi<DoctorAssessmentScale>(
       '/app/help/doctor/assessment-scale',
@@ -301,6 +307,8 @@ class DoctorRepository {
         if (stage.trim().isNotEmpty) 'stage': stage.trim(),
         if (description.trim().isNotEmpty) 'description': description.trim(),
         'total_score': totalScore,
+        if (questions.isNotEmpty) 'questions': questions,
+        if (scoringRule.isNotEmpty) 'scoring_rule': scoringRule,
       },
       decode: (value) {
         if (value is Map<String, dynamic>) {
