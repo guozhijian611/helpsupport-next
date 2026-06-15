@@ -140,7 +140,9 @@
                   <template v-if="item.input_type === 'wangEditor'">
                     <sa-editor v-model="item.value" />
                   </template>
-                  <div class="text-gray-400 text-xs py-2">{{ item.remark }}</div>
+                  <div v-if="formatConfigRemark(item.remark)" class="text-gray-400 text-xs py-2">
+                    {{ formatConfigRemark(item.remark) }}
+                  </div>
                 </ElFormItem>
               </template>
               <ElFormItem v-permission="'core:config:update'" v-if="formArray.length > 0">
@@ -228,6 +230,16 @@
   const email = ref('')
 
   const configVisible = ref(false)
+
+  const formatConfigRemark = (remark?: string) => {
+    const value = String(remark || '').trim()
+    if (!value.startsWith('phinx:')) {
+      return value
+    }
+
+    const match = value.match(/^phinx:[^:|]+(?::|\s*\|\s*)(.*)$/)
+    return match?.[1]?.trim() || ''
+  }
 
   // 配置选中行
   const selectedId = ref(0)
