@@ -59,13 +59,14 @@ class ChatRepository {
   Future<ChatRecord> saveUserRecord({
     required int sessionId,
     required String content,
+    String contentType = 'text',
   }) async {
     final result = await _apiClient.postApi<ChatRecord>(
       '/app/help/chat/record',
       data: {
         'session_id': sessionId,
         'content': content,
-        'content_type': 'text',
+        'content_type': contentType,
       },
       decode: (value) {
         if (value is Map<String, dynamic>) {
