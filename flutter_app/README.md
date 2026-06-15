@@ -54,7 +54,8 @@ GET /app/help/common/onboarding?scene=first_launch&version=&locale={locale}
 运行前需要准备 native 动态库：
 
 - Android：运行 `./tool/build_android_llama.sh`，脚本会按 `llama_cpp_dart` 绑定对应的 `llama.cpp` 提交构建 CPU-only `libmtmd.so`、`libllama.so`、`libggml*.so` 和 `libc++_shared.so`，并复制到 `android/app/src/main/jniLibs/<abi>/`。
-- iOS：把 `libllama.dylib` 或对应 framework 嵌入 Runner target，并确保签名和嵌入方式符合 iOS 要求。
+- iOS 模拟器：`flutter run -d ios` 和 `./tool/build_ios_simulator.sh` 会通过 Xcode 构建阶段从 `llama_cpp_dart` 的 pub cache 中复制当前模拟器架构的 `libllama.dylib`、`libggml*.dylib` 和 `libmtmd.dylib` 到 `Runner.app/Frameworks`。如果需要使用自定义构建产物，可设置 `HELP_SUPPORT_LLAMA_IOS_RUNTIME_DIR=/absolute/path/to/dylibs`。
+- iOS 真机：默认同样会尝试复制 `llama_cpp_dart` 的 `OS64` 产物；发布前仍需确认签名、嵌入方式和 App Store 分发要求。
 - 桌面或本机调试：可用 `--dart-define=HELP_SUPPORT_LLAMA_LIBRARY_PATH=/absolute/path/libllama.dylib` 指定动态库路径。
 
 Android 默认加载 `libmtmd.so`。如需额外构建 x86_64 模拟器库，可运行：

@@ -20,6 +20,8 @@ Environment:
   IOS_SIMULATOR_NAME       Target simulator name, for example "iPhone 17".
   IOS_BUNDLE_ID            Bundle id override. Default is read from Runner.app.
   HELP_SUPPORT_API_BASE_URL API base URL. Default: http://10.0.0.6:8787
+  HELP_SUPPORT_LLAMA_LIBRARY_PATH Optional dart-define override for llama runtime.
+  HELP_SUPPORT_LLAMA_IOS_RUNTIME_DIR Optional directory containing iOS llama dylibs.
   IOS_DEPLOYMENT_TARGET    iOS deployment target for generated Swift package. Default: 15.0
   REFRESH_IOS_SPM=1        Repair Swift Package cache and dependency resolution.
   PUB_GET=1                Force flutter pub get.
@@ -164,7 +166,19 @@ clear_ios_spm_cache() {
 }
 
 dart_define_value() {
-  printf '%s' "HELP_SUPPORT_API_BASE_URL=${API_BASE_URL}" | base64 | tr -d '\n'
+  local defines=(
+    "HELP_SUPPORT_API_BASE_URL=${API_BASE_URL}"
+  )
+  if [[ -n "${HELP_SUPPORT_LLAMA_LIBRARY_PATH:-}" ]]; then
+    defines+=("HELP_SUPPORT_LLAMA_LIBRARY_PATH=${HELP_SUPPORT_LLAMA_LIBRARY_PATH}")
+  fi
+
+  local encoded=() define
+  for define in "${defines[@]}"; do
+    encoded+=("$(printf '%s' "${define}" | base64 | tr -d '\n')")
+  done
+  local IFS=,
+  printf '%s' "${encoded[*]}"
 }
 
 run_pub_get_if_needed() {
@@ -197,6 +211,13 @@ resolve_ios_packages() {
     -sdk iphonesimulator \
     -destination "platform=iOS Simulator,id=${simulator_udid}" \
     -disablePackageRepositoryCache
+}
+
+verify_ios_llama_runtime() {
+  local runtime_path="${APP_PATH}/Frameworks/libllama.dylib"
+  [[ -f "${runtime_path}" ]] ||
+    fail "iOS llama runtime not found in app bundle: ${runtime_path}"
+  log "iOS llama runtime bundled: ${runtime_path}"
 }
 
 main() {
@@ -248,6 +269,7 @@ main() {
   DART_DEFINES="$(dart_define_value)" xcodebuild "${xcodebuild_args[@]}"
 
   [[ -d "${APP_PATH}" ]] || fail "Build output not found: ${APP_PATH}"
+  verify_ios_llama_runtime
   bundle_id="$(read_bundle_id)"
   [[ -n "${bundle_id}" ]] || fail "Unable to read bundle id from ${APP_PATH}/Info.plist"
 
