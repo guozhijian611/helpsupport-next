@@ -140,11 +140,14 @@ class AuthRepository {
     required String nickname,
     int? gender,
     String? birthday,
+    String? memberRole,
   }) {
     return _postSuccess('/app/help/me/profile/save', {
       'nickname': nickname.trim(),
       if (gender != null) 'gender': gender,
       if (birthday != null && birthday.trim().isNotEmpty) 'birthday': birthday,
+      if (memberRole != null && memberRole.trim().isNotEmpty)
+        'member_role': memberRole.trim(),
     });
   }
 

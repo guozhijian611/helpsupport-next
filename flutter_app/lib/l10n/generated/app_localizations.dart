@@ -170,6 +170,12 @@ abstract class AppLocalizations {
   /// **'Privacy Policy'**
   String get privacyPolicy;
 
+  /// No description provided for @backAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get backAction;
+
   /// No description provided for @loginAction.
   ///
   /// In en, this message translates to:
@@ -245,7 +251,7 @@ abstract class AppLocalizations {
   /// No description provided for @registerTitle.
   ///
   /// In en, this message translates to:
-  /// **'Create account'**
+  /// **'Sign up'**
   String get registerTitle;
 
   /// No description provided for @registerSubtitle.

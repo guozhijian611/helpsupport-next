@@ -45,6 +45,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get privacyPolicy => '《隐私协议》';
 
   @override
+  String get backAction => '返回上一步';
+
+  @override
   String get loginAction => '去登录';
 
   @override
@@ -81,7 +84,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get registerAction => '立即注册';
 
   @override
-  String get registerTitle => '创建账号';
+  String get registerTitle => '注册';
 
   @override
   String get registerSubtitle => '使用邮箱或手机号验证码创建你的 HelpSupport 支持空间。';

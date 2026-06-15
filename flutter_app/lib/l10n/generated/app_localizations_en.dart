@@ -48,6 +48,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get privacyPolicy => 'Privacy Policy';
 
   @override
+  String get backAction => 'Back';
+
+  @override
   String get loginAction => 'Sign in';
 
   @override
@@ -85,7 +88,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get registerAction => 'Create one';
 
   @override
-  String get registerTitle => 'Create account';
+  String get registerTitle => 'Sign up';
 
   @override
   String get registerSubtitle =>
