@@ -37,12 +37,7 @@ class IndexLogic extends BaseLogic
      */
     public function protocol($type, string $locale = ''): array
     {
-        $locale = trim($locale);
-        $fallbackLocales = array_values(array_unique(array_filter([
-            $locale !== '' ? $locale : null,
-            self::DEFAULT_PROTOCOL_LOCALE,
-            self::DEFAULT_LOCALE,
-        ])));
+        $fallbackLocales = $this->protocolLocaleCandidates($locale);
 
         $info = null;
         foreach ($fallbackLocales as $candidateLocale) {
@@ -61,6 +56,43 @@ class IndexLogic extends BaseLogic
             throw new ApiException('数据查找失败');
         }
         return $info->toArray();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function protocolLocaleCandidates(string $locale): array
+    {
+        $locale = trim($locale);
+        $normalized = $this->normalizeProtocolLocale($locale);
+        $prefix = strtolower(strtok($normalized !== '' ? $normalized : $locale, '-_') ?: '');
+
+        $candidates = [];
+        if ($locale !== '') {
+            $candidates[] = $locale;
+        }
+        if ($normalized !== '' && $normalized !== $locale) {
+            $candidates[] = $normalized;
+        }
+
+        if ($prefix === 'en') {
+            $candidates[] = self::DEFAULT_LOCALE;
+            $candidates[] = self::DEFAULT_PROTOCOL_LOCALE;
+        } else {
+            $candidates[] = self::DEFAULT_PROTOCOL_LOCALE;
+            $candidates[] = self::DEFAULT_LOCALE;
+        }
+
+        return array_values(array_unique(array_filter($candidates)));
+    }
+
+    private function normalizeProtocolLocale(string $locale): string
+    {
+        return match (strtolower(trim($locale))) {
+            'en', 'en-us', 'en_us' => self::DEFAULT_LOCALE,
+            'zh', 'zh-cn', 'zh_cn' => self::DEFAULT_PROTOCOL_LOCALE,
+            default => trim($locale),
+        };
     }
 
     /**

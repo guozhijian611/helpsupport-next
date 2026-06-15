@@ -99,12 +99,7 @@ class HelpApiService
             throw new ApiException('协议类型参数错误', 400);
         }
 
-        $locale = trim($locale);
-        $fallbackLocales = array_values(array_unique(array_filter([
-            $locale !== '' ? $locale : null,
-            self::DEFAULT_PROTOCOL_LOCALE,
-            self::DEFAULT_LOCALE,
-        ])));
+        $fallbackLocales = $this->protocolLocaleCandidates($locale);
 
         $protocol = [];
         foreach ($fallbackLocales as $candidateLocale) {
@@ -226,6 +221,45 @@ class HelpApiService
             ->field('id, protocol_type, locale, title, content, update_time')
             ->order('id', 'desc')
             ->find();
+    }
+
+    /**
+     * Flutter 当前语言切换只会传 en / zh，这里统一归一化为协议存储使用的 locale。
+     *
+     * @return array<int, string>
+     */
+    private function protocolLocaleCandidates(string $locale): array
+    {
+        $locale = trim($locale);
+        $normalized = $this->normalizeProtocolLocale($locale);
+        $prefix = strtolower(strtok($normalized !== '' ? $normalized : $locale, '-_') ?: '');
+
+        $candidates = [];
+        if ($locale !== '') {
+            $candidates[] = $locale;
+        }
+        if ($normalized !== '' && $normalized !== $locale) {
+            $candidates[] = $normalized;
+        }
+
+        if ($prefix === 'en') {
+            $candidates[] = self::DEFAULT_LOCALE;
+            $candidates[] = self::DEFAULT_PROTOCOL_LOCALE;
+        } else {
+            $candidates[] = self::DEFAULT_PROTOCOL_LOCALE;
+            $candidates[] = self::DEFAULT_LOCALE;
+        }
+
+        return array_values(array_unique(array_filter($candidates)));
+    }
+
+    private function normalizeProtocolLocale(string $locale): string
+    {
+        return match (strtolower(trim($locale))) {
+            'en', 'en-us', 'en_us' => self::DEFAULT_LOCALE,
+            'zh', 'zh-cn', 'zh_cn' => self::DEFAULT_PROTOCOL_LOCALE,
+            default => trim($locale),
+        };
     }
 
     public function localModelCatalog(array $params): array
