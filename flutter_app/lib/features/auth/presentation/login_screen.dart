@@ -425,8 +425,10 @@ class _LoginAgreementState extends State<_LoginAgreement> {
   @override
   void initState() {
     super.initState();
-    _termsRecognizer = TapGestureRecognizer()..onTap = widget.onTermsTap;
-    _privacyRecognizer = TapGestureRecognizer()..onTap = widget.onPrivacyTap;
+    _termsRecognizer = TapGestureRecognizer()
+      ..onTap = widget.enabled ? widget.onTermsTap : null;
+    _privacyRecognizer = TapGestureRecognizer()
+      ..onTap = widget.enabled ? widget.onPrivacyTap : null;
   }
 
   @override
@@ -460,12 +462,13 @@ class _LoginAgreementState extends State<_LoginAgreement> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 34,
-          height: 34,
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
           child: Checkbox(
             value: widget.value,
             onChanged: widget.enabled ? widget.onChanged : null,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(5),
             ),
@@ -473,10 +476,10 @@ class _LoginAgreementState extends State<_LoginAgreement> {
             activeColor: accent,
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 10),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.only(top: 6),
+            padding: const EdgeInsets.only(top: 2),
             child: Text.rich(
               TextSpan(
                 style: baseStyle,

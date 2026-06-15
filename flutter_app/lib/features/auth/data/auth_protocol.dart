@@ -17,15 +17,38 @@ enum AuthProtocolType {
   }
 }
 
+class AuthProtocolQuery {
+  const AuthProtocolQuery({required this.type, required this.locale});
+
+  final AuthProtocolType type;
+  final String locale;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) {
+      return true;
+    }
+
+    return other is AuthProtocolQuery &&
+        other.type == type &&
+        other.locale == locale;
+  }
+
+  @override
+  int get hashCode => Object.hash(type, locale);
+}
+
 class AuthProtocolDocument {
   const AuthProtocolDocument({
     required this.type,
+    required this.locale,
     required this.title,
     required this.content,
     required this.updatedAt,
   });
 
   final AuthProtocolType type;
+  final String locale;
   final String title;
   final String content;
   final String updatedAt;
@@ -37,6 +60,7 @@ class AuthProtocolDocument {
 
     return AuthProtocolDocument(
       type: type,
+      locale: (value['locale'] ?? '').toString().trim(),
       title: (value['title'] ?? '').toString().trim(),
       content: (value['content'] ?? '').toString(),
       updatedAt: (value['update_time'] ?? '').toString(),

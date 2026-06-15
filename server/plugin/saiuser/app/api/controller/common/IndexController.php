@@ -34,7 +34,7 @@ class IndexController extends OpenController
         if (empty($type)) {
             return $this->fail('参数错误');
         }
-        $data = $this->logic->protocol($type);
+        $data = $this->logic->protocol($type, (string) $request->input('locale', ''));
         return $this->success($data);
     }
 

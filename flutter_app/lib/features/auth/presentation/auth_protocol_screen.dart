@@ -13,7 +13,11 @@ class AuthProtocolScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final document = ref.watch(authProtocolProvider(type));
+    final query = AuthProtocolQuery(
+      type: type,
+      locale: Localizations.localeOf(context).toLanguageTag(),
+    );
+    final document = ref.watch(authProtocolProvider(query));
     final currentDocument = document.asData?.value;
 
     return Scaffold(
@@ -27,7 +31,7 @@ class AuthProtocolScreen extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stackTrace) => _ProtocolErrorView(
             message: _errorText(context, error),
-            onRetry: () => ref.invalidate(authProtocolProvider(type)),
+            onRetry: () => ref.invalidate(authProtocolProvider(query)),
           ),
         ),
       ),

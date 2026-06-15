@@ -4,6 +4,9 @@
       <el-descriptions-item label="协议类型"
         ><sa-dict :value="formData?.protocol_type" dict="app_protocol" render="span"
       /></el-descriptions-item>
+      <el-descriptions-item label="语言"
+        ><div v-text="formData?.locale"></div
+      ></el-descriptions-item>
       <el-descriptions-item label="协议标题"
         ><div v-text="formData?.title"></div
       ></el-descriptions-item>
@@ -46,6 +49,7 @@
   })
   const initialFormData = {
     protocol_type: '',
+    locale: '',
     status: 1,
     title: '',
     content: '',

@@ -38,6 +38,7 @@ class MemberProtocolController extends BaseController
     {
         $where = $request->more([
             ['protocol_type', ''],
+            ['locale', ''],
             ['title', ''],
         ]);
         $query = $this->logic->search($where);

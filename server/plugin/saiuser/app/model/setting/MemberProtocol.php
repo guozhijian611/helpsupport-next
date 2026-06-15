@@ -33,4 +33,12 @@ class MemberProtocol extends BaseModel
         $query->where('title', 'like', '%' . $value . '%');
     }
 
+    /**
+     * 语言搜索
+     */
+    public function searchLocaleAttr($query, $value)
+    {
+        $query->where('locale', $value);
+    }
+
 }

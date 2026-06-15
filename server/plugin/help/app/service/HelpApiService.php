@@ -12,6 +12,7 @@ use Throwable;
 class HelpApiService
 {
     private const DEFAULT_LOCALE = 'en-US';
+    private const DEFAULT_PROTOCOL_LOCALE = 'zh-CN';
     private const RISK_REVIEW_REMARK = '命中风控规则，需人工审核';
 
     public function appConfig(): array
@@ -92,19 +93,26 @@ class HelpApiService
         return $this->queryOnboarding($scene, $version, self::DEFAULT_LOCALE);
     }
 
-    public function protocol(int $type): array
+    public function protocol(int $type, string $locale = ''): array
     {
         if ($type <= 0) {
             throw new ApiException('协议类型参数错误', 400);
         }
 
-        $protocol = (array) Db::table('sa_member_protocol')
-            ->where('protocol_type', $type)
-            ->where('status', 1)
-            ->whereNull('delete_time')
-            ->field('id, protocol_type, title, content, update_time')
-            ->order('id', 'desc')
-            ->find();
+        $locale = trim($locale);
+        $fallbackLocales = array_values(array_unique(array_filter([
+            $locale !== '' ? $locale : null,
+            self::DEFAULT_PROTOCOL_LOCALE,
+            self::DEFAULT_LOCALE,
+        ])));
+
+        $protocol = [];
+        foreach ($fallbackLocales as $candidateLocale) {
+            $protocol = $this->queryProtocol($type, $candidateLocale);
+            if ($protocol !== []) {
+                break;
+            }
+        }
         if ($protocol === []) {
             throw new ApiException('协议内容未配置', 404);
         }
@@ -206,6 +214,18 @@ class HelpApiService
         });
 
         return $this->rowByMember('sa_help_doctor_profile', $memberId);
+    }
+
+    private function queryProtocol(int $type, string $locale): array
+    {
+        return (array) Db::table('sa_member_protocol')
+            ->where('protocol_type', $type)
+            ->where('locale', $locale)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->field('id, protocol_type, locale, title, content, update_time')
+            ->order('id', 'desc')
+            ->find();
     }
 
     public function localModelCatalog(array $params): array

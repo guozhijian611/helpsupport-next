@@ -69,7 +69,7 @@
   import TableSearch from './modules/table-search.vue'
   import EditDialog from './modules/edit-dialog.vue'
   import ViewDialog from './modules/view-dialog.vue'
-  const searchForm = ref({ protocol_type: undefined, title: undefined })
+  const searchForm = ref({ protocol_type: undefined, locale: undefined, title: undefined })
   const handleSearch = (params: Record<string, any>) => {
     Object.assign(searchParams, params)
     getData()
@@ -100,6 +100,7 @@
           saiDict: 'app_protocol',
           width: 120
         },
+        { prop: 'locale', label: '语言', width: 110 },
         { prop: 'title', label: '协议标题' },
         { prop: 'status', label: '状态', saiType: 'dict', saiDict: 'data_status', width: 100 },
         { prop: 'create_time', label: '创建时间', width: 180 },

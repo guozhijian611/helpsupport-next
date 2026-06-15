@@ -27,14 +27,36 @@ use support\Response;
  */
 class IndexLogic extends BaseLogic
 {
+    private const DEFAULT_LOCALE = 'en-US';
+    private const DEFAULT_PROTOCOL_LOCALE = 'zh-CN';
+
     /**
      * 协议信息
      * @param $type
      * @return array
      */
-    public function protocol($type): array
+    public function protocol($type, string $locale = ''): array
     {
-        $info = MemberProtocol::where('protocol_type', $type)->where('status', 1)->findOrEmpty();
+        $locale = trim($locale);
+        $fallbackLocales = array_values(array_unique(array_filter([
+            $locale !== '' ? $locale : null,
+            self::DEFAULT_PROTOCOL_LOCALE,
+            self::DEFAULT_LOCALE,
+        ])));
+
+        $info = null;
+        foreach ($fallbackLocales as $candidateLocale) {
+            $info = MemberProtocol::where('protocol_type', $type)
+                ->where('locale', $candidateLocale)
+                ->where('status', 1)
+                ->findOrEmpty();
+            if (!$info->isEmpty()) {
+                break;
+            }
+        }
+        if ($info === null) {
+            $info = new MemberProtocol();
+        }
         if ($info->isEmpty()) {
             throw new ApiException('数据查找失败');
         }

@@ -22,6 +22,11 @@
         <el-input v-model="formData.title" placeholder="请输入协议标题" clearable />
       </el-form-item>
     </el-col>
+    <el-col v-bind="setSpan(6)">
+      <el-form-item label="语言" prop="locale">
+        <el-input v-model="formData.locale" placeholder="请输入语言" clearable />
+      </el-form-item>
+    </el-col>
   </sa-search-bar>
 </template>
 

@@ -57,13 +57,18 @@ class CommonController extends OpenController
     #[Apidoc\Method('GET')]
     #[Apidoc\NotHeaders]
     #[Apidoc\Query('type', type: 'int', require: true, desc: '协议类型，2=隐私协议，4=使用协议')]
+    #[Apidoc\Query('locale', type: 'string', require: false, default: 'zh-CN', desc: '语言，未命中时自动回退')]
     #[Apidoc\Returned('id', type: 'int', desc: '协议ID')]
     #[Apidoc\Returned('protocol_type', type: 'int', desc: '协议类型')]
+    #[Apidoc\Returned('locale', type: 'string', desc: '实际返回的语言')]
     #[Apidoc\Returned('title', type: 'string', desc: '协议标题')]
     #[Apidoc\Returned('content', type: 'string', desc: '协议正文 HTML')]
     #[Apidoc\Returned('update_time', type: 'string', desc: '更新时间')]
     public function protocol(Request $request): Response
     {
-        return ok($this->service->protocol((int) $request->get('type', 0)));
+        return ok($this->service->protocol(
+            (int) $request->get('type', 0),
+            (string) $request->get('locale', ''),
+        ));
     }
 }

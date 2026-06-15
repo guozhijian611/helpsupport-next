@@ -116,10 +116,17 @@ class AuthRepository {
     );
   }
 
-  Future<AuthProtocolDocument> fetchProtocol(AuthProtocolType type) async {
+  Future<AuthProtocolDocument> fetchProtocol(
+    AuthProtocolType type, {
+    String? locale,
+  }) async {
+    final normalizedLocale = locale?.trim() ?? '';
     final result = await _apiClient.getApi<AuthProtocolDocument>(
       '/app/help/common/protocol',
-      queryParameters: {'type': type.code},
+      queryParameters: {
+        'type': type.code,
+        if (normalizedLocale.isNotEmpty) 'locale': normalizedLocale,
+      },
       decode: (value) => AuthProtocolDocument.fromJson(value, type),
     );
     final document = result.data;

@@ -23,6 +23,11 @@
             <sa-radio v-model="formData.status" dict="data_status" />
           </el-form-item>
         </el-col>
+        <el-col :span="12">
+          <el-form-item label="语言" prop="locale">
+            <el-input v-model="formData.locale" placeholder="请输入语言，如 zh-CN / en-US" />
+          </el-form-item>
+        </el-col>
         <el-col :span="24">
           <el-form-item label="协议标题" prop="title">
             <el-input v-model="formData.title" placeholder="请输入协议标题" />
@@ -69,10 +74,12 @@
   })
   const rules = reactive<FormRules>({
     protocol_type: [{ required: true, message: '协议类型必需填写', trigger: 'blur' }],
+    locale: [{ required: true, message: '语言必需填写', trigger: 'blur' }],
     title: [{ required: true, message: '协议标题必需填写', trigger: 'blur' }]
   })
   const initialFormData = {
     protocol_type: '',
+    locale: 'zh-CN',
     status: 1,
     title: '',
     content: '',
