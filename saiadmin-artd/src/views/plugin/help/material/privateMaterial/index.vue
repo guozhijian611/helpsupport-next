@@ -87,6 +87,15 @@
       table: false
     },
     {
+      prop: 'summary_i18n',
+      label: '多语言摘要JSON',
+      type: 'json',
+      form: true,
+      table: false,
+      rows: 4,
+      placeholder: '{"zh":"中文摘要","en":"English summary"}'
+    },
+    {
       prop: 'cover_url',
       label: '封面图',
       form: true,
@@ -106,6 +115,15 @@
       rows: 8,
       form: true,
       table: false
+    },
+    {
+      prop: 'content_text_i18n',
+      label: '多语言正文JSON',
+      type: 'json',
+      rows: 8,
+      form: true,
+      table: false,
+      placeholder: '{"zh":"<p>中文正文</p>","en":"<p>English body</p>"}'
     },
     {
       prop: 'tags',

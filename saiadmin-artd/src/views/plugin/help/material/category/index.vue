@@ -35,6 +35,16 @@
       default: 0
     },
     {
+      prop: 'member_id',
+      label: '会员ID',
+      type: 'number',
+      form: true,
+      search: true,
+      default: 0,
+      placeholder: '0为系统分类，私人用户分类填会员ID',
+      width: 100
+    },
+    {
       prop: 'name',
       label: '分类名称',
       form: true,

@@ -1,8 +1,8 @@
 <template>
   <HelpCrudPage
-    title="教育素材"
+    title="娱乐素材"
     :api="api"
-    permission-prefix="help:material:content"
+    permission-prefix="help:material:entertainment"
     :fields="fields"
     :actions="actions"
   />
@@ -10,13 +10,10 @@
 
 <script setup lang="ts">
   import HelpCrudPage from '../../components/HelpCrudPage.vue'
-  import api from '../../api/material/content'
+  import api from '../../api/material/entertainment'
   import type { HelpCrudAction, HelpCrudField } from '../../components/helpCrudTypes'
 
   const mediaTypeOptions = [
-    { label: '图文/文章', value: 'article' },
-    { label: '视频（通用）', value: 'video' },
-    { label: '音频（通用）', value: 'audio' },
     { label: 'TXT 书籍', value: 'txt' },
     { label: 'EPUB 书籍', value: 'epub' },
     { label: 'PDF 书籍', value: 'pdf' },
@@ -48,7 +45,7 @@
       type: 'number',
       form: true,
       search: true,
-      placeholder: '教育: 入门/动机与认知/应对技能/复发预防/家属指南',
+      placeholder: '娱乐: 书籍/电影/音乐/游戏',
       default: 0,
       width: 100
     },
@@ -59,8 +56,8 @@
       search: true,
       required: true,
       options: mediaTypeOptions,
-      default: 'article',
-      width: 100
+      default: 'txt',
+      width: 110
     },
     {
       prop: 'title',
@@ -105,7 +102,7 @@
       prop: 'content_url',
       label: '文件地址/游戏外链',
       form: true,
-      placeholder: 'txt/epub/pdf/mp4/mov/mp3 文件地址，游戏填 https 外链',
+      placeholder: '书籍/电影/音乐填服务器文件地址，游戏填 https 外链',
       minWidth: 220
     },
     {
@@ -131,7 +128,7 @@
       type: 'json',
       form: true,
       table: false,
-      placeholder: '["入门","练习"]'
+      placeholder: '["书籍","放松"]'
     },
     {
       prop: 'duration_seconds',
@@ -147,16 +144,8 @@
       form: true,
       search: true,
       options: [
-        {
-          label: '是',
-          value: 1,
-          tagType: 'success'
-        },
-        {
-          label: '否',
-          value: 2,
-          tagType: 'info'
-        }
+        { label: '是', value: 1, tagType: 'success' },
+        { label: '否', value: 2, tagType: 'info' }
       ],
       default: 1,
       width: 90
@@ -167,16 +156,8 @@
       form: true,
       search: true,
       options: [
-        {
-          label: '是',
-          value: 1,
-          tagType: 'success'
-        },
-        {
-          label: '否',
-          value: 2,
-          tagType: 'info'
-        }
+        { label: '是', value: 1, tagType: 'success' },
+        { label: '否', value: 2, tagType: 'info' }
       ],
       default: 2,
       width: 90
@@ -187,21 +168,9 @@
       form: true,
       search: true,
       options: [
-        {
-          label: '待审',
-          value: 1,
-          tagType: 'warning'
-        },
-        {
-          label: '通过',
-          value: 2,
-          tagType: 'success'
-        },
-        {
-          label: '拒绝',
-          value: 3,
-          tagType: 'danger'
-        }
+        { label: '待审', value: 1, tagType: 'warning' },
+        { label: '通过', value: 2, tagType: 'success' },
+        { label: '拒绝', value: 3, tagType: 'danger' }
       ],
       default: 1,
       width: 100
@@ -247,16 +216,8 @@
       form: true,
       search: true,
       options: [
-        {
-          label: '启用',
-          value: 1,
-          tagType: 'success'
-        },
-        {
-          label: '禁用',
-          value: 2,
-          tagType: 'info'
-        }
+        { label: '启用', value: 1, tagType: 'success' },
+        { label: '禁用', value: 2, tagType: 'info' }
       ],
       default: 1,
       width: 90
@@ -274,7 +235,7 @@
       label: '通过',
       method: 'audit',
       type: 'success',
-      permission: 'help:material:content:audit',
+      permission: 'help:material:entertainment:audit',
       visible: (row: Record<string, any>) => Number(row.audit_status) !== 2,
       payload: (row: Record<string, any>) => ({ id: row.id, audit_status: 2 })
     },
@@ -282,7 +243,7 @@
       label: '拒绝',
       method: 'audit',
       type: 'warning',
-      permission: 'help:material:content:audit',
+      permission: 'help:material:entertainment:audit',
       prompt: { field: 'audit_remark', label: '请输入拒绝原因', inputType: 'textarea', required: true },
       visible: (row: Record<string, any>) => Number(row.audit_status) !== 3,
       payload: (row: Record<string, any>, value?: string) => ({

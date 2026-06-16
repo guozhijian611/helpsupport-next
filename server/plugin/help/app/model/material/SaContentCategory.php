@@ -20,6 +20,11 @@ class SaContentCategory extends BaseModel
         $query->where('parent_id', (int) $value);
     }
 
+    public function searchMemberIdAttr($query, $value): void
+    {
+        $query->where('member_id', (int) $value);
+    }
+
     public function searchNameAttr($query, $value): void
     {
         $query->where('name', 'like', '%' . $value . '%');

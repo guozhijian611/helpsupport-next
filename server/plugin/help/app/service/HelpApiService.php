@@ -1824,7 +1824,7 @@ class HelpApiService
         return Db::table('sa_community_report')->where('id', $id)->find() ?: [];
     }
 
-    public function materialCategories(array $params): array
+    public function materialCategories(int $memberId, array $params): array
     {
         $locale = (string) ($params['locale'] ?? '');
         $query = Db::table('sa_content_category')
@@ -1834,14 +1834,26 @@ class HelpApiService
         if (!empty($params['type'])) {
             $type = (string) $params['type'];
             $query->where('type', $type);
-            if (isset(self::MATERIAL_CATEGORY_NAMES[$type])) {
+            if ($type === 'private') {
+                $query->where(function ($query) use ($memberId) {
+                    $query->where('member_id', 0)->whereOr('member_id', $memberId);
+                });
+            } elseif (isset(self::MATERIAL_CATEGORY_NAMES[$type])) {
                 $query->whereIn('name', self::MATERIAL_CATEGORY_NAMES[$type]);
+                $query->where('member_id', 0);
             }
         } else {
-            $query->where(function ($query) {
+            $query->where(function ($query) use ($memberId) {
                 foreach (self::MATERIAL_CATEGORY_NAMES as $type => $names) {
-                    $query->whereOr(function ($query) use ($type, $names) {
-                        $query->where('type', $type)->whereIn('name', $names);
+                    $query->whereOr(function ($query) use ($type, $names, $memberId) {
+                        $query->where('type', $type);
+                        if ($type === 'private') {
+                            $query->where(function ($query) use ($memberId) {
+                                $query->where('member_id', 0)->whereOr('member_id', $memberId);
+                            });
+                            return;
+                        }
+                        $query->whereIn('name', $names)->where('member_id', 0);
                     });
                 }
             });
@@ -1854,6 +1866,55 @@ class HelpApiService
             ->toArray();
 
         return array_map(fn (array $row): array => $this->localizeMaterialCategory($row, $locale), $rows);
+    }
+
+    public function savePrivateMaterialCategory(int $memberId, array $data): array
+    {
+        if ($memberId <= 0) {
+            throw new ApiException('请先登录后再创建私人分类', 401);
+        }
+
+        $categoryId = (int) ($data['id'] ?? 0);
+        $name = trim((string) ($data['name'] ?? ''));
+        if ($name === '') {
+            throw new ApiException('私人分类名称必须填写', 400);
+        }
+        $name = (new HelpRiskService())->filterText('material', $name);
+        if ($name === '') {
+            throw new ApiException('私人分类名称必须填写', 400);
+        }
+
+        if ($categoryId > 0) {
+            $exists = Db::table('sa_content_category')
+                ->where('id', $categoryId)
+                ->where('member_id', $memberId)
+                ->where('type', 'private')
+                ->whereNull('delete_time')
+                ->find();
+            if (!$exists) {
+                throw new ApiException('私人分类不存在或无权操作', 404);
+            }
+        }
+
+        $status = (int) ($data['status'] ?? 1);
+        if (!in_array($status, [1, 2], true)) {
+            throw new ApiException('私人分类状态参数错误', 400);
+        }
+
+        $payload = [
+            'member_id' => $memberId,
+            'parent_id' => 0,
+            'name' => $name,
+            'name_i18n' => $this->jsonValue($data['name_i18n'] ?? null),
+            'type' => 'private',
+            'icon' => (string) ($data['icon'] ?? 'ri:folder-lock-line'),
+            'sort' => max(0, (int) ($data['sort'] ?? 100)),
+            'status' => $status,
+        ];
+
+        $id = $this->saveRow('sa_content_category', $payload, $memberId, $categoryId);
+
+        return Db::table('sa_content_category')->where('id', $id)->find() ?: [];
     }
 
     public function materials(int $memberId, array $params): array
@@ -1958,6 +2019,9 @@ class HelpApiService
             $category = Db::table('sa_content_category')
                 ->where('id', $categoryId)
                 ->where('type', 'private')
+                ->where(function ($query) use ($memberId) {
+                    $query->where('member_id', 0)->whereOr('member_id', $memberId);
+                })
                 ->where('status', 1)
                 ->whereNull('delete_time')
                 ->find();
@@ -2006,6 +2070,48 @@ class HelpApiService
         $id = $this->saveRow('sa_content_material', $payload, $memberId, $materialId);
 
         return Db::table('sa_content_material')->where('id', $id)->find() ?: [];
+    }
+
+    public function deletePrivateMaterialCategory(int $memberId, int $categoryId): array
+    {
+        if ($memberId <= 0) {
+            throw new ApiException('请先登录后再删除私人分类', 401);
+        }
+        if ($categoryId <= 0) {
+            throw new ApiException('请选择要删除的私人分类', 400);
+        }
+
+        $category = Db::table('sa_content_category')
+            ->where('id', $categoryId)
+            ->where('member_id', $memberId)
+            ->where('type', 'private')
+            ->whereNull('delete_time')
+            ->find();
+        if (!$category) {
+            throw new ApiException('私人分类不存在或无权操作', 404);
+        }
+
+        $usedCount = Db::table('sa_content_material')
+            ->where('member_id', $memberId)
+            ->where('category_id', $categoryId)
+            ->where('material_type', 'private')
+            ->whereNull('delete_time')
+            ->count();
+        if ((int) $usedCount > 0) {
+            throw new ApiException('分类下还有私人素材，请先移动或删除素材', 400);
+        }
+
+        Db::table('sa_content_category')
+            ->where('id', $categoryId)
+            ->where('member_id', $memberId)
+            ->update([
+                'status' => 2,
+                'updated_by' => $memberId,
+                'update_time' => date('Y-m-d H:i:s'),
+                'delete_time' => date('Y-m-d H:i:s'),
+            ]);
+
+        return ['id' => $categoryId];
     }
 
     public function uploadPrivateMaterialFile(Request $request): array

@@ -34,6 +34,10 @@ class SaContentCategoryLogic extends BaseLogic
             $data['parent_id'] = 0;
         }
 
+        if (!array_key_exists('member_id', $data) || $data['member_id'] === '') {
+            $data['member_id'] = 0;
+        }
+
         if (!array_key_exists('sort', $data) || $data['sort'] === '') {
             $data['sort'] = 100;
         }

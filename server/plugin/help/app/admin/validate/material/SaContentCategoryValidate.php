@@ -11,6 +11,7 @@ class SaContentCategoryValidate extends BaseValidate
 {
     protected $rule = [
         'parent_id' => 'integer',
+        'member_id' => 'integer',
         'name' => 'require|max:80',
         'type' => 'require|in:education,entertainment,private',
         'sort' => 'integer',
@@ -19,6 +20,7 @@ class SaContentCategoryValidate extends BaseValidate
 
     protected $message = [
         'parent_id.integer' => '父级分类ID必须为整数',
+        'member_id.integer' => '会员ID必须为整数',
         'name.require' => '分类名称必须填写',
         'name.max' => '分类名称不能超过80个字符',
         'type.require' => '分类类型必须填写',
@@ -29,7 +31,7 @@ class SaContentCategoryValidate extends BaseValidate
     ];
 
     protected $scene = [
-        'save' => ['parent_id', 'name', 'type', 'sort', 'status'],
-        'update' => ['parent_id', 'name', 'type', 'sort', 'status'],
+        'save' => ['parent_id', 'member_id', 'name', 'type', 'sort', 'status'],
+        'update' => ['parent_id', 'member_id', 'name', 'type', 'sort', 'status'],
     ];
 }

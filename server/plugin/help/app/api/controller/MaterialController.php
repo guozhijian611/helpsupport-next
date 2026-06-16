@@ -27,7 +27,7 @@ class MaterialController extends BaseController
     #[Apidoc\Returned('list', type: 'array', desc: '素材分类')]
     public function categories(Request $request): Response
     {
-        return ok($this->service->materialCategories($request->get()));
+        return ok($this->service->materialCategories($this->memberId, $request->get()));
     }
 
     #[Apidoc\Title('素材列表')]
@@ -75,6 +75,31 @@ class MaterialController extends BaseController
     public function uploadPrivate(Request $request): Response
     {
         return ok($this->service->uploadPrivateMaterialFile($request));
+    }
+
+    #[Apidoc\Title('保存私人素材分类')]
+    #[Apidoc\Url('/app/help/material/private/category')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('id', type: 'int', require: false, desc: '分类ID，空为新增')]
+    #[Apidoc\Param('name', type: 'string', require: true, desc: '分类名称')]
+    #[Apidoc\Param('name_i18n', type: 'object', require: false, desc: '多语言分类名称，例如 {"zh":"书籍","en":"Books"}')]
+    #[Apidoc\Param('icon', type: 'string', require: false, desc: '图标标识')]
+    #[Apidoc\Param('sort', type: 'int', require: false, default: 100, desc: '排序')]
+    #[Apidoc\Param('status', type: 'int', require: false, default: 1, desc: '状态 1启用 2禁用')]
+    #[Apidoc\Returned('category', type: 'object', desc: '私人分类')]
+    public function savePrivateCategory(Request $request): Response
+    {
+        return ok($this->service->savePrivateMaterialCategory($this->memberId, $request->post()));
+    }
+
+    #[Apidoc\Title('删除私人素材分类')]
+    #[Apidoc\Url('/app/help/material/private/category/delete')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('id', type: 'int', require: true, desc: '分类ID')]
+    #[Apidoc\Returned('id', type: 'int', desc: '已删除分类ID')]
+    public function deletePrivateCategory(Request $request): Response
+    {
+        return ok($this->service->deletePrivateMaterialCategory($this->memberId, (int) $request->post('id')));
     }
 
     #[Apidoc\Title('保存私人素材')]

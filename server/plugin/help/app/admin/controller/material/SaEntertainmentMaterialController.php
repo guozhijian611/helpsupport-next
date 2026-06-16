@@ -5,6 +5,7 @@ namespace plugin\help\app\admin\controller\material;
 use plugin\help\app\admin\logic\material\SaContentMaterialLogic;
 use plugin\help\app\admin\validate\material\SaContentMaterialValidate;
 use plugin\help\app\service\HelpAuditLogService;
+use plugin\saiadmin\exception\ApiException;
 use plugin\saiadmin\basic\BaseController;
 use plugin\saiadmin\service\Permission;
 use support\Request;
@@ -12,11 +13,12 @@ use support\Response;
 use think\facade\Db;
 
 /**
- * 教育素材控制器
+ * 娱乐素材控制器
  */
-class SaContentMaterialController extends BaseController
+class SaEntertainmentMaterialController extends BaseController
 {
-    private const MATERIAL_TYPE = 'education';
+    private const MATERIAL_TYPE = 'entertainment';
+    private const MEDIA_TYPES = ['txt', 'epub', 'pdf', 'mp4', 'mov', 'mp3', 'link'];
 
     public function __construct()
     {
@@ -25,7 +27,7 @@ class SaContentMaterialController extends BaseController
         parent::__construct();
     }
 
-    #[Permission('教育素材列表', 'help:material:content:index')]
+    #[Permission('娱乐素材列表', 'help:material:entertainment:index')]
     public function index(Request $request): Response
     {
         $where = $request->more([
@@ -44,20 +46,20 @@ class SaContentMaterialController extends BaseController
         return $this->success($this->logic->getList($query));
     }
 
-    #[Permission('教育素材读取', 'help:material:content:read')]
+    #[Permission('娱乐素材读取', 'help:material:entertainment:read')]
     public function read(Request $request): Response
     {
         $id = (int) $request->input('id', 0);
         $data = $this->materialByType($id);
         if ($data === []) {
-            return $this->fail('未查找到教育素材');
+            return $this->fail('未查找到娱乐素材');
         }
         $data['audit_logs'] = (new HelpAuditLogService())->list('content_material', $id);
 
         return $this->success($data);
     }
 
-    #[Permission('教育素材添加', 'help:material:content:save')]
+    #[Permission('娱乐素材添加', 'help:material:entertainment:save')]
     public function save(Request $request): Response
     {
         $data = $this->materialPayload($request->post());
@@ -67,13 +69,13 @@ class SaContentMaterialController extends BaseController
         return $result ? $this->success('添加成功') : $this->fail('添加失败');
     }
 
-    #[Permission('教育素材修改', 'help:material:content:update')]
+    #[Permission('娱乐素材修改', 'help:material:entertainment:update')]
     public function update(Request $request): Response
     {
         $data = $this->materialPayload($request->post());
         $id = (int) ($data['id'] ?? 0);
         if ($this->materialByType($id) === []) {
-            return $this->fail('未查找到教育素材');
+            return $this->fail('未查找到娱乐素材');
         }
         $this->validate('update', $data);
         $result = $this->logic->edit($id, $data);
@@ -81,7 +83,7 @@ class SaContentMaterialController extends BaseController
         return $result ? $this->success('修改成功') : $this->fail('修改失败');
     }
 
-    #[Permission('教育素材删除', 'help:material:content:destroy')]
+    #[Permission('娱乐素材删除', 'help:material:entertainment:destroy')]
     public function destroy(Request $request): Response
     {
         $ids = $this->parseIds($request->post('ids', ''));
@@ -89,19 +91,19 @@ class SaContentMaterialController extends BaseController
             return $this->fail('请选择要删除的数据');
         }
         if (!$this->allMaterialsOfType($ids)) {
-            return $this->fail('只能删除教育素材');
+            return $this->fail('只能删除娱乐素材');
         }
         $result = $this->logic->destroy($ids);
 
         return $result ? $this->success('删除成功') : $this->fail('删除失败');
     }
 
-    #[Permission('教育素材审核', 'help:material:content:audit')]
+    #[Permission('娱乐素材审核', 'help:material:entertainment:audit')]
     public function audit(Request $request): Response
     {
         $id = (int) $request->post('id', 0);
         if ($this->materialByType($id) === []) {
-            return $this->fail('未查找到教育素材');
+            return $this->fail('未查找到娱乐素材');
         }
         $result = $this->logic->audit(
             $id,
@@ -115,6 +117,13 @@ class SaContentMaterialController extends BaseController
 
     private function materialPayload(array $data): array
     {
+        if (
+            array_key_exists('media_type', $data)
+            && $data['media_type'] !== ''
+            && !in_array((string) $data['media_type'], self::MEDIA_TYPES, true)
+        ) {
+            throw new ApiException('娱乐素材仅支持 txt、epub、pdf、mp4、mov、mp3 和游戏外链');
+        }
         $data['material_type'] = self::MATERIAL_TYPE;
 
         return $data;
