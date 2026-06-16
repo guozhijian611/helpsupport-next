@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as timezone;
 
 import '../core/api/api_client.dart';
+import '../core/auth/session_invalidation_notifier.dart';
 import '../core/auth/token_storage.dart';
 import '../core/config/build_info.dart';
 import '../core/diagnostics/diagnostic_log_service.dart';
@@ -24,9 +25,11 @@ Future<void> bootstrap() async {
   final sharedPreferences = await SharedPreferences.getInstance();
   const tokenStorage = SecureTokenStorage();
   final diagnosticLogService = DiagnosticLogService();
+  final sessionInvalidationNotifier = SessionInvalidationNotifier();
   final apiClient = ApiClient(
     tokenStorage: tokenStorage,
     diagnosticLogService: diagnosticLogService,
+    sessionInvalidationNotifier: sessionInvalidationNotifier,
   );
   final notificationService = LocalNotificationService();
   final firebasePushService = FirebasePushService();
@@ -85,6 +88,9 @@ Future<void> bootstrap() async {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(sharedPreferences),
         tokenStorageProvider.overrideWithValue(tokenStorage),
+        sessionInvalidationNotifierProvider.overrideWithValue(
+          sessionInvalidationNotifier,
+        ),
         apiClientProvider.overrideWithValue(apiClient),
         diagnosticLogServiceProvider.overrideWithValue(diagnosticLogService),
         onboardingRepositoryProvider.overrideWithValue(

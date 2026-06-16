@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../features/onboarding/data/onboarding_repository.dart';
 import '../api/api_client.dart';
+import '../auth/session_invalidation_notifier.dart';
 import '../auth/token_storage.dart';
 import '../diagnostics/diagnostic_log_service.dart';
 import '../notifications/local_notification_service.dart';
@@ -17,10 +18,18 @@ final tokenStorageProvider = Provider<SecureTokenStorage>((ref) {
   return const SecureTokenStorage();
 });
 
+final sessionInvalidationNotifierProvider =
+    Provider<SessionInvalidationNotifier>((ref) {
+      final notifier = SessionInvalidationNotifier();
+      ref.onDispose(notifier.dispose);
+      return notifier;
+    });
+
 final apiClientProvider = Provider<ApiClient>((ref) {
   return ApiClient(
     tokenStorage: ref.watch(tokenStorageProvider),
     diagnosticLogService: ref.watch(diagnosticLogServiceProvider),
+    sessionInvalidationNotifier: ref.watch(sessionInvalidationNotifierProvider),
   );
 });
 

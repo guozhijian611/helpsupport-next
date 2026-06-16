@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/app_config.dart';
 import '../core/i18n/app_locale_controller.dart';
 import '../core/settings/app_display_preferences.dart';
+import '../features/auth/application/auth_controller.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'router.dart';
 import 'theme.dart';
@@ -14,6 +15,15 @@ class HelpSupportApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
+    ref.listen(authControllerProvider, (previous, next) {
+      final wasAuthenticated = switch (previous) {
+        AsyncData(:final value) => value != null,
+        _ => false,
+      };
+      if (wasAuthenticated && next.hasValue && next.value == null) {
+        router.go('/login');
+      }
+    });
     final locale = ref.watch(appLocaleProvider);
     final themeMode = ref.watch(appThemeModeProvider);
     final textScale = ref.watch(appTextScaleProvider);

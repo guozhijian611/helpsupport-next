@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 
+import '../auth/session_invalidation_notifier.dart';
 import '../auth/token_storage.dart';
 import '../diagnostics/diagnostic_log_interceptor.dart';
 import '../diagnostics/diagnostic_log_service.dart';
@@ -11,10 +12,13 @@ import 'auth_interceptor.dart';
 class ApiClient {
   ApiClient({
     required SecureTokenStorage tokenStorage,
+    required SessionInvalidationNotifier sessionInvalidationNotifier,
     DiagnosticLogService? diagnosticLogService,
     String? baseUrl,
     Dio? dio,
   }) : _diagnosticLogService = diagnosticLogService,
+       _sessionInvalidationNotifier = sessionInvalidationNotifier,
+       _tokenStorage = tokenStorage,
        dio =
            dio ??
            Dio(
@@ -37,6 +41,8 @@ class ApiClient {
   );
 
   final DiagnosticLogService? _diagnosticLogService;
+  final SessionInvalidationNotifier _sessionInvalidationNotifier;
+  final SecureTokenStorage _tokenStorage;
   final Dio dio;
 
   String resolveUrl(String value) {
@@ -65,11 +71,16 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     required T Function(Object? value) decode,
   }) async {
-    final response = await dio.get<Object?>(
-      path,
-      queryParameters: queryParameters,
-    );
-    return _decode(response.data, decode, path: path);
+    try {
+      final response = await dio.get<Object?>(
+        path,
+        queryParameters: queryParameters,
+      );
+      return _decode(response.data, decode, path: path);
+    } on DioException catch (error) {
+      await _handleTransportAuthFailure(error);
+      rethrow;
+    }
   }
 
   Future<ApiResult<T>> postApi<T>(
@@ -78,12 +89,17 @@ class ApiClient {
     Options? options,
     required T Function(Object? value) decode,
   }) async {
-    final response = await dio.post<Object?>(
-      path,
-      data: data,
-      options: options,
-    );
-    return _decode(response.data, decode, path: path);
+    try {
+      final response = await dio.post<Object?>(
+        path,
+        data: data,
+        options: options,
+      );
+      return _decode(response.data, decode, path: path);
+    } on DioException catch (error) {
+      await _handleTransportAuthFailure(error);
+      rethrow;
+    }
   }
 
   Future<ApiResult<T>> putApi<T>(
@@ -91,8 +107,13 @@ class ApiClient {
     Object? data,
     required T Function(Object? value) decode,
   }) async {
-    final response = await dio.put<Object?>(path, data: data);
-    return _decode(response.data, decode, path: path);
+    try {
+      final response = await dio.put<Object?>(path, data: data);
+      return _decode(response.data, decode, path: path);
+    } on DioException catch (error) {
+      await _handleTransportAuthFailure(error);
+      rethrow;
+    }
   }
 
   ApiResult<T> _decode<T>(
@@ -115,6 +136,9 @@ class ApiClient {
       if (future != null) {
         unawaited(future.catchError((_) {}));
       }
+      if (_isSessionExpired(result.code, result.message)) {
+        unawaited(_invalidateSession());
+      }
       throw ApiException(
         code: result.code,
         message: result.message,
@@ -123,6 +147,37 @@ class ApiClient {
     }
 
     return result;
+  }
+
+  bool _isSessionExpired(int code, String message) {
+    if (code == 401) {
+      return true;
+    }
+    if (code != 400) {
+      return false;
+    }
+
+    final normalized = message.trim();
+    const authMarkers = <String>[
+      '请重新登录',
+      '登录凭证',
+      '用户信息读取失败',
+      '会员登录状态异常',
+      '未登录',
+    ];
+    return authMarkers.any(normalized.contains);
+  }
+
+  Future<void> _handleTransportAuthFailure(DioException error) async {
+    final statusCode = error.response?.statusCode;
+    if (statusCode == 401 || statusCode == 403) {
+      await _invalidateSession();
+    }
+  }
+
+  Future<void> _invalidateSession() async {
+    await _tokenStorage.clearSession();
+    _sessionInvalidationNotifier.notify();
   }
 }
 

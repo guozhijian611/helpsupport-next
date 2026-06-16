@@ -28,8 +28,11 @@ final authControllerProvider =
     AsyncNotifierProvider<AuthController, AuthSession?>(AuthController.new);
 
 class AuthController extends AsyncNotifier<AuthSession?> {
+  StreamSubscription<void>? _sessionInvalidationSubscription;
+
   @override
   Future<AuthSession?> build() async {
+    _bindSessionInvalidation();
     final accessToken = await ref.read(tokenStorageProvider).readAccessToken();
     if (accessToken == null || accessToken.isEmpty) {
       return null;
@@ -177,5 +180,22 @@ class AuthController extends AsyncNotifier<AuthSession?> {
             .catchError((_) {}),
       );
     }
+  }
+
+  void _bindSessionInvalidation() {
+    _sessionInvalidationSubscription?.cancel();
+    final notifier = ref.read(sessionInvalidationNotifierProvider);
+    _sessionInvalidationSubscription = notifier.stream.listen((_) {
+      unawaited(_handleSessionInvalidation());
+    });
+    ref.onDispose(() {
+      _sessionInvalidationSubscription?.cancel();
+      _sessionInvalidationSubscription = null;
+    });
+  }
+
+  Future<void> _handleSessionInvalidation() async {
+    await ref.read(authRepositoryProvider).clearSession();
+    state = const AsyncValue.data(null);
   }
 }
