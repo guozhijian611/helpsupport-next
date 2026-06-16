@@ -51,85 +51,102 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
 
     return ColoredBox(
       color: palette.pageBackground,
-      child: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(communityTagsProvider);
-          ref.invalidate(communityPostsProvider);
-          ref.invalidate(unreadMessageCountProvider);
-          if (_query.trim().isNotEmpty) {
-            ref.invalidate(communityPostsSearchProvider(_query.trim()));
-          }
-          await Future.wait([
-            ref.read(communityTagsProvider.future),
-            ref.read(unreadMessageCountProvider.future),
-            _query.trim().isEmpty
-                ? ref.read(communityPostsProvider.future)
-                : ref.read(communityPostsSearchProvider(_query.trim()).future),
-          ]);
-        },
-        child: ListView(
-          padding: metrics.edgeInsets(22, 18, 22, 94),
-          children: [
-            _CommunityTopBar(
+      child: Column(
+        children: [
+          Padding(
+            padding: metrics.edgeInsets(22, 18, 22, 0),
+            child: _CommunityTopBar(
               avatarUrl: avatarUrl,
               badge: badge,
               controller: _searchController,
               onChanged: (value) => setState(() => _query = value),
               onNotifyTap: () => context.push('/me/messages'),
             ),
-            SizedBox(height: metrics.size(16)),
-            tags.when(
-              data: (items) => items.isEmpty
-                  ? const SizedBox.shrink()
-                  : SizedBox(
-                      height: metrics.size(42),
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemBuilder: (context, index) {
-                          final tag = items[index];
-                          return _TopicChip(
-                            tag: tag,
-                            onTap: () => _toggleFollowTag(tag),
-                          );
-                        },
-                        separatorBuilder: (_, _) =>
-                            SizedBox(width: metrics.size(8)),
-                        itemCount: items.length,
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(communityTagsProvider);
+                ref.invalidate(communityPostsProvider);
+                ref.invalidate(unreadMessageCountProvider);
+                if (_query.trim().isNotEmpty) {
+                  ref.invalidate(communityPostsSearchProvider(_query.trim()));
+                }
+                await Future.wait([
+                  ref.read(communityTagsProvider.future),
+                  ref.read(unreadMessageCountProvider.future),
+                  _query.trim().isEmpty
+                      ? ref.read(communityPostsProvider.future)
+                      : ref.read(
+                          communityPostsSearchProvider(_query.trim()).future,
+                        ),
+                ]);
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: metrics.edgeInsets(22, 16, 22, 94),
+                children: [
+                  tags.when(
+                    data: (items) => items.isEmpty
+                        ? const SizedBox.shrink()
+                        : SizedBox(
+                            height: metrics.size(42),
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemBuilder: (context, index) {
+                                final tag = items[index];
+                                return _TopicChip(
+                                  tag: tag,
+                                  onTap: () => _toggleFollowTag(tag),
+                                );
+                              },
+                              separatorBuilder: (_, _) =>
+                                  SizedBox(width: metrics.size(8)),
+                              itemCount: items.length,
+                            ),
+                          ),
+                    error: (_, _) => const SizedBox.shrink(),
+                    loading: () => const SizedBox(
+                      height: 42,
+                      child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     ),
-              error: (_, _) => const SizedBox.shrink(),
-              loading: () => const SizedBox(
-                height: 42,
-                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-              ),
-            ),
-            SizedBox(height: metrics.size(18)),
-            posts.when(
-              data: (page) => page.list.isEmpty
-                  ? _CommunityEmptyState(query: _query)
-                  : Column(
-                      children: [
-                        for (final post in page.list)
-                          Padding(
-                            padding: EdgeInsets.only(bottom: metrics.size(14)),
-                            child: CommunityPostCard(post: post),
+                  ),
+                  SizedBox(height: metrics.size(18)),
+                  posts.when(
+                    data: (page) => page.list.isEmpty
+                        ? _CommunityEmptyState(query: _query)
+                        : Column(
+                            children: [
+                              for (final post in page.list)
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    bottom: metrics.size(14),
+                                  ),
+                                  child: CommunityPostCard(post: post),
+                                ),
+                            ],
                           ),
-                      ],
+                    error: (error, _) => _StatusCard(
+                      title: context.l10n.networkUnavailable,
+                      message: error.toString(),
+                      onRetry: () {
+                        ref.invalidate(communityPostsProvider);
+                        if (_query.trim().isNotEmpty) {
+                          ref.invalidate(
+                            communityPostsSearchProvider(_query.trim()),
+                          );
+                        }
+                      },
                     ),
-              error: (error, _) => _StatusCard(
-                title: context.l10n.networkUnavailable,
-                message: error.toString(),
-                onRetry: () {
-                  ref.invalidate(communityPostsProvider);
-                  if (_query.trim().isNotEmpty) {
-                    ref.invalidate(communityPostsSearchProvider(_query.trim()));
-                  }
-                },
+                    loading: () => const _FeedLoading(),
+                  ),
+                ],
               ),
-              loading: () => const _FeedLoading(),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
