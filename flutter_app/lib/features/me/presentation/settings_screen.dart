@@ -1359,6 +1359,8 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     final previewUrl = avatarUrl.isEmpty
         ? ''
         : ref.read(apiClientProvider).resolveUrl(avatarUrl);
+    final dialogTitle = _t(context, '头像预览', 'Avatar preview');
+    final changeAvatarLabel = _t(context, '更换头像', 'Change avatar');
     final shouldReplace = await showDialog<bool>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.55),
@@ -1376,7 +1378,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        _t(context, '头像预览', 'Avatar preview'),
+                        dialogTitle,
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: palette.primaryText,
                           fontWeight: FontWeight.w800,
@@ -1397,7 +1399,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
                   child: FilledButton.icon(
                     onPressed: () => Navigator.of(dialogContext).pop(true),
                     icon: const Icon(Icons.photo_library_outlined),
-                    label: Text(_t(context, '更换头像', 'Change avatar')),
+                    label: Text(changeAvatarLabel),
                   ),
                 ),
               ],
@@ -1786,6 +1788,13 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
 
   Future<void> _showLinkedAccounts(SecurityOverview overview) async {
     final accounts = overview.thirdPartyAccounts;
+    final sheetTitle = _t(context, '第三方账号', 'Connected accounts');
+    final emptyText = _t(
+      context,
+      '当前未绑定第三方账号',
+      'No connected third-party accounts',
+    );
+    final connectedText = _t(context, '已绑定', 'Connected');
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: _SettingsPalette.of(context).pageBackground,
@@ -1793,9 +1802,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       showDragHandle: true,
-      builder: (context) {
-        final palette = _SettingsPalette.of(context);
-        final theme = Theme.of(context);
+      builder: (sheetContext) {
+        final palette = _SettingsPalette.of(sheetContext);
+        final theme = Theme.of(sheetContext);
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -1806,7 +1815,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
                   child: Text(
-                    _t(context, '第三方账号', 'Connected accounts'),
+                    sheetTitle,
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: palette.primaryText,
                       fontWeight: FontWeight.w800,
@@ -1815,25 +1824,16 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
                 ),
                 _SettingsGroup(
                   children: accounts.isEmpty
-                      ? [
-                          _SettingsNavRow(
-                            title: _t(
-                              context,
-                              '当前未绑定第三方账号',
-                              'No connected third-party accounts',
-                            ),
-                            showChevron: false,
-                          ),
-                        ]
+                      ? [_SettingsNavRow(title: emptyText, showChevron: false)]
                       : accounts
                             .map(
                               (item) => _SettingsNavRow(
                                 title: _platformLabel(
                                   item.platformCode,
-                                  context,
+                                  sheetContext,
                                 ),
                                 value: item.bindTime.isEmpty
-                                    ? _t(context, '已绑定', 'Connected')
+                                    ? connectedText
                                     : item.bindTime,
                                 showChevron: false,
                               ),
@@ -1849,6 +1849,14 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   }
 
   Future<void> _showLoginDevices(SecurityOverview overview) async {
+    final sheetTitle = _t(context, '登录设备', 'Login devices');
+    final currentDevicesTitle = _t(context, '当前设备', 'Current devices');
+    final noDeviceRecordsText = _t(context, '暂无设备记录', 'No device records');
+    final recentSignInsTitle = _t(context, '最近登录', 'Recent sign-ins');
+    final noRecentSignInsText = _t(context, '暂无登录记录', 'No recent sign-ins');
+    final lastActiveLabel = _t(context, '最近活跃', 'Last active');
+    final onlineText = _t(context, '当前在线', 'Online');
+    final offlineText = _t(context, '已下线', 'Offline');
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1857,21 +1865,21 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       showDragHandle: true,
-      builder: (context) {
-        final theme = Theme.of(context);
-        final palette = _SettingsPalette.of(context);
+      builder: (sheetContext) {
+        final theme = Theme.of(sheetContext);
+        final palette = _SettingsPalette.of(sheetContext);
         final devices = overview.devices;
         final logins = overview.recentLogins;
         return SafeArea(
           child: SizedBox(
-            height: MediaQuery.sizeOf(context).height * 0.78,
+            height: MediaQuery.sizeOf(sheetContext).height * 0.78,
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
                   child: Text(
-                    _t(context, '登录设备', 'Login devices'),
+                    sheetTitle,
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: palette.primaryText,
                       fontWeight: FontWeight.w800,
@@ -1879,11 +1887,11 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
                   ),
                 ),
                 _SettingsGroup(
-                  title: _t(context, '当前设备', 'Current devices'),
+                  title: currentDevicesTitle,
                   children: devices.isEmpty
                       ? [
                           _SettingsNavRow(
-                            title: _t(context, '暂无设备记录', 'No device records'),
+                            title: noDeviceRecordsText,
                             showChevron: false,
                           ),
                         ]
@@ -1891,25 +1899,23 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
                             .map(
                               (item) => _SettingsNavRow(
                                 title:
-                                    '${_platformLabel(item.platform, context)} ${item.appVersion.isEmpty ? '' : item.appVersion}'
+                                    '${_platformLabel(item.platform, sheetContext)} ${item.appVersion.isEmpty ? '' : item.appVersion}'
                                         .trim(),
                                 subtitle: item.lastActiveTime.isEmpty
                                     ? null
-                                    : '${_t(context, '最近活跃', 'Last active')}: ${item.lastActiveTime}',
-                                value: item.isActive
-                                    ? _t(context, '当前在线', 'Online')
-                                    : _t(context, '已下线', 'Offline'),
+                                    : '$lastActiveLabel: ${item.lastActiveTime}',
+                                value: item.isActive ? onlineText : offlineText,
                                 showChevron: false,
                               ),
                             )
                             .toList(),
                 ),
                 _SettingsGroup(
-                  title: _t(context, '最近登录', 'Recent sign-ins'),
+                  title: recentSignInsTitle,
                   children: logins.isEmpty
                       ? [
                           _SettingsNavRow(
-                            title: _t(context, '暂无登录记录', 'No recent sign-ins'),
+                            title: noRecentSignInsText,
                             showChevron: false,
                           ),
                         ]
@@ -1918,7 +1924,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
                               (item) => _SettingsNavRow(
                                 title: _platformLabel(
                                   item.platformCode,
-                                  context,
+                                  sheetContext,
                                 ),
                                 subtitle: item.userAgent.isEmpty
                                     ? null
@@ -1947,10 +1953,10 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(_t(context, '下线其他设备', 'Sign out other devices')),
+        title: Text(_t(dialogContext, '下线其他设备', 'Sign out other devices')),
         content: Text(
           _t(
-            context,
+            dialogContext,
             '这会保留当前设备登录，并下线其余在线设备。',
             'This keeps the current device signed in and signs out the others.',
           ),
@@ -1958,11 +1964,11 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(_t(context, '取消', 'Cancel')),
+            child: Text(_t(dialogContext, '取消', 'Cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(_t(context, '确认', 'Confirm')),
+            child: Text(_t(dialogContext, '确认', 'Confirm')),
           ),
         ],
       ),
@@ -2739,11 +2745,11 @@ Future<String?> _showTextInputDialog({
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(),
-          child: Text(_t(context, '取消', 'Cancel')),
+          child: Text(_t(dialogContext, '取消', 'Cancel')),
         ),
         FilledButton(
           onPressed: () => Navigator.of(dialogContext).pop(controller.text),
-          child: Text(_t(context, '确定', 'Confirm')),
+          child: Text(_t(dialogContext, '确定', 'Confirm')),
         ),
       ],
     ),
@@ -2794,18 +2800,18 @@ Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: Text(_t(context, '退出登录', 'Sign out')),
+      title: Text(_t(dialogContext, '退出登录', 'Sign out')),
       content: Text(
-        _t(context, '确定要退出当前账号吗？', 'Sign out of the current account?'),
+        _t(dialogContext, '确定要退出当前账号吗？', 'Sign out of the current account?'),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: Text(_t(context, '取消', 'Cancel')),
+          child: Text(_t(dialogContext, '取消', 'Cancel')),
         ),
         FilledButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: Text(_t(context, '退出', 'Sign out')),
+          child: Text(_t(dialogContext, '退出', 'Sign out')),
         ),
       ],
     ),

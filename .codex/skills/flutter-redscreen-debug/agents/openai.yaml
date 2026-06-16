@@ -1,0 +1,4 @@
+interface:
+  display_name: "Flutter 红屏排错"
+  short_description: "HelpSupport Flutter 断言、弹窗和 BuildContext 排错"
+  default_prompt: "Use $flutter-redscreen-debug to diagnose and fix Flutter red-screen assertions in helpsupport-next/flutter_app."
