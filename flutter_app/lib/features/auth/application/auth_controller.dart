@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/app_providers.dart';
@@ -152,8 +154,28 @@ class AuthController extends AsyncNotifier<AuthSession?> {
     state = await AsyncValue.guard(() async {
       final session = await action();
       await ref.read(authRepositoryProvider).saveSession(session);
-      await ref.read(deviceRegistrationServiceProvider).registerCurrentDevice();
+      unawaited(_registerCurrentDeviceSafely());
       return session;
     });
+  }
+
+  Future<void> _registerCurrentDeviceSafely() async {
+    try {
+      await ref.read(deviceRegistrationServiceProvider).registerCurrentDevice();
+    } on Object catch (error, stackTrace) {
+      unawaited(
+        ref
+            .read(diagnosticLogServiceProvider)
+            .recordWarning(
+              category: 'push',
+              message: 'Device registration skipped after login',
+              details: {
+                'error': error.toString(),
+                'stack_trace': stackTrace.toString(),
+              },
+            )
+            .catchError((_) {}),
+      );
+    }
   }
 }

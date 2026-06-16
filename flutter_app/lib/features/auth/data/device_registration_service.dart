@@ -27,7 +27,6 @@ class DeviceRegistrationService {
       return;
     }
 
-    await _firebasePushService.requestPermission();
     final fcmToken = await _firebasePushService.readToken();
     final apnsToken = await _firebasePushService.readApnsToken();
 

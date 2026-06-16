@@ -46,8 +46,30 @@ Future<void> bootstrap() async {
     return false;
   };
 
-  await notificationService.initialize();
-  await firebasePushService.initialize();
+  unawaited(
+    notificationService.initialize().catchError((error, stackTrace) {
+      return diagnosticLogService.recordWarning(
+        category: 'app.bootstrap',
+        message: 'Local notification initialization failed',
+        details: {
+          'error': error.toString(),
+          'stack_trace': stackTrace.toString(),
+        },
+      );
+    }),
+  );
+  unawaited(
+    firebasePushService.initialize().catchError((error, stackTrace) {
+      return diagnosticLogService.recordWarning(
+        category: 'app.bootstrap',
+        message: 'Firebase push initialization failed',
+        details: {
+          'error': error.toString(),
+          'stack_trace': stackTrace.toString(),
+        },
+      );
+    }),
+  );
   unawaited(
     diagnosticLogService
         .recordInfo(
