@@ -40,6 +40,10 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen> {
   bool _recording = false;
   bool _callActive = false;
   bool _callVideoEnabled = false;
+  bool _callMuted = false;
+  bool _callSubtitlesEnabled = false;
+  bool _callFlashEnabled = false;
+  bool _callUsingFrontCamera = true;
 
   bool get _supportsDoctorCall => widget.chatMode == 'doctor';
 
@@ -71,58 +75,70 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen> {
         return true;
       },
       child: Scaffold(
-        backgroundColor: palette.pageBackground,
-        appBar: AppBar(
-          centerTitle: true,
-          leading: IconButton(
-            onPressed: _handleBack,
-            icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          ),
-          title: Text(_appBarTitle(records.asData?.value.list ?? const [])),
-          actions: _supportsDoctorCall
-              ? [
-                  _TopModeButton(
-                    active: !_callActive,
-                    icon: Icons.chat_bubble_outline_rounded,
-                    onTap: () {
-                      if (_callActive) {
-                        setState(() => _callActive = false);
-                      }
-                    },
+        backgroundColor: _callActive ? Colors.black : palette.pageBackground,
+        appBar: _callActive
+            ? null
+            : AppBar(
+                centerTitle: true,
+                leading: IconButton(
+                  onPressed: _handleBack,
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                ),
+                title: Text(
+                  _appBarTitle(records.asData?.value.list ?? const []),
+                ),
+                actions: _supportsDoctorCall
+                    ? [
+                        _TopModeButton(
+                          active: !_callActive,
+                          icon: Icons.chat_bubble_outline_rounded,
+                          onTap: () {
+                            if (_callActive) {
+                              setState(() => _callActive = false);
+                            }
+                          },
+                        ),
+                        const SizedBox(width: 10),
+                        _TopModeButton(
+                          active: _callActive,
+                          icon: Icons.call_outlined,
+                          onTap: _callActive ? null : _confirmStartCall,
+                        ),
+                        const SizedBox(width: 18),
+                      ]
+                    : [
+                        IconButton.filled(
+                          tooltip: _t(context, '会话说明', 'About chat'),
+                          onPressed: () => context.showCenteredNotice(
+                            _modeDescription(context, widget.chatMode),
+                          ),
+                          icon: const Icon(Icons.chat_bubble_outline_rounded),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+              ),
+        body: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          child: _callActive
+              ? _DoctorCallView(
+                  key: const ValueKey('doctor-call-view'),
+                  videoEnabled: _callVideoEnabled,
+                  muted: _callMuted,
+                  subtitlesEnabled: _callSubtitlesEnabled,
+                  flashEnabled: _callFlashEnabled,
+                  usingFrontCamera: _callUsingFrontCamera,
+                  onBackToMessages: () => setState(() => _callActive = false),
+                  onEndCall: _confirmEndCall,
+                  onToggleVideo: _toggleCallVideo,
+                  onToggleMute: () => setState(() => _callMuted = !_callMuted),
+                  onToggleSubtitles: () => setState(
+                    () => _callSubtitlesEnabled = !_callSubtitlesEnabled,
                   ),
-                  const SizedBox(width: 10),
-                  _TopModeButton(
-                    active: _callActive,
-                    icon: Icons.call_outlined,
-                    onTap: _callActive ? null : _confirmStartCall,
-                  ),
-                  const SizedBox(width: 18),
-                ]
-              : [
-                  IconButton.filled(
-                    tooltip: _t(context, '会话说明', 'About chat'),
-                    onPressed: () => context.showCenteredNotice(
-                      _modeDescription(context, widget.chatMode),
-                    ),
-                    icon: const Icon(Icons.chat_bubble_outline_rounded),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-        ),
-        body: SafeArea(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 220),
-            child: _callActive
-                ? _DoctorCallView(
-                    key: const ValueKey('doctor-call-view'),
-                    avatarUrl: userAvatarUrl,
-                    videoEnabled: _callVideoEnabled,
-                    onBackToMessages: () => setState(() => _callActive = false),
-                    onEndCall: _confirmEndCall,
-                    onToggleVideo: () =>
-                        setState(() => _callVideoEnabled = !_callVideoEnabled),
-                  )
-                : Column(
+                  onToggleFlash: _toggleCallFlash,
+                  onFlipCamera: _flipCallCamera,
+                )
+              : SafeArea(
+                  child: Column(
                     key: const ValueKey('chat-message-view'),
                     children: [
                       if (_conversationTime(
@@ -172,7 +188,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen> {
                       ),
                     ],
                   ),
-          ),
+                ),
         ),
       ),
     );
@@ -206,15 +222,19 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen> {
         title: _t(context, '视频通话', 'Video call'),
         message: _t(
           context,
-          '与AI心理医生进行语音通话？',
-          'Start a voice call with the AI doctor?',
+          '与 AI 心理医生开始视频通话？',
+          'Start a video call with the AI doctor?',
         ),
       ),
     );
     if (confirmed == true && mounted) {
       setState(() {
         _callActive = true;
-        _callVideoEnabled = false;
+        _callVideoEnabled = true;
+        _callMuted = false;
+        _callSubtitlesEnabled = false;
+        _callFlashEnabled = false;
+        _callUsingFrontCamera = true;
       });
     }
   }
@@ -235,8 +255,35 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen> {
       setState(() {
         _callActive = false;
         _callVideoEnabled = false;
+        _callMuted = false;
+        _callSubtitlesEnabled = false;
+        _callFlashEnabled = false;
+        _callUsingFrontCamera = true;
       });
     }
+  }
+
+  void _toggleCallVideo() {
+    setState(() {
+      _callVideoEnabled = !_callVideoEnabled;
+      if (!_callVideoEnabled) {
+        _callFlashEnabled = false;
+      }
+    });
+  }
+
+  void _toggleCallFlash() {
+    if (!_callVideoEnabled) {
+      return;
+    }
+    setState(() => _callFlashEnabled = !_callFlashEnabled);
+  }
+
+  void _flipCallCamera() {
+    if (!_callVideoEnabled) {
+      return;
+    }
+    setState(() => _callUsingFrontCamera = !_callUsingFrontCamera);
   }
 
   void _startVoiceRecording() {
@@ -956,61 +1003,356 @@ class _ChatComposer extends StatelessWidget {
 class _DoctorCallView extends StatelessWidget {
   const _DoctorCallView({
     super.key,
-    required this.avatarUrl,
     required this.videoEnabled,
+    required this.muted,
+    required this.subtitlesEnabled,
+    required this.flashEnabled,
+    required this.usingFrontCamera,
     required this.onBackToMessages,
     required this.onEndCall,
     required this.onToggleVideo,
+    required this.onToggleMute,
+    required this.onToggleSubtitles,
+    required this.onToggleFlash,
+    required this.onFlipCamera,
   });
 
-  final String avatarUrl;
   final bool videoEnabled;
+  final bool muted;
+  final bool subtitlesEnabled;
+  final bool flashEnabled;
+  final bool usingFrontCamera;
   final VoidCallback onBackToMessages;
   final VoidCallback onEndCall;
   final VoidCallback onToggleVideo;
+  final VoidCallback onToggleMute;
+  final VoidCallback onToggleSubtitles;
+  final VoidCallback onToggleFlash;
+  final VoidCallback onFlipCamera;
 
   @override
   Widget build(BuildContext context) {
-    final palette = _ChatSessionPalette.of(context);
+    final isDark = Theme.of(context).colorScheme.brightness == Brightness.dark;
+    final foreground = videoEnabled
+        ? Colors.white
+        : (isDark ? const Color(0xFFF8EEEB) : const Color(0xFF2F3136));
+    final secondaryForeground = videoEnabled
+        ? Colors.white.withValues(alpha: 0.72)
+        : (isDark ? const Color(0xFFD7C7C3) : const Color(0xFF7D828A));
+    final neutralButtonBackground = videoEnabled
+        ? const Color(0xFF787878)
+        : Colors.white.withValues(alpha: isDark ? 0.14 : 0.34);
+    final prompt = muted
+        ? _t(context, '麦克风已静音', 'Microphone muted')
+        : _t(context, '你可以开始说话', 'You can start talking');
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 260),
+      decoration: BoxDecoration(
+        color: videoEnabled ? Colors.black : null,
+        gradient: videoEnabled
+            ? null
+            : LinearGradient(
+                colors: isDark
+                    ? const [Color(0xFF392C33), Color(0xFF1E2433)]
+                    : const [Color(0xFFF7CCD8), Color(0xFFE2E8FF)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Stack(
+          children: [
+            if (!videoEnabled)
+              const Positioned.fill(
+                child: IgnorePointer(child: _CallSoftBackdrop()),
+              ),
+            Positioned(
+              top: 6,
+              left: 14,
+              right: 14,
+              child: Row(
+                children: [
+                  _CallTopIconButton(
+                    icon: Icons.more_horiz_rounded,
+                    foregroundColor: foreground,
+                    onTap: onBackToMessages,
+                  ),
+                  const Spacer(),
+                  _CallTopIconButton(
+                    icon: flashEnabled
+                        ? Icons.flash_on_rounded
+                        : Icons.flash_off_rounded,
+                    foregroundColor: foreground,
+                    selected: flashEnabled,
+                    onTap: videoEnabled ? onToggleFlash : null,
+                  ),
+                  const SizedBox(width: 8),
+                  _CallTopIconButton(
+                    icon: Icons.cameraswitch_rounded,
+                    foregroundColor: foreground,
+                    selected: videoEnabled && !usingFrontCamera,
+                    onTap: videoEnabled ? onFlipCamera : null,
+                  ),
+                  const SizedBox(width: 8),
+                  _CallTopIconButton(
+                    icon: Icons.subtitles_rounded,
+                    foregroundColor: foreground,
+                    selected: subtitlesEnabled,
+                    onTap: onToggleSubtitles,
+                  ),
+                ],
+              ),
+            ),
+            if (subtitlesEnabled)
+              Positioned(
+                top: 64,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: _CallGlassChip(
+                    label: _t(
+                      context,
+                      '字幕已开启，等待语音输入',
+                      'Subtitles are on, waiting for audio',
+                    ),
+                    icon: Icons.subtitles_rounded,
+                    darkBackdrop: videoEnabled,
+                  ),
+                ),
+              ),
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 92, 24, 194),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 240),
+                  child: videoEnabled
+                      ? _CallCameraStage(
+                          key: const ValueKey('camera-stage'),
+                          usingFrontCamera: usingFrontCamera,
+                          flashEnabled: flashEnabled,
+                        )
+                      : const _CallMascotStage(key: ValueKey('mascot-stage')),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 146,
+              child: Column(
+                children: [
+                  _CallPromptDots(color: foreground),
+                  const SizedBox(height: 18),
+                  Text(
+                    prompt,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: foreground,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              left: 24,
+              right: 24,
+              bottom: 42,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _CallCircleButton(
+                    size: 88,
+                    color: muted
+                        ? const Color(0xFF5A81DA)
+                        : neutralButtonBackground,
+                    iconColor: muted ? Colors.white : foreground,
+                    icon: muted
+                        ? Icons.mic_off_rounded
+                        : Icons.mic_none_rounded,
+                    onTap: onToggleMute,
+                  ),
+                  _CallCircleButton(
+                    size: 92,
+                    color: videoEnabled
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: isDark ? 0.18 : 0.42),
+                    iconColor: videoEnabled ? Colors.black : foreground,
+                    icon: videoEnabled
+                        ? Icons.videocam_rounded
+                        : Icons.videocam_off_rounded,
+                    onTap: onToggleVideo,
+                  ),
+                  _CallCircleButton(
+                    size: 88,
+                    color: const Color(0xFFFF4A54),
+                    iconColor: Colors.white,
+                    icon: Icons.call_end_rounded,
+                    onTap: onEndCall,
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 10,
+              child: Text(
+                _t(context, '内容由 AI 生成', 'Content generated by AI'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: secondaryForeground,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CallTopIconButton extends StatelessWidget {
+  const _CallTopIconButton({
+    required this.icon,
+    required this.foregroundColor,
+    required this.onTap,
+    this.selected = false,
+  });
+
+  final IconData icon;
+  final Color foregroundColor;
+  final VoidCallback? onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = onTap == null
+        ? foregroundColor.withValues(alpha: 0.26)
+        : (selected ? const Color(0xFFFFB4A8) : foregroundColor);
+    return IconButton(
+      onPressed: onTap,
+      padding: const EdgeInsets.all(8),
+      constraints: const BoxConstraints(minWidth: 42, minHeight: 42),
+      splashRadius: 22,
+      icon: Icon(icon, color: color, size: 30),
+    );
+  }
+}
+
+class _CallCameraStage extends StatelessWidget {
+  const _CallCameraStage({
+    super.key,
+    required this.usingFrontCamera,
+    required this.flashEnabled,
+  });
+
+  final bool usingFrontCamera;
+  final bool flashEnabled;
+
+  @override
+  Widget build(BuildContext context) {
     return Stack(
+      fit: StackFit.expand,
       children: [
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(color: palette.callBackground),
+        const ColoredBox(color: Colors.black),
+        Align(
+          alignment: Alignment.bottomLeft,
+          child: _CallGlassChip(
+            label: usingFrontCamera
+                ? _t(context, '前置镜头', 'Front camera')
+                : _t(context, '后置镜头', 'Rear camera'),
+            icon: usingFrontCamera
+                ? Icons.face_retouching_natural_rounded
+                : Icons.camera_rear_rounded,
+            darkBackdrop: true,
           ),
         ),
-        Positioned.fill(child: CustomPaint(painter: _CallRingPainter())),
-        if (videoEnabled)
-          Positioned(
-            top: 26,
-            right: 18,
-            child: _CallPreviewCard(avatarUrl: avatarUrl),
+        if (flashEnabled)
+          Align(
+            alignment: Alignment.bottomRight,
+            child: _CallGlassChip(
+              label: _t(context, '闪光灯已开', 'Flash on'),
+              icon: Icons.flash_on_rounded,
+              darkBackdrop: true,
+            ),
           ),
+      ],
+    );
+  }
+}
+
+class _CallMascotStage extends StatelessWidget {
+  const _CallMascotStage({super.key});
+
+  static const _mascotAsset = 'assets/branding/ai_call_mascot.png';
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 290,
+        height: 290,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white.withValues(alpha: 0.92),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x22FF9585),
+              blurRadius: 36,
+              offset: Offset(0, 18),
+            ),
+          ],
+        ),
+        child: ClipOval(
+          child: ColoredBox(
+            color: const Color(0xFFDCEAFE),
+            child: Transform.scale(
+              scale: 1.06,
+              child: Image.asset(_mascotAsset, fit: BoxFit.cover),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CallSoftBackdrop extends StatelessWidget {
+  const _CallSoftBackdrop();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
         Positioned(
-          left: 0,
-          right: 0,
-          bottom: 38,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _CallCircleButton(
-                size: 126,
-                color: const Color(0xFFED3E3E),
-                iconColor: Colors.white,
-                icon: Icons.call_end_rounded,
-                onTap: onEndCall,
-              ),
-              const SizedBox(width: 34),
-              _CallCircleButton(
-                size: 92,
-                color: palette.cardBackground,
-                iconColor: palette.primaryText,
-                icon: videoEnabled
-                    ? Icons.videocam_rounded
-                    : Icons.videocam_outlined,
-                onTap: onToggleVideo,
-              ),
-            ],
+          top: -120,
+          left: -80,
+          child: _BackdropGlow(
+            size: 280,
+            colors: const [Color(0x55FFB8C1), Color(0x00FFB8C1)],
+          ),
+        ),
+        Positioned(
+          right: -90,
+          bottom: 150,
+          child: _BackdropGlow(
+            size: 260,
+            colors: const [Color(0x554FA5FF), Color(0x004FA5FF)],
+          ),
+        ),
+        Positioned(
+          left: 70,
+          bottom: 110,
+          child: _BackdropGlow(
+            size: 180,
+            colors: const [Color(0x33FFD49C), Color(0x00FFD49C)],
           ),
         ),
       ],
@@ -1018,60 +1360,91 @@ class _DoctorCallView extends StatelessWidget {
   }
 }
 
-class _CallPreviewCard extends StatelessWidget {
-  const _CallPreviewCard({required this.avatarUrl});
+class _BackdropGlow extends StatelessWidget {
+  const _BackdropGlow({required this.size, required this.colors});
 
-  final String avatarUrl;
+  final double size;
+  final List<Color> colors;
 
   @override
   Widget build(BuildContext context) {
-    final palette = _ChatSessionPalette.of(context);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(22),
-      child: Container(
-        width: 202,
-        height: 288,
-        decoration: BoxDecoration(color: palette.previewBackground),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: avatarUrl.trim().isNotEmpty
-                  ? Image.network(avatarUrl, fit: BoxFit.cover)
-                  : DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: palette.previewGradient,
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.person_rounded,
-                        size: 120,
-                        color: palette.secondaryText.withValues(alpha: 0.72),
-                      ),
-                    ),
-            ),
-            Positioned(
-              top: 10,
-              right: 10,
-              child: Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.28),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.open_in_full_rounded,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-            ),
-          ],
-        ),
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(colors: colors),
       ),
+    );
+  }
+}
+
+class _CallGlassChip extends StatelessWidget {
+  const _CallGlassChip({
+    required this.label,
+    required this.icon,
+    required this.darkBackdrop,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool darkBackdrop;
+
+  @override
+  Widget build(BuildContext context) {
+    final background = darkBackdrop
+        ? Colors.white.withValues(alpha: 0.12)
+        : Colors.white.withValues(alpha: 0.66);
+    final borderColor = darkBackdrop
+        ? Colors.white.withValues(alpha: 0.18)
+        : Colors.white.withValues(alpha: 0.82);
+    final foreground = darkBackdrop ? Colors.white : const Color(0xFF303236);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: foreground),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: foreground,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CallPromptDots extends StatelessWidget {
+  const _CallPromptDots({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List<Widget>.generate(3, (index) {
+        return Container(
+          width: 12,
+          height: 12,
+          margin: const EdgeInsets.symmetric(horizontal: 5),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.92 - (index * 0.12)),
+            shape: BoxShape.circle,
+          ),
+        );
+      }),
     );
   }
 }
@@ -1099,47 +1472,21 @@ class _CallCircleButton extends StatelessWidget {
       child: Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
         child: Icon(icon, color: iconColor, size: size * 0.34),
       ),
     );
   }
-}
-
-class _CallRingPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width * 0.5, size.height * 0.45);
-    final glowPaint = Paint()
-      ..shader = const RadialGradient(
-        colors: [Color(0x66D37CFF), Color(0x3384B6FF), Color(0x00000000)],
-      ).createShader(Rect.fromCircle(center: center, radius: size.width * 0.34))
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 26);
-    canvas.drawCircle(center, size.width * 0.24, glowPaint);
-
-    final ringPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = 2;
-    for (final item in <(double, Color)>[
-      (size.width * 0.24, const Color(0x66A07BFF)),
-      (size.width * 0.28, const Color(0x66A0C7FF)),
-      (size.width * 0.31, const Color(0x55F07EFF)),
-      (size.width * 0.34, const Color(0x44E589FF)),
-    ]) {
-      ringPaint.color = item.$2;
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: item.$1),
-        math.pi * 0.8,
-        math.pi * 1.25,
-        false,
-        ringPaint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _RecordActionMenu extends StatelessWidget {
