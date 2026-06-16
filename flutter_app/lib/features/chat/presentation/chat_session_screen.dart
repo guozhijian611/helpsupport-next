@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
@@ -29,12 +31,17 @@ class ChatSessionScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatSessionScreen> createState() => _ChatSessionScreenState();
 }
 
-class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen> {
+class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
+    with WidgetsBindingObserver {
   final _controller = TextEditingController();
   final Set<int> _expandedVoiceTextIds = <int>{};
   Timer? _recordingTicker;
   Duration _recordingElapsed = Duration.zero;
   DateTime? _recordingStartedAt;
+  CameraController? _cameraController;
+  List<CameraDescription> _availableCameras = const <CameraDescription>[];
+  bool _cameraInitializing = false;
+  String? _cameraErrorMessage;
   bool _sending = false;
   bool _voiceComposer = false;
   bool _recording = false;
@@ -48,10 +55,35 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen> {
   bool get _supportsDoctorCall => widget.chatMode == 'doctor';
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _recordingTicker?.cancel();
+    unawaited(_cameraController?.dispose() ?? Future<void>.value());
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final controller = _cameraController;
+    if (controller == null || !_callActive || !_callVideoEnabled) {
+      return;
+    }
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused) {
+      unawaited(_disposeCallCamera());
+      return;
+    }
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_ensureCallCameraReady(forceReinitialize: true));
+    }
   }
 
   @override
@@ -123,19 +155,22 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen> {
               ? _DoctorCallView(
                   key: const ValueKey('doctor-call-view'),
                   videoEnabled: _callVideoEnabled,
+                  cameraController: _cameraController,
+                  cameraInitializing: _cameraInitializing,
+                  cameraErrorMessage: _cameraErrorMessage,
                   muted: _callMuted,
                   subtitlesEnabled: _callSubtitlesEnabled,
                   flashEnabled: _callFlashEnabled,
                   usingFrontCamera: _callUsingFrontCamera,
-                  onBackToMessages: () => setState(() => _callActive = false),
+                  onBackToMessages: _dismissCallView,
                   onEndCall: _confirmEndCall,
-                  onToggleVideo: _toggleCallVideo,
+                  onToggleVideo: () => unawaited(_toggleCallVideo()),
                   onToggleMute: () => setState(() => _callMuted = !_callMuted),
                   onToggleSubtitles: () => setState(
                     () => _callSubtitlesEnabled = !_callSubtitlesEnabled,
                   ),
-                  onToggleFlash: _toggleCallFlash,
-                  onFlipCamera: _flipCallCamera,
+                  onToggleFlash: () => unawaited(_toggleCallFlash()),
+                  onFlipCamera: () => unawaited(_flipCallCamera()),
                 )
               : SafeArea(
                   child: Column(
@@ -215,6 +250,23 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen> {
     }
   }
 
+  Future<void> _dismissCallView() async {
+    await _disposeCallCamera();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _callActive = false;
+      _callVideoEnabled = false;
+      _callMuted = false;
+      _callSubtitlesEnabled = false;
+      _callFlashEnabled = false;
+      _callUsingFrontCamera = true;
+      _cameraInitializing = false;
+      _cameraErrorMessage = null;
+    });
+  }
+
   Future<void> _confirmStartCall() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -235,7 +287,9 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen> {
         _callSubtitlesEnabled = false;
         _callFlashEnabled = false;
         _callUsingFrontCamera = true;
+        _cameraErrorMessage = null;
       });
+      await _ensureCallCameraReady();
     }
   }
 
@@ -252,6 +306,10 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen> {
       ),
     );
     if (confirmed == true && mounted) {
+      await _disposeCallCamera();
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _callActive = false;
         _callVideoEnabled = false;
@@ -259,31 +317,282 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen> {
         _callSubtitlesEnabled = false;
         _callFlashEnabled = false;
         _callUsingFrontCamera = true;
+        _cameraInitializing = false;
+        _cameraErrorMessage = null;
       });
     }
   }
 
-  void _toggleCallVideo() {
-    setState(() {
-      _callVideoEnabled = !_callVideoEnabled;
-      if (!_callVideoEnabled) {
-        _callFlashEnabled = false;
+  Future<void> _toggleCallVideo() async {
+    if (_callVideoEnabled) {
+      await _disposeCallCamera();
+      if (!mounted) {
+        return;
       }
+      setState(() {
+        _callVideoEnabled = false;
+        _callFlashEnabled = false;
+        _cameraErrorMessage = null;
+      });
+      return;
+    }
+    setState(() {
+      _callVideoEnabled = true;
+      _cameraErrorMessage = null;
     });
+    await _ensureCallCameraReady();
   }
 
-  void _toggleCallFlash() {
+  Future<void> _toggleCallFlash() async {
+    final controller = _cameraController;
+    if (!_callVideoEnabled ||
+        controller == null ||
+        !controller.value.isInitialized) {
+      return;
+    }
+    try {
+      final nextState = !_callFlashEnabled;
+      await controller.setFlashMode(
+        nextState ? FlashMode.torch : FlashMode.off,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() => _callFlashEnabled = nextState);
+    } on CameraException catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(_describeCameraException(error));
+        setState(() => _callFlashEnabled = false);
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(error.toString());
+        setState(() => _callFlashEnabled = false);
+      }
+    }
+  }
+
+  Future<void> _flipCallCamera() async {
     if (!_callVideoEnabled) {
       return;
     }
-    setState(() => _callFlashEnabled = !_callFlashEnabled);
-  }
-
-  void _flipCallCamera() {
-    if (!_callVideoEnabled) {
+    final nextDirection = _callUsingFrontCamera
+        ? CameraLensDirection.back
+        : CameraLensDirection.front;
+    if (_availableCameras.length <= 1 &&
+        _pickCamera(_availableCameras, nextDirection) == null) {
+      if (mounted) {
+        context.showCenteredNotice(
+          _t(context, '当前设备没有可切换的镜头', 'No alternate camera is available.'),
+        );
+      }
       return;
     }
-    setState(() => _callUsingFrontCamera = !_callUsingFrontCamera);
+    setState(() {
+      _callUsingFrontCamera = !_callUsingFrontCamera;
+      _callFlashEnabled = false;
+      _cameraErrorMessage = null;
+    });
+    await _ensureCallCameraReady(
+      forceReinitialize: true,
+      preferredDirection: nextDirection,
+    );
+  }
+
+  Future<void> _ensureCallCameraReady({
+    bool forceReinitialize = false,
+    CameraLensDirection? preferredDirection,
+  }) async {
+    if (!_callActive || !_callVideoEnabled || _cameraInitializing) {
+      return;
+    }
+    final permissionService = ref.read(permissionServiceProvider);
+    if (mounted) {
+      setState(() {
+        _cameraInitializing = true;
+        _cameraErrorMessage = null;
+      });
+    } else {
+      _cameraInitializing = true;
+      _cameraErrorMessage = null;
+    }
+
+    try {
+      final statuses = await permissionService.requestVideoCallPermissions();
+      final deniedMessage = _describeVideoPermissionFailure(statuses);
+      if (deniedMessage != null) {
+        throw _CallCameraSetupException(deniedMessage);
+      }
+      if (!_callActive || !_callVideoEnabled) {
+        return;
+      }
+
+      final cameras = forceReinitialize || _availableCameras.isEmpty
+          ? await availableCameras()
+          : _availableCameras;
+      _availableCameras = cameras;
+      if (cameras.isEmpty) {
+        throw _CallCameraSetupException(
+          _t(context, '当前设备没有可用摄像头', 'No camera is available on this device.'),
+        );
+      }
+
+      final targetDirection =
+          preferredDirection ??
+          (_callUsingFrontCamera
+              ? CameraLensDirection.front
+              : CameraLensDirection.back);
+      final description =
+          _pickCamera(cameras, targetDirection) ?? cameras.first;
+
+      final previousController = _cameraController;
+      final nextController = CameraController(
+        description,
+        ResolutionPreset.high,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.jpeg,
+      );
+      _cameraController = nextController;
+      await previousController?.dispose();
+      await nextController.initialize();
+
+      try {
+        await nextController.lockCaptureOrientation();
+      } on CameraException {
+        // Some devices/simulators don't support orientation lock for this stream.
+      }
+
+      try {
+        await nextController.setFlashMode(FlashMode.off);
+      } on CameraException {
+        // Ignore and keep the UI fallback; toggle action will surface failures.
+      }
+
+      if (!_callActive || !_callVideoEnabled) {
+        await nextController.dispose();
+        if (identical(_cameraController, nextController)) {
+          _cameraController = null;
+        }
+        return;
+      }
+      if (!mounted) {
+        await nextController.dispose();
+        return;
+      }
+      setState(() {
+        _callUsingFrontCamera =
+            description.lensDirection != CameraLensDirection.back;
+        _callFlashEnabled = false;
+        _cameraErrorMessage = null;
+      });
+    } on CameraException catch (error) {
+      await _disposeCallCamera();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _callFlashEnabled = false;
+        _cameraErrorMessage = _describeCameraException(error);
+      });
+      context.showCenteredNotice(_cameraErrorMessage!);
+    } on _CallCameraSetupException catch (error) {
+      await _disposeCallCamera();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _callFlashEnabled = false;
+        _cameraErrorMessage = error.message;
+      });
+      context.showCenteredNotice(error.message);
+    } on Object catch (error) {
+      await _disposeCallCamera();
+      if (!mounted) {
+        return;
+      }
+      final message = error.toString();
+      setState(() {
+        _callFlashEnabled = false;
+        _cameraErrorMessage = message;
+      });
+      context.showCenteredNotice(message);
+    } finally {
+      if (mounted) {
+        setState(() => _cameraInitializing = false);
+      } else {
+        _cameraInitializing = false;
+      }
+    }
+  }
+
+  Future<void> _disposeCallCamera() async {
+    final controller = _cameraController;
+    _cameraController = null;
+    if (controller != null) {
+      await controller.dispose();
+    }
+  }
+
+  CameraDescription? _pickCamera(
+    List<CameraDescription> cameras,
+    CameraLensDirection direction,
+  ) {
+    for (final camera in cameras) {
+      if (camera.lensDirection == direction) {
+        return camera;
+      }
+    }
+    return null;
+  }
+
+  String? _describeVideoPermissionFailure(
+    Map<Permission, PermissionStatus> statuses,
+  ) {
+    final blocked = <String>[];
+    final cameraStatus = statuses[Permission.camera];
+    final micStatus = statuses[Permission.microphone];
+    if (cameraStatus != null && !cameraStatus.isGranted) {
+      blocked.add(_t(context, '相机', 'Camera'));
+    }
+    if (micStatus != null && !micStatus.isGranted) {
+      blocked.add(_t(context, '麦克风', 'Microphone'));
+    }
+    if (blocked.isEmpty) {
+      return null;
+    }
+    return _t(
+      context,
+      '${blocked.join('、')}权限未开启，请先授权后再发起视频通话',
+      '${blocked.join(', ')} permission is required before starting a video call.',
+    );
+  }
+
+  String _describeCameraException(CameraException error) {
+    switch (error.code) {
+      case 'CameraAccessDenied':
+        return _t(
+          context,
+          '相机权限被拒绝，请在系统设置中允许 HelpSupport 访问相机',
+          'Camera access was denied. Allow HelpSupport to access the camera in Settings.',
+        );
+      case 'AudioAccessDenied':
+        return _t(
+          context,
+          '麦克风权限被拒绝，请在系统设置中允许 HelpSupport 访问麦克风',
+          'Microphone access was denied. Allow HelpSupport to access the microphone in Settings.',
+        );
+      case 'CameraAccessRestricted':
+      case 'AudioAccessRestricted':
+        return _t(
+          context,
+          '系统限制了音视频权限，请检查设备限制设置',
+          'System restrictions are preventing audio/video access.',
+        );
+      default:
+        return error.description?.trim().isNotEmpty == true
+            ? error.description!.trim()
+            : error.code;
+    }
   }
 
   void _startVoiceRecording() {
@@ -1004,6 +1313,9 @@ class _DoctorCallView extends StatelessWidget {
   const _DoctorCallView({
     super.key,
     required this.videoEnabled,
+    required this.cameraController,
+    required this.cameraInitializing,
+    required this.cameraErrorMessage,
     required this.muted,
     required this.subtitlesEnabled,
     required this.flashEnabled,
@@ -1018,6 +1330,9 @@ class _DoctorCallView extends StatelessWidget {
   });
 
   final bool videoEnabled;
+  final CameraController? cameraController;
+  final bool cameraInitializing;
+  final String? cameraErrorMessage;
   final bool muted;
   final bool subtitlesEnabled;
   final bool flashEnabled;
@@ -1130,6 +1445,9 @@ class _DoctorCallView extends StatelessWidget {
                   child: videoEnabled
                       ? _CallCameraStage(
                           key: const ValueKey('camera-stage'),
+                          cameraController: cameraController,
+                          cameraInitializing: cameraInitializing,
+                          cameraErrorMessage: cameraErrorMessage,
                           usingFrontCamera: usingFrontCamera,
                           flashEnabled: flashEnabled,
                         )
@@ -1248,19 +1566,56 @@ class _CallTopIconButton extends StatelessWidget {
 class _CallCameraStage extends StatelessWidget {
   const _CallCameraStage({
     super.key,
+    required this.cameraController,
+    required this.cameraInitializing,
+    required this.cameraErrorMessage,
     required this.usingFrontCamera,
     required this.flashEnabled,
   });
 
+  final CameraController? cameraController;
+  final bool cameraInitializing;
+  final String? cameraErrorMessage;
   final bool usingFrontCamera;
   final bool flashEnabled;
 
   @override
   Widget build(BuildContext context) {
+    final controller = cameraController;
+    final previewReady = controller != null && controller.value.isInitialized;
     return Stack(
       fit: StackFit.expand,
       children: [
         const ColoredBox(color: Colors.black),
+        if (previewReady)
+          Positioned.fill(child: _CallCameraPreview(controller: controller))
+        else if (cameraInitializing)
+          const Center(
+            child: SizedBox(
+              width: 34,
+              height: 34,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.8,
+                color: Colors.white,
+              ),
+            ),
+          )
+        else
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                cameraErrorMessage ??
+                    _t(context, '正在等待摄像头画面', 'Waiting for the camera preview'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
         Align(
           alignment: Alignment.bottomLeft,
           child: _CallGlassChip(
@@ -1283,6 +1638,30 @@ class _CallCameraStage extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _CallCameraPreview extends StatelessWidget {
+  const _CallCameraPreview({required this.controller});
+
+  final CameraController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final previewSize = controller.value.previewSize;
+    if (previewSize == null) {
+      return CameraPreview(controller);
+    }
+    return ClipRect(
+      child: FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(
+          width: previewSize.height,
+          height: previewSize.width,
+          child: CameraPreview(controller),
+        ),
+      ),
     );
   }
 }
@@ -1823,6 +2202,12 @@ class _ChatSessionPalette {
   final Color previewBackground;
   final List<Color> previewGradient;
   final Color actionMenuBackground;
+}
+
+class _CallCameraSetupException implements Exception {
+  const _CallCameraSetupException(this.message);
+
+  final String message;
 }
 
 String _t(BuildContext context, String zh, String en) {
