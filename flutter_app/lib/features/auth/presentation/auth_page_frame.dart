@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -51,8 +53,11 @@ class AuthPageFrame extends ConsumerWidget {
                   final scale = (constraints.maxWidth / 375)
                       .clamp(0.92, 1.08)
                       .toDouble();
-                  final panelTop = (isWide ? 356.0 : 286.0 * scale)
-                      .clamp(282.0, height * 0.47)
+                  final preferredPanelTop = isWide ? 356.0 : 286.0 * scale;
+                  final maxPanelTop = height * 0.47;
+                  final minPanelTop = math.min(282.0, maxPanelTop);
+                  final panelTop = preferredPanelTop
+                      .clamp(minPanelTop, maxPanelTop)
                       .toDouble();
                   final logoTop = isWide ? 108.0 : 92.0 * scale;
 
