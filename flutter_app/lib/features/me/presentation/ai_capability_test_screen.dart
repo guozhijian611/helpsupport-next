@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/local_llm/llama_engine.dart';
+import '../../../core/notifications/centered_notice.dart';
 import '../../local_model/application/local_model_controller.dart';
 import '../../local_model/data/local_model_models.dart';
 
@@ -19,6 +20,9 @@ class AiCapabilityTestScreen extends ConsumerStatefulWidget {
 
 class _AiCapabilityTestScreenState
     extends ConsumerState<AiCapabilityTestScreen> {
+  bool _runningSmokeTest = false;
+  _AiSmokeTestResult? _smokeTestResult;
+
   Future<void> _refresh() async {
     ref.invalidate(llamaRuntimeStatusProvider);
     ref.invalidate(localModelCatalogProvider);
@@ -28,6 +32,83 @@ class _AiCapabilityTestScreenState
       ref.read(localModelCatalogProvider.future).catchError((_) {}),
       ref.read(localModelDownloadControllerProvider.future).catchError((_) {}),
     ]);
+  }
+
+  Future<void> _downloadModel(LocalModelItem model) async {
+    try {
+      await ref
+          .read(localModelDownloadControllerProvider.notifier)
+          .download(model);
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(
+        '${context.l10n.downloadModel} ${model.name.isEmpty ? model.code : model.name}',
+      );
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(error.toString());
+    }
+  }
+
+  Future<void> _runSmokeTest(_AiModelAction action) async {
+    if (_runningSmokeTest || !action.state.isReady) {
+      return;
+    }
+
+    setState(() => _runningSmokeTest = true);
+    final stopwatch = Stopwatch()..start();
+    try {
+      final output = await ref
+          .read(llamaEngineProvider)
+          .generate(
+            model: action.model,
+            modelPath: action.state.filePath,
+            systemPrompt:
+                'You are a local AI self-check assistant. Reply in one short sentence only.',
+            history: const [],
+            userMessage: 'Reply with TEST OK.',
+          );
+      stopwatch.stop();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _smokeTestResult = _AiSmokeTestResult(
+          success: output.trim().isNotEmpty,
+          modelName: action.displayName,
+          durationMs: stopwatch.elapsedMilliseconds,
+          output: output.trim(),
+          testedAt: DateTime.now(),
+        );
+      });
+      context.showCenteredNotice(
+        context.l10n.aiCapabilityTestSmokeSuccessNotice,
+      );
+    } on Object catch (error) {
+      stopwatch.stop();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _smokeTestResult = _AiSmokeTestResult(
+          success: false,
+          modelName: action.displayName,
+          durationMs: stopwatch.elapsedMilliseconds,
+          error: error.toString(),
+          testedAt: DateTime.now(),
+        );
+      });
+      context.showCenteredNotice(
+        context.l10n.aiCapabilityTestSmokeFailureNotice,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _runningSmokeTest = false);
+      }
+    }
   }
 
   @override
@@ -67,10 +148,40 @@ class _AiCapabilityTestScreenState
                 palette: palette,
                 snapshot: snapshot,
                 onOpenLocalModels: () => context.push('/local-model'),
-                onStartChat: snapshot.firstReadyModel == null
+                onDownloadRecommended: snapshot.firstDownloadAction == null
                     ? null
-                    : () => _openLocalChat(snapshot.firstReadyModel!),
+                    : () => _downloadModel(snapshot.firstDownloadAction!.model),
+                onStartChat: snapshot.firstReadyAction == null
+                    ? null
+                    : () => _openLocalChat(snapshot.firstReadyAction!.model),
               ),
+              const SizedBox(height: 18),
+              _SmokeTestCard(
+                palette: palette,
+                snapshot: snapshot,
+                running: _runningSmokeTest,
+                result: _smokeTestResult,
+                onRun: snapshot.firstReadyAction == null
+                    ? null
+                    : () => _runSmokeTest(snapshot.firstReadyAction!),
+                onDownloadRecommended: snapshot.firstDownloadAction == null
+                    ? null
+                    : () => _downloadModel(snapshot.firstDownloadAction!.model),
+                onOpenChat: snapshot.firstReadyAction == null
+                    ? null
+                    : () => _openLocalChat(snapshot.firstReadyAction!.model),
+              ),
+              if (snapshot.quickActions.isNotEmpty) ...[
+                const SizedBox(height: 18),
+                _ModelActionsCard(
+                  palette: palette,
+                  actions: snapshot.quickActions,
+                  smokeTestModelId: snapshot.firstReadyAction?.model.id,
+                  recommendedModelId: snapshot.firstDownloadAction?.model.id,
+                  onDownload: _downloadModel,
+                  onOpenChat: _openLocalChat,
+                ),
+              ],
               const SizedBox(height: 18),
               _DetailCard(
                 palette: palette,
@@ -158,10 +269,58 @@ class _AiCapabilityTestScreenState
         path: '/local-model/chat/${item.id}',
         queryParameters: {
           'mode': 'companion',
-          'title': context.l10n.aiCapabilityTestStartChat,
+          'title': context.l10n.aiCapabilityTestTryChat,
         },
       ).toString(),
     );
+  }
+}
+
+class _AiSmokeTestResult {
+  const _AiSmokeTestResult({
+    required this.success,
+    required this.modelName,
+    required this.durationMs,
+    required this.testedAt,
+    this.output = '',
+    this.error = '',
+  });
+
+  final bool success;
+  final String modelName;
+  final int durationMs;
+  final DateTime testedAt;
+  final String output;
+  final String error;
+}
+
+class _AiModelAction {
+  const _AiModelAction({required this.model, required this.state});
+
+  final LocalModelItem model;
+  final LocalModelDownloadState state;
+
+  String get displayName => model.name.isEmpty ? model.code : model.name;
+
+  String metaText(BuildContext context) {
+    return [
+      if (model.provider.isNotEmpty) model.provider,
+      if (model.modelFamily.isNotEmpty) model.modelFamily,
+      if (model.quantization.isNotEmpty) model.quantization,
+      if (model.fileSize > 0) _formatBytes(model.fileSize),
+      if (model.minMemoryMb > 0)
+        context.l10n.aiCapabilityTestMemoryRequirement(model.minMemoryMb),
+    ].join(' / ');
+  }
+
+  String actionLabel(BuildContext context) {
+    return switch (state.status) {
+      LocalModelDownloadStatus.ready => context.l10n.aiCapabilityTestTryChat,
+      LocalModelDownloadStatus.downloading => context.l10n.modelDownloading,
+      LocalModelDownloadStatus.verifying => context.l10n.modelVerifying,
+      LocalModelDownloadStatus.failed => context.l10n.retry,
+      LocalModelDownloadStatus.notDownloaded => context.l10n.downloadModel,
+    };
   }
 }
 
@@ -176,7 +335,9 @@ class _AiCapabilitySnapshot {
     required this.catalogError,
     required this.downloadedCount,
     required this.minMemoryMb,
-    required this.firstReadyModel,
+    required this.firstReadyAction,
+    required this.firstDownloadAction,
+    required this.quickActions,
   });
 
   factory _AiCapabilitySnapshot.from({
@@ -189,20 +350,24 @@ class _AiCapabilitySnapshot {
     final states = downloadStates.hasValue
         ? downloadStates.value ?? const <int, LocalModelDownloadState>{}
         : const <int, LocalModelDownloadState>{};
-
-    LocalModelItem? firstReadyModel;
-    if (items != null) {
-      for (final item in items) {
-        if (states[item.id]?.isReady == true) {
-          firstReadyModel = item;
-          break;
-        }
-      }
-    }
-
-    final downloadedCount = items == null
-        ? states.values.where((state) => state.isReady).length
-        : items.where((item) => states[item.id]?.isReady == true).length;
+    final actions = (items ?? const <LocalModelItem>[])
+        .map(
+          (item) => _AiModelAction(
+            model: item,
+            state:
+                states[item.id] ??
+                const LocalModelDownloadState.notDownloaded(),
+          ),
+        )
+        .toList(growable: false);
+    final sorted = [...actions]..sort(_compareActions);
+    final firstReadyAction = sorted
+        .where((item) => item.state.isReady)
+        .firstOrNull;
+    final firstDownloadAction = sorted
+        .where((item) => !item.state.isReady && !item.state.isBusy)
+        .firstOrNull;
+    final downloadedCount = actions.where((item) => item.state.isReady).length;
     final minMemoryMb = items == null
         ? null
         : items
@@ -225,7 +390,9 @@ class _AiCapabilitySnapshot {
       catalogError: catalog.hasError ? catalog.error.toString() : null,
       downloadedCount: downloadedCount,
       minMemoryMb: minMemoryMb,
-      firstReadyModel: firstReadyModel,
+      firstReadyAction: firstReadyAction,
+      firstDownloadAction: firstDownloadAction,
+      quickActions: sorted.take(3).toList(growable: false),
     );
   }
 
@@ -238,9 +405,11 @@ class _AiCapabilitySnapshot {
   final String? catalogError;
   final int downloadedCount;
   final int? minMemoryMb;
-  final LocalModelItem? firstReadyModel;
+  final _AiModelAction? firstReadyAction;
+  final _AiModelAction? firstDownloadAction;
+  final List<_AiModelAction> quickActions;
 
-  bool get canOpenChat => runtimeReady && firstReadyModel != null;
+  bool get canOpenChat => runtimeReady && firstReadyAction != null;
 
   String headline(BuildContext context) {
     if (runtimeLoading) {
@@ -263,11 +432,39 @@ class _AiCapabilitySnapshot {
       }
       return '$base\n$runtimeError';
     }
-    if (firstReadyModel != null) {
+    if (firstReadyAction != null) {
       return context.l10n.aiCapabilityTestReadyWithModelBody;
     }
     return context.l10n.aiCapabilityTestReadyWithoutModelBody;
   }
+}
+
+int _compareActions(_AiModelAction left, _AiModelAction right) {
+  final leftPriority = (
+    left.state.isReady ? 0 : 1,
+    left.state.isBusy ? 0 : 1,
+    left.model.minMemoryMb <= 0 ? 1 << 20 : left.model.minMemoryMb,
+    left.model.fileSize <= 0 ? 1 << 30 : left.model.fileSize,
+  );
+  final rightPriority = (
+    right.state.isReady ? 0 : 1,
+    right.state.isBusy ? 0 : 1,
+    right.model.minMemoryMb <= 0 ? 1 << 20 : right.model.minMemoryMb,
+    right.model.fileSize <= 0 ? 1 << 30 : right.model.fileSize,
+  );
+  final first = leftPriority.$1.compareTo(rightPriority.$1);
+  if (first != 0) {
+    return first;
+  }
+  final second = leftPriority.$2.compareTo(rightPriority.$2);
+  if (second != 0) {
+    return second;
+  }
+  final third = leftPriority.$3.compareTo(rightPriority.$3);
+  if (third != 0) {
+    return third;
+  }
+  return leftPriority.$4.compareTo(rightPriority.$4);
 }
 
 class _SummaryCard extends StatelessWidget {
@@ -275,12 +472,14 @@ class _SummaryCard extends StatelessWidget {
     required this.palette,
     required this.snapshot,
     required this.onOpenLocalModels,
+    required this.onDownloadRecommended,
     required this.onStartChat,
   });
 
   final _AiCapabilityPalette palette;
   final _AiCapabilitySnapshot snapshot;
   final VoidCallback onOpenLocalModels;
+  final VoidCallback? onDownloadRecommended;
   final VoidCallback? onStartChat;
 
   @override
@@ -379,11 +578,415 @@ class _SummaryCard extends StatelessWidget {
                     ),
                   ),
                   icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                  label: Text(context.l10n.aiCapabilityTestStartChat),
+                  label: Text(context.l10n.aiCapabilityTestTryChat),
+                )
+              else if (onDownloadRecommended != null)
+                FilledButton.icon(
+                  onPressed: onDownloadRecommended,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white.withValues(alpha: 0.18),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                  icon: const Icon(Icons.file_download_outlined, size: 18),
+                  label: Text(context.l10n.aiCapabilityTestRecommendedDownload),
                 ),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SmokeTestCard extends StatelessWidget {
+  const _SmokeTestCard({
+    required this.palette,
+    required this.snapshot,
+    required this.running,
+    required this.result,
+    required this.onRun,
+    required this.onDownloadRecommended,
+    required this.onOpenChat,
+  });
+
+  final _AiCapabilityPalette palette;
+  final _AiCapabilitySnapshot snapshot;
+  final bool running;
+  final _AiSmokeTestResult? result;
+  final VoidCallback? onRun;
+  final VoidCallback? onDownloadRecommended;
+  final VoidCallback? onOpenChat;
+
+  @override
+  Widget build(BuildContext context) {
+    return _DetailCard(
+      palette: palette,
+      title: context.l10n.aiCapabilityTestSmokeTitle,
+      children: [
+        if (running) ...[
+          Row(
+            children: [
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  color: palette.accent,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  context.l10n.aiCapabilityTestSmokeRunning,
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ] else if (result != null) ...[
+          _SmokeResultView(palette: palette, result: result!),
+          const SizedBox(height: 12),
+        ] else ...[
+          Text(
+            snapshot.firstReadyAction != null
+                ? context.l10n.aiCapabilityTestSmokeReadyHint
+                : context.l10n.aiCapabilityTestSmokeNeedModelHint,
+            style: TextStyle(
+              color: palette.secondaryText,
+              fontSize: 13,
+              height: 1.6,
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            FilledButton.icon(
+              onPressed: running ? null : onRun,
+              style: FilledButton.styleFrom(
+                backgroundColor: palette.accent,
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: Text(
+                result == null
+                    ? context.l10n.aiCapabilityTestSmokeRunButton
+                    : context.l10n.aiCapabilityTestSmokeRerunButton,
+              ),
+            ),
+            if (snapshot.firstReadyAction == null &&
+                onDownloadRecommended != null)
+              OutlinedButton.icon(
+                onPressed: running ? null : onDownloadRecommended,
+                icon: const Icon(Icons.file_download_outlined),
+                label: Text(context.l10n.aiCapabilityTestRecommendedDownload),
+              ),
+            if (snapshot.firstReadyAction != null && onOpenChat != null)
+              OutlinedButton.icon(
+                onPressed: running ? null : onOpenChat,
+                icon: const Icon(Icons.chat_bubble_outline_rounded),
+                label: Text(context.l10n.aiCapabilityTestTryChat),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _SmokeResultView extends StatelessWidget {
+  const _SmokeResultView({required this.palette, required this.result});
+
+  final _AiCapabilityPalette palette;
+  final _AiSmokeTestResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = result.success ? palette.success : palette.danger;
+    final output = result.success ? result.output : result.error;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                result.success
+                    ? Icons.check_circle_outline_rounded
+                    : Icons.error_outline_rounded,
+                color: accent,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  result.success
+                      ? context.l10n.aiCapabilityTestSmokeSuccessTitle
+                      : context.l10n.aiCapabilityTestSmokeFailureTitle,
+                  style: TextStyle(
+                    color: accent,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _MiniMetaRow(
+            label: context.l10n.aiCapabilityTestSmokeModelLabel,
+            value: result.modelName,
+            palette: palette,
+          ),
+          _MiniMetaRow(
+            label: context.l10n.aiCapabilityTestSmokeDurationLabel,
+            value: '${result.durationMs} ms',
+            palette: palette,
+          ),
+          _MiniMetaRow(
+            label: result.success
+                ? context.l10n.aiCapabilityTestSmokeOutputLabel
+                : context.l10n.aiCapabilityTestSmokeErrorLabel,
+            value: output.trim().isEmpty ? '--' : output.trim(),
+            palette: palette,
+            multiline: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniMetaRow extends StatelessWidget {
+  const _MiniMetaRow({
+    required this.label,
+    required this.value,
+    required this.palette,
+    this.multiline = false,
+  });
+
+  final String label;
+  final String value;
+  final _AiCapabilityPalette palette;
+  final bool multiline;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: palette.secondaryText,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            maxLines: multiline ? 6 : 1,
+            overflow: multiline ? TextOverflow.ellipsis : TextOverflow.ellipsis,
+            style: TextStyle(
+              color: palette.primaryText,
+              fontSize: 13,
+              height: 1.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModelActionsCard extends StatelessWidget {
+  const _ModelActionsCard({
+    required this.palette,
+    required this.actions,
+    required this.smokeTestModelId,
+    required this.recommendedModelId,
+    required this.onDownload,
+    required this.onOpenChat,
+  });
+
+  final _AiCapabilityPalette palette;
+  final List<_AiModelAction> actions;
+  final int? smokeTestModelId;
+  final int? recommendedModelId;
+  final Future<void> Function(LocalModelItem model) onDownload;
+  final void Function(LocalModelItem model) onOpenChat;
+
+  @override
+  Widget build(BuildContext context) {
+    return _DetailCard(
+      palette: palette,
+      title: context.l10n.aiCapabilityTestQuickModelsTitle,
+      children: [
+        Text(
+          context.l10n.aiCapabilityTestQuickModelsSubtitle,
+          style: TextStyle(
+            color: palette.secondaryText,
+            fontSize: 13,
+            height: 1.6,
+          ),
+        ),
+        const SizedBox(height: 12),
+        for (var index = 0; index < actions.length; index++) ...[
+          _ModelActionRow(
+            palette: palette,
+            action: actions[index],
+            recommended: actions[index].model.id == recommendedModelId,
+            smokeReady: actions[index].model.id == smokeTestModelId,
+            onDownload: () => onDownload(actions[index].model),
+            onOpenChat: () => onOpenChat(actions[index].model),
+          ),
+          if (index != actions.length - 1)
+            Divider(height: 22, color: palette.divider),
+        ],
+      ],
+    );
+  }
+}
+
+class _ModelActionRow extends StatelessWidget {
+  const _ModelActionRow({
+    required this.palette,
+    required this.action,
+    required this.recommended,
+    required this.smokeReady,
+    required this.onDownload,
+    required this.onOpenChat,
+  });
+
+  final _AiCapabilityPalette palette;
+  final _AiModelAction action;
+  final bool recommended;
+  final bool smokeReady;
+  final VoidCallback onDownload;
+  final VoidCallback onOpenChat;
+
+  @override
+  Widget build(BuildContext context) {
+    final buttonChild = action.state.isBusy
+        ? SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: palette.accent,
+            ),
+          )
+        : Text(action.actionLabel(context));
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    action.displayName,
+                    style: TextStyle(
+                      color: palette.primaryText,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (recommended)
+                    _Tag(
+                      label: context.l10n.aiCapabilityTestRecommendedTag,
+                      background: palette.accent.withValues(alpha: 0.12),
+                      foreground: palette.accent,
+                    ),
+                  if (smokeReady)
+                    _Tag(
+                      label: context.l10n.aiCapabilityTestSmokeReadyTag,
+                      background: palette.success.withValues(alpha: 0.12),
+                      foreground: palette.success,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                action.metaText(context),
+                style: TextStyle(
+                  color: palette.secondaryText,
+                  fontSize: 12,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        action.state.isReady
+            ? FilledButton(
+                onPressed: onOpenChat,
+                style: FilledButton.styleFrom(
+                  backgroundColor: palette.accent,
+                  foregroundColor: Colors.white,
+                ),
+                child: buttonChild,
+              )
+            : OutlinedButton(
+                onPressed: action.state.isBusy ? null : onDownload,
+                child: buttonChild,
+              ),
+      ],
+    );
+  }
+}
+
+class _Tag extends StatelessWidget {
+  const _Tag({
+    required this.label,
+    required this.background,
+    required this.foreground,
+  });
+
+  final String label;
+  final Color background;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: foreground,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -515,6 +1118,7 @@ class _AiCapabilityPalette {
     required this.accent,
     required this.success,
     required this.danger,
+    required this.divider,
     required this.readyGradient,
     required this.loadingGradient,
     required this.errorGradient,
@@ -534,6 +1138,7 @@ class _AiCapabilityPalette {
       accent: isDark ? const Color(0xFFFFB4A8) : const Color(0xFFFF9585),
       success: isDark ? const Color(0xFF9DE2A4) : const Color(0xFF2F8F46),
       danger: isDark ? const Color(0xFFFFB4A8) : const Color(0xFFC94D41),
+      divider: scheme.outlineVariant.withValues(alpha: 0.4),
       readyGradient: isDark
           ? const [Color(0xFF9A5A52), Color(0xFFB46E65)]
           : const [Color(0xFFFF9585), Color(0xFFFCB08E)],
@@ -554,7 +1159,29 @@ class _AiCapabilityPalette {
   final Color accent;
   final Color success;
   final Color danger;
+  final Color divider;
   final List<Color> readyGradient;
   final List<Color> loadingGradient;
   final List<Color> errorGradient;
+}
+
+String _formatBytes(int bytes) {
+  const units = ['B', 'KB', 'MB', 'GB'];
+  var value = bytes.toDouble();
+  var unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex++;
+  }
+  return '${value.toStringAsFixed(unitIndex == 0 ? 0 : 1)} ${units[unitIndex]}';
+}
+
+extension<T> on Iterable<T> {
+  T? get firstOrNull {
+    final iterator = this.iterator;
+    if (!iterator.moveNext()) {
+      return null;
+    }
+    return iterator.current;
+  }
 }

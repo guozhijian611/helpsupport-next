@@ -678,6 +678,69 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get aiCapabilityTestTryChat => '直接试聊';
+
+  @override
+  String get aiCapabilityTestRecommendedDownload => '下载推荐模型';
+
+  @override
+  String get aiCapabilityTestRecommendedTag => '推荐';
+
+  @override
+  String get aiCapabilityTestQuickModelsTitle => '快速操作模型';
+
+  @override
+  String get aiCapabilityTestQuickModelsSubtitle =>
+      '优先展示最适合这台设备做自测的模型，你可以直接下载、试聊或继续进模型页查看更多。';
+
+  @override
+  String get aiCapabilityTestSmokeTitle => '真实 AI 自测';
+
+  @override
+  String get aiCapabilityTestSmokeRunning => '正在调用本地模型做一次真实推理，请稍候…';
+
+  @override
+  String get aiCapabilityTestSmokeReadyHint =>
+      '已经检测到可用模型。点击下方按钮，会直接调用本地模型生成一条最短回复，验证这台设备是否真的能跑起来。';
+
+  @override
+  String get aiCapabilityTestSmokeNeedModelHint =>
+      '当前还没有可直接自测的本地模型。先下载一个推荐模型，再做真实 AI 自测。';
+
+  @override
+  String get aiCapabilityTestSmokeRunButton => '开始真实自测';
+
+  @override
+  String get aiCapabilityTestSmokeRerunButton => '重新自测';
+
+  @override
+  String get aiCapabilityTestSmokeSuccessNotice => '真实 AI 自测成功';
+
+  @override
+  String get aiCapabilityTestSmokeFailureNotice => '真实 AI 自测失败';
+
+  @override
+  String get aiCapabilityTestSmokeSuccessTitle => '真实自测已通过';
+
+  @override
+  String get aiCapabilityTestSmokeFailureTitle => '真实自测未通过';
+
+  @override
+  String get aiCapabilityTestSmokeModelLabel => '测试模型';
+
+  @override
+  String get aiCapabilityTestSmokeDurationLabel => '耗时';
+
+  @override
+  String get aiCapabilityTestSmokeOutputLabel => '模型输出';
+
+  @override
+  String get aiCapabilityTestSmokeErrorLabel => '失败原因';
+
+  @override
+  String get aiCapabilityTestSmokeReadyTag => '可自测';
+
+  @override
   String get diagnosticsTitle => '诊断信息';
 
   @override

@@ -695,6 +695,71 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get aiCapabilityTestTryChat => 'Try chat now';
+
+  @override
+  String get aiCapabilityTestRecommendedDownload =>
+      'Download recommended model';
+
+  @override
+  String get aiCapabilityTestRecommendedTag => 'Recommended';
+
+  @override
+  String get aiCapabilityTestQuickModelsTitle => 'Quick model actions';
+
+  @override
+  String get aiCapabilityTestQuickModelsSubtitle =>
+      'These models are the best candidates for a fast device self-check. Download one, try a chat, or open the full model list.';
+
+  @override
+  String get aiCapabilityTestSmokeTitle => 'Live AI smoke test';
+
+  @override
+  String get aiCapabilityTestSmokeRunning =>
+      'Running one real local inference call. Please wait…';
+
+  @override
+  String get aiCapabilityTestSmokeReadyHint =>
+      'A verified model is already available. Tap the button below to make one real local generation call and confirm the device can actually run AI.';
+
+  @override
+  String get aiCapabilityTestSmokeNeedModelHint =>
+      'No model is ready for a live self-check yet. Download a recommended model first, then run the smoke test.';
+
+  @override
+  String get aiCapabilityTestSmokeRunButton => 'Run live smoke test';
+
+  @override
+  String get aiCapabilityTestSmokeRerunButton => 'Run again';
+
+  @override
+  String get aiCapabilityTestSmokeSuccessNotice => 'Live AI smoke test passed';
+
+  @override
+  String get aiCapabilityTestSmokeFailureNotice => 'Live AI smoke test failed';
+
+  @override
+  String get aiCapabilityTestSmokeSuccessTitle => 'Live smoke test passed';
+
+  @override
+  String get aiCapabilityTestSmokeFailureTitle => 'Live smoke test failed';
+
+  @override
+  String get aiCapabilityTestSmokeModelLabel => 'Model';
+
+  @override
+  String get aiCapabilityTestSmokeDurationLabel => 'Duration';
+
+  @override
+  String get aiCapabilityTestSmokeOutputLabel => 'Model output';
+
+  @override
+  String get aiCapabilityTestSmokeErrorLabel => 'Failure reason';
+
+  @override
+  String get aiCapabilityTestSmokeReadyTag => 'Smoke ready';
+
+  @override
   String get diagnosticsTitle => 'Diagnostics';
 
   @override

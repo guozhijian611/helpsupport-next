@@ -1394,6 +1394,126 @@ abstract class AppLocalizations {
   /// **'At least {count} MB'**
   String aiCapabilityTestMemoryRequirement(Object count);
 
+  /// No description provided for @aiCapabilityTestTryChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Try chat now'**
+  String get aiCapabilityTestTryChat;
+
+  /// No description provided for @aiCapabilityTestRecommendedDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download recommended model'**
+  String get aiCapabilityTestRecommendedDownload;
+
+  /// No description provided for @aiCapabilityTestRecommendedTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get aiCapabilityTestRecommendedTag;
+
+  /// No description provided for @aiCapabilityTestQuickModelsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick model actions'**
+  String get aiCapabilityTestQuickModelsTitle;
+
+  /// No description provided for @aiCapabilityTestQuickModelsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'These models are the best candidates for a fast device self-check. Download one, try a chat, or open the full model list.'**
+  String get aiCapabilityTestQuickModelsSubtitle;
+
+  /// No description provided for @aiCapabilityTestSmokeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Live AI smoke test'**
+  String get aiCapabilityTestSmokeTitle;
+
+  /// No description provided for @aiCapabilityTestSmokeRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running one real local inference call. Please wait…'**
+  String get aiCapabilityTestSmokeRunning;
+
+  /// No description provided for @aiCapabilityTestSmokeReadyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A verified model is already available. Tap the button below to make one real local generation call and confirm the device can actually run AI.'**
+  String get aiCapabilityTestSmokeReadyHint;
+
+  /// No description provided for @aiCapabilityTestSmokeNeedModelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No model is ready for a live self-check yet. Download a recommended model first, then run the smoke test.'**
+  String get aiCapabilityTestSmokeNeedModelHint;
+
+  /// No description provided for @aiCapabilityTestSmokeRunButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Run live smoke test'**
+  String get aiCapabilityTestSmokeRunButton;
+
+  /// No description provided for @aiCapabilityTestSmokeRerunButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Run again'**
+  String get aiCapabilityTestSmokeRerunButton;
+
+  /// No description provided for @aiCapabilityTestSmokeSuccessNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Live AI smoke test passed'**
+  String get aiCapabilityTestSmokeSuccessNotice;
+
+  /// No description provided for @aiCapabilityTestSmokeFailureNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Live AI smoke test failed'**
+  String get aiCapabilityTestSmokeFailureNotice;
+
+  /// No description provided for @aiCapabilityTestSmokeSuccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Live smoke test passed'**
+  String get aiCapabilityTestSmokeSuccessTitle;
+
+  /// No description provided for @aiCapabilityTestSmokeFailureTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Live smoke test failed'**
+  String get aiCapabilityTestSmokeFailureTitle;
+
+  /// No description provided for @aiCapabilityTestSmokeModelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get aiCapabilityTestSmokeModelLabel;
+
+  /// No description provided for @aiCapabilityTestSmokeDurationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get aiCapabilityTestSmokeDurationLabel;
+
+  /// No description provided for @aiCapabilityTestSmokeOutputLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model output'**
+  String get aiCapabilityTestSmokeOutputLabel;
+
+  /// No description provided for @aiCapabilityTestSmokeErrorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Failure reason'**
+  String get aiCapabilityTestSmokeErrorLabel;
+
+  /// No description provided for @aiCapabilityTestSmokeReadyTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Smoke ready'**
+  String get aiCapabilityTestSmokeReadyTag;
+
   /// No description provided for @diagnosticsTitle.
   ///
   /// In en, this message translates to:
