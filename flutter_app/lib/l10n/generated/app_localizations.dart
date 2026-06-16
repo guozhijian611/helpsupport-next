@@ -1244,6 +1244,156 @@ abstract class AppLocalizations {
   /// **'Journal'**
   String get meJournal;
 
+  /// No description provided for @aiCapabilityTestEntryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI capability test'**
+  String get aiCapabilityTestEntryTitle;
+
+  /// No description provided for @aiCapabilityTestEntrySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Check whether this device can run on-device AI'**
+  String get aiCapabilityTestEntrySubtitle;
+
+  /// No description provided for @aiCapabilityTestTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI capability test'**
+  String get aiCapabilityTestTitle;
+
+  /// No description provided for @aiCapabilityTestCheckingHeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking device AI capability'**
+  String get aiCapabilityTestCheckingHeadline;
+
+  /// No description provided for @aiCapabilityTestCheckingBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The app is verifying the local inference runtime and model readiness. Please wait a moment.'**
+  String get aiCapabilityTestCheckingBody;
+
+  /// No description provided for @aiCapabilityTestReadyHeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'This device can run AI in the app'**
+  String get aiCapabilityTestReadyHeadline;
+
+  /// No description provided for @aiCapabilityTestReadyWithModelBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The local inference runtime is ready and at least one verified on-device model is available. You can start a live chat test now.'**
+  String get aiCapabilityTestReadyWithModelBody;
+
+  /// No description provided for @aiCapabilityTestReadyWithoutModelBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The local inference runtime is ready, but no verified model has been downloaded yet. Download one model to complete the full test.'**
+  String get aiCapabilityTestReadyWithoutModelBody;
+
+  /// No description provided for @aiCapabilityTestUnavailableHeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'This device cannot run the app\'s on-device AI yet'**
+  String get aiCapabilityTestUnavailableHeadline;
+
+  /// No description provided for @aiCapabilityTestUnavailableBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The local inference runtime did not pass the check. You can still browse the model list, but the runtime issue needs to be fixed first.'**
+  String get aiCapabilityTestUnavailableBody;
+
+  /// No description provided for @aiCapabilityTestOpenLocalModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Open local models'**
+  String get aiCapabilityTestOpenLocalModels;
+
+  /// No description provided for @aiCapabilityTestStartChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Start AI chat test'**
+  String get aiCapabilityTestStartChat;
+
+  /// No description provided for @aiCapabilityTestOverviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Check results'**
+  String get aiCapabilityTestOverviewTitle;
+
+  /// No description provided for @aiCapabilityTestRuntimeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Runtime status'**
+  String get aiCapabilityTestRuntimeLabel;
+
+  /// No description provided for @aiCapabilityTestRuntimeReadyValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get aiCapabilityTestRuntimeReadyValue;
+
+  /// No description provided for @aiCapabilityTestRuntimeUnavailableValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable'**
+  String get aiCapabilityTestRuntimeUnavailableValue;
+
+  /// No description provided for @aiCapabilityTestLibraryPathLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Runtime library path'**
+  String get aiCapabilityTestLibraryPathLabel;
+
+  /// No description provided for @aiCapabilityTestCpuLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'CPU cores'**
+  String get aiCapabilityTestCpuLabel;
+
+  /// No description provided for @aiCapabilityTestCatalogLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Available models'**
+  String get aiCapabilityTestCatalogLabel;
+
+  /// No description provided for @aiCapabilityTestDownloadedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded models'**
+  String get aiCapabilityTestDownloadedLabel;
+
+  /// No description provided for @aiCapabilityTestMinMemoryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Lightest model memory need'**
+  String get aiCapabilityTestMinMemoryLabel;
+
+  /// No description provided for @aiCapabilityTestCountCores.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} cores'**
+  String aiCapabilityTestCountCores(Object count);
+
+  /// No description provided for @aiCapabilityTestCountModels.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} models'**
+  String aiCapabilityTestCountModels(Object count);
+
+  /// No description provided for @aiCapabilityTestCountDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} downloaded'**
+  String aiCapabilityTestCountDownloaded(Object count);
+
+  /// No description provided for @aiCapabilityTestMemoryRequirement.
+  ///
+  /// In en, this message translates to:
+  /// **'At least {count} MB'**
+  String aiCapabilityTestMemoryRequirement(Object count);
+
   /// No description provided for @diagnosticsTitle.
   ///
   /// In en, this message translates to:

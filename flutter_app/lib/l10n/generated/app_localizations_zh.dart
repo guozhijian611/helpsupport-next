@@ -592,6 +592,92 @@ class AppLocalizationsZh extends AppLocalizations {
   String get meJournal => '日记';
 
   @override
+  String get aiCapabilityTestEntryTitle => 'AI 运行测试';
+
+  @override
+  String get aiCapabilityTestEntrySubtitle => '检查本设备能否运行本地 AI';
+
+  @override
+  String get aiCapabilityTestTitle => 'AI 运行测试';
+
+  @override
+  String get aiCapabilityTestCheckingHeadline => '正在检查设备 AI 运行能力';
+
+  @override
+  String get aiCapabilityTestCheckingBody => '应用正在检测本地推理运行时和模型状态，请稍候片刻。';
+
+  @override
+  String get aiCapabilityTestReadyHeadline => '本设备具备运行 AI 的基础能力';
+
+  @override
+  String get aiCapabilityTestReadyWithModelBody =>
+      '本地推理运行时已就绪，且已经检测到可直接使用的本地模型，现在就可以开始试聊。';
+
+  @override
+  String get aiCapabilityTestReadyWithoutModelBody =>
+      '本地推理运行时已就绪，但当前还没有已下载模型。下载并校验一个本地模型后，就能完成完整实测。';
+
+  @override
+  String get aiCapabilityTestUnavailableHeadline => '当前设备还不能运行应用内本地 AI';
+
+  @override
+  String get aiCapabilityTestUnavailableBody =>
+      '本地推理运行时没有通过检测。你仍然可以查看模型列表，但需要先解决运行时问题。';
+
+  @override
+  String get aiCapabilityTestOpenLocalModels => '打开本地模型';
+
+  @override
+  String get aiCapabilityTestStartChat => '开始 AI 试聊';
+
+  @override
+  String get aiCapabilityTestOverviewTitle => '检测结果';
+
+  @override
+  String get aiCapabilityTestRuntimeLabel => '运行时状态';
+
+  @override
+  String get aiCapabilityTestRuntimeReadyValue => '已就绪';
+
+  @override
+  String get aiCapabilityTestRuntimeUnavailableValue => '不可用';
+
+  @override
+  String get aiCapabilityTestLibraryPathLabel => '运行库路径';
+
+  @override
+  String get aiCapabilityTestCpuLabel => 'CPU 核心数';
+
+  @override
+  String get aiCapabilityTestCatalogLabel => '可选模型';
+
+  @override
+  String get aiCapabilityTestDownloadedLabel => '已下载模型';
+
+  @override
+  String get aiCapabilityTestMinMemoryLabel => '最轻模型内存要求';
+
+  @override
+  String aiCapabilityTestCountCores(Object count) {
+    return '$count 核';
+  }
+
+  @override
+  String aiCapabilityTestCountModels(Object count) {
+    return '$count 个模型';
+  }
+
+  @override
+  String aiCapabilityTestCountDownloaded(Object count) {
+    return '$count 个已下载';
+  }
+
+  @override
+  String aiCapabilityTestMemoryRequirement(Object count) {
+    return '至少 $count MB';
+  }
+
+  @override
   String get diagnosticsTitle => '诊断信息';
 
   @override

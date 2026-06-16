@@ -27,6 +27,7 @@ import '../features/doctor/presentation/doctor_treatment_plan_screen.dart';
 import '../features/home/presentation/home_shell.dart';
 import '../features/local_model/presentation/local_model_chat_screen.dart';
 import '../features/local_model/presentation/local_model_screen.dart';
+import '../features/me/presentation/ai_capability_test_screen.dart';
 import '../features/material/data/material_models.dart';
 import '../features/material/presentation/material_detail_screen.dart';
 import '../features/material/presentation/material_library_screen.dart';
@@ -243,6 +244,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/me/settings/about/diagnostics',
         name: 'me-settings-diagnostics',
         builder: (context, state) => const DiagnosticLogsScreen(),
+      ),
+      GoRoute(
+        path: '/me/settings/about/ai-capability',
+        name: 'me-settings-ai-capability',
+        builder: (context, state) => const AiCapabilityTestScreen(),
       ),
       GoRoute(
         path: '/me/settings/:section',

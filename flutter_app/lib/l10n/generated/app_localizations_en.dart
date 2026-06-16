@@ -604,6 +604,97 @@ class AppLocalizationsEn extends AppLocalizations {
   String get meJournal => 'Journal';
 
   @override
+  String get aiCapabilityTestEntryTitle => 'AI capability test';
+
+  @override
+  String get aiCapabilityTestEntrySubtitle =>
+      'Check whether this device can run on-device AI';
+
+  @override
+  String get aiCapabilityTestTitle => 'AI capability test';
+
+  @override
+  String get aiCapabilityTestCheckingHeadline =>
+      'Checking device AI capability';
+
+  @override
+  String get aiCapabilityTestCheckingBody =>
+      'The app is verifying the local inference runtime and model readiness. Please wait a moment.';
+
+  @override
+  String get aiCapabilityTestReadyHeadline =>
+      'This device can run AI in the app';
+
+  @override
+  String get aiCapabilityTestReadyWithModelBody =>
+      'The local inference runtime is ready and at least one verified on-device model is available. You can start a live chat test now.';
+
+  @override
+  String get aiCapabilityTestReadyWithoutModelBody =>
+      'The local inference runtime is ready, but no verified model has been downloaded yet. Download one model to complete the full test.';
+
+  @override
+  String get aiCapabilityTestUnavailableHeadline =>
+      'This device cannot run the app\'s on-device AI yet';
+
+  @override
+  String get aiCapabilityTestUnavailableBody =>
+      'The local inference runtime did not pass the check. You can still browse the model list, but the runtime issue needs to be fixed first.';
+
+  @override
+  String get aiCapabilityTestOpenLocalModels => 'Open local models';
+
+  @override
+  String get aiCapabilityTestStartChat => 'Start AI chat test';
+
+  @override
+  String get aiCapabilityTestOverviewTitle => 'Check results';
+
+  @override
+  String get aiCapabilityTestRuntimeLabel => 'Runtime status';
+
+  @override
+  String get aiCapabilityTestRuntimeReadyValue => 'Ready';
+
+  @override
+  String get aiCapabilityTestRuntimeUnavailableValue => 'Unavailable';
+
+  @override
+  String get aiCapabilityTestLibraryPathLabel => 'Runtime library path';
+
+  @override
+  String get aiCapabilityTestCpuLabel => 'CPU cores';
+
+  @override
+  String get aiCapabilityTestCatalogLabel => 'Available models';
+
+  @override
+  String get aiCapabilityTestDownloadedLabel => 'Downloaded models';
+
+  @override
+  String get aiCapabilityTestMinMemoryLabel => 'Lightest model memory need';
+
+  @override
+  String aiCapabilityTestCountCores(Object count) {
+    return '$count cores';
+  }
+
+  @override
+  String aiCapabilityTestCountModels(Object count) {
+    return '$count models';
+  }
+
+  @override
+  String aiCapabilityTestCountDownloaded(Object count) {
+    return '$count downloaded';
+  }
+
+  @override
+  String aiCapabilityTestMemoryRequirement(Object count) {
+    return 'At least $count MB';
+  }
+
+  @override
   String get diagnosticsTitle => 'Diagnostics';
 
   @override

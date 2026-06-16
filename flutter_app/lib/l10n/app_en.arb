@@ -217,6 +217,51 @@
   "mePrivacy": "Privacy",
   "meMemoir": "Memoir",
   "meJournal": "Journal",
+  "aiCapabilityTestEntryTitle": "AI capability test",
+  "aiCapabilityTestEntrySubtitle": "Check whether this device can run on-device AI",
+  "aiCapabilityTestTitle": "AI capability test",
+  "aiCapabilityTestCheckingHeadline": "Checking device AI capability",
+  "aiCapabilityTestCheckingBody": "The app is verifying the local inference runtime and model readiness. Please wait a moment.",
+  "aiCapabilityTestReadyHeadline": "This device can run AI in the app",
+  "aiCapabilityTestReadyWithModelBody": "The local inference runtime is ready and at least one verified on-device model is available. You can start a live chat test now.",
+  "aiCapabilityTestReadyWithoutModelBody": "The local inference runtime is ready, but no verified model has been downloaded yet. Download one model to complete the full test.",
+  "aiCapabilityTestUnavailableHeadline": "This device cannot run the app's on-device AI yet",
+  "aiCapabilityTestUnavailableBody": "The local inference runtime did not pass the check. You can still browse the model list, but the runtime issue needs to be fixed first.",
+  "aiCapabilityTestOpenLocalModels": "Open local models",
+  "aiCapabilityTestStartChat": "Start AI chat test",
+  "aiCapabilityTestOverviewTitle": "Check results",
+  "aiCapabilityTestRuntimeLabel": "Runtime status",
+  "aiCapabilityTestRuntimeReadyValue": "Ready",
+  "aiCapabilityTestRuntimeUnavailableValue": "Unavailable",
+  "aiCapabilityTestLibraryPathLabel": "Runtime library path",
+  "aiCapabilityTestCpuLabel": "CPU cores",
+  "aiCapabilityTestCatalogLabel": "Available models",
+  "aiCapabilityTestDownloadedLabel": "Downloaded models",
+  "aiCapabilityTestMinMemoryLabel": "Lightest model memory need",
+  "aiCapabilityTestCountCores": "{count} cores",
+  "@aiCapabilityTestCountCores": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "aiCapabilityTestCountModels": "{count} models",
+  "@aiCapabilityTestCountModels": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "aiCapabilityTestCountDownloaded": "{count} downloaded",
+  "@aiCapabilityTestCountDownloaded": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "aiCapabilityTestMemoryRequirement": "At least {count} MB",
+  "@aiCapabilityTestMemoryRequirement": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "diagnosticsTitle": "Diagnostics",
   "diagnosticsSubtitle": "View local runtime logs and upload them to the server when support asks for troubleshooting data.",
   "diagnosticsUpload": "Upload",

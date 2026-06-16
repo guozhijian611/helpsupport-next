@@ -9,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/config/build_info.dart';
 import '../../../core/i18n/app_locale_controller.dart';
+import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/settings/app_display_preferences.dart';
@@ -1041,6 +1042,11 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
               applicationName: BuildInfo.appName,
               applicationVersion: BuildInfo.appVersion,
             ),
+          ),
+          _SettingsNavRow(
+            title: context.l10n.aiCapabilityTestEntryTitle,
+            subtitle: context.l10n.aiCapabilityTestEntrySubtitle,
+            onTap: () => context.push('/me/settings/about/ai-capability'),
           ),
           _SettingsNavRow(
             title: _t(context, '诊断信息', 'Diagnostics'),

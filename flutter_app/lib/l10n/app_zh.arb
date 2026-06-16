@@ -217,6 +217,51 @@
   "mePrivacy": "隐私设置",
   "meMemoir": "回忆录",
   "meJournal": "日记",
+  "aiCapabilityTestEntryTitle": "AI 运行测试",
+  "aiCapabilityTestEntrySubtitle": "检查本设备能否运行本地 AI",
+  "aiCapabilityTestTitle": "AI 运行测试",
+  "aiCapabilityTestCheckingHeadline": "正在检查设备 AI 运行能力",
+  "aiCapabilityTestCheckingBody": "应用正在检测本地推理运行时和模型状态，请稍候片刻。",
+  "aiCapabilityTestReadyHeadline": "本设备具备运行 AI 的基础能力",
+  "aiCapabilityTestReadyWithModelBody": "本地推理运行时已就绪，且已经检测到可直接使用的本地模型，现在就可以开始试聊。",
+  "aiCapabilityTestReadyWithoutModelBody": "本地推理运行时已就绪，但当前还没有已下载模型。下载并校验一个本地模型后，就能完成完整实测。",
+  "aiCapabilityTestUnavailableHeadline": "当前设备还不能运行应用内本地 AI",
+  "aiCapabilityTestUnavailableBody": "本地推理运行时没有通过检测。你仍然可以查看模型列表，但需要先解决运行时问题。",
+  "aiCapabilityTestOpenLocalModels": "打开本地模型",
+  "aiCapabilityTestStartChat": "开始 AI 试聊",
+  "aiCapabilityTestOverviewTitle": "检测结果",
+  "aiCapabilityTestRuntimeLabel": "运行时状态",
+  "aiCapabilityTestRuntimeReadyValue": "已就绪",
+  "aiCapabilityTestRuntimeUnavailableValue": "不可用",
+  "aiCapabilityTestLibraryPathLabel": "运行库路径",
+  "aiCapabilityTestCpuLabel": "CPU 核心数",
+  "aiCapabilityTestCatalogLabel": "可选模型",
+  "aiCapabilityTestDownloadedLabel": "已下载模型",
+  "aiCapabilityTestMinMemoryLabel": "最轻模型内存要求",
+  "aiCapabilityTestCountCores": "{count} 核",
+  "@aiCapabilityTestCountCores": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "aiCapabilityTestCountModels": "{count} 个模型",
+  "@aiCapabilityTestCountModels": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "aiCapabilityTestCountDownloaded": "{count} 个已下载",
+  "@aiCapabilityTestCountDownloaded": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "aiCapabilityTestMemoryRequirement": "至少 {count} MB",
+  "@aiCapabilityTestMemoryRequirement": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "diagnosticsTitle": "诊断信息",
   "diagnosticsSubtitle": "查看本地运行日志，并在排查问题时手动上传到服务器。",
   "diagnosticsUpload": "上传",
