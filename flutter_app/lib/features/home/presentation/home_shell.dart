@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -82,6 +84,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     };
 
     return Scaffold(
+      extendBody: true,
       body: SafeArea(child: body),
       floatingActionButton: _index == 1
           ? FloatingActionButton(
@@ -130,33 +133,60 @@ class _FloatingHomeTabBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final isDark = scheme.brightness == Brightness.dark;
-    final barColor = isDark ? scheme.surfaceContainerHighest : _lightBarColor;
+    final barColor = (isDark ? scheme.surfaceContainerHighest : _lightBarColor)
+        .withValues(alpha: isDark ? 0.84 : 0.8);
     final activeColor = isDark ? _darkActiveColor : _lightActiveColor;
-    final inactiveColor = isDark ? scheme.onSurfaceVariant : Colors.white;
+    final inactiveColor = isDark
+        ? scheme.onSurfaceVariant.withValues(alpha: 0.92)
+        : Colors.white.withValues(alpha: 0.96);
+    final borderColor = isDark
+        ? scheme.outline.withValues(alpha: 0.26)
+        : Colors.white.withValues(alpha: 0.62);
+    final shadowColor = isDark
+        ? Colors.black.withValues(alpha: 0.18)
+        : const Color(0x1A6E707A);
+    final borderRadius = BorderRadius.circular(42);
 
     return SafeArea(
       top: false,
       minimum: const EdgeInsets.fromLTRB(22, 8, 22, 12),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: barColor,
-          borderRadius: BorderRadius.circular(42),
-        ),
-        child: SizedBox(
-          height: 86,
-          child: Row(
-            children: [
-              for (var index = 0; index < destinations.length; index += 1)
-                Expanded(
-                  child: _FloatingHomeTabItem(
-                    destination: destinations[index],
-                    selected: index == selectedIndex,
-                    activeColor: activeColor,
-                    inactiveColor: inactiveColor,
-                    onTap: () => onSelected(index),
-                  ),
+      child: ClipRRect(
+        borderRadius: borderRadius,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: barColor,
+              borderRadius: borderRadius,
+              border: Border.all(color: borderColor),
+              boxShadow: [
+                BoxShadow(
+                  color: shadowColor,
+                  blurRadius: 28,
+                  offset: const Offset(0, 12),
                 ),
-            ],
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: SizedBox(
+                height: 86,
+                child: Row(
+                  children: [
+                    for (var index = 0; index < destinations.length; index += 1)
+                      Expanded(
+                        child: _FloatingHomeTabItem(
+                          destination: destinations[index],
+                          selected: index == selectedIndex,
+                          activeColor: activeColor,
+                          inactiveColor: inactiveColor,
+                          onTap: () => onSelected(index),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ),
