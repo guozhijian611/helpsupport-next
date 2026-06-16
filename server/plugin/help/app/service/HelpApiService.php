@@ -1922,7 +1922,7 @@ class HelpApiService
         $locale = (string) ($params['locale'] ?? '');
         $page = $this->paginate(function () use ($memberId, $params) {
             $query = $this->visibleMaterialQuery($memberId)
-                ->field('id, member_id, category_id, media_type, material_type, title, title_i18n, summary, summary_i18n, cover_url, content_url, duration_seconds, is_public, is_recommended, view_count, like_count, collect_count, comment_count, sort, create_time');
+                ->field('id, member_id, category_id, media_type, material_type, title, title_i18n, summary, summary_i18n, artist, album, cover_url, content_url, duration_seconds, is_public, is_recommended, view_count, like_count, collect_count, comment_count, sort, create_time');
 
             if (!empty($params['material_type'])) {
                 $query->where('material_type', (string) $params['material_type']);
@@ -2053,6 +2053,8 @@ class HelpApiService
             'title_i18n' => $this->jsonValue($data['title_i18n'] ?? null),
             'summary' => $summary,
             'summary_i18n' => $this->jsonValue($data['summary_i18n'] ?? null),
+            'artist' => mb_substr(trim((string) ($data['artist'] ?? '')), 0, 120),
+            'album' => mb_substr(trim((string) ($data['album'] ?? '')), 0, 120),
             'cover_url' => (string) ($data['cover_url'] ?? ''),
             'content_url' => (string) ($data['content_url'] ?? ''),
             'content_text' => $contentText,

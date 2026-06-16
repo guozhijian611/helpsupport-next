@@ -138,11 +138,18 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
                 ),
                 const SizedBox(height: 14),
                 categories.when(
-                  data: (values) => _CategoryStrip(
-                    categories: values,
-                    selectedId: _categoryId,
-                    onSelected: (id) => setState(() => _categoryId = id),
-                  ),
+                  data: (values) {
+                    final showAll = widget.materialType != 'entertainment';
+                    if (!showAll) {
+                      _ensureEntertainmentCategory(values);
+                    }
+                    return _CategoryStrip(
+                      categories: values,
+                      selectedId: _categoryId,
+                      showAll: showAll,
+                      onSelected: (id) => setState(() => _categoryId = id),
+                    );
+                  },
                   error: (error, _) => _InlineStatus(text: error.toString()),
                   loading: () => const _CategoryStripSkeleton(),
                 ),
@@ -214,6 +221,22 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
         ),
       ),
     );
+  }
+
+  void _ensureEntertainmentCategory(List<MaterialCategory> categories) {
+    if (categories.isEmpty ||
+        categories.any((category) => category.id == _categoryId)) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || categories.isEmpty) {
+        return;
+      }
+      final nextCategoryId = categories.first.id;
+      if (_categoryId != nextCategoryId) {
+        setState(() => _categoryId = nextCategoryId);
+      }
+    });
   }
 
   Future<void> _refreshCurrent() async {
@@ -400,35 +423,36 @@ class _CategoryStrip extends StatelessWidget {
   const _CategoryStrip({
     required this.categories,
     required this.selectedId,
+    required this.showAll,
     required this.onSelected,
   });
 
   final List<MaterialCategory> categories;
   final int selectedId;
+  final bool showAll;
   final ValueChanged<int> onSelected;
 
   @override
   Widget build(BuildContext context) {
+    final chips = <Widget>[
+      if (showAll)
+        _CategoryChip(
+          label: _t(context, '全部', 'All'),
+          selected: selectedId == 0,
+          onTap: () => onSelected(0),
+        ),
+      for (final item in categories) ...[
+        if (showAll || item != categories.first) const SizedBox(width: 10),
+        _CategoryChip(
+          label: item.name,
+          selected: selectedId == item.id,
+          onTap: () => onSelected(item.id),
+        ),
+      ],
+    ];
     return SizedBox(
       height: 42,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          _CategoryChip(
-            label: _t(context, '全部', 'All'),
-            selected: selectedId == 0,
-            onTap: () => onSelected(0),
-          ),
-          for (final item in categories) ...[
-            const SizedBox(width: 10),
-            _CategoryChip(
-              label: item.name,
-              selected: selectedId == item.id,
-              onTap: () => onSelected(item.id),
-            ),
-          ],
-        ],
-      ),
+      child: ListView(scrollDirection: Axis.horizontal, children: chips),
     );
   }
 }

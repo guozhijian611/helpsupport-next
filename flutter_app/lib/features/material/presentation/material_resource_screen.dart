@@ -1,12 +1,18 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
+import 'package:archive/archive.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:pdfrx/pdfrx.dart';
+import 'package:video_player/video_player.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:xml/xml.dart';
 
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
@@ -33,14 +39,20 @@ class _MaterialResourceScreenState
   final _scrollController = ScrollController();
 
   WebViewController? _webViewController;
+  VideoPlayerController? _videoController;
+  AudioPlayer? _audioPlayer;
+  StreamSubscription<Duration>? _audioPositionSubscription;
+  StreamSubscription<PlayerState>? _audioStateSubscription;
   MaterialItem? _activeItem;
   String _activeCacheKey = '';
   String _textContent = '';
   String _cachePath = '';
+  String _resourceError = '';
   double _cacheProgress = 0;
   double _readingProgress = 0;
   bool _isCaching = false;
   bool _isLoadingText = false;
+  bool _isPreparingResource = false;
   DateTime _openedAt = DateTime.now();
   DateTime _lastSavedAt = DateTime.fromMillisecondsSinceEpoch(0);
 
@@ -53,6 +65,7 @@ class _MaterialResourceScreenState
   @override
   void dispose() {
     unawaited(_saveProgress(force: true));
+    unawaited(_disposePlaybackControllers());
     _scrollController.dispose();
     super.dispose();
   }
@@ -117,9 +130,15 @@ class _MaterialResourceScreenState
   }
 
   Widget _resourceBody(MaterialItem item) {
-    if (_isTextLike(item)) {
+    if (_resourceError.trim().isNotEmpty) {
+      return _CenteredResourceMessage(text: _resourceError);
+    }
+
+    if (_isBookReader(item)) {
       if (_isLoadingText) {
-        return const Center(child: CircularProgressIndicator());
+        return _ResourceLoading(
+          text: _t(context, '正在准备阅读内容', 'Preparing reader'),
+        );
       }
       final content = _textContent.trim().isNotEmpty
           ? _textContent
@@ -144,20 +163,56 @@ class _MaterialResourceScreenState
       );
     }
 
-    final controller = _webViewController;
-    if (controller == null) {
-      return const Center(child: CircularProgressIndicator());
+    if (_isPdfResource(item)) {
+      if (_isPreparingResource || _cachePath.trim().isEmpty) {
+        return _ResourceLoading(
+          text: _t(context, '正在准备 PDF 阅读器', 'Preparing PDF reader'),
+        );
+      }
+      return PdfViewer.file(_cachePath);
     }
-    return WebViewWidget(controller: controller);
+
+    if (_isVideoResource(item)) {
+      final controller = _videoController;
+      if (_isPreparingResource ||
+          controller == null ||
+          !controller.value.isInitialized) {
+        return _ResourceLoading(
+          text: _t(context, '正在准备视频播放器', 'Preparing video player'),
+        );
+      }
+      return _VideoPlayerPanel(controller: controller, item: item);
+    }
+
+    if (_isAudioResource(item)) {
+      final player = _audioPlayer;
+      if (_isPreparingResource || player == null) {
+        return _ResourceLoading(
+          text: _t(context, '正在准备音乐播放器', 'Preparing music player'),
+        );
+      }
+      final coverUrl = ref.read(apiClientProvider).resolveUrl(item.coverUrl);
+      return _AudioPlayerPanel(player: player, item: item, coverUrl: coverUrl);
+    }
+
+    final webController = _webViewController;
+    if (webController == null) {
+      return _ResourceLoading(text: _t(context, '正在打开游戏', 'Opening game'));
+    }
+    return WebViewWidget(controller: webController);
   }
 
   Future<void> _configureResource(MaterialItem item) async {
     final apiClient = ref.read(apiClientProvider);
     final resourceUrl = apiClient.resolveUrl(item.contentUrl);
-    final cacheKey = '${item.id}:${item.mediaType}:$resourceUrl';
+    final cacheKey =
+        '${item.id}:${item.mediaType}:$resourceUrl:${item.contentText.hashCode}';
     if (_activeCacheKey == cacheKey) {
       return;
     }
+
+    await _saveProgress(force: true);
+    await _disposePlaybackControllers();
 
     _activeCacheKey = cacheKey;
     _activeItem = item;
@@ -165,73 +220,252 @@ class _MaterialResourceScreenState
     _readingProgress = item.historyProgress.clamp(0, 100).toDouble();
     _textContent = item.contentText;
     _cachePath = '';
+    _resourceError = '';
     _cacheProgress = 0;
     _isCaching = false;
     _isLoadingText = false;
-
-    if (resourceUrl.trim().isEmpty) {
-      if (mounted) {
-        setState(() {});
-      }
-      _restoreTextScroll();
-      return;
-    }
-
-    final localFile = await _cacheFileFor(item, resourceUrl);
-    final hasCachedFile = await localFile.exists();
-    if (hasCachedFile) {
-      _cachePath = localFile.path;
-      _cacheProgress = 100;
-    }
-
-    if (_isTextLike(item)) {
-      await _loadTextResource(item, resourceUrl, localFile, hasCachedFile);
-      return;
-    }
-
-    _webViewController = _buildWebViewController(item);
-    if (_isMediaResource(item)) {
-      final source = hasCachedFile
-          ? Uri.file(localFile.path).toString()
-          : resourceUrl;
-      await _webViewController!.loadHtmlString(_mediaHtml(item, source));
-    } else if (hasCachedFile && item.mediaType != 'link') {
-      await _webViewController!.loadFile(localFile.path);
-    } else {
-      final uri = Uri.tryParse(resourceUrl);
-      if (uri == null || !uri.hasScheme) {
-        if (mounted) {
-          context.showCenteredNotice(
-            _t(context, '资源地址无效', 'Invalid resource URL'),
-          );
-        }
-      } else {
-        await _webViewController!.loadRequest(uri);
-      }
-    }
+    _isPreparingResource = false;
+    _webViewController = null;
 
     if (mounted) {
       setState(() {});
     }
-    if (!hasCachedFile && item.mediaType != 'link') {
+
+    try {
+      if (_isBookReader(item)) {
+        await _prepareBookResource(item, resourceUrl);
+      } else if (_isPdfResource(item)) {
+        await _preparePdfResource(item, resourceUrl);
+      } else if (_isVideoResource(item)) {
+        await _prepareVideoResource(item, resourceUrl);
+      } else if (_isAudioResource(item)) {
+        await _prepareAudioResource(item, resourceUrl);
+      } else {
+        await _prepareWebResource(resourceUrl);
+      }
+    } on Object catch (error) {
+      if (!mounted || _activeCacheKey != cacheKey) {
+        return;
+      }
+      setState(() {
+        _resourceError = error.toString();
+        _isLoadingText = false;
+        _isPreparingResource = false;
+      });
+    }
+  }
+
+  Future<void> _prepareBookResource(
+    MaterialItem item,
+    String resourceUrl,
+  ) async {
+    if (mounted) {
+      setState(() {
+        _isLoadingText = true;
+        _isPreparingResource = true;
+      });
+    }
+    var content = item.contentText;
+    File? localFile;
+    if (resourceUrl.trim().isNotEmpty) {
+      localFile = await _cacheFileFor(item, resourceUrl);
+      var hasCachedFile = await localFile.exists();
+      if (hasCachedFile && mounted) {
+        setState(() {
+          _cachePath = localFile!.path;
+          _cacheProgress = 100;
+        });
+      }
+      if (!hasCachedFile) {
+        await _cacheRemoteFile(resourceUrl, localFile);
+        hasCachedFile = await localFile.exists();
+      }
+      if (hasCachedFile) {
+        content = _isEpubResource(item)
+            ? await _loadEpubResource(localFile)
+            : await _loadPlainTextResource(localFile);
+      }
+    }
+
+    if (!mounted || _activeItem?.id != item.id) {
+      return;
+    }
+    setState(() {
+      _textContent = content;
+      if (localFile != null && localFile.existsSync()) {
+        _cachePath = localFile.path;
+        _cacheProgress = 100;
+      }
+      _isLoadingText = false;
+      _isPreparingResource = false;
+    });
+    _restoreTextScroll();
+  }
+
+  Future<void> _preparePdfResource(
+    MaterialItem item,
+    String resourceUrl,
+  ) async {
+    final localFile = await _downloadRequiredResource(
+      item: item,
+      resourceUrl: resourceUrl,
+      emptyMessage: _t(context, '暂无 PDF 文件地址', 'Missing PDF file URL'),
+      failedMessage: _t(context, 'PDF 文件加载失败', 'Failed to load PDF file'),
+    );
+    if (!mounted || _activeItem?.id != item.id) {
+      return;
+    }
+    setState(() {
+      _cachePath = localFile.path;
+      _cacheProgress = 100;
+      _isPreparingResource = false;
+    });
+  }
+
+  Future<void> _prepareVideoResource(
+    MaterialItem item,
+    String resourceUrl,
+  ) async {
+    if (resourceUrl.trim().isEmpty) {
+      throw _t(context, '暂无视频文件地址', 'Missing video file URL');
+    }
+    final uri = Uri.tryParse(resourceUrl);
+    if (uri == null || !uri.hasScheme) {
+      throw _t(context, '视频地址无效', 'Invalid video URL');
+    }
+    if (mounted) {
+      setState(() => _isPreparingResource = true);
+    }
+    final localFile = await _cacheFileFor(item, resourceUrl);
+    final hasCachedFile = await localFile.exists();
+    if (hasCachedFile && mounted) {
+      setState(() {
+        _cachePath = localFile.path;
+        _cacheProgress = 100;
+      });
+    }
+    final controller = hasCachedFile
+        ? VideoPlayerController.file(localFile)
+        : VideoPlayerController.networkUrl(uri);
+    _videoController = controller;
+    controller.addListener(_handleVideoProgress);
+    await controller.initialize();
+    final restoredPosition = _positionFromProgress(
+      controller.value.duration,
+      _readingProgress,
+    );
+    if (restoredPosition > Duration.zero) {
+      await controller.seekTo(restoredPosition);
+    }
+    if (!mounted || _activeItem?.id != item.id) {
+      return;
+    }
+    setState(() => _isPreparingResource = false);
+    if (!hasCachedFile) {
       unawaited(_cacheRemoteFile(resourceUrl, localFile));
     }
   }
 
-  WebViewController _buildWebViewController(MaterialItem item) {
+  Future<void> _prepareAudioResource(
+    MaterialItem item,
+    String resourceUrl,
+  ) async {
+    if (resourceUrl.trim().isEmpty) {
+      throw _t(context, '暂无音乐文件地址', 'Missing music file URL');
+    }
+    final uri = Uri.tryParse(resourceUrl);
+    if (uri == null || !uri.hasScheme) {
+      throw _t(context, '音乐地址无效', 'Invalid music URL');
+    }
+    if (mounted) {
+      setState(() => _isPreparingResource = true);
+    }
+    final localFile = await _cacheFileFor(item, resourceUrl);
+    final hasCachedFile = await localFile.exists();
+    if (hasCachedFile && mounted) {
+      setState(() {
+        _cachePath = localFile.path;
+        _cacheProgress = 100;
+      });
+    }
+    final player = AudioPlayer();
+    _audioPlayer = player;
+    _audioPositionSubscription = player.positionStream.listen(
+      _handleAudioPosition,
+    );
+    _audioStateSubscription = player.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed) {
+        _readingProgress = 100;
+        unawaited(
+          _saveProgress(
+            durationSeconds: player.duration?.inSeconds ?? 0,
+            force: true,
+          ),
+        );
+      }
+    });
+    final duration = hasCachedFile
+        ? await player.setFilePath(localFile.path)
+        : await player.setUrl(resourceUrl);
+    final restoredPosition = _positionFromProgress(
+      duration ?? player.duration,
+      _readingProgress,
+    );
+    if (restoredPosition > Duration.zero) {
+      await player.seek(restoredPosition);
+    }
+    if (!mounted || _activeItem?.id != item.id) {
+      return;
+    }
+    setState(() => _isPreparingResource = false);
+    if (!hasCachedFile) {
+      unawaited(_cacheRemoteFile(resourceUrl, localFile));
+    }
+  }
+
+  Future<void> _prepareWebResource(String resourceUrl) async {
+    if (resourceUrl.trim().isEmpty) {
+      throw _t(context, '暂无游戏地址', 'Missing game URL');
+    }
+    final uri = Uri.tryParse(resourceUrl);
+    if (uri == null || !uri.hasScheme) {
+      throw _t(context, '游戏地址无效', 'Invalid game URL');
+    }
+    _webViewController = _buildWebViewController();
+    await _webViewController!.loadRequest(uri);
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<File> _downloadRequiredResource({
+    required MaterialItem item,
+    required String resourceUrl,
+    required String emptyMessage,
+    required String failedMessage,
+  }) async {
+    if (resourceUrl.trim().isEmpty) {
+      throw emptyMessage;
+    }
+    if (mounted) {
+      setState(() => _isPreparingResource = true);
+    }
+    final localFile = await _cacheFileFor(item, resourceUrl);
+    if (await localFile.exists()) {
+      return localFile;
+    }
+    await _cacheRemoteFile(resourceUrl, localFile);
+    if (!await localFile.exists()) {
+      throw failedMessage;
+    }
+    return localFile;
+  }
+
+  WebViewController _buildWebViewController() {
     return WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..addJavaScriptChannel(
-        'MaterialProgress',
-        onMessageReceived: _handleProgressMessage,
-      )
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageFinished: (_) {
-            if (!_isMediaResource(item)) {
-              unawaited(_injectScrollProgressTracker());
-            }
-          },
           onWebResourceError: (_) {
             if (mounted) {
               context.showCenteredNotice(
@@ -243,40 +477,139 @@ class _MaterialResourceScreenState
       );
   }
 
-  Future<void> _loadTextResource(
-    MaterialItem item,
-    String resourceUrl,
-    File localFile,
-    bool hasCachedFile,
-  ) async {
-    if (mounted) {
-      setState(() => _isLoadingText = true);
+  Future<String> _loadPlainTextResource(File file) async {
+    final bytes = await file.readAsBytes();
+    return utf8.decode(bytes, allowMalformed: true);
+  }
+
+  Future<String> _loadEpubResource(File file) async {
+    final archive = ZipDecoder().decodeBytes(await file.readAsBytes());
+    final containerText = _archiveText(archive, 'META-INF/container.xml');
+    if (containerText == null || containerText.trim().isEmpty) {
+      throw _t(context, 'EPUB 文件缺少目录信息', 'Invalid EPUB container');
     }
+    final container = XmlDocument.parse(containerText);
+    final rootPath = _epubRootPath(container);
+    if (rootPath == null) {
+      throw _t(context, 'EPUB 文件缺少主文档', 'Invalid EPUB package');
+    }
+    final packageText = _archiveText(archive, rootPath);
+    if (packageText == null || packageText.trim().isEmpty) {
+      throw _t(context, 'EPUB 主文档读取失败', 'Failed to read EPUB package');
+    }
+    final packageDocument = XmlDocument.parse(packageText);
+    final rootDir = rootPath.contains('/')
+        ? rootPath.substring(0, rootPath.lastIndexOf('/') + 1)
+        : '';
+    final manifest = <String, String>{};
+    for (final element in _elementsByLocalName(packageDocument, 'item')) {
+      final id = element.getAttribute('id')?.trim();
+      final href = element.getAttribute('href')?.trim();
+      if (id == null || id.isEmpty || href == null || href.isEmpty) {
+        continue;
+      }
+      manifest[id] = _resolveArchivePath(rootDir, href);
+    }
+    final parts = <String>[];
+    for (final itemref in _elementsByLocalName(packageDocument, 'itemref')) {
+      final idref = itemref.getAttribute('idref')?.trim();
+      final archivePath = idref == null ? null : manifest[idref];
+      if (archivePath == null) {
+        continue;
+      }
+      final text = _archiveText(archive, archivePath);
+      if (text != null) {
+        parts.add(_xhtmlToPlainText(text));
+      }
+    }
+    if (parts.isEmpty) {
+      for (final entry in archive.files) {
+        final name = entry.name.toLowerCase();
+        if (entry.isFile &&
+            (name.endsWith('.xhtml') || name.endsWith('.html'))) {
+          parts.add(
+            _xhtmlToPlainText(utf8.decode(entry.content, allowMalformed: true)),
+          );
+        }
+      }
+    }
+    final content = parts
+        .map(_compactText)
+        .where((part) => part.trim().isNotEmpty)
+        .join('\n\n');
+    if (content.trim().isEmpty) {
+      throw _t(context, 'EPUB 暂无可阅读正文', 'No readable EPUB text');
+    }
+    return content;
+  }
+
+  String? _archiveText(Archive archive, String path) {
+    final file = archive.findFile(path.replaceAll('\\', '/'));
+    if (file == null || !file.isFile) {
+      return null;
+    }
+    return utf8.decode(file.content, allowMalformed: true);
+  }
+
+  String? _epubRootPath(XmlDocument document) {
+    for (final element in _elementsByLocalName(document, 'rootfile')) {
+      final path = element.getAttribute('full-path')?.trim();
+      if (path != null && path.isNotEmpty) {
+        return path;
+      }
+    }
+    return null;
+  }
+
+  Iterable<XmlElement> _elementsByLocalName(XmlNode node, String localName) {
+    return node.descendants.whereType<XmlElement>().where(
+      (element) => element.name.local == localName,
+    );
+  }
+
+  String _resolveArchivePath(String rootDir, String href) {
+    final segments = <String>[];
+    for (final segment in '$rootDir$href'.split('/')) {
+      if (segment.isEmpty || segment == '.') {
+        continue;
+      }
+      if (segment == '..') {
+        if (segments.isNotEmpty) {
+          segments.removeLast();
+        }
+        continue;
+      }
+      segments.add(Uri.decodeComponent(segment));
+    }
+    return segments.join('/');
+  }
+
+  String _xhtmlToPlainText(String source) {
     try {
-      if (!hasCachedFile) {
-        await _cacheRemoteFile(resourceUrl, localFile);
+      final document = XmlDocument.parse(source);
+      XmlNode root = document.rootElement;
+      for (final body in _elementsByLocalName(document, 'body')) {
+        root = body;
+        break;
       }
-      final content = await localFile.readAsString();
-      if (!mounted || _activeItem?.id != item.id) {
-        return;
-      }
-      setState(() {
-        _textContent = content;
-        _cachePath = localFile.path;
-        _cacheProgress = 100;
-      });
-      _restoreTextScroll();
-    } on Object catch (error) {
-      if (!mounted) {
-        return;
-      }
-      if (item.contentText.trim().isEmpty) {
-        context.showCenteredNotice(error.toString());
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoadingText = false);
-      }
+      final text = root.descendants
+          .whereType<XmlText>()
+          .map((node) => node.value)
+          .join('\n');
+      return _compactText(text);
+    } on Object {
+      return _compactText(
+        source
+            .replaceAll(
+              RegExp(r'<script[\s\S]*?</script>', caseSensitive: false),
+              '',
+            )
+            .replaceAll(
+              RegExp(r'<style[\s\S]*?</style>', caseSensitive: false),
+              '',
+            )
+            .replaceAll(RegExp(r'<[^>]+>'), '\n'),
+      );
     }
   }
 
@@ -312,7 +645,7 @@ class _MaterialResourceScreenState
           _cacheProgress = 100;
         });
       }
-    } on DioException {
+    } on Object {
       if (await localFile.exists()) {
         await localFile.delete();
       }
@@ -326,71 +659,44 @@ class _MaterialResourceScreenState
   Future<File> _cacheFileFor(MaterialItem item, String resourceUrl) async {
     final dir = await getApplicationDocumentsDirectory();
     final extension = _resourceExtension(item, resourceUrl);
-    return File('${dir.path}/material_cache/${item.id}_$extension.$extension');
+    return File('${dir.path}/material_cache/${item.id}.$extension');
   }
 
   String _resourceExtension(MaterialItem item, String resourceUrl) {
     final type = item.mediaType.trim().toLowerCase();
-    if (type.isNotEmpty && type != 'article' && type != 'link') {
+    if (type == 'video') {
+      return _extensionFromUrl(resourceUrl, 'mp4');
+    }
+    if (type == 'audio') {
+      return _extensionFromUrl(resourceUrl, 'mp3');
+    }
+    if (type.isNotEmpty &&
+        type != 'article' &&
+        type != 'link' &&
+        type != 'game') {
       return type;
     }
+    return _extensionFromUrl(resourceUrl, 'html');
+  }
+
+  String _extensionFromUrl(String resourceUrl, String fallback) {
     final uri = Uri.tryParse(resourceUrl);
     final path = uri?.path ?? '';
     final dot = path.lastIndexOf('.');
     if (dot >= 0 && dot < path.length - 1) {
-      return path.substring(dot + 1).toLowerCase();
+      final extension = path
+          .substring(dot + 1)
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]'), '');
+      if (extension.isNotEmpty) {
+        return extension.length > 12 ? extension.substring(0, 12) : extension;
+      }
     }
-    return 'html';
-  }
-
-  Future<void> _injectScrollProgressTracker() async {
-    final controller = _webViewController;
-    if (controller == null) {
-      return;
-    }
-    await controller.runJavaScript('''
-      (function() {
-        if (window.__materialProgressInstalled) return;
-        window.__materialProgressInstalled = true;
-        function report() {
-          var body = document.body || {};
-          var root = document.documentElement || {};
-          var scrollTop = window.pageYOffset || root.scrollTop || body.scrollTop || 0;
-          var height = Math.max(root.scrollHeight || 0, body.scrollHeight || 0);
-          var viewport = window.innerHeight || root.clientHeight || 1;
-          var max = Math.max(1, height - viewport);
-          var progress = Math.max(0, Math.min(100, scrollTop / max * 100));
-          MaterialProgress.postMessage(JSON.stringify({progress: progress, duration: 0}));
-        }
-        window.addEventListener('scroll', report, {passive: true});
-        setInterval(report, 5000);
-        setTimeout(report, 500);
-      })();
-    ''');
-  }
-
-  void _handleProgressMessage(JavaScriptMessage message) {
-    final Object? decoded;
-    try {
-      decoded = jsonDecode(message.message);
-    } on FormatException {
-      return;
-    }
-    if (decoded is! Map<String, dynamic>) {
-      return;
-    }
-    final progress = (decoded['progress'] is num)
-        ? (decoded['progress'] as num).toDouble()
-        : double.tryParse('${decoded['progress']}') ?? 0;
-    final duration = (decoded['duration'] is num)
-        ? (decoded['duration'] as num).round()
-        : int.tryParse('${decoded['duration']}') ?? 0;
-    _readingProgress = progress.clamp(0, 100).toDouble();
-    unawaited(_saveProgress(durationSeconds: duration));
+    return fallback;
   }
 
   void _handleTextScroll() {
-    if (!_scrollController.hasClients || !_isTextLike(_activeItem)) {
+    if (!_scrollController.hasClients || !_isBookReader(_activeItem)) {
       return;
     }
     final maxExtent = _scrollController.position.maxScrollExtent;
@@ -399,6 +705,37 @@ class _MaterialResourceScreenState
         : (_scrollController.offset / maxExtent * 100).clamp(0, 100).toDouble();
     _readingProgress = progress;
     unawaited(_saveProgress());
+  }
+
+  void _handleVideoProgress() {
+    final controller = _videoController;
+    if (controller == null || !controller.value.isInitialized) {
+      return;
+    }
+    final duration = controller.value.duration;
+    final position = controller.value.position;
+    if (duration.inMilliseconds <= 0) {
+      return;
+    }
+    _readingProgress = position.inMilliseconds >= duration.inMilliseconds
+        ? 100
+        : (position.inMilliseconds / duration.inMilliseconds * 100)
+              .clamp(0, 100)
+              .toDouble();
+    unawaited(_saveProgress(durationSeconds: position.inSeconds));
+  }
+
+  void _handleAudioPosition(Duration position) {
+    final duration = _audioPlayer?.duration;
+    if (duration == null || duration.inMilliseconds <= 0) {
+      return;
+    }
+    _readingProgress = position.inMilliseconds >= duration.inMilliseconds
+        ? 100
+        : (position.inMilliseconds / duration.inMilliseconds * 100)
+              .clamp(0, 100)
+              .toDouble();
+    unawaited(_saveProgress(durationSeconds: position.inSeconds));
   }
 
   void _restoreTextScroll() {
@@ -444,78 +781,66 @@ class _MaterialResourceScreenState
         );
   }
 
-  String _mediaHtml(MaterialItem item, String source) {
-    final isAudio = item.mediaType == 'audio' || item.mediaType == 'mp3';
-    final tag = isAudio ? 'audio' : 'video';
-    final title = jsonEncode(item.title);
-    final src = jsonEncode(source);
-    final startProgress = item.historyProgress.clamp(0, 100).toStringAsFixed(2);
-    return '''
-<!doctype html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <style>
-    html, body { margin: 0; height: 100%; background: #111; color: #fff; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-    body { display: flex; align-items: center; justify-content: center; }
-    .wrap { width: 100%; padding: 24px; box-sizing: border-box; }
-    h1 { font-size: 20px; line-height: 1.35; margin: 0 0 24px; text-align: center; }
-    video { width: 100%; max-height: 76vh; border-radius: 12px; background: #000; }
-    audio { width: 100%; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <h1 id="title"></h1>
-    <$tag id="player" controls playsinline preload="metadata"></$tag>
-  </div>
-  <script>
-    const player = document.getElementById('player');
-    document.getElementById('title').textContent = $title;
-    player.src = $src;
-    const startProgress = Number($startProgress);
-    let restored = false;
-    function report() {
-      const duration = Number.isFinite(player.duration) ? player.duration : 0;
-      const current = Number.isFinite(player.currentTime) ? player.currentTime : 0;
-      const progress = duration > 0 ? Math.max(0, Math.min(100, current / duration * 100)) : 0;
-      MaterialProgress.postMessage(JSON.stringify({
-        progress: progress,
-        duration: Math.round(current)
-      }));
+  Future<void> _disposePlaybackControllers() async {
+    final videoController = _videoController;
+    if (videoController != null) {
+      videoController.removeListener(_handleVideoProgress);
+      _videoController = null;
+      await videoController.dispose();
     }
-    player.addEventListener('loadedmetadata', function() {
-      if (!restored && startProgress > 0 && Number.isFinite(player.duration) && player.duration > 0) {
-        restored = true;
-        player.currentTime = player.duration * startProgress / 100;
-      }
-      report();
-    });
-    player.addEventListener('timeupdate', report);
-    player.addEventListener('pause', report);
-    player.addEventListener('ended', function() {
-      MaterialProgress.postMessage(JSON.stringify({progress: 100, duration: Math.round(player.duration || 0)}));
-    });
-    setInterval(report, 5000);
-  </script>
-</body>
-</html>
-''';
+    await _audioPositionSubscription?.cancel();
+    await _audioStateSubscription?.cancel();
+    _audioPositionSubscription = null;
+    _audioStateSubscription = null;
+    final audioPlayer = _audioPlayer;
+    if (audioPlayer != null) {
+      _audioPlayer = null;
+      await audioPlayer.dispose();
+    }
   }
 
-  bool _isTextLike(MaterialItem? item) {
+  Duration _positionFromProgress(Duration? duration, double progress) {
+    if (duration == null || duration.inMilliseconds <= 0 || progress <= 0) {
+      return Duration.zero;
+    }
+    final percent = progress.clamp(0, 100).toDouble();
+    return Duration(
+      milliseconds: (duration.inMilliseconds * percent / 100).round(),
+    );
+  }
+
+  String _compactText(String source) {
+    return source
+        .split(RegExp(r'\r?\n'))
+        .map((line) => line.replaceAll(RegExp(r'\s+'), ' ').trim())
+        .where((line) => line.isNotEmpty)
+        .join('\n');
+  }
+
+  bool _isBookReader(MaterialItem? item) {
     if (item == null) {
       return false;
     }
-    return item.mediaType == 'article' || item.mediaType == 'txt';
+    final type = item.mediaType.trim().toLowerCase();
+    return type == 'article' || type == 'txt' || type == 'epub';
   }
 
-  bool _isMediaResource(MaterialItem item) {
-    return item.mediaType == 'video' ||
-        item.mediaType == 'mp4' ||
-        item.mediaType == 'mov' ||
-        item.mediaType == 'audio' ||
-        item.mediaType == 'mp3';
+  bool _isEpubResource(MaterialItem item) {
+    return item.mediaType.trim().toLowerCase() == 'epub';
+  }
+
+  bool _isPdfResource(MaterialItem item) {
+    return item.mediaType.trim().toLowerCase() == 'pdf';
+  }
+
+  bool _isVideoResource(MaterialItem item) {
+    final type = item.mediaType.trim().toLowerCase();
+    return type == 'video' || type == 'mp4' || type == 'mov';
+  }
+
+  bool _isAudioResource(MaterialItem item) {
+    final type = item.mediaType.trim().toLowerCase();
+    return type == 'audio' || type == 'mp3';
   }
 }
 
@@ -543,6 +868,378 @@ class _ResourceScaffold extends StatelessWidget {
           ),
         Expanded(child: child),
       ],
+    );
+  }
+}
+
+class _ResourceLoading extends StatelessWidget {
+  const _ResourceLoading({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(color: Color(0xFFFF9585)),
+          const SizedBox(height: 16),
+          Text(
+            text,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VideoPlayerPanel extends StatelessWidget {
+  const _VideoPlayerPanel({required this.controller, required this.item});
+
+  final VideoPlayerController controller;
+  final MaterialItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final value = controller.value;
+        final duration = value.duration;
+        final position = value.position;
+        final maxMilliseconds = math.max(duration.inMilliseconds, 1);
+        final currentMilliseconds = position.inMilliseconds.clamp(
+          0,
+          maxMilliseconds,
+        );
+        return Container(
+          color: Colors.black,
+          child: Column(
+            children: [
+              Expanded(
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: value.aspectRatio > 0
+                        ? value.aspectRatio
+                        : 16 / 9,
+                    child: VideoPlayer(controller),
+                  ),
+                ),
+              ),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 22),
+                color: Colors.black.withValues(alpha: 0.72),
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        item.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          height: 1.25,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          IconButton.filled(
+                            style: IconButton.styleFrom(
+                              backgroundColor: const Color(0xFFFF9585),
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () {
+                              value.isPlaying
+                                  ? controller.pause()
+                                  : controller.play();
+                            },
+                            icon: Icon(
+                              value.isPlaying
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            _formatDuration(position),
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Expanded(
+                            child: SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                activeTrackColor: const Color(0xFFFF9585),
+                                thumbColor: const Color(0xFFFF9585),
+                                inactiveTrackColor: Colors.white24,
+                              ),
+                              child: Slider(
+                                value: currentMilliseconds.toDouble(),
+                                min: 0,
+                                max: maxMilliseconds.toDouble(),
+                                onChanged: (next) => controller.seekTo(
+                                  Duration(milliseconds: next.round()),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Text(
+                            _formatDuration(duration),
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (value.hasError)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            value.errorDescription ??
+                                _t(context, '视频播放失败', 'Video playback failed'),
+                            style: TextStyle(
+                              color: scheme.error,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AudioPlayerPanel extends StatelessWidget {
+  const _AudioPlayerPanel({
+    required this.player,
+    required this.item,
+    required this.coverUrl,
+  });
+
+  final AudioPlayer player;
+  final MaterialItem item;
+  final String coverUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final artist = item.artist.trim().isNotEmpty
+        ? item.artist.trim()
+        : _t(context, '未知歌手', 'Unknown artist');
+    final album = item.album.trim().isNotEmpty
+        ? item.album.trim()
+        : _t(context, '未设置专辑', 'No album');
+    return StreamBuilder<PlayerState>(
+      stream: player.playerStateStream,
+      builder: (context, playerSnapshot) {
+        final playerState = playerSnapshot.data;
+        final isPlaying = playerState?.playing ?? player.playing;
+        final isBuffering =
+            playerState?.processingState == ProcessingState.loading ||
+            playerState?.processingState == ProcessingState.buffering;
+        return StreamBuilder<Duration?>(
+          stream: player.durationStream,
+          builder: (context, durationSnapshot) {
+            final duration = durationSnapshot.data ?? Duration.zero;
+            return StreamBuilder<Duration>(
+              stream: player.positionStream,
+              builder: (context, positionSnapshot) {
+                final position = positionSnapshot.data ?? Duration.zero;
+                final maxMilliseconds = math.max(duration.inMilliseconds, 1);
+                final currentMilliseconds = position.inMilliseconds.clamp(
+                  0,
+                  maxMilliseconds,
+                );
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(22, 22, 22, 34),
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 238,
+                        height: 238,
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.12),
+                              blurRadius: 24,
+                              offset: const Offset(0, 14),
+                            ),
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: coverUrl.isNotEmpty
+                            ? Image.network(
+                                coverUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) =>
+                                    const _AudioCoverFallback(),
+                              )
+                            : const _AudioCoverFallback(),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      item.title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: scheme.onSurface,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        height: 1.25,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$artist · $album',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        activeTrackColor: const Color(0xFFFF9585),
+                        thumbColor: const Color(0xFFFF9585),
+                        inactiveTrackColor: scheme.outlineVariant,
+                      ),
+                      child: Slider(
+                        value: currentMilliseconds.toDouble(),
+                        min: 0,
+                        max: maxMilliseconds.toDouble(),
+                        onChanged: (next) =>
+                            player.seek(Duration(milliseconds: next.round())),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _formatDuration(position),
+                            style: TextStyle(
+                              color: scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            _formatDuration(duration),
+                            style: TextStyle(
+                              color: scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Center(
+                      child: SizedBox(
+                        width: 72,
+                        height: 72,
+                        child: IconButton.filled(
+                          style: IconButton.styleFrom(
+                            backgroundColor: const Color(0xFFFF9585),
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: isBuffering
+                              ? null
+                              : () {
+                                  isPlaying ? player.pause() : player.play();
+                                },
+                          iconSize: 38,
+                          icon: isBuffering
+                              ? const SizedBox(
+                                  width: 28,
+                                  height: 28,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Icon(
+                                  isPlaying
+                                      ? Icons.pause_rounded
+                                      : Icons.play_arrow_rounded,
+                                ),
+                        ),
+                      ),
+                    ),
+                    if (item.contentText.trim().isNotEmpty) ...[
+                      const SizedBox(height: 30),
+                      Text(
+                        _t(context, '歌词', 'Lyrics'),
+                        style: TextStyle(
+                          color: scheme.onSurface,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SelectableText(
+                        item.contentText,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 16,
+                          height: 1.75,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _AudioCoverFallback extends StatelessWidget {
+  const _AudioCoverFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFF9585), Color(0xFF5A81DA)],
+        ),
+      ),
+      child: const Center(
+        child: Icon(Icons.music_note_rounded, size: 72, color: Colors.white),
+      ),
     );
   }
 }

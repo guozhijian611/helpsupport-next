@@ -93,21 +93,40 @@
       placeholder: '{"zh":"中文摘要","en":"English summary"}'
     },
     {
+      prop: 'artist',
+      label: '歌手',
+      form: true,
+      table: false,
+      placeholder: '音乐素材填写歌手'
+    },
+    {
+      prop: 'album',
+      label: '专辑',
+      form: true,
+      table: false,
+      placeholder: '音乐素材填写专辑'
+    },
+    {
       prop: 'cover_url',
       label: '封面图',
+      type: 'image',
       form: true,
       table: false
     },
     {
       prop: 'content_url',
       label: '文件地址/游戏外链',
+      type: 'file',
       form: true,
-      placeholder: '书籍/电影/音乐填服务器文件地址，游戏填 https 外链',
+      accept: '.txt,.epub,.pdf,.mp4,.mov,.mp3',
+      acceptHint: 'TXT、EPUB、PDF、MP4、MOV、MP3',
+      maxSize: 1024,
+      placeholder: '上传书籍/电影/音乐文件后自动填入；游戏填 https 外链',
       minWidth: 220
     },
     {
       prop: 'content_text',
-      label: '富文本内容',
+      label: '正文/歌词',
       type: 'textarea',
       rows: 8,
       form: true,
@@ -115,7 +134,7 @@
     },
     {
       prop: 'content_text_i18n',
-      label: '多语言正文JSON',
+      label: '多语言正文/歌词JSON',
       type: 'json',
       rows: 8,
       form: true,
@@ -244,7 +263,12 @@
       method: 'audit',
       type: 'warning',
       permission: 'help:material:entertainment:audit',
-      prompt: { field: 'audit_remark', label: '请输入拒绝原因', inputType: 'textarea', required: true },
+      prompt: {
+        field: 'audit_remark',
+        label: '请输入拒绝原因',
+        inputType: 'textarea',
+        required: true
+      },
       visible: (row: Record<string, any>) => Number(row.audit_status) !== 3,
       payload: (row: Record<string, any>, value?: string) => ({
         id: row.id,

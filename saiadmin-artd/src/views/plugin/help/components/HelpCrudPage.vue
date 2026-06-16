@@ -211,6 +211,29 @@
                 :placeholder="field.placeholder || '请输入' + field.label"
                 :disabled="isFieldDisabled(field)"
               />
+              <SaImageUpload
+                v-else-if="field.type === 'image'"
+                v-model="formData[field.prop]"
+                :limit="1"
+                :disabled="isFieldDisabled(field)"
+              />
+              <div v-else-if="field.type === 'file'" class="help-file-field">
+                <SaFileUpload
+                  v-model="formData[field.prop]"
+                  :accept="field.accept || '*'"
+                  :accept-hint="field.acceptHint || ''"
+                  :max-size="field.maxSize || 500"
+                  :drag="field.drag ?? true"
+                  :disabled="isFieldDisabled(field)"
+                  button-text="上传文件"
+                />
+                <ElInput
+                  v-model="formData[field.prop]"
+                  clearable
+                  :placeholder="field.placeholder || '上传文件后自动填入，也可手动粘贴地址'"
+                  :disabled="isFieldDisabled(field)"
+                />
+              </div>
               <ElInput
                 v-else
                 v-model="formData[field.prop]"
@@ -540,6 +563,13 @@
   }
 
   .help-form-control {
+    width: 100%;
+  }
+
+  .help-file-field {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
     width: 100%;
   }
 

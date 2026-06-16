@@ -7,7 +7,17 @@ export interface HelpCrudOption {
 export interface HelpCrudField {
   prop: string
   label: string
-  type?: 'input' | 'textarea' | 'number' | 'select' | 'date' | 'datetime' | 'time' | 'json'
+  type?:
+    | 'input'
+    | 'textarea'
+    | 'number'
+    | 'select'
+    | 'date'
+    | 'datetime'
+    | 'time'
+    | 'json'
+    | 'file'
+    | 'image'
   table?: boolean
   form?: boolean
   search?: boolean
@@ -24,6 +34,10 @@ export interface HelpCrudField {
   default?: unknown
   placeholder?: string
   options?: HelpCrudOption[]
+  accept?: string
+  acceptHint?: string
+  maxSize?: number
+  drag?: boolean
 }
 
 export interface HelpCrudAction {

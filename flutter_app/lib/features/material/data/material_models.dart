@@ -55,6 +55,8 @@ class MaterialItem {
     required this.materialType,
     required this.title,
     required this.summary,
+    required this.artist,
+    required this.album,
     required this.coverUrl,
     required this.contentUrl,
     required this.contentText,
@@ -81,6 +83,8 @@ class MaterialItem {
   final String materialType;
   final String title;
   final String summary;
+  final String artist;
+  final String album;
   final String coverUrl;
   final String contentUrl;
   final String contentText;
@@ -108,6 +112,8 @@ class MaterialItem {
       materialType: _stringValue(json['material_type'], fallback: 'education'),
       title: _stringValue(json['title']),
       summary: _stringValue(json['summary']),
+      artist: _stringValue(json['artist']),
+      album: _stringValue(json['album']),
       coverUrl: _stringValue(json['cover_url']),
       contentUrl: _stringValue(json['content_url']),
       contentText: _stringValue(json['content_text']),
