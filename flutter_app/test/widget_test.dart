@@ -11,6 +11,7 @@ import 'package:helpsupport_app/features/community/data/community_models.dart';
 import 'package:helpsupport_app/features/home/presentation/home_shell.dart';
 import 'package:helpsupport_app/features/plan/application/plan_controller.dart';
 import 'package:helpsupport_app/features/plan/data/plan_models.dart';
+import 'package:helpsupport_app/features/plan/presentation/plan_screen.dart';
 import 'package:helpsupport_app/l10n/generated/app_localizations.dart';
 
 void main() {
@@ -99,6 +100,61 @@ void main() {
     expect(find.text('Home'), findsOneWidget);
     expect(find.text('Book now'), findsOneWidget);
     expect(find.text('Learning'), findsOneWidget);
+  });
+
+  testWidgets('plan calendar toggle expands month calendar', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authControllerProvider.overrideWith(_TestAuthController.new),
+          currentPlansProvider.overrideWith(
+            (ref) async => const [
+              TreatmentPlan(
+                id: 1,
+                title: 'Recovery plan',
+                description: 'Stay steady',
+                startDate: '2026-06-01',
+                endDate: '2026-06-30',
+                status: 1,
+                stages: [],
+              ),
+            ],
+          ),
+          dailyTasksByDateProvider.overrideWith(
+            (ref, date) async => const PlanPage<DailyTask>(
+              list: [],
+              total: 0,
+              page: 1,
+              pageSize: 50,
+            ),
+          ),
+          assessmentResultsProvider.overrideWith(
+            (ref) async => const PlanPage<AssessmentResult>(
+              list: [],
+              total: 0,
+              page: 1,
+              pageSize: 10,
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const PlanScreen(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('plan-month-calendar')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('plan-calendar-toggle')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('plan-month-calendar')), findsOneWidget);
   });
 }
 

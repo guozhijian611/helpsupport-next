@@ -22,6 +22,7 @@ class PlanScreen extends ConsumerStatefulWidget {
 
 class _PlanScreenState extends ConsumerState<PlanScreen> {
   DateTime _selectedDate = DateTime.now();
+  bool _calendarExpanded = false;
 
   String get _selectedKey => _formatDate(_selectedDate);
 
@@ -99,26 +100,30 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
             SizedBox(height: metrics.size(18)),
             _WeekSwitcher(
               selectedDate: _selectedDate,
-              onPreviousWeek: () => setState(
-                () => _selectedDate = _selectedDate.subtract(
-                  const Duration(days: 7),
-                ),
-              ),
-              onNextWeek: () => setState(
-                () =>
-                    _selectedDate = _selectedDate.add(const Duration(days: 7)),
-              ),
+              onPreviousWeek: _moveToPreviousCalendarRange,
+              onNextWeek: _moveToNextCalendarRange,
             ),
             SizedBox(height: metrics.size(14)),
-            _WeekStrip(
-              selectedDate: _selectedDate,
-              onSelected: (date) => setState(() => _selectedDate = date),
-            ),
+            _WeekStrip(selectedDate: _selectedDate, onSelected: _selectDate),
             SizedBox(height: metrics.size(10)),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: metrics.size(32),
-              color: palette.secondaryText,
+            _CalendarToggleButton(
+              expanded: _calendarExpanded,
+              onTap: () =>
+                  setState(() => _calendarExpanded = !_calendarExpanded),
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: _calendarExpanded
+                  ? Padding(
+                      padding: EdgeInsets.only(top: metrics.size(10)),
+                      child: _MonthCalendar(
+                        selectedDate: _selectedDate,
+                        onSelected: _selectDate,
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ),
             SizedBox(height: metrics.size(14)),
             _SectionTitle(title: _t(context, '当日任务', "Today's tasks")),
@@ -221,6 +226,26 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
       return;
     }
     context.push('/plan/task/${task.id}', extra: task);
+  }
+
+  void _selectDate(DateTime date) {
+    setState(() => _selectedDate = _dateOnly(date));
+  }
+
+  void _moveToPreviousCalendarRange() {
+    setState(() {
+      _selectedDate = _calendarExpanded
+          ? _addMonths(_selectedDate, -1)
+          : _selectedDate.subtract(const Duration(days: 7));
+    });
+  }
+
+  void _moveToNextCalendarRange() {
+    setState(() {
+      _selectedDate = _calendarExpanded
+          ? _addMonths(_selectedDate, 1)
+          : _selectedDate.add(const Duration(days: 7));
+    });
   }
 }
 
@@ -612,6 +637,179 @@ class _DayCell extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CalendarToggleButton extends StatelessWidget {
+  const _CalendarToggleButton({required this.expanded, required this.onTap});
+
+  final bool expanded;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _PlanPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
+    return Center(
+      child: Tooltip(
+        message: expanded
+            ? _t(context, '收起日历', 'Collapse calendar')
+            : _t(context, '展开日历', 'Expand calendar'),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(metrics.radius(14)),
+          child: InkWell(
+            key: const Key('plan-calendar-toggle'),
+            borderRadius: BorderRadius.circular(metrics.radius(14)),
+            onTap: onTap,
+            child: SizedBox(
+              width: metrics.size(112),
+              height: metrics.size(34),
+              child: AnimatedRotation(
+                turns: expanded ? 0.5 : 0,
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                child: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: metrics.size(32),
+                  color: palette.secondaryText,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MonthCalendar extends StatelessWidget {
+  const _MonthCalendar({required this.selectedDate, required this.onSelected});
+
+  final DateTime selectedDate;
+  final ValueChanged<DateTime> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _PlanPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
+    final monthStart = DateTime(selectedDate.year, selectedDate.month);
+    final firstDayOffset = monthStart.weekday % 7;
+    final gridStart = monthStart.subtract(Duration(days: firstDayOffset));
+    final weeks = List<List<DateTime>>.generate(6, (weekIndex) {
+      return List<DateTime>.generate(
+        7,
+        (dayIndex) => gridStart.add(Duration(days: weekIndex * 7 + dayIndex)),
+        growable: false,
+      );
+    }, growable: false);
+
+    return Container(
+      key: const Key('plan-month-calendar'),
+      padding: metrics.edgeInsets(12, 10, 12, 12),
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
+        borderRadius: BorderRadius.circular(metrics.radius(24)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              for (final label in _weekdayLabels(context))
+                Expanded(
+                  child: Padding(
+                    padding: metrics.symmetric(vertical: 8),
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: palette.secondaryText,
+                        fontSize: AppTabShellMetrics.metaFontSize,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          for (final week in weeks)
+            Padding(
+              padding: EdgeInsets.only(top: metrics.size(4)),
+              child: Row(
+                children: [
+                  for (final day in week)
+                    Expanded(
+                      child: Padding(
+                        padding: metrics.symmetric(horizontal: 2),
+                        child: _MonthDayCell(
+                          date: day,
+                          inCurrentMonth: day.month == selectedDate.month,
+                          selected: _sameDay(day, selectedDate),
+                          today: _sameDay(day, DateTime.now()),
+                          onTap: () => onSelected(day),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MonthDayCell extends StatelessWidget {
+  const _MonthDayCell({
+    required this.date,
+    required this.inCurrentMonth,
+    required this.selected,
+    required this.today,
+    required this.onTap,
+  });
+
+  final DateTime date;
+  final bool inCurrentMonth;
+  final bool selected;
+  final bool today;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _PlanPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
+    final foregroundColor = selected
+        ? Colors.white
+        : inCurrentMonth
+        ? palette.primaryText
+        : palette.mutedText.withValues(alpha: 0.48);
+
+    return Material(
+      color: selected ? const Color(0xFF2483F0) : Colors.transparent,
+      borderRadius: BorderRadius.circular(metrics.radius(14)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(metrics.radius(14)),
+        onTap: onTap,
+        child: Container(
+          height: metrics.size(40),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(metrics.radius(14)),
+            border: today && !selected
+                ? Border.all(color: const Color(0xFFFF9585), width: 1.4)
+                : null,
+          ),
+          child: Text(
+            '${date.day}',
+            style: TextStyle(
+              color: foregroundColor,
+              fontSize: AppTabShellMetrics.bodyFontSize,
+              fontWeight: selected || today ? FontWeight.w800 : FontWeight.w700,
+            ),
           ),
         ),
       ),
@@ -1023,6 +1221,26 @@ String _weekdayLabel(BuildContext context, DateTime date) {
   return Localizations.localeOf(context).languageCode == 'zh'
       ? zh[index]
       : en[index];
+}
+
+List<String> _weekdayLabels(BuildContext context) {
+  const zh = ['日', '一', '二', '三', '四', '五', '六'];
+  const en = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+DateTime _dateOnly(DateTime date) {
+  return DateTime(date.year, date.month, date.day);
+}
+
+DateTime _addMonths(DateTime date, int offset) {
+  final targetMonth = DateTime(date.year, date.month + offset);
+  final day = date.day.clamp(1, _daysInMonth(targetMonth)).toInt();
+  return DateTime(targetMonth.year, targetMonth.month, day);
+}
+
+int _daysInMonth(DateTime month) {
+  return DateTime(month.year, month.month + 1, 0).day;
 }
 
 bool _sameDay(DateTime left, DateTime right) {
