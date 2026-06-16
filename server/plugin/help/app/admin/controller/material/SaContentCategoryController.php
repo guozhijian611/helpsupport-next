@@ -26,6 +26,7 @@ class SaContentCategoryController extends BaseController
     {
         $where = $request->more([
             ['parent_id', ''],
+            ['member_id', ''],
             ['name', ''],
             ['type', ''],
             ['status', ''],

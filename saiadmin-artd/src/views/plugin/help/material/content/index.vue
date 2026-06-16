@@ -11,7 +11,8 @@
 <script setup lang="ts">
   import HelpCrudPage from '../../components/HelpCrudPage.vue'
   import api from '../../api/material/content'
-  import type { HelpCrudAction, HelpCrudField } from '../../components/helpCrudTypes'
+  import categoryApi from '../../api/material/category'
+  import type { HelpCrudAction, HelpCrudField, HelpCrudOption } from '../../components/helpCrudTypes'
 
   const mediaTypeOptions = [
     { label: '图文/文章', value: 'article' },
@@ -26,7 +27,33 @@
     { label: '游戏外链', value: 'link' }
   ]
 
-  const fields: HelpCrudField[] = [
+  const categoryOptions = ref<HelpCrudOption[]>([{ label: '未分类', value: 0 }])
+
+  const normalizeCategoryRows = (response: unknown): Record<string, any>[] => {
+    if (Array.isArray(response)) {
+      return response as Record<string, any>[]
+    }
+    const data = response as Record<string, any>
+    const rows = data?.data || data?.list || data?.records || []
+    return Array.isArray(rows) ? rows : []
+  }
+
+  const loadCategoryOptions = async () => {
+    const rows = normalizeCategoryRows(
+      await categoryApi.list({ type: 'education', status: 1, saiType: 'all' })
+    )
+    categoryOptions.value = [
+      { label: '未分类', value: 0 },
+      ...rows.map((row) => ({
+        label: String(row.name || '未命名分类'),
+        value: Number(row.id)
+      }))
+    ]
+  }
+
+  onMounted(loadCategoryOptions)
+
+  const fields = computed<HelpCrudField[]>(() => [
     {
       prop: 'id',
       label: 'ID',
@@ -43,11 +70,21 @@
       width: 110
     },
     {
+      prop: 'category_name',
+      label: '素材分类',
+      form: false,
+      search: false,
+      minWidth: 120
+    },
+    {
       prop: 'category_id',
-      label: '分类ID',
+      label: '素材分类',
       type: 'number',
       form: true,
       search: true,
+      table: false,
+      detail: false,
+      options: categoryOptions.value,
       placeholder: '教育: 入门/动机与认知/应对技能/复发预防/家属指南',
       default: 0,
       width: 100
@@ -267,7 +304,7 @@
       form: false,
       width: 170
     }
-  ]
+  ])
 
   const actions: HelpCrudAction[] = [
     {

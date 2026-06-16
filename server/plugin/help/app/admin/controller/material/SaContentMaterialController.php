@@ -40,8 +40,9 @@ class SaContentMaterialController extends BaseController
         ]);
         $where['material_type'] = self::MATERIAL_TYPE;
         $query = $this->logic->search($where);
+        $data = $this->withCategoryNames($this->logic->getList($query));
 
-        return $this->success($this->logic->getList($query));
+        return $this->success($data);
     }
 
     #[Permission('教育素材读取', 'help:material:content:read')]
@@ -52,6 +53,7 @@ class SaContentMaterialController extends BaseController
         if ($data === []) {
             return $this->fail('未查找到教育素材');
         }
+        $data = $this->appendCategoryName($data);
         $data['audit_logs'] = (new HelpAuditLogService())->list('content_material', $id);
 
         return $this->success($data);
@@ -118,6 +120,65 @@ class SaContentMaterialController extends BaseController
         $data['material_type'] = self::MATERIAL_TYPE;
 
         return $data;
+    }
+
+    private function withCategoryNames(array $page): array
+    {
+        $rowsKey = null;
+        if (isset($page['data']) && is_array($page['data'])) {
+            $rowsKey = 'data';
+        } elseif (isset($page['list']) && is_array($page['list'])) {
+            $rowsKey = 'list';
+        }
+        if ($rowsKey === null) {
+            return $page;
+        }
+
+        $page[$rowsKey] = $this->appendCategoryNames($page[$rowsKey]);
+
+        return $page;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private function appendCategoryNames(array $rows): array
+    {
+        $categoryIds = array_values(array_unique(array_filter(
+            array_map(fn (array $row): int => (int) ($row['category_id'] ?? 0), $rows),
+            fn (int $id): bool => $id > 0
+        )));
+        if ($categoryIds === []) {
+            foreach ($rows as &$row) {
+                $row['category_name'] = '未分类';
+            }
+            unset($row);
+
+            return $rows;
+        }
+
+        $categories = Db::table('sa_content_category')
+            ->whereIn('id', $categoryIds)
+            ->whereNull('delete_time')
+            ->column('name', 'id');
+
+        foreach ($rows as &$row) {
+            $categoryId = (int) ($row['category_id'] ?? 0);
+            $row['category_name'] = $categoryId > 0 ? (string) ($categories[$categoryId] ?? '分类已删除') : '未分类';
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function appendCategoryName(array $data): array
+    {
+        return $this->appendCategoryNames([$data])[0] ?? $data;
     }
 
     /**
