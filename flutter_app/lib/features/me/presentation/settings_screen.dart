@@ -2464,6 +2464,7 @@ class _SettingsNavRow extends StatelessWidget {
                 const SizedBox(width: 14),
               ],
               Expanded(
+                flex: value != null ? 11 : 1,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -2494,11 +2495,12 @@ class _SettingsNavRow extends StatelessWidget {
               if (value != null) ...[
                 const SizedBox(width: 12),
                 Flexible(
-                  flex: 0,
+                  flex: 10,
                   child: Text(
                     value!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: palette.valueText,
                       fontWeight: FontWeight.w600,
