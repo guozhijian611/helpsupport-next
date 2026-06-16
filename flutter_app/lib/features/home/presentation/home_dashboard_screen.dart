@@ -51,6 +51,11 @@ class HomeDashboardScreen extends ConsumerWidget {
       _firstText([session?.member['avatar'], session?.profile['avatar']]),
     );
     final badge = _badgeText(unreadCount.asData?.value ?? 0);
+    final listPadding = metrics
+        .edgeInsets(22, 18, 22, 28)
+        .copyWith(
+          bottom: metrics.floatingTabBarInset(context, extraSpacing: 28),
+        );
 
     return ColoredBox(
       color: palette.pageBackground,
@@ -68,7 +73,7 @@ class HomeDashboardScreen extends ConsumerWidget {
           ]);
         },
         child: ListView(
-          padding: metrics.edgeInsets(22, 18, 22, 28),
+          padding: listPadding,
           children: [
             _HomeHeader(
               name: nickname,

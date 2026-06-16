@@ -75,13 +75,18 @@ class MeScreen extends ConsumerWidget {
     final monthPlanValue = pendingTasks > 0
         ? _t(context, '待完成 $pendingTasks 项', '$pendingTasks pending')
         : currentPlanTitle;
+    final scrollPadding = metrics
+        .edgeInsets(22, 18, 22, 0)
+        .copyWith(
+          bottom: metrics.floatingTabBarInset(context, extraSpacing: 28),
+        );
 
     return ColoredBox(
       color: palette.pageBackground,
       child: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
-            padding: metrics.edgeInsets(22, 18, 22, 28),
+            padding: scrollPadding,
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: Column(

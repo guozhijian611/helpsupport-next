@@ -54,6 +54,11 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
     final avatarUrl = apiClient.resolveUrl(
       _firstText([session?.member['avatar'], session?.profile['avatar']]),
     );
+    final listPadding = metrics
+        .edgeInsets(22, 18, 22, 0)
+        .copyWith(
+          bottom: metrics.floatingTabBarInset(context, extraSpacing: 32),
+        );
 
     return ColoredBox(
       color: palette.pageBackground,
@@ -69,7 +74,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
           ]);
         },
         child: ListView(
-          padding: metrics.edgeInsets(22, 18, 22, 32),
+          padding: listPadding,
           children: [
             _PlanHeader(
               name: nickname,

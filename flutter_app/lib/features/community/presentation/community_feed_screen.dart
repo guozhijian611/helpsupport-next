@@ -48,6 +48,11 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
       _firstText([session?.member['avatar'], session?.profile['avatar']]),
     );
     final badge = _badgeText(unreadCount.asData?.value ?? 0);
+    final listPadding = metrics
+        .edgeInsets(22, 16, 22, 0)
+        .copyWith(
+          bottom: metrics.floatingTabBarInset(context, extraSpacing: 20),
+        );
 
     return ColoredBox(
       color: palette.pageBackground,
@@ -84,7 +89,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
               },
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: metrics.edgeInsets(22, 16, 22, 94),
+                padding: listPadding,
                 children: [
                   tags.when(
                     data: (items) => items.isEmpty

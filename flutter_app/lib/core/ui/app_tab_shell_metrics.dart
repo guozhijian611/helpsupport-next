@@ -20,6 +20,9 @@ class AppTabShellMetrics {
   static const double cardTitleFontSize = 17;
   static const double bodyFontSize = 14;
   static const double metaFontSize = 13;
+  static const double floatingTabBarHeight = 86;
+  static const double floatingTabBarTopSpacing = 8;
+  static const double floatingTabBarBottomSpacing = 12;
 
   final double _layoutScale;
 
@@ -41,5 +44,16 @@ class AppTabShellMetrics {
       horizontal: size(horizontal),
       vertical: size(vertical),
     );
+  }
+
+  double floatingTabBarInset(BuildContext context, {double extraSpacing = 0}) {
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    return size(
+          floatingTabBarHeight +
+              floatingTabBarTopSpacing +
+              floatingTabBarBottomSpacing +
+              extraSpacing,
+        ) +
+        safeBottom;
   }
 }

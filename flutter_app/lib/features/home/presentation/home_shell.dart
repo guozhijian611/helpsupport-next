@@ -85,7 +85,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
     return Scaffold(
       extendBody: true,
-      body: SafeArea(child: body),
+      body: SafeArea(top: true, bottom: false, child: body),
       floatingActionButton: _index == 1
           ? FloatingActionButton(
               tooltip: context.l10n.communityNewPost,
@@ -134,7 +134,7 @@ class _FloatingHomeTabBar extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final isDark = scheme.brightness == Brightness.dark;
     final barColor = (isDark ? scheme.surfaceContainerHighest : _lightBarColor)
-        .withValues(alpha: isDark ? 0.84 : 0.8);
+        .withValues(alpha: isDark ? 0.72 : 0.68);
     final activeColor = isDark ? _darkActiveColor : _lightActiveColor;
     final inactiveColor = isDark
         ? scheme.onSurfaceVariant.withValues(alpha: 0.92)
