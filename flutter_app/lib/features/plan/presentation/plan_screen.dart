@@ -104,26 +104,25 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
               onNextWeek: _moveToNextCalendarRange,
             ),
             SizedBox(height: metrics.size(14)),
-            _WeekStrip(selectedDate: _selectedDate, onSelected: _selectDate),
-            SizedBox(height: metrics.size(10)),
-            _CalendarToggleButton(
-              expanded: _calendarExpanded,
-              onTap: () =>
-                  setState(() => _calendarExpanded = !_calendarExpanded),
-            ),
             AnimatedSize(
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOutCubic,
               alignment: Alignment.topCenter,
               child: _calendarExpanded
-                  ? Padding(
-                      padding: EdgeInsets.only(top: metrics.size(10)),
-                      child: _MonthCalendar(
-                        selectedDate: _selectedDate,
-                        onSelected: _selectDate,
-                      ),
+                  ? _MonthCalendar(
+                      selectedDate: _selectedDate,
+                      onSelected: _selectDate,
                     )
-                  : const SizedBox.shrink(),
+                  : _WeekStrip(
+                      selectedDate: _selectedDate,
+                      onSelected: _selectDate,
+                    ),
+            ),
+            SizedBox(height: metrics.size(10)),
+            _CalendarToggleButton(
+              expanded: _calendarExpanded,
+              onTap: () =>
+                  setState(() => _calendarExpanded = !_calendarExpanded),
             ),
             SizedBox(height: metrics.size(14)),
             _SectionTitle(title: _t(context, '当日任务', "Today's tasks")),
@@ -575,6 +574,7 @@ class _WeekStrip extends StatelessWidget {
     final days = List.generate(7, (index) => first.add(Duration(days: index)));
 
     return Row(
+      key: const Key('plan-week-strip'),
       children: [
         for (final day in days)
           Expanded(
@@ -700,7 +700,9 @@ class _MonthCalendar extends StatelessWidget {
     final monthStart = DateTime(selectedDate.year, selectedDate.month);
     final firstDayOffset = monthStart.weekday % 7;
     final gridStart = monthStart.subtract(Duration(days: firstDayOffset));
-    final weeks = List<List<DateTime>>.generate(6, (weekIndex) {
+    final weekCount = ((firstDayOffset + _daysInMonth(monthStart) + 6) / 7)
+        .floor();
+    final weeks = List<List<DateTime>>.generate(weekCount, (weekIndex) {
       return List<DateTime>.generate(
         7,
         (dayIndex) => gridStart.add(Duration(days: weekIndex * 7 + dayIndex)),

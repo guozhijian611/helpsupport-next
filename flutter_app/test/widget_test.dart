@@ -150,11 +150,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('plan-month-calendar')), findsNothing);
+    expect(find.byKey(const Key('plan-week-strip')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('plan-calendar-toggle')));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('plan-month-calendar')), findsOneWidget);
+    expect(find.byKey(const Key('plan-week-strip')), findsNothing);
   });
 }
 
