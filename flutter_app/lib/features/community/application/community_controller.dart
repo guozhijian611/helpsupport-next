@@ -26,6 +26,20 @@ final communityPostsSearchProvider = FutureProvider.autoDispose
           .fetchPosts(keyword: keyword);
     });
 
+final communityFollowingPostsProvider =
+    FutureProvider.autoDispose<CommunityPage<CommunityPost>>((ref) {
+      return ref
+          .watch(communityRepositoryProvider)
+          .fetchPosts(scope: 'following');
+    });
+
+final communityFollowingPostsSearchProvider = FutureProvider.autoDispose
+    .family<CommunityPage<CommunityPost>, String>((ref, keyword) {
+      return ref
+          .watch(communityRepositoryProvider)
+          .fetchPosts(keyword: keyword, scope: 'following');
+    });
+
 final communityPostProvider = FutureProvider.autoDispose
     .family<CommunityPost, int>((ref, postId) {
       return ref.watch(communityRepositoryProvider).fetchPost(postId);

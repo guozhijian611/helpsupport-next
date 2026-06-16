@@ -32,6 +32,7 @@ class CommunityController extends BaseController
     #[Apidoc\Url('/app/help/community/posts')]
     #[Apidoc\Method('GET')]
     #[Apidoc\Query('keyword', type: 'string', require: false, desc: '关键词')]
+    #[Apidoc\Query('scope', type: 'string', require: false, default: 'public', desc: '内容范围 public公共 following我关注的作者')]
     #[Apidoc\Query('mine', type: 'int', require: false, default: 2, desc: '是否只看自己 1是 2否')]
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]

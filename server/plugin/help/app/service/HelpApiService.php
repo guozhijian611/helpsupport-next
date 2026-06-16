@@ -1545,10 +1545,24 @@ class HelpApiService
         $page = $this->paginate(function () use ($memberId, $params) {
             $query = $this->visibleCommunityPostQuery($memberId)
                 ->field('p.*, m.nickname AS author_name, m.avatar AS author_avatar');
+            $scope = trim((string) ($params['scope'] ?? 'public'));
 
             if (!empty($params['keyword'])) {
                 $keyword = '%' . trim((string) $params['keyword']) . '%';
                 $query->where('p.content', 'like', $keyword);
+            }
+            if ($scope === 'following') {
+                if ($memberId <= 0) {
+                    $query->whereRaw('1 = 0');
+                } else {
+                    $query
+                        ->leftJoin(
+                            'sa_community_follow_member cf',
+                            'cf.target_member_id = p.member_id AND cf.member_id = ' . $memberId . ' AND cf.delete_time IS NULL'
+                        )
+                        ->whereRaw('cf.id IS NOT NULL')
+                        ->where('p.is_anonymous', '<>', 1);
+                }
             }
             if ((int) ($params['mine'] ?? 2) === 1) {
                 $query->where('p.member_id', $memberId);

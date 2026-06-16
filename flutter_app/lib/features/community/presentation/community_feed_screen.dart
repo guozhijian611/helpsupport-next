@@ -19,9 +19,12 @@ class CommunityFeedScreen extends ConsumerStatefulWidget {
       _CommunityFeedScreenState();
 }
 
+enum _CommunityFeedScope { public, following }
+
 class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
   final _searchController = TextEditingController();
   String _query = '';
+  _CommunityFeedScope _scope = _CommunityFeedScope.public;
 
   @override
   void dispose() {
@@ -33,9 +36,8 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
   Widget build(BuildContext context) {
     final palette = _CommunityFeedPalette.of(context);
     final metrics = AppTabShellMetrics.of(context);
-    final posts = _query.trim().isEmpty
-        ? ref.watch(communityPostsProvider)
-        : ref.watch(communityPostsSearchProvider(_query.trim()));
+    final keyword = _query.trim();
+    final posts = _watchPosts(keyword);
     final tags = ref.watch(communityTagsProvider);
     final unreadCount = ref.watch(unreadMessageCountProvider);
     final authState = ref.watch(authControllerProvider);
@@ -72,43 +74,34 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
             child: RefreshIndicator(
               onRefresh: () async {
                 ref.invalidate(communityTagsProvider);
-                ref.invalidate(communityPostsProvider);
+                _invalidateVisiblePosts(keyword);
                 ref.invalidate(unreadMessageCountProvider);
-                if (_query.trim().isNotEmpty) {
-                  ref.invalidate(communityPostsSearchProvider(_query.trim()));
-                }
                 await Future.wait([
                   ref.read(communityTagsProvider.future),
                   ref.read(unreadMessageCountProvider.future),
-                  _query.trim().isEmpty
-                      ? ref.read(communityPostsProvider.future)
-                      : ref.read(
-                          communityPostsSearchProvider(_query.trim()).future,
-                        ),
+                  _readVisiblePosts(keyword),
                 ]);
               },
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: listPadding,
                 children: [
+                  _FeedScopeSwitcher(
+                    selected: _scope,
+                    onChanged: (scope) {
+                      if (_scope == scope) {
+                        return;
+                      }
+                      setState(() => _scope = scope);
+                    },
+                  ),
+                  SizedBox(height: metrics.size(16)),
                   tags.when(
                     data: (items) => items.isEmpty
                         ? const SizedBox.shrink()
-                        : SizedBox(
-                            height: metrics.size(42),
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemBuilder: (context, index) {
-                                final tag = items[index];
-                                return _TopicChip(
-                                  tag: tag,
-                                  onTap: () => _toggleFollowTag(tag),
-                                );
-                              },
-                              separatorBuilder: (_, _) =>
-                                  SizedBox(width: metrics.size(8)),
-                              itemCount: items.length,
-                            ),
+                        : _TopicFollowStrip(
+                            tags: items,
+                            onTap: _toggleFollowTag,
                           ),
                     error: (_, _) => const SizedBox.shrink(),
                     loading: () => const SizedBox(
@@ -121,7 +114,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                   SizedBox(height: metrics.size(18)),
                   posts.when(
                     data: (page) => page.list.isEmpty
-                        ? _CommunityEmptyState(query: _query)
+                        ? _CommunityEmptyState(query: _query, scope: _scope)
                         : Column(
                             children: [
                               for (final post in page.list)
@@ -129,7 +122,11 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                                   padding: EdgeInsets.only(
                                     bottom: metrics.size(14),
                                   ),
-                                  child: CommunityPostCard(post: post),
+                                  child: CommunityPostCard(
+                                    post: post,
+                                    onPostChanged: () =>
+                                        _invalidateVisiblePosts(keyword),
+                                  ),
                                 ),
                             ],
                           ),
@@ -137,12 +134,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                       title: context.l10n.networkUnavailable,
                       message: error.toString(),
                       onRetry: () {
-                        ref.invalidate(communityPostsProvider);
-                        if (_query.trim().isNotEmpty) {
-                          ref.invalidate(
-                            communityPostsSearchProvider(_query.trim()),
-                          );
-                        }
+                        _invalidateVisiblePosts(keyword);
                       },
                     ),
                     loading: () => const _FeedLoading(),
@@ -154,6 +146,42 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
         ],
       ),
     );
+  }
+
+  AsyncValue<CommunityPage<CommunityPost>> _watchPosts(String keyword) {
+    if (_scope == _CommunityFeedScope.following) {
+      return keyword.isEmpty
+          ? ref.watch(communityFollowingPostsProvider)
+          : ref.watch(communityFollowingPostsSearchProvider(keyword));
+    }
+    return keyword.isEmpty
+        ? ref.watch(communityPostsProvider)
+        : ref.watch(communityPostsSearchProvider(keyword));
+  }
+
+  Future<CommunityPage<CommunityPost>> _readVisiblePosts(String keyword) {
+    if (_scope == _CommunityFeedScope.following) {
+      return keyword.isEmpty
+          ? ref.read(communityFollowingPostsProvider.future)
+          : ref.read(communityFollowingPostsSearchProvider(keyword).future);
+    }
+    return keyword.isEmpty
+        ? ref.read(communityPostsProvider.future)
+        : ref.read(communityPostsSearchProvider(keyword).future);
+  }
+
+  void _invalidateVisiblePosts(String keyword) {
+    if (_scope == _CommunityFeedScope.following) {
+      ref.invalidate(communityFollowingPostsProvider);
+      if (keyword.isNotEmpty) {
+        ref.invalidate(communityFollowingPostsSearchProvider(keyword));
+      }
+      return;
+    }
+    ref.invalidate(communityPostsProvider);
+    if (keyword.isNotEmpty) {
+      ref.invalidate(communityPostsSearchProvider(keyword));
+    }
   }
 
   Future<void> _toggleFollowTag(CommunityTag tag) async {
@@ -184,11 +212,13 @@ class CommunityPostCard extends ConsumerWidget {
     required this.post,
     this.showFollowButton = true,
     this.routeToDetail = true,
+    this.onPostChanged,
   });
 
   final CommunityPost post;
   final bool showFollowButton;
   final bool routeToDetail;
+  final VoidCallback? onPostChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -405,7 +435,9 @@ class CommunityPostCard extends ConsumerWidget {
     try {
       await ref.read(communityRepositoryProvider).togglePostLike(postId);
       ref.invalidate(communityPostsProvider);
+      ref.invalidate(communityFollowingPostsProvider);
       ref.invalidate(communityPostProvider(postId));
+      onPostChanged?.call();
     } on Object catch (error) {
       if (!context.mounted) {
         return;
@@ -422,7 +454,9 @@ class CommunityPostCard extends ConsumerWidget {
     try {
       await ref.read(communityRepositoryProvider).togglePostCollect(postId);
       ref.invalidate(communityPostsProvider);
+      ref.invalidate(communityFollowingPostsProvider);
       ref.invalidate(communityPostProvider(postId));
+      onPostChanged?.call();
     } on Object catch (error) {
       if (!context.mounted) {
         return;
@@ -441,7 +475,9 @@ class CommunityPostCard extends ConsumerWidget {
           .read(communityRepositoryProvider)
           .toggleFollowMember(post.memberId);
       ref.invalidate(communityPostsProvider);
+      ref.invalidate(communityFollowingPostsProvider);
       ref.invalidate(communityPostProvider(post.id));
+      onPostChanged?.call();
       if (!context.mounted) {
         return;
       }
@@ -527,11 +563,132 @@ class _CommunityTopBar extends StatelessWidget {
   }
 }
 
+class _FeedScopeSwitcher extends StatelessWidget {
+  const _FeedScopeSwitcher({required this.selected, required this.onChanged});
+
+  final _CommunityFeedScope selected;
+  final ValueChanged<_CommunityFeedScope> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _CommunityFeedPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
+
+    return Container(
+      height: metrics.size(48),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: palette.softBackground,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        children: [
+          _FeedScopeSegment(
+            scope: _CommunityFeedScope.public,
+            selected: selected == _CommunityFeedScope.public,
+            onTap: () => onChanged(_CommunityFeedScope.public),
+          ),
+          _FeedScopeSegment(
+            scope: _CommunityFeedScope.following,
+            selected: selected == _CommunityFeedScope.following,
+            onTap: () => onChanged(_CommunityFeedScope.following),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FeedScopeSegment extends StatelessWidget {
+  const _FeedScopeSegment({
+    required this.scope,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _CommunityFeedScope scope;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _CommunityFeedPalette.of(context);
+    final isDark = Theme.of(context).colorScheme.brightness == Brightness.dark;
+    final activeBackground = isDark
+        ? const Color(0xFFFFB4A8)
+        : const Color(0xFFFF9585);
+    final activeForeground = isDark ? const Color(0xFF3B2420) : Colors.white;
+
+    return Expanded(
+      child: Material(
+        color: selected ? activeBackground : Colors.transparent,
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: onTap,
+          child: Center(
+            child: Text(
+              _scopeLabel(context, scope),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: selected ? activeForeground : palette.secondaryText,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 String? _badgeText(int count) {
   if (count <= 0) {
     return null;
   }
   return count > 99 ? '99+' : '$count';
+}
+
+class _TopicFollowStrip extends StatelessWidget {
+  const _TopicFollowStrip({required this.tags, required this.onTap});
+
+  final List<CommunityTag> tags;
+  final ValueChanged<CommunityTag> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _CommunityFeedPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _t(context, '话题关注', 'Topics'),
+          style: TextStyle(
+            color: palette.primaryText,
+            fontSize: 15,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        SizedBox(height: metrics.size(10)),
+        SizedBox(
+          height: metrics.size(42),
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemBuilder: (context, index) {
+              final tag = tags[index];
+              return _TopicChip(tag: tag, onTap: () => onTap(tag));
+            },
+            separatorBuilder: (_, _) => SizedBox(width: metrics.size(8)),
+            itemCount: tags.length,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _TopicChip extends StatelessWidget {
@@ -786,16 +943,34 @@ class _ActionChip extends StatelessWidget {
 }
 
 class _CommunityEmptyState extends StatelessWidget {
-  const _CommunityEmptyState({required this.query});
+  const _CommunityEmptyState({required this.query, required this.scope});
 
   final String query;
+  final _CommunityFeedScope scope;
 
   @override
   Widget build(BuildContext context) {
     final palette = _CommunityFeedPalette.of(context);
-    final message = query.trim().isEmpty
-        ? context.l10n.communityFeedEmpty
-        : _t(context, '没有找到相关动态', 'No matching posts');
+    final hasQuery = query.trim().isNotEmpty;
+    final isFollowing = scope == _CommunityFeedScope.following;
+    final message = hasQuery
+        ? _t(context, '没有找到相关动态', 'No matching posts')
+        : isFollowing
+        ? _t(context, '关注的人还没有发帖', 'No posts from people you follow')
+        : context.l10n.communityFeedEmpty;
+    final helper = hasQuery
+        ? _t(
+            context,
+            '你可以换个关键词，或者直接发布你的第一条支持内容。',
+            'Try another keyword or publish your first support post.',
+          )
+        : isFollowing
+        ? _t(
+            context,
+            '去广场发现更多作者，关注后这里会出现他们的动态。',
+            'Find more authors in the public feed. Their posts will appear here after you follow them.',
+          )
+        : _t(context, '你可以发布第一条支持内容。', 'Publish your first support post.');
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -818,11 +993,7 @@ class _CommunityEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            _t(
-              context,
-              '你可以换个关键词，或者直接发布你的第一条支持内容。',
-              'Try another keyword or publish your first support post.',
-            ),
+            helper,
             textAlign: TextAlign.center,
             style: TextStyle(
               color: palette.mutedText,
@@ -976,6 +1147,13 @@ String _authorSubtitle(BuildContext context, CommunityPost post) {
     return role;
   }
   return '$role  ${post.createTime}';
+}
+
+String _scopeLabel(BuildContext context, _CommunityFeedScope scope) {
+  return switch (scope) {
+    _CommunityFeedScope.public => _t(context, '广场', 'Public'),
+    _CommunityFeedScope.following => _t(context, '关注', 'Following'),
+  };
 }
 
 String _firstText(List<Object?> values, {String fallback = ''}) {

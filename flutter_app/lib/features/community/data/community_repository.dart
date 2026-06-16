@@ -29,6 +29,7 @@ class CommunityRepository {
     int page = 1,
     int pageSize = 20,
     String? keyword,
+    String scope = 'public',
   }) async {
     final result = await _apiClient.getApi<CommunityPage<CommunityPost>>(
       '/app/help/community/posts',
@@ -36,6 +37,8 @@ class CommunityRepository {
         'page': page,
         'page_size': pageSize,
         if (keyword != null && keyword.trim().isNotEmpty) 'keyword': keyword,
+        if (scope.trim().isNotEmpty && scope.trim() != 'public')
+          'scope': scope.trim(),
       },
       decode: (value) => CommunityPage.fromJson(value, CommunityPost.fromJson),
     );

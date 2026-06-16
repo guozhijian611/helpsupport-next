@@ -4463,6 +4463,13 @@
             "description": "关键词"
           },
           {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "内容范围 public公共 following我关注的作者"
+          },
+          {
             "name": "mine",
             "in": "query",
             "required": false,
