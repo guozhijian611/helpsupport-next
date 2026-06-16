@@ -38,20 +38,32 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = _MaterialLibraryPalette.of(context);
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    final categoriesQuery = MaterialCategoriesQuery(
+      type: widget.materialType,
+      locale: locale,
+    );
     final categories = widget.source == MaterialLibrarySource.browse
-        ? ref.watch(materialCategoriesProvider(widget.materialType))
+        ? ref.watch(materialCategoriesProvider(categoriesQuery))
         : const AsyncData<List<MaterialCategory>>([]);
     final listQuery = MaterialListQuery(
       materialType: widget.materialType,
       categoryId: _categoryId,
       keyword: _keyword,
+      locale: locale,
+    );
+    final collectionQuery = MaterialListQuery(
+      materialType: '',
+      categoryId: 0,
+      keyword: '',
+      locale: locale,
     );
     final items = switch (widget.source) {
       MaterialLibrarySource.browse => ref.watch(
         materialListProvider(listQuery),
       ),
       MaterialLibrarySource.collections => ref.watch(
-        materialCollectionsProvider(const MaterialHistoryQuery()),
+        materialCollectionsProvider(collectionQuery),
       ),
       MaterialLibrarySource.history => ref.watch(
         materialHistoryProvider(const MaterialHistoryQuery()),
@@ -74,20 +86,41 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
         scrolledUnderElevation: 0,
         actions: widget.source == MaterialLibrarySource.browse
             ? [
-                IconButton(
-                  tooltip: _t(context, '我的收藏', 'Collections'),
-                  onPressed: () => context.push(
-                    '/materials?type=${widget.materialType}&source=collections',
+                if (widget.materialType == 'private')
+                  IconButton(
+                    tooltip: _t(context, '上传私人素材', 'Upload private material'),
+                    onPressed: () => context.push('/materials/private/upload'),
+                    icon: const Icon(Icons.add_rounded),
+                  )
+                else if (widget.materialType == 'entertainment')
+                  const SizedBox(width: 8)
+                else ...[
+                  TextButton(
+                    onPressed: () => context.push('/materials?type=private'),
+                    child: Text(
+                      _t(context, '私', 'Me'),
+                      style: TextStyle(
+                        color: palette.secondaryText,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
-                  icon: const Icon(Icons.folder_open_outlined),
-                ),
-                IconButton(
-                  tooltip: _t(context, '浏览历史', 'History'),
-                  onPressed: () => context.push(
-                    '/materials?type=${widget.materialType}&source=history',
+                  IconButton(
+                    tooltip: _t(context, '我的收藏', 'Collections'),
+                    onPressed: () => context.push(
+                      '/materials?type=${widget.materialType}&source=collections',
+                    ),
+                    icon: const Icon(Icons.folder_open_outlined),
                   ),
-                  icon: const Icon(Icons.history_rounded),
-                ),
+                  IconButton(
+                    tooltip: _t(context, '浏览历史', 'History'),
+                    onPressed: () => context.push(
+                      '/materials?type=${widget.materialType}&source=history',
+                    ),
+                    icon: const Icon(Icons.history_rounded),
+                  ),
+                ],
               ]
             : null,
       ),
@@ -128,9 +161,17 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
                       entries: page.list.cast<MaterialHistoryEntry>(),
                     );
                   }
+                  final list = page.list.cast<MaterialItem>();
+                  if (widget.source == MaterialLibrarySource.browse &&
+                      widget.materialType == 'entertainment') {
+                    return _EntertainmentGrid(
+                      items: list,
+                      categoryLookup: categoryLookup,
+                    );
+                  }
                   return Column(
                     children: [
-                      for (final item in page.list.cast<MaterialItem>())
+                      for (final item in list)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 14),
                           child:
@@ -178,35 +219,33 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
   Future<void> _refreshCurrent() async {
     switch (widget.source) {
       case MaterialLibrarySource.browse:
-        ref.invalidate(materialCategoriesProvider(widget.materialType));
-        ref.invalidate(
-          materialListProvider(
-            MaterialListQuery(
-              materialType: widget.materialType,
-              categoryId: _categoryId,
-              keyword: _keyword,
-            ),
-          ),
+        final locale = Localizations.localeOf(context).toLanguageTag();
+        final categoriesQuery = MaterialCategoriesQuery(
+          type: widget.materialType,
+          locale: locale,
         );
+        final listQuery = MaterialListQuery(
+          materialType: widget.materialType,
+          categoryId: _categoryId,
+          keyword: _keyword,
+          locale: locale,
+        );
+        ref.invalidate(materialCategoriesProvider(categoriesQuery));
+        ref.invalidate(materialListProvider(listQuery));
         await Future.wait([
-          ref.read(materialCategoriesProvider(widget.materialType).future),
-          ref.read(
-            materialListProvider(
-              MaterialListQuery(
-                materialType: widget.materialType,
-                categoryId: _categoryId,
-                keyword: _keyword,
-              ),
-            ).future,
-          ),
+          ref.read(materialCategoriesProvider(categoriesQuery).future),
+          ref.read(materialListProvider(listQuery).future),
         ]);
       case MaterialLibrarySource.collections:
-        ref.invalidate(
-          materialCollectionsProvider(const MaterialHistoryQuery()),
+        final locale = Localizations.localeOf(context).toLanguageTag();
+        final query = MaterialListQuery(
+          materialType: '',
+          categoryId: 0,
+          keyword: '',
+          locale: locale,
         );
-        await ref.read(
-          materialCollectionsProvider(const MaterialHistoryQuery()).future,
-        );
+        ref.invalidate(materialCollectionsProvider(query));
+        await ref.read(materialCollectionsProvider(query).future);
       case MaterialLibrarySource.history:
         ref.invalidate(materialHistoryProvider(const MaterialHistoryQuery()));
         await ref.read(
@@ -220,7 +259,9 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
       MaterialLibrarySource.history => _t(context, '历史记录', 'History'),
       MaterialLibrarySource.collections => _t(context, '我的收藏', 'Collections'),
       MaterialLibrarySource.browse =>
-        widget.materialType == 'entertainment'
+        widget.materialType == 'private'
+            ? _t(context, '私人素材', 'Private Materials')
+            : widget.materialType == 'entertainment'
             ? _t(context, '娱乐', 'Entertainment')
             : _t(context, '教育素材', 'Learning'),
     };
@@ -234,7 +275,10 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
         '还没有收藏内容',
         'No saved materials yet',
       ),
-      MaterialLibrarySource.browse => _t(context, '暂无素材', 'No materials yet'),
+      MaterialLibrarySource.browse =>
+        widget.materialType == 'private'
+            ? _t(context, '还没有私人素材', 'No private materials yet')
+            : _t(context, '暂无素材', 'No materials yet'),
     };
   }
 
@@ -250,11 +294,18 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
         '收藏后可以在这里集中查看高价值内容。',
         'Saved materials will gather here for quick access.',
       ),
-      MaterialLibrarySource.browse => _t(
-        context,
-        '试试切换分类或关键词，查看当前已发布的真实内容。',
-        'Try another category or keyword to explore real published content.',
-      ),
+      MaterialLibrarySource.browse =>
+        widget.materialType == 'private'
+            ? _t(
+                context,
+                '上传后的素材只会出现在你的账号中。',
+                'Uploaded materials stay visible only to your account.',
+              )
+            : _t(
+                context,
+                '试试切换分类或关键词，查看当前已发布的真实内容。',
+                'Try another category or keyword to explore real published content.',
+              ),
     };
   }
 
@@ -270,8 +321,22 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
       final isCollected = await ref
           .read(materialRepositoryProvider)
           .toggleCollect(item.id);
-      ref.invalidate(materialCollectionsProvider(const MaterialHistoryQuery()));
-      ref.invalidate(materialDetailProvider(item.id));
+      final locale = Localizations.localeOf(context).toLanguageTag();
+      ref.invalidate(
+        materialCollectionsProvider(
+          MaterialListQuery(
+            materialType: '',
+            categoryId: 0,
+            keyword: '',
+            locale: locale,
+          ),
+        ),
+      );
+      ref.invalidate(
+        materialDetailProvider(
+          MaterialDetailQuery(id: item.id, locale: locale),
+        ),
+      );
       if (context.mounted) {
         context.showCenteredNotice(
           isCollected
@@ -554,7 +619,7 @@ class _MaterialCard extends ConsumerWidget {
                             : const _MaterialThumbShell(),
                       ),
                     ),
-                    if (item.mediaType == 'video')
+                    if (_isPlayableMedia(item.mediaType))
                       Positioned.fill(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
@@ -592,6 +657,157 @@ class _MaterialCard extends ConsumerWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EntertainmentGrid extends StatelessWidget {
+  const _EntertainmentGrid({required this.items, required this.categoryLookup});
+
+  final List<MaterialItem> items;
+  final Map<int, String> categoryLookup;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: items.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 18,
+        mainAxisSpacing: 22,
+        childAspectRatio: 0.66,
+      ),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return _EntertainmentGridCard(
+          item: item,
+          categoryName: categoryLookup[item.categoryId] ?? '',
+        );
+      },
+    );
+  }
+}
+
+class _EntertainmentGridCard extends ConsumerWidget {
+  const _EntertainmentGridCard({
+    required this.item,
+    required this.categoryName,
+  });
+
+  final MaterialItem item;
+  final String categoryName;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _MaterialLibraryPalette.of(context);
+    final apiClient = ref.watch(apiClientProvider);
+    final coverUrl = apiClient.resolveUrl(item.coverUrl);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => context.push('/materials/detail/${item.id}'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    coverUrl.isNotEmpty
+                        ? Image.network(
+                            coverUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) =>
+                                const _MaterialThumbShell(),
+                          )
+                        : const _MaterialThumbShell(),
+                    if (_isPlayableMedia(item.mediaType))
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.16),
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.play_circle_fill_rounded,
+                            color: Colors.white,
+                            size: 42,
+                          ),
+                        ),
+                      ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: _EntertainmentMediaBadge(
+                        label: _mediaLabel(context, item.mediaType),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              item.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: palette.primaryText,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                height: 1.25,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              categoryName.isNotEmpty
+                  ? categoryName
+                  : _t(context, '官方发布', 'Official'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: palette.secondaryText,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EntertainmentMediaBadge extends StatelessWidget {
+  const _EntertainmentMediaBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.38),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),
@@ -758,7 +974,9 @@ class _HistoryRow extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                entry.authorName.trim().isEmpty
+                entry.progress > 0
+                    ? '${entry.progress.clamp(0, 100).toStringAsFixed(0)}%'
+                    : entry.authorName.trim().isEmpty
                     ? _t(context, '作者名', 'Author')
                     : entry.authorName,
                 maxLines: 1,
@@ -815,10 +1033,14 @@ class _MediaIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (icon, color) = switch (mediaType) {
-      'video' => (Icons.play_circle_fill_rounded, const Color(0xFF6A93D5)),
-      'audio' => (Icons.music_note_rounded, const Color(0xFFF8B048)),
-      'pdf' || 'epub' => (Icons.menu_book_rounded, const Color(0xFF60B2A5)),
-      'link' => (Icons.open_in_new_rounded, const Color(0xFF986FF5)),
+      'video' ||
+      'mp4' ||
+      'mov' => (Icons.play_circle_fill_rounded, const Color(0xFF6A93D5)),
+      'audio' || 'mp3' => (Icons.music_note_rounded, const Color(0xFFF8B048)),
+      'txt' ||
+      'pdf' ||
+      'epub' => (Icons.menu_book_rounded, const Color(0xFF60B2A5)),
+      'link' => (Icons.sports_esports_rounded, const Color(0xFF986FF5)),
       _ => (Icons.auto_stories_rounded, const Color(0xFFF29C88)),
     };
 
@@ -999,11 +1221,19 @@ String _mediaLabel(BuildContext context, String mediaType) {
   return switch (mediaType) {
     'video' => _t(context, '视频', 'Video'),
     'audio' => _t(context, '音频', 'Audio'),
+    'txt' => 'TXT',
     'pdf' => 'PDF',
     'epub' => 'EPUB',
-    'link' => _t(context, '链接', 'Link'),
+    'mp4' => 'MP4',
+    'mov' => 'MOV',
+    'mp3' => 'MP3',
+    'link' => _t(context, '游戏', 'Game'),
     _ => _t(context, '文章', 'Article'),
   };
+}
+
+bool _isPlayableMedia(String mediaType) {
+  return mediaType == 'video' || mediaType == 'mp4' || mediaType == 'mov';
 }
 
 String _historyDateLabel(String value) {

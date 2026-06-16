@@ -1,3 +1,6 @@
+import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
+
 import '../../../core/api/api_client.dart';
 import 'material_models.dart';
 
@@ -6,10 +9,16 @@ class MaterialRepository {
 
   final ApiClient _apiClient;
 
-  Future<List<MaterialCategory>> fetchCategories({required String type}) async {
+  Future<List<MaterialCategory>> fetchCategories({
+    required String type,
+    String locale = '',
+  }) async {
     final result = await _apiClient.getApi<List<MaterialCategory>>(
       '/app/help/material/categories',
-      queryParameters: {'type': type},
+      queryParameters: {
+        'type': type,
+        if (locale.trim().isNotEmpty) 'locale': locale.trim(),
+      },
       decode: (value) => _decodeList(value, MaterialCategory.fromJson),
     );
     return result.data ?? const [];
@@ -18,7 +27,9 @@ class MaterialRepository {
   Future<MaterialPage<MaterialItem>> fetchMaterials({
     required String materialType,
     int categoryId = 0,
+    String mediaType = '',
     String keyword = '',
+    String locale = '',
     int page = 1,
     int pageSize = 20,
   }) async {
@@ -27,7 +38,9 @@ class MaterialRepository {
       queryParameters: {
         'material_type': materialType,
         if (categoryId > 0) 'category_id': categoryId,
+        if (mediaType.trim().isNotEmpty) 'media_type': mediaType.trim(),
         if (keyword.trim().isNotEmpty) 'keyword': keyword.trim(),
+        if (locale.trim().isNotEmpty) 'locale': locale.trim(),
         'page': page,
         'page_size': pageSize,
       },
@@ -37,10 +50,13 @@ class MaterialRepository {
         const MaterialPage(list: [], total: 0, page: 1, pageSize: 20);
   }
 
-  Future<MaterialItem> fetchMaterialDetail(int id) async {
+  Future<MaterialItem> fetchMaterialDetail(int id, {String locale = ''}) async {
     final result = await _apiClient.getApi<MaterialItem>(
       '/app/help/material/detail',
-      queryParameters: {'id': id},
+      queryParameters: {
+        'id': id,
+        if (locale.trim().isNotEmpty) 'locale': locale.trim(),
+      },
       decode: (value) {
         if (value is Map<String, dynamic>) {
           return MaterialItem.fromJson(value);
@@ -56,12 +72,17 @@ class MaterialRepository {
   }
 
   Future<MaterialPage<MaterialItem>> fetchCollections({
+    String locale = '',
     int page = 1,
     int pageSize = 20,
   }) async {
     final result = await _apiClient.getApi<MaterialPage<MaterialItem>>(
       '/app/help/material/collections',
-      queryParameters: {'page': page, 'page_size': pageSize},
+      queryParameters: {
+        if (locale.trim().isNotEmpty) 'locale': locale.trim(),
+        'page': page,
+        'page_size': pageSize,
+      },
       decode: (value) => MaterialPage.fromJson(value, MaterialItem.fromJson),
     );
     return result.data ??
@@ -163,11 +184,58 @@ class MaterialRepository {
     return result.data ?? false;
   }
 
+  Future<MaterialUploadResult> uploadPrivateMaterialFile({
+    required PlatformFile file,
+  }) async {
+    final path = file.path;
+    if (path == null || path.trim().isEmpty) {
+      throw const FormatException('无法读取本地文件路径');
+    }
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(path, filename: file.name),
+    });
+    final result = await _apiClient.postApi<MaterialUploadResult>(
+      '/app/help/material/private/upload',
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return MaterialUploadResult.fromJson(value);
+        }
+        throw const FormatException('Unexpected private material upload shape');
+      },
+    );
+    final upload = result.data;
+    if (upload == null || upload.url.trim().isEmpty) {
+      throw const FormatException('私人素材上传失败');
+    }
+    return upload;
+  }
+
+  Future<MaterialItem> savePrivateMaterial(Map<String, dynamic> data) async {
+    final result = await _apiClient.postApi<MaterialItem>(
+      '/app/help/material/private',
+      data: data,
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return MaterialItem.fromJson(value);
+        }
+        throw const FormatException('Unexpected private material shape');
+      },
+    );
+    final item = result.data;
+    if (item == null || item.id <= 0) {
+      throw const FormatException('私人素材保存失败');
+    }
+    return item;
+  }
+
   Future<void> saveHistory({
     required int materialId,
     required String title,
     required String route,
     String authorName = '',
+    double progress = 0,
     int durationSeconds = 0,
   }) async {
     await _apiClient.postApi<Map<String, dynamic>>(
@@ -177,6 +245,7 @@ class MaterialRepository {
         'content_type': 'material',
         'title': title,
         'route': route,
+        'progress': progress.clamp(0, 100).toStringAsFixed(2),
         if (authorName.trim().isNotEmpty) 'author_name': authorName,
         if (durationSeconds > 0) 'duration_seconds': durationSeconds,
       },

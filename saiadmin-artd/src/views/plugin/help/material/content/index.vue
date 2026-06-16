@@ -13,6 +13,25 @@
   import api from '../../api/material/content'
   import type { HelpCrudAction, HelpCrudField } from '../../components/helpCrudTypes'
 
+  const materialTypeOptions = [
+    { label: '教育素材', value: 'education' },
+    { label: '娱乐', value: 'entertainment' },
+    { label: '私人素材', value: 'private' }
+  ]
+
+  const mediaTypeOptions = [
+    { label: '图文/文章', value: 'article' },
+    { label: '视频（通用）', value: 'video' },
+    { label: '音频（通用）', value: 'audio' },
+    { label: 'TXT 书籍', value: 'txt' },
+    { label: 'EPUB 书籍', value: 'epub' },
+    { label: 'PDF 书籍', value: 'pdf' },
+    { label: 'MP4 电影', value: 'mp4' },
+    { label: 'MOV 电影', value: 'mov' },
+    { label: 'MP3 音乐', value: 'mp3' },
+    { label: '游戏外链', value: 'link' }
+  ]
+
   const fields: HelpCrudField[] = [
     {
       prop: 'id',
@@ -35,6 +54,7 @@
       type: 'number',
       form: true,
       search: true,
+      placeholder: '教育: 入门/动机与认知/应对技能/复发预防/家属指南；娱乐: 书籍/电影/音乐/游戏',
       default: 0,
       width: 100
     },
@@ -44,32 +64,7 @@
       form: true,
       search: true,
       required: true,
-      options: [
-        {
-          label: '图文',
-          value: 'article'
-        },
-        {
-          label: '视频',
-          value: 'video'
-        },
-        {
-          label: '音频',
-          value: 'audio'
-        },
-        {
-          label: 'PDF',
-          value: 'pdf'
-        },
-        {
-          label: 'EPUB',
-          value: 'epub'
-        },
-        {
-          label: '链接',
-          value: 'link'
-        }
-      ],
+      options: mediaTypeOptions,
       default: 'article',
       width: 100
     },
@@ -79,20 +74,7 @@
       form: true,
       search: true,
       required: true,
-      options: [
-        {
-          label: '教育',
-          value: 'education'
-        },
-        {
-          label: '娱乐',
-          value: 'entertainment'
-        },
-        {
-          label: '私人',
-          value: 'private'
-        }
-      ],
+      options: materialTypeOptions,
       default: 'education',
       width: 100
     },
@@ -103,6 +85,15 @@
       search: true,
       required: true,
       minWidth: 180
+    },
+    {
+      prop: 'title_i18n',
+      label: '多语言标题JSON',
+      type: 'json',
+      form: true,
+      table: false,
+      rows: 4,
+      placeholder: '{"zh":"中文标题","en":"English title"}'
     },
     {
       prop: 'summary',
@@ -119,8 +110,9 @@
     },
     {
       prop: 'content_url',
-      label: '内容地址',
+      label: '文件地址/游戏外链',
       form: true,
+      placeholder: 'txt/epub/pdf/mp4/mov/mp3 文件地址，游戏填 https 外链',
       minWidth: 220
     },
     {
@@ -136,7 +128,8 @@
       label: '标签JSON',
       type: 'json',
       form: true,
-      table: false
+      table: false,
+      placeholder: '["入门","练习"]'
     },
     {
       prop: 'duration_seconds',

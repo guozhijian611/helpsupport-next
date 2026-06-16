@@ -31,6 +31,8 @@ import '../features/me/presentation/ai_capability_test_screen.dart';
 import '../features/material/data/material_models.dart';
 import '../features/material/presentation/material_detail_screen.dart';
 import '../features/material/presentation/material_library_screen.dart';
+import '../features/material/presentation/material_private_upload_screen.dart';
+import '../features/material/presentation/material_resource_screen.dart';
 import '../features/message/presentation/message_center_screen.dart';
 import '../features/me/presentation/diagnostic_logs_screen.dart';
 import '../features/me/presentation/journal_screen.dart';
@@ -307,6 +309,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             _ => MaterialLibrarySource.browse,
           };
           return MaterialLibraryScreen(materialType: type, source: source);
+        },
+      ),
+      GoRoute(
+        path: '/materials/private/upload',
+        name: 'material-private-upload',
+        builder: (context, state) => const MaterialPrivateUploadScreen(),
+      ),
+      GoRoute(
+        path: '/materials/resource/:id',
+        name: 'material-resource',
+        builder: (context, state) {
+          return MaterialResourceScreen(
+            materialId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+            initialItem: state.extra is MaterialItem
+                ? state.extra as MaterialItem
+                : null,
+          );
         },
       ),
       GoRoute(

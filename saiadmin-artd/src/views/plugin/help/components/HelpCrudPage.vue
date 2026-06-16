@@ -512,6 +512,10 @@
       [
         'status',
         'audit_status',
+        'media_type',
+        'material_type',
+        'is_public',
+        'is_recommended',
         'message_type',
         'push_status',
         'is_read',

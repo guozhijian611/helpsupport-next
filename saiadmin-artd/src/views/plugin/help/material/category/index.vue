@@ -13,6 +13,12 @@
   import api from '../../api/material/category'
   import type { HelpCrudAction, HelpCrudField } from '../../components/helpCrudTypes'
 
+  const categoryTypeOptions = [
+    { label: '教育素材', value: 'education' },
+    { label: '娱乐', value: 'entertainment' },
+    { label: '私人素材', value: 'private' }
+  ]
+
   const fields: HelpCrudField[] = [
     {
       prop: 'id',
@@ -37,31 +43,28 @@
       minWidth: 160
     },
     {
+      prop: 'name_i18n',
+      label: '多语言名称JSON',
+      type: 'json',
+      form: true,
+      table: false,
+      rows: 4,
+      placeholder: '{"zh":"入门","en":"Getting Started"}'
+    },
+    {
       prop: 'type',
       label: '分类类型',
       form: true,
       search: true,
       required: true,
-      options: [
-        {
-          label: '教育',
-          value: 'education'
-        },
-        {
-          label: '娱乐',
-          value: 'entertainment'
-        },
-        {
-          label: '私人',
-          value: 'private'
-        }
-      ],
+      options: categoryTypeOptions,
       default: 'education'
     },
     {
       prop: 'icon',
-      label: '图标',
+      label: '图标/标识',
       form: true,
+      placeholder: '如 ri:book-2-line',
       minWidth: 180
     },
     {

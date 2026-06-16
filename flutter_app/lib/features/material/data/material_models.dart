@@ -1,5 +1,22 @@
 enum MaterialLibrarySource { browse, history, collections }
 
+class MaterialCategoriesQuery {
+  const MaterialCategoriesQuery({required this.type, required this.locale});
+
+  final String type;
+  final String locale;
+
+  @override
+  bool operator ==(Object other) {
+    return other is MaterialCategoriesQuery &&
+        other.type == type &&
+        other.locale == locale;
+  }
+
+  @override
+  int get hashCode => Object.hash(type, locale);
+}
+
 class MaterialCategory {
   const MaterialCategory({
     required this.id,
@@ -52,6 +69,8 @@ class MaterialItem {
     required this.createTime,
     required this.isLiked,
     required this.isCollected,
+    required this.historyProgress,
+    required this.historyDurationSeconds,
     required this.comments,
   });
 
@@ -76,6 +95,8 @@ class MaterialItem {
   final String createTime;
   final bool isLiked;
   final bool isCollected;
+  final double historyProgress;
+  final int historyDurationSeconds;
   final List<MaterialComment> comments;
 
   factory MaterialItem.fromJson(Map<String, dynamic> json) {
@@ -101,6 +122,8 @@ class MaterialItem {
       createTime: _stringValue(json['create_time']),
       isLiked: _boolValue(json['is_liked']),
       isCollected: _boolValue(json['is_collected']),
+      historyProgress: _doubleValue(json['history_progress']),
+      historyDurationSeconds: _intValue(json['history_duration_seconds']),
       comments: _commentList(json['comments']),
     );
   }
@@ -169,7 +192,7 @@ class MaterialHistoryEntry {
   final String title;
   final String route;
   final String authorName;
-  final int progress;
+  final double progress;
   final int durationSeconds;
   final String viewedAt;
 
@@ -181,7 +204,7 @@ class MaterialHistoryEntry {
       title: _stringValue(json['title']),
       route: _stringValue(json['route']),
       authorName: _stringValue(json['author_name']),
-      progress: _intValue(json['progress']),
+      progress: _doubleValue(json['progress']),
       durationSeconds: _intValue(json['duration_seconds']),
       viewedAt: _stringValue(json['viewed_at']),
     );
@@ -223,6 +246,8 @@ class MaterialListQuery {
     required this.materialType,
     required this.categoryId,
     required this.keyword,
+    this.mediaType = '',
+    this.locale = '',
     this.page = 1,
     this.pageSize = 20,
   });
@@ -230,6 +255,8 @@ class MaterialListQuery {
   final String materialType;
   final int categoryId;
   final String keyword;
+  final String mediaType;
+  final String locale;
   final int page;
   final int pageSize;
 
@@ -239,13 +266,22 @@ class MaterialListQuery {
         other.materialType == materialType &&
         other.categoryId == categoryId &&
         other.keyword == keyword &&
+        other.mediaType == mediaType &&
+        other.locale == locale &&
         other.page == page &&
         other.pageSize == pageSize;
   }
 
   @override
-  int get hashCode =>
-      Object.hash(materialType, categoryId, keyword, page, pageSize);
+  int get hashCode => Object.hash(
+    materialType,
+    categoryId,
+    keyword,
+    mediaType,
+    locale,
+    page,
+    pageSize,
+  );
 }
 
 class MaterialHistoryQuery {
@@ -263,6 +299,49 @@ class MaterialHistoryQuery {
 
   @override
   int get hashCode => Object.hash(page, pageSize);
+}
+
+class MaterialDetailQuery {
+  const MaterialDetailQuery({required this.id, required this.locale});
+
+  final int id;
+  final String locale;
+
+  @override
+  bool operator ==(Object other) {
+    return other is MaterialDetailQuery &&
+        other.id == id &&
+        other.locale == locale;
+  }
+
+  @override
+  int get hashCode => Object.hash(id, locale);
+}
+
+class MaterialUploadResult {
+  const MaterialUploadResult({
+    required this.url,
+    required this.originName,
+    required this.mimeType,
+    required this.suffix,
+    required this.sizeByte,
+  });
+
+  final String url;
+  final String originName;
+  final String mimeType;
+  final String suffix;
+  final int sizeByte;
+
+  factory MaterialUploadResult.fromJson(Map<String, dynamic> json) {
+    return MaterialUploadResult(
+      url: _stringValue(json['url']),
+      originName: _stringValue(json['origin_name']),
+      mimeType: _stringValue(json['mime_type']),
+      suffix: _stringValue(json['suffix']),
+      sizeByte: _intValue(json['size_byte']),
+    );
+  }
 }
 
 List<T> _dynamicList<T>(
@@ -323,6 +402,16 @@ int _intValue(Object? value, {int fallback = 0}) {
   }
   if (value is String) {
     return int.tryParse(value) ?? fallback;
+  }
+  return fallback;
+}
+
+double _doubleValue(Object? value, {double fallback = 0}) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  if (value is String) {
+    return double.tryParse(value) ?? fallback;
   }
   return fallback;
 }

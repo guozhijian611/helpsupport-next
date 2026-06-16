@@ -121,7 +121,7 @@ class HomeDashboardScreen extends ConsumerWidget {
                   const SizedBox(width: 14),
                   Expanded(
                     child: _SupportEntryCard(
-                      title: _t(context, '娱乐', 'Restore'),
+                      title: _t(context, '娱乐', 'Entertainment'),
                       subtitle: _t(
                         context,
                         '让大脑从高压里喘口气',

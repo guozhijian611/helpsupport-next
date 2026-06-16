@@ -1,0 +1,564 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../core/notifications/centered_notice.dart';
+import '../application/material_controller.dart';
+import '../data/material_models.dart';
+
+class MaterialPrivateUploadScreen extends ConsumerStatefulWidget {
+  const MaterialPrivateUploadScreen({super.key});
+
+  @override
+  ConsumerState<MaterialPrivateUploadScreen> createState() =>
+      _MaterialPrivateUploadScreenState();
+}
+
+class _MaterialPrivateUploadScreenState
+    extends ConsumerState<MaterialPrivateUploadScreen> {
+  final _titleController = TextEditingController();
+  final _summaryController = TextEditingController();
+  final _contentController = TextEditingController();
+  final _linkController = TextEditingController();
+
+  String _mediaType = 'txt';
+  PlatformFile? _selectedFile;
+  bool _submitting = false;
+
+  _PrivateMediaOption get _currentOption {
+    return _privateMediaOptions.firstWhere(
+      (item) => item.value == _mediaType,
+      orElse: () => _privateMediaOptions.first,
+    );
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _summaryController.dispose();
+    _contentController.dispose();
+    _linkController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _PrivateUploadPalette.of(context);
+    final option = _currentOption;
+
+    return Scaffold(
+      backgroundColor: palette.pageBackground,
+      appBar: AppBar(
+        title: Text(_t(context, '上传私人素材', 'Upload Private Material')),
+        backgroundColor: palette.pageBackground,
+        foregroundColor: palette.primaryText,
+        surfaceTintColor: Colors.transparent,
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
+          children: [
+            _PrivateNotice(palette: palette),
+            const SizedBox(height: 16),
+            _PrivateUploadPanel(
+              palette: palette,
+              titleController: _titleController,
+              summaryController: _summaryController,
+              contentController: _contentController,
+              linkController: _linkController,
+              selectedFile: _selectedFile,
+              mediaType: _mediaType,
+              option: option,
+              onMediaChanged: (value) {
+                if (value == null || value == _mediaType) {
+                  return;
+                }
+                setState(() {
+                  _mediaType = value;
+                  _selectedFile = null;
+                });
+              },
+              onPickFile: _pickFile,
+              onClearFile: () => setState(() => _selectedFile = null),
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: _submitting ? null : _submit,
+              icon: _submitting
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.cloud_upload_outlined),
+              label: Text(
+                _submitting
+                    ? _t(context, '正在保存', 'Saving')
+                    : _t(context, '保存到私人素材', 'Save to Private Materials'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickFile() async {
+    final option = _currentOption;
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      allowedExtensions: option.extensions,
+      type: FileType.custom,
+      withData: false,
+    );
+    if (result == null || result.files.isEmpty) {
+      return;
+    }
+    setState(() => _selectedFile = result.files.single);
+  }
+
+  Future<void> _submit() async {
+    final title = _titleController.text.trim();
+    if (title.isEmpty) {
+      context.showCenteredNotice(_t(context, '请填写标题', 'Title is required'));
+      return;
+    }
+
+    final option = _currentOption;
+    final payload = <String, dynamic>{
+      'category_id': 0,
+      'media_type': option.value,
+      'title': title,
+      'summary': _summaryController.text.trim(),
+      'tags': const <String>[],
+    };
+
+    if (option.requiresFile) {
+      final file = _selectedFile;
+      if (file == null) {
+        context.showCenteredNotice(
+          _t(context, '请选择要上传的文件', 'Choose a file first'),
+        );
+        return;
+      }
+      setState(() => _submitting = true);
+      try {
+        final upload = await ref
+            .read(materialRepositoryProvider)
+            .uploadPrivateMaterialFile(file: file);
+        payload['content_url'] = upload.url;
+        if ((payload['summary'] as String).isEmpty &&
+            upload.originName.trim().isNotEmpty) {
+          payload['summary'] = upload.originName.trim();
+        }
+        await _save(payload);
+      } finally {
+        if (mounted) {
+          setState(() => _submitting = false);
+        }
+      }
+      return;
+    }
+
+    if (option.value == 'link') {
+      final link = _linkController.text.trim();
+      final uri = Uri.tryParse(link);
+      if (uri == null || !uri.hasScheme) {
+        context.showCenteredNotice(
+          _t(context, '请填写有效的外链地址', 'Enter a valid link'),
+        );
+        return;
+      }
+      payload['content_url'] = link;
+    } else {
+      final content = _contentController.text.trim();
+      if (content.isEmpty) {
+        context.showCenteredNotice(
+          _t(context, '请填写文字内容', 'Enter the text content'),
+        );
+        return;
+      }
+      payload['content_text'] = content;
+    }
+
+    setState(() => _submitting = true);
+    try {
+      await _save(payload);
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
+  }
+
+  Future<void> _save(Map<String, dynamic> payload) async {
+    try {
+      await ref.read(materialRepositoryProvider).savePrivateMaterial(payload);
+      final locale = Localizations.localeOf(context).toLanguageTag();
+      ref.invalidate(
+        materialListProvider(
+          MaterialListQuery(
+            materialType: 'private',
+            categoryId: 0,
+            keyword: '',
+            locale: locale,
+          ),
+        ),
+      );
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(_t(context, '已保存', 'Saved'));
+      context.pop();
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(error.toString());
+    }
+  }
+}
+
+class _PrivateUploadPanel extends StatelessWidget {
+  const _PrivateUploadPanel({
+    required this.palette,
+    required this.titleController,
+    required this.summaryController,
+    required this.contentController,
+    required this.linkController,
+    required this.selectedFile,
+    required this.mediaType,
+    required this.option,
+    required this.onMediaChanged,
+    required this.onPickFile,
+    required this.onClearFile,
+  });
+
+  final _PrivateUploadPalette palette;
+  final TextEditingController titleController;
+  final TextEditingController summaryController;
+  final TextEditingController contentController;
+  final TextEditingController linkController;
+  final PlatformFile? selectedFile;
+  final String mediaType;
+  final _PrivateMediaOption option;
+  final ValueChanged<String?> onMediaChanged;
+  final VoidCallback onPickFile;
+  final VoidCallback onClearFile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Column(
+        children: [
+          DropdownButtonFormField<String>(
+            value: mediaType,
+            decoration: _inputDecoration(context, _t(context, '素材类型', 'Type')),
+            items: [
+              for (final item in _privateMediaOptions)
+                DropdownMenuItem(
+                  value: item.value,
+                  child: Text(item.label(context)),
+                ),
+            ],
+            onChanged: onMediaChanged,
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: titleController,
+            decoration: _inputDecoration(context, _t(context, '标题', 'Title')),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: summaryController,
+            minLines: 2,
+            maxLines: 3,
+            decoration: _inputDecoration(
+              context,
+              _t(context, '摘要（可选）', 'Summary (optional)'),
+            ),
+          ),
+          const SizedBox(height: 14),
+          if (option.requiresFile)
+            _FilePickerTile(
+              palette: palette,
+              option: option,
+              file: selectedFile,
+              onPickFile: onPickFile,
+              onClearFile: onClearFile,
+            )
+          else if (option.value == 'link')
+            TextField(
+              controller: linkController,
+              keyboardType: TextInputType.url,
+              decoration: _inputDecoration(
+                context,
+                _t(context, '游戏外链', 'Game link'),
+              ),
+            )
+          else
+            TextField(
+              controller: contentController,
+              minLines: 8,
+              maxLines: 12,
+              decoration: _inputDecoration(
+                context,
+                _t(context, '文字内容', 'Text content'),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PrivateNotice extends StatelessWidget {
+  const _PrivateNotice({required this.palette});
+
+  final _PrivateUploadPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: palette.noticeBackground,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.lock_outline_rounded, color: palette.accent),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _t(
+                context,
+                '私人素材上传到服务器后仅当前账号可见。',
+                'Private materials are uploaded to the server and visible only to your account.',
+              ),
+              style: TextStyle(
+                color: palette.bodyText,
+                height: 1.45,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilePickerTile extends StatelessWidget {
+  const _FilePickerTile({
+    required this.palette,
+    required this.option,
+    required this.file,
+    required this.onPickFile,
+    required this.onClearFile,
+  });
+
+  final _PrivateUploadPalette palette;
+  final _PrivateMediaOption option;
+  final PlatformFile? file;
+  final VoidCallback onPickFile;
+  final VoidCallback onClearFile;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onPickFile,
+      child: Ink(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: palette.fieldBackground,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: palette.outline),
+        ),
+        child: Row(
+          children: [
+            Icon(option.icon, color: palette.accent, size: 30),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    file?.name ?? _t(context, '选择文件', 'Choose file'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: palette.primaryText,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _t(
+                      context,
+                      '支持 ${option.extensions.join(' / ')}',
+                      'Supports ${option.extensions.join(' / ')}',
+                    ),
+                    style: TextStyle(color: palette.secondaryText),
+                  ),
+                ],
+              ),
+            ),
+            if (file != null)
+              IconButton(
+                tooltip: _t(context, '移除文件', 'Remove file'),
+                onPressed: onClearFile,
+                icon: const Icon(Icons.close_rounded),
+              )
+            else
+              const Icon(Icons.chevron_right_rounded),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+InputDecoration _inputDecoration(BuildContext context, String label) {
+  final palette = _PrivateUploadPalette.of(context);
+  return InputDecoration(
+    labelText: label,
+    filled: true,
+    fillColor: palette.fieldBackground,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: BorderSide.none,
+    ),
+  );
+}
+
+class _PrivateMediaOption {
+  const _PrivateMediaOption({
+    required this.value,
+    required this.zh,
+    required this.en,
+    required this.icon,
+    this.extensions = const [],
+  });
+
+  final String value;
+  final String zh;
+  final String en;
+  final IconData icon;
+  final List<String> extensions;
+
+  bool get requiresFile => extensions.isNotEmpty;
+
+  String label(BuildContext context) => _t(context, zh, en);
+}
+
+const _privateMediaOptions = <_PrivateMediaOption>[
+  _PrivateMediaOption(
+    value: 'txt',
+    zh: '书籍 TXT',
+    en: 'Book TXT',
+    icon: Icons.menu_book_rounded,
+    extensions: ['txt'],
+  ),
+  _PrivateMediaOption(
+    value: 'epub',
+    zh: '书籍 EPUB',
+    en: 'Book EPUB',
+    icon: Icons.menu_book_rounded,
+    extensions: ['epub'],
+  ),
+  _PrivateMediaOption(
+    value: 'pdf',
+    zh: '书籍 PDF',
+    en: 'Book PDF',
+    icon: Icons.picture_as_pdf_rounded,
+    extensions: ['pdf'],
+  ),
+  _PrivateMediaOption(
+    value: 'mp4',
+    zh: '电影 MP4',
+    en: 'Movie MP4',
+    icon: Icons.movie_rounded,
+    extensions: ['mp4'],
+  ),
+  _PrivateMediaOption(
+    value: 'mov',
+    zh: '电影 MOV',
+    en: 'Movie MOV',
+    icon: Icons.movie_rounded,
+    extensions: ['mov'],
+  ),
+  _PrivateMediaOption(
+    value: 'mp3',
+    zh: '音乐 MP3',
+    en: 'Music MP3',
+    icon: Icons.music_note_rounded,
+    extensions: ['mp3'],
+  ),
+  _PrivateMediaOption(
+    value: 'link',
+    zh: '游戏外链',
+    en: 'Game link',
+    icon: Icons.sports_esports_rounded,
+  ),
+  _PrivateMediaOption(
+    value: 'article',
+    zh: '文字记录',
+    en: 'Text note',
+    icon: Icons.edit_note_rounded,
+  ),
+];
+
+String _t(BuildContext context, String zh, String en) {
+  return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+class _PrivateUploadPalette {
+  const _PrivateUploadPalette({
+    required this.pageBackground,
+    required this.cardBackground,
+    required this.fieldBackground,
+    required this.noticeBackground,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.bodyText,
+    required this.outline,
+    required this.accent,
+  });
+
+  factory _PrivateUploadPalette.of(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return _PrivateUploadPalette(
+      pageBackground: scheme.surface,
+      cardBackground: scheme.surfaceContainerLowest,
+      fieldBackground: scheme.surfaceContainerLow,
+      noticeBackground: isDark
+          ? const Color(0x22FF9585)
+          : const Color(0xFFFFF1ED),
+      primaryText: scheme.onSurface,
+      secondaryText: scheme.onSurfaceVariant,
+      bodyText: isDark
+          ? scheme.onSurface.withValues(alpha: 0.86)
+          : const Color(0xFF555A64),
+      outline: scheme.outlineVariant,
+      accent: const Color(0xFFFF9585),
+    );
+  }
+
+  final Color pageBackground;
+  final Color cardBackground;
+  final Color fieldBackground;
+  final Color noticeBackground;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color bodyText;
+  final Color outline;
+  final Color accent;
+}

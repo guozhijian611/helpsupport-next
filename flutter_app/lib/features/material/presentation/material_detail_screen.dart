@@ -2,9 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../application/material_controller.dart';
@@ -34,7 +33,12 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = _MaterialDetailPalette.of(context);
-    final material = ref.watch(materialDetailProvider(widget.materialId));
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    final detailQuery = MaterialDetailQuery(
+      id: widget.materialId,
+      locale: locale,
+    );
+    final material = ref.watch(materialDetailProvider(detailQuery));
     final comments = ref.watch(materialCommentsProvider(widget.materialId));
 
     return Scaffold(
@@ -49,19 +53,26 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
         child: material.when(
           data: (item) {
             _saveHistoryOnce(item);
+            if (item.materialType == 'entertainment') {
+              return _EntertainmentDetailBody(
+                item: item,
+                comments: comments,
+                commentController: _commentController,
+                isSending: _isSending,
+                onSend: _sendComment,
+              );
+            }
             return Column(
               children: [
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: () async {
-                      ref.invalidate(materialDetailProvider(widget.materialId));
+                      ref.invalidate(materialDetailProvider(detailQuery));
                       ref.invalidate(
                         materialCommentsProvider(widget.materialId),
                       );
                       await Future.wait([
-                        ref.read(
-                          materialDetailProvider(widget.materialId).future,
-                        ),
+                        ref.read(materialDetailProvider(detailQuery).future),
                         ref.read(
                           materialCommentsProvider(widget.materialId).future,
                         ),
@@ -156,7 +167,12 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
           .read(materialRepositoryProvider)
           .createComment(materialId: widget.materialId, content: content);
       _commentController.clear();
-      ref.invalidate(materialDetailProvider(widget.materialId));
+      final locale = Localizations.localeOf(context).toLanguageTag();
+      ref.invalidate(
+        materialDetailProvider(
+          MaterialDetailQuery(id: widget.materialId, locale: locale),
+        ),
+      );
       ref.invalidate(materialCommentsProvider(widget.materialId));
     } on Object catch (error) {
       if (!mounted) {
@@ -168,6 +184,245 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
         setState(() => _isSending = false);
       }
     }
+  }
+}
+
+class _EntertainmentDetailBody extends StatelessWidget {
+  const _EntertainmentDetailBody({
+    required this.item,
+    required this.comments,
+    required this.commentController,
+    required this.isSending,
+    required this.onSend,
+  });
+
+  final MaterialItem item;
+  final AsyncValue<MaterialPage<MaterialComment>> comments;
+  final TextEditingController commentController;
+  final bool isSending;
+  final VoidCallback onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _MaterialDetailPalette.of(context);
+
+    return Column(
+      children: [
+        Expanded(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              _EntertainmentHero(item: item),
+              Container(
+                color: palette.cardBackground,
+                padding: const EdgeInsets.fromLTRB(18, 34, 18, 22),
+                child: Column(
+                  children: [
+                    Text(
+                      item.title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: palette.primaryText,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        height: 1.28,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _t(context, '官方发布', 'Official'),
+                      style: TextStyle(
+                        color: palette.secondaryText,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 26),
+                    _MaterialContentSection(item: item),
+                    const SizedBox(height: 24),
+                    _SectionTitle(
+                      title: _t(context, '评论区', 'Comments'),
+                      count: item.commentCount,
+                    ),
+                    const SizedBox(height: 12),
+                    comments.when(
+                      data: (page) => page.list.isEmpty
+                          ? _CommentEmptyState(
+                              text: _t(
+                                context,
+                                '还没有评论，留下你的第一条感受。',
+                                'No comments yet. Share the first thought.',
+                              ),
+                            )
+                          : Column(
+                              children: [
+                                for (final comment in page.list)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _MaterialCommentCard(
+                                      comment: comment,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                      error: (error, _) =>
+                          _CommentEmptyState(text: error.toString()),
+                      loading: () => const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        _CommentComposer(
+          controller: commentController,
+          isSending: isSending,
+          onSend: onSend,
+        ),
+      ],
+    );
+  }
+}
+
+class _EntertainmentHero extends ConsumerWidget {
+  const _EntertainmentHero({required this.item});
+
+  final MaterialItem item;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _MaterialDetailPalette.of(context);
+    final apiClient = ref.watch(apiClientProvider);
+    final coverUrl = apiClient.resolveUrl(item.coverUrl);
+
+    return Container(
+      color: palette.entertainmentHeroBackground,
+      padding: const EdgeInsets.fromLTRB(18, 54, 18, 50),
+      child: Column(
+        children: [
+          SizedBox(
+            width: 210,
+            height: 284,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: coverUrl.isNotEmpty
+                  ? Image.network(
+                      coverUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) =>
+                          const _EntertainmentCoverShell(),
+                    )
+                  : const _EntertainmentCoverShell(),
+            ),
+          ),
+          const SizedBox(height: 54),
+          Container(
+            padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
+            decoration: BoxDecoration(
+              color: palette.entertainmentStatsBackground,
+              borderRadius: BorderRadius.circular(26),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _EntertainmentStatTile(
+                        value: _mediaTitle(context, item.mediaType),
+                        label: _t(context, '所属分类', 'Category'),
+                      ),
+                    ),
+                    Expanded(
+                      child: _EntertainmentStatTile(
+                        value: _resourceForm(context, item.mediaType),
+                        label: _t(context, '资源形式', 'Format'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _EntertainmentStatTile(
+                        value: '${item.viewCount}',
+                        label: _t(context, '浏览量', 'Views'),
+                      ),
+                    ),
+                    Expanded(
+                      child: _EntertainmentStatTile(
+                        value: _dateOnly(item.createTime),
+                        label: _t(context, '发布时间', 'Published'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EntertainmentCoverShell extends StatelessWidget {
+  const _EntertainmentCoverShell();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _MaterialDetailPalette.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(color: palette.softBackground),
+      child: Center(
+        child: Icon(
+          Icons.auto_stories_rounded,
+          size: 56,
+          color: palette.secondaryText.withValues(alpha: 0.6),
+        ),
+      ),
+    );
+  }
+}
+
+class _EntertainmentStatTile extends StatelessWidget {
+  const _EntertainmentStatTile({required this.value, required this.label});
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _MaterialDetailPalette.of(context);
+    return Column(
+      children: [
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: palette.primaryText,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: palette.secondaryText,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -284,7 +539,12 @@ class _MaterialHero extends ConsumerWidget {
   Future<void> _toggleLike(BuildContext context, WidgetRef ref) async {
     try {
       await ref.read(materialRepositoryProvider).toggleLike(item.id);
-      ref.invalidate(materialDetailProvider(item.id));
+      final locale = Localizations.localeOf(context).toLanguageTag();
+      ref.invalidate(
+        materialDetailProvider(
+          MaterialDetailQuery(id: item.id, locale: locale),
+        ),
+      );
     } on Object catch (error) {
       if (!context.mounted) {
         return;
@@ -296,7 +556,22 @@ class _MaterialHero extends ConsumerWidget {
   Future<void> _toggleCollect(BuildContext context, WidgetRef ref) async {
     try {
       await ref.read(materialRepositoryProvider).toggleCollect(item.id);
-      ref.invalidate(materialDetailProvider(item.id));
+      final locale = Localizations.localeOf(context).toLanguageTag();
+      ref.invalidate(
+        materialDetailProvider(
+          MaterialDetailQuery(id: item.id, locale: locale),
+        ),
+      );
+      ref.invalidate(
+        materialCollectionsProvider(
+          MaterialListQuery(
+            materialType: '',
+            categoryId: 0,
+            keyword: '',
+            locale: locale,
+          ),
+        ),
+      );
     } on Object catch (error) {
       if (!context.mounted) {
         return;
@@ -306,14 +581,18 @@ class _MaterialHero extends ConsumerWidget {
   }
 }
 
-class _MaterialContentSection extends StatelessWidget {
+class _MaterialContentSection extends ConsumerWidget {
   const _MaterialContentSection({required this.item});
 
   final MaterialItem item;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = _MaterialDetailPalette.of(context);
+    final apiClient = ref.watch(apiClientProvider);
+    final contentUrl = apiClient.resolveUrl(item.contentUrl);
+    final isGame =
+        item.materialType == 'entertainment' && item.mediaType == 'link';
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
@@ -356,12 +635,21 @@ class _MaterialContentSection extends StatelessWidget {
                 height: 1.7,
               ),
             ),
-          if (item.contentUrl.trim().isNotEmpty) ...[
+          if (contentUrl.trim().isNotEmpty ||
+              item.contentText.trim().isNotEmpty) ...[
             const SizedBox(height: 16),
             FilledButton.tonalIcon(
-              onPressed: () => _openContent(context, item.contentUrl),
-              icon: const Icon(Icons.open_in_new_rounded),
-              label: Text(_t(context, '打开原内容', 'Open source')),
+              onPressed: () => _openContent(context, item, contentUrl),
+              icon: Icon(
+                isGame
+                    ? Icons.sports_esports_rounded
+                    : Icons.open_in_new_rounded,
+              ),
+              label: Text(
+                isGame
+                    ? _t(context, '开始游戏', 'Play')
+                    : _t(context, '打开资源', 'Open resource'),
+              ),
             ),
           ],
         ],
@@ -369,18 +657,22 @@ class _MaterialContentSection extends StatelessWidget {
     );
   }
 
-  Future<void> _openContent(BuildContext context, String url) async {
-    final uri = Uri.tryParse(url.trim());
-    if (uri == null) {
-      context.showCenteredNotice(_t(context, '内容地址无效', 'Invalid content URL'));
-      return;
+  Future<void> _openContent(
+    BuildContext context,
+    MaterialItem item,
+    String url,
+  ) async {
+    final trimmed = url.trim();
+    if (trimmed.isNotEmpty) {
+      final uri = Uri.tryParse(trimmed);
+      if (uri == null || !uri.hasScheme) {
+        context.showCenteredNotice(
+          _t(context, '内容地址无效', 'Invalid content URL'),
+        );
+        return;
+      }
     }
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && context.mounted) {
-      context.showCenteredNotice(
-        _t(context, '无法打开内容链接', 'Unable to open link'),
-      );
-    }
+    context.push('/materials/resource/${item.id}', extra: item);
   }
 }
 
@@ -484,7 +776,12 @@ class _MaterialCommentCard extends ConsumerWidget {
     try {
       await ref.read(materialRepositoryProvider).toggleCommentLike(comment.id);
       ref.invalidate(materialCommentsProvider(comment.materialId));
-      ref.invalidate(materialDetailProvider(comment.materialId));
+      final locale = Localizations.localeOf(context).toLanguageTag();
+      ref.invalidate(
+        materialDetailProvider(
+          MaterialDetailQuery(id: comment.materialId, locale: locale),
+        ),
+      );
     } on Object catch (error) {
       if (!context.mounted) {
         return;
@@ -696,11 +993,33 @@ String _mediaTitle(BuildContext context, String mediaType) {
   return switch (mediaType) {
     'video' => _t(context, '视频', 'Video'),
     'audio' => _t(context, '音频', 'Audio'),
+    'txt' => 'TXT',
     'pdf' => 'PDF',
     'epub' => 'EPUB',
-    'link' => _t(context, '链接', 'Link'),
+    'mp4' => 'MP4',
+    'mov' => 'MOV',
+    'mp3' => 'MP3',
+    'link' => _t(context, '游戏', 'Game'),
     _ => _t(context, '文章', 'Article'),
   };
+}
+
+String _resourceForm(BuildContext context, String mediaType) {
+  return switch (mediaType) {
+    'txt' || 'epub' || 'pdf' => _t(context, '文件资源', 'File'),
+    'video' || 'mp4' || 'mov' => _t(context, '视频资源', 'Video'),
+    'audio' || 'mp3' => _t(context, '音频资源', 'Audio'),
+    'link' => _t(context, '链接资源', 'Link'),
+    _ => _t(context, '图文内容', 'Article'),
+  };
+}
+
+String _dateOnly(String value) {
+  final trimmed = value.trim();
+  if (trimmed.length >= 10) {
+    return trimmed.substring(0, 10);
+  }
+  return trimmed.isEmpty ? '--' : trimmed;
 }
 
 String _t(BuildContext context, String zh, String en) {
@@ -714,6 +1033,8 @@ class _MaterialDetailPalette {
     required this.softBackground,
     required this.activeSoftBackground,
     required this.avatarBackground,
+    required this.entertainmentHeroBackground,
+    required this.entertainmentStatsBackground,
     required this.primaryText,
     required this.secondaryText,
     required this.mutedText,
@@ -733,6 +1054,12 @@ class _MaterialDetailPalette {
       avatarBackground: isDark
           ? scheme.primaryContainer.withValues(alpha: 0.28)
           : const Color(0xFFF8E3DB),
+      entertainmentHeroBackground: isDark
+          ? const Color(0xFF20383E)
+          : const Color(0xFFC8E5EB),
+      entertainmentStatsBackground: isDark
+          ? scheme.surfaceContainerHighest.withValues(alpha: 0.9)
+          : const Color(0xFFF8FBFD),
       primaryText: scheme.onSurface,
       secondaryText: scheme.onSurfaceVariant,
       mutedText: isDark
@@ -749,6 +1076,8 @@ class _MaterialDetailPalette {
   final Color softBackground;
   final Color activeSoftBackground;
   final Color avatarBackground;
+  final Color entertainmentHeroBackground;
+  final Color entertainmentStatsBackground;
   final Color primaryText;
   final Color secondaryText;
   final Color mutedText;

@@ -9,8 +9,10 @@ final materialRepositoryProvider = Provider<MaterialRepository>((ref) {
 });
 
 final materialCategoriesProvider = FutureProvider.autoDispose
-    .family<List<MaterialCategory>, String>((ref, type) {
-      return ref.watch(materialRepositoryProvider).fetchCategories(type: type);
+    .family<List<MaterialCategory>, MaterialCategoriesQuery>((ref, query) {
+      return ref
+          .watch(materialRepositoryProvider)
+          .fetchCategories(type: query.type, locale: query.locale);
     });
 
 final materialListProvider = FutureProvider.autoDispose
@@ -20,17 +22,23 @@ final materialListProvider = FutureProvider.autoDispose
           .fetchMaterials(
             materialType: query.materialType,
             categoryId: query.categoryId,
+            mediaType: query.mediaType,
             keyword: query.keyword,
+            locale: query.locale,
             page: query.page,
             pageSize: query.pageSize,
           );
     });
 
 final materialCollectionsProvider = FutureProvider.autoDispose
-    .family<MaterialPage<MaterialItem>, MaterialHistoryQuery>((ref, query) {
+    .family<MaterialPage<MaterialItem>, MaterialListQuery>((ref, query) {
       return ref
           .watch(materialRepositoryProvider)
-          .fetchCollections(page: query.page, pageSize: query.pageSize);
+          .fetchCollections(
+            locale: query.locale,
+            page: query.page,
+            pageSize: query.pageSize,
+          );
     });
 
 final materialHistoryProvider = FutureProvider.autoDispose
@@ -44,8 +52,10 @@ final materialHistoryProvider = FutureProvider.autoDispose
     });
 
 final materialDetailProvider = FutureProvider.autoDispose
-    .family<MaterialItem, int>((ref, id) {
-      return ref.watch(materialRepositoryProvider).fetchMaterialDetail(id);
+    .family<MaterialItem, MaterialDetailQuery>((ref, query) {
+      return ref
+          .watch(materialRepositoryProvider)
+          .fetchMaterialDetail(query.id, locale: query.locale);
     });
 
 final materialCommentsProvider = FutureProvider.autoDispose

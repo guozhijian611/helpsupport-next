@@ -23,6 +23,7 @@ class MaterialController extends BaseController
     #[Apidoc\Url('/app/help/material/categories')]
     #[Apidoc\Method('GET')]
     #[Apidoc\Query('type', type: 'string', require: false, desc: '分类类型 education/entertainment/private')]
+    #[Apidoc\Query('locale', type: 'string', require: false, default: 'en-US', desc: '客户端语言')]
     #[Apidoc\Returned('list', type: 'array', desc: '素材分类')]
     public function categories(Request $request): Response
     {
@@ -35,6 +36,7 @@ class MaterialController extends BaseController
     #[Apidoc\Query('material_type', type: 'string', require: false, desc: '内容大类')]
     #[Apidoc\Query('category_id', type: 'int', require: false, desc: '分类ID')]
     #[Apidoc\Query('keyword', type: 'string', require: false, desc: '关键词')]
+    #[Apidoc\Query('locale', type: 'string', require: false, default: 'en-US', desc: '客户端语言')]
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 15, desc: '每页数量')]
     #[Apidoc\Returned('list', type: 'array', desc: '素材列表')]
@@ -50,10 +52,29 @@ class MaterialController extends BaseController
     #[Apidoc\Url('/app/help/material/detail')]
     #[Apidoc\Method('GET')]
     #[Apidoc\Query('id', type: 'int', require: true, desc: '素材ID')]
+    #[Apidoc\Query('locale', type: 'string', require: false, default: 'en-US', desc: '客户端语言')]
     #[Apidoc\Returned('material', type: 'object', desc: '素材详情')]
     public function detail(Request $request): Response
     {
-        return ok($this->service->materialDetail($this->memberId, (int) $request->get('id')));
+        return ok($this->service->materialDetail(
+            $this->memberId,
+            (int) $request->get('id'),
+            (string) $request->get('locale', '')
+        ));
+    }
+
+    #[Apidoc\Title('上传私人素材文件')]
+    #[Apidoc\Url('/app/help/material/private/upload')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('file', type: 'file', require: true, desc: '素材文件，支持 txt/epub/pdf/mp4/mov/mp3')]
+    #[Apidoc\Returned('url', type: 'string', desc: '素材文件地址')]
+    #[Apidoc\Returned('origin_name', type: 'string', desc: '原始文件名')]
+    #[Apidoc\Returned('mime_type', type: 'string', desc: 'MIME 类型')]
+    #[Apidoc\Returned('suffix', type: 'string', desc: '文件后缀')]
+    #[Apidoc\Returned('size_byte', type: 'int', desc: '文件大小')]
+    public function uploadPrivate(Request $request): Response
+    {
+        return ok($this->service->uploadPrivateMaterialFile($request));
     }
 
     #[Apidoc\Title('保存私人素材')]
@@ -61,7 +82,7 @@ class MaterialController extends BaseController
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('id', type: 'int', require: false, desc: '素材ID，空为新增')]
     #[Apidoc\Param('category_id', type: 'int', require: false, desc: '私人素材分类ID')]
-    #[Apidoc\Param('media_type', type: 'string', require: false, default: 'article', desc: '素材类型 article/video/audio/pdf/epub/link')]
+    #[Apidoc\Param('media_type', type: 'string', require: false, default: 'article', desc: '素材类型 article/video/audio/pdf/epub/link/txt/mp4/mov/mp3')]
     #[Apidoc\Param('title', type: 'string', require: true, desc: '素材标题')]
     #[Apidoc\Param('summary', type: 'string', require: false, desc: '摘要')]
     #[Apidoc\Param('cover_url', type: 'string', require: false, desc: '封面图')]
@@ -97,6 +118,8 @@ class MaterialController extends BaseController
     #[Apidoc\Param('content_type', type: 'string', require: true, desc: '内容类型')]
     #[Apidoc\Param('title', type: 'string', require: true, desc: '内容标题')]
     #[Apidoc\Param('route', type: 'string', require: true, desc: '页面路由')]
+    #[Apidoc\Param('progress', type: 'float', require: false, default: 0, desc: '浏览或播放进度百分比')]
+    #[Apidoc\Param('duration_seconds', type: 'int', require: false, default: 0, desc: '停留或播放秒数')]
     #[Apidoc\Returned('id', type: 'int', desc: '浏览历史ID')]
     #[Apidoc\Returned('viewed_at', type: 'datetime', desc: '最近浏览时间')]
     public function saveHistory(Request $request): Response
@@ -107,6 +130,7 @@ class MaterialController extends BaseController
     #[Apidoc\Title('素材收藏列表')]
     #[Apidoc\Url('/app/help/material/collections')]
     #[Apidoc\Method('GET')]
+    #[Apidoc\Query('locale', type: 'string', require: false, default: 'en-US', desc: '客户端语言')]
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
     #[Apidoc\Returned('list', type: 'array', desc: '素材收藏列表')]

@@ -21,6 +21,19 @@ class HelpApiService
     private const EMAIL_CODE_EXPIRES_IN = 600;
     private const SMS_CODE_EXPIRES_IN = 300;
     private const CODE_RESEND_AFTER = 120;
+    private const MATERIAL_MEDIA_TYPES = [
+        'article',
+        'video',
+        'audio',
+        'pdf',
+        'epub',
+        'link',
+        'txt',
+        'mp4',
+        'mov',
+        'mp3',
+    ];
+    private const MATERIAL_UPLOAD_EXTENSIONS = ['txt', 'epub', 'pdf', 'mp4', 'mov', 'mp3'];
 
     public function appConfig(): array
     {
@@ -1808,6 +1821,7 @@ class HelpApiService
 
     public function materialCategories(array $params): array
     {
+        $locale = (string) ($params['locale'] ?? '');
         $query = Db::table('sa_content_category')
             ->where('status', 1)
             ->whereNull('delete_time');
@@ -1816,21 +1830,27 @@ class HelpApiService
             $query->where('type', (string) $params['type']);
         }
 
-        return $query
+        $rows = $query
             ->order('sort', 'asc')
             ->order('id', 'asc')
             ->select()
             ->toArray();
+
+        return array_map(fn (array $row): array => $this->localizeMaterialCategory($row, $locale), $rows);
     }
 
     public function materials(int $memberId, array $params): array
     {
-        return $this->paginate(function () use ($memberId, $params) {
+        $locale = (string) ($params['locale'] ?? '');
+        $page = $this->paginate(function () use ($memberId, $params) {
             $query = $this->visibleMaterialQuery($memberId)
                 ->field('id, member_id, category_id, media_type, material_type, title, title_i18n, summary, cover_url, content_url, duration_seconds, is_public, is_recommended, view_count, like_count, collect_count, comment_count, sort, create_time');
 
             if (!empty($params['material_type'])) {
                 $query->where('material_type', (string) $params['material_type']);
+                if ((string) $params['material_type'] === 'private') {
+                    $query->where('member_id', $memberId);
+                }
             }
             if (!empty($params['category_id'])) {
                 $query->where('category_id', (int) $params['category_id']);
@@ -1847,9 +1867,13 @@ class HelpApiService
 
             return $query->order('is_recommended', 'asc')->order('sort', 'asc')->order('id', 'desc');
         }, $params);
+
+        $page['list'] = $this->localizeMaterialRows($page['list'], $locale);
+
+        return $page;
     }
 
-    public function materialDetail(int $memberId, int $materialId): array
+    public function materialDetail(int $memberId, int $materialId, string $locale = ''): array
     {
         $material = $this->visibleMaterialQuery($memberId)
             ->where('id', $materialId)
@@ -1862,6 +1886,15 @@ class HelpApiService
 
         $material['is_liked'] = $this->activeInteractionExists('sa_material_like', $memberId, 'material_id', $materialId);
         $material['is_collected'] = $this->activeInteractionExists('sa_material_collect', $memberId, 'material_id', $materialId);
+        $history = Db::table('sa_member_content_history')
+            ->where('member_id', $memberId)
+            ->where('content_id', $materialId)
+            ->where('content_type', 'material')
+            ->whereNull('delete_time')
+            ->field('progress, duration_seconds')
+            ->find();
+        $material['history_progress'] = (float) ($history['progress'] ?? 0);
+        $material['history_duration_seconds'] = (int) ($history['duration_seconds'] ?? 0);
         $material['comments'] = Db::table('sa_material_comment')
             ->where('material_id', $materialId)
             ->where('status', 1)
@@ -1871,14 +1904,14 @@ class HelpApiService
             ->select()
             ->toArray();
 
-        return $material;
+        return $this->localizeMaterialRow($material, $locale);
     }
 
     public function savePrivateMaterial(int $memberId, array $data): array
     {
         $materialId = (int) ($data['id'] ?? 0);
         $mediaType = trim((string) ($data['media_type'] ?? 'article'));
-        if (!in_array($mediaType, ['article', 'video', 'audio', 'pdf', 'epub', 'link'], true)) {
+        if (!in_array($mediaType, self::MATERIAL_MEDIA_TYPES, true)) {
             throw new ApiException('素材类型参数错误', 400);
         }
 
@@ -1951,6 +1984,33 @@ class HelpApiService
         return Db::table('sa_content_material')->where('id', $id)->find() ?: [];
     }
 
+    public function uploadPrivateMaterialFile(Request $request): array
+    {
+        $file = current($request->file());
+        if (!$file) {
+            throw new ApiException('私人素材文件必须上传', 400);
+        }
+
+        $extension = strtolower((string) ($file->getUploadExtension() ?: pathinfo((string) $file->getUploadName(), PATHINFO_EXTENSION)));
+        if (!in_array($extension, self::MATERIAL_UPLOAD_EXTENSIONS, true)) {
+            throw new ApiException('私人素材仅支持 txt、epub、pdf、mp4、mov、mp3 文件', 400);
+        }
+
+        $upload = (new SystemAttachmentLogic())->uploadBase('file');
+        $url = trim((string) ($upload['url'] ?? ''));
+        if ($url === '') {
+            throw new ApiException('私人素材上传失败，请稍后重试', 500);
+        }
+
+        return [
+            'url' => $url,
+            'origin_name' => (string) ($upload['origin_name'] ?? ''),
+            'mime_type' => (string) ($upload['mime_type'] ?? ''),
+            'suffix' => strtolower((string) ($upload['suffix'] ?? $extension)),
+            'size_byte' => (int) ($upload['size_byte'] ?? 0),
+        ];
+    }
+
     public function saveMaterialHistory(int $memberId, array $data): array
     {
         $contentId = (int) ($data['content_id'] ?? 0);
@@ -1966,6 +2026,8 @@ class HelpApiService
             'progress',
             'duration_seconds',
         ]);
+        $payload['progress'] = min(100, max(0, (float) ($payload['progress'] ?? 0)));
+        $payload['duration_seconds'] = max(0, (int) ($payload['duration_seconds'] ?? 0));
         $payload['member_id'] = $memberId;
         $payload['content_id'] = $contentId;
         $payload['content_type'] = $contentType;
@@ -2000,13 +2062,26 @@ class HelpApiService
 
     public function materialCollections(int $memberId, array $params): array
     {
-        return $this->paginate(fn () => Db::table('sa_material_collect')
+        $locale = (string) ($params['locale'] ?? '');
+        $page = $this->paginate(fn () => Db::table('sa_material_collect')
             ->alias('c')
             ->leftJoin('sa_content_material m', 'm.id = c.material_id AND m.delete_time IS NULL')
             ->where('c.member_id', $memberId)
+            ->where('m.status', 1)
+            ->whereRaw(sprintf(
+                "((m.`material_type` = 'private' AND m.`member_id` = %d) OR (m.`material_type` <> 'private' AND (m.`is_public` = 1 OR m.`member_id` = %d)))",
+                $memberId,
+                $memberId
+            ))
+            ->where(function ($query) use ($memberId) {
+                $query->where('m.audit_status', 2)->whereOr('m.member_id', $memberId);
+            })
             ->whereNull('c.delete_time')
             ->field('c.id AS collect_id, c.create_time AS collect_time, m.*')
             ->order('c.id', 'desc'), $params);
+        $page['list'] = $this->localizeMaterialRows($page['list'], $locale);
+
+        return $page;
     }
 
     public function materialComments(int $memberId, array $params): array
@@ -4364,12 +4439,104 @@ class HelpApiService
         return Db::table('sa_content_material')
             ->where('status', 1)
             ->whereNull('delete_time')
-            ->where(function ($query) use ($memberId) {
-                $query->where('is_public', 1)->whereOr('member_id', $memberId);
-            })
+            ->whereRaw(sprintf(
+                "((`material_type` = 'private' AND `member_id` = %d) OR (`material_type` <> 'private' AND (`is_public` = 1 OR `member_id` = %d)))",
+                $memberId,
+                $memberId
+            ))
             ->where(function ($query) use ($memberId) {
                 $query->where('audit_status', 2)->whereOr('member_id', $memberId);
             });
+    }
+
+    private function localizeMaterialCategory(array $row, string $locale): array
+    {
+        $row['name'] = $this->localizedMaterialText(
+            (string) ($row['name'] ?? ''),
+            $row['name_i18n'] ?? null,
+            $locale
+        );
+
+        return $row;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private function localizeMaterialRows(array $rows, string $locale): array
+    {
+        return array_map(fn (array $row): array => $this->localizeMaterialRow($row, $locale), $rows);
+    }
+
+    private function localizeMaterialRow(array $row, string $locale): array
+    {
+        $row['title'] = $this->localizedMaterialText(
+            (string) ($row['title'] ?? ''),
+            $row['title_i18n'] ?? null,
+            $locale
+        );
+
+        return $row;
+    }
+
+    private function localizedMaterialText(string $fallback, mixed $i18n, string $locale): string
+    {
+        $values = $this->decodeJsonObject($i18n);
+        if ($values === []) {
+            return $fallback;
+        }
+
+        foreach ($this->materialLocaleCandidates($locale) as $candidate) {
+            if (isset($values[$candidate]) && trim((string) $values[$candidate]) !== '') {
+                return (string) $values[$candidate];
+            }
+        }
+
+        return $fallback;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function materialLocaleCandidates(string $locale): array
+    {
+        $locale = trim(str_replace('_', '-', $locale));
+        $normalized = strtolower($locale);
+        $language = strtok($normalized !== '' ? $normalized : self::DEFAULT_LOCALE, '-') ?: '';
+        $candidates = [];
+
+        foreach ([$locale, $normalized, $language] as $candidate) {
+            if ($candidate !== '') {
+                $candidates[] = $candidate;
+            }
+        }
+
+        if ($language === 'zh') {
+            array_push($candidates, 'zh-CN', 'zh-cn', 'zh');
+        } elseif ($language === 'en') {
+            array_push($candidates, 'en-US', 'en-us', 'en');
+        }
+
+        array_push($candidates, self::DEFAULT_LOCALE, strtolower(self::DEFAULT_LOCALE), 'en', self::DEFAULT_PROTOCOL_LOCALE, 'zh-CN', 'zh-cn', 'zh');
+
+        return array_values(array_unique($candidates));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeJsonObject(mixed $value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+        if (!is_string($value) || trim($value) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($value, true);
+        return is_array($decoded) ? $decoded : [];
     }
 
     private function communityTargetMemberId(int $memberId, int $targetMemberId): int
