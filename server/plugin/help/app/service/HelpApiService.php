@@ -34,6 +34,11 @@ class HelpApiService
         'mp3',
     ];
     private const MATERIAL_UPLOAD_EXTENSIONS = ['txt', 'epub', 'pdf', 'mp4', 'mov', 'mp3'];
+    private const MATERIAL_CATEGORY_NAMES = [
+        'education' => ['入门', '动机与认知', '应对技能', '复发预防', '家属指南'],
+        'entertainment' => ['书籍', '电影', '音乐', '游戏'],
+        'private' => ['私人素材'],
+    ];
 
     public function appConfig(): array
     {
@@ -1827,7 +1832,19 @@ class HelpApiService
             ->whereNull('delete_time');
 
         if (!empty($params['type'])) {
-            $query->where('type', (string) $params['type']);
+            $type = (string) $params['type'];
+            $query->where('type', $type);
+            if (isset(self::MATERIAL_CATEGORY_NAMES[$type])) {
+                $query->whereIn('name', self::MATERIAL_CATEGORY_NAMES[$type]);
+            }
+        } else {
+            $query->where(function ($query) {
+                foreach (self::MATERIAL_CATEGORY_NAMES as $type => $names) {
+                    $query->whereOr(function ($query) use ($type, $names) {
+                        $query->where('type', $type)->whereIn('name', $names);
+                    });
+                }
+            });
         }
 
         $rows = $query
@@ -1844,7 +1861,7 @@ class HelpApiService
         $locale = (string) ($params['locale'] ?? '');
         $page = $this->paginate(function () use ($memberId, $params) {
             $query = $this->visibleMaterialQuery($memberId)
-                ->field('id, member_id, category_id, media_type, material_type, title, title_i18n, summary, cover_url, content_url, duration_seconds, is_public, is_recommended, view_count, like_count, collect_count, comment_count, sort, create_time');
+                ->field('id, member_id, category_id, media_type, material_type, title, title_i18n, summary, summary_i18n, cover_url, content_url, duration_seconds, is_public, is_recommended, view_count, like_count, collect_count, comment_count, sort, create_time');
 
             if (!empty($params['material_type'])) {
                 $query->where('material_type', (string) $params['material_type']);
@@ -1861,7 +1878,11 @@ class HelpApiService
             if (!empty($params['keyword'])) {
                 $keyword = '%' . trim((string) $params['keyword']) . '%';
                 $query->where(function ($query) use ($keyword) {
-                    $query->where('title', 'like', $keyword)->whereOr('summary', 'like', $keyword);
+                    $query
+                        ->where('title', 'like', $keyword)
+                        ->whereOr('summary', 'like', $keyword)
+                        ->whereOr('title_i18n', 'like', $keyword)
+                        ->whereOr('summary_i18n', 'like', $keyword);
                 });
             }
 
@@ -1965,10 +1986,13 @@ class HelpApiService
             'media_type' => $mediaType,
             'material_type' => 'private',
             'title' => $title,
+            'title_i18n' => $this->jsonValue($data['title_i18n'] ?? null),
             'summary' => $summary,
+            'summary_i18n' => $this->jsonValue($data['summary_i18n'] ?? null),
             'cover_url' => (string) ($data['cover_url'] ?? ''),
             'content_url' => (string) ($data['content_url'] ?? ''),
             'content_text' => $contentText,
+            'content_text_i18n' => $this->jsonValue($data['content_text_i18n'] ?? null),
             'tags' => $this->jsonValue($data['tags'] ?? null),
             'duration_seconds' => max(0, (int) ($data['duration_seconds'] ?? 0)),
             'is_public' => 2,
@@ -4476,6 +4500,18 @@ class HelpApiService
             $row['title_i18n'] ?? null,
             $locale
         );
+        $row['summary'] = $this->localizedMaterialText(
+            (string) ($row['summary'] ?? ''),
+            $row['summary_i18n'] ?? null,
+            $locale
+        );
+        if (array_key_exists('content_text', $row)) {
+            $row['content_text'] = $this->localizedMaterialText(
+                (string) ($row['content_text'] ?? ''),
+                $row['content_text_i18n'] ?? null,
+                $locale
+            );
+        }
 
         return $row;
     }

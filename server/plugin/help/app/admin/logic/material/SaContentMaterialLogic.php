@@ -73,9 +73,15 @@ class SaContentMaterialLogic extends BaseLogic
 
     private function normalizeFields(array $data, bool $isCreate = false): array
     {
-        foreach (['title_i18n', 'tags'] as $field) {
+        foreach (['title_i18n', 'summary_i18n', 'content_text_i18n', 'tags'] as $field) {
             if (array_key_exists($field, $data)) {
-                $data[$field] = $this->normalizeJsonField($data[$field], $field === 'title_i18n' ? '多语言标题' : '标签');
+                $label = match ($field) {
+                    'title_i18n' => '多语言标题',
+                    'summary_i18n' => '多语言摘要',
+                    'content_text_i18n' => '多语言正文',
+                    default => '标签',
+                };
+                $data[$field] = $this->normalizeJsonField($data[$field], $label);
             }
         }
 
