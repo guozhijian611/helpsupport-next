@@ -96,36 +96,40 @@ class HomeDashboardScreen extends ConsumerWidget {
                   : context.push('/appointments/doctors'),
             ),
             const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: _SupportEntryCard(
-                    title: _t(context, '教育素材', 'Learning'),
-                    subtitle: _t(
-                      context,
-                      '知识塑造未来，学习改变人生',
-                      'Insight builds the future. Learning changes recovery.',
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _SupportEntryCard(
+                      title: _t(context, '教育素材', 'Learning'),
+                      subtitle: _t(
+                        context,
+                        '知识塑造未来，学习改变人生',
+                        'Insight builds the future. Learning changes recovery.',
+                      ),
+                      colors: const [Color(0xFF8EA8F8), Color(0xFF7F9DF0)],
+                      icon: Icons.auto_stories_rounded,
+                      onTap: () => context.push('/materials?type=education'),
                     ),
-                    colors: const [Color(0xFF8EA8F8), Color(0xFF7F9DF0)],
-                    icon: Icons.auto_stories_rounded,
-                    onTap: () => context.push('/materials?type=education'),
                   ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: _SupportEntryCard(
-                    title: _t(context, '娱乐', 'Restore'),
-                    subtitle: _t(
-                      context,
-                      '让大脑从高压里喘口气',
-                      'Give your mind a softer place to land.',
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: _SupportEntryCard(
+                      title: _t(context, '娱乐', 'Restore'),
+                      subtitle: _t(
+                        context,
+                        '让大脑从高压里喘口气',
+                        'Give your mind a softer place to land.',
+                      ),
+                      colors: const [Color(0xFFB695F6), Color(0xFFA280EC)],
+                      icon: Icons.sports_esports_rounded,
+                      onTap: () =>
+                          context.push('/materials?type=entertainment'),
                     ),
-                    colors: const [Color(0xFFB695F6), Color(0xFFA280EC)],
-                    icon: Icons.sports_esports_rounded,
-                    onTap: () => context.push('/materials?type=entertainment'),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 28),
             _SectionTitle(
