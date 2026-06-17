@@ -42,7 +42,34 @@ end
 
 def patch_pods_runner_support_files
   support_files_dir = File.join(__dir__, 'Pods', 'Target Support Files', 'Pods-Runner')
-  resources_replacements = {
+  resources_script_replacements = {
+    "}\nif [[ \"$CONFIGURATION\" == \"Debug\" ]]; then\n" => <<~'SCRIPT',
+}
+
+resolve_generated_resource_path()
+{
+  local pod_name="$1"
+  local bundle_name="$2"
+  local flat_path="${PODS_CONFIGURATION_BUILD_DIR}/${bundle_name}"
+  local nested_path="${PODS_CONFIGURATION_BUILD_DIR}/${pod_name}/${bundle_name}"
+  if [[ -e "$flat_path" ]] ; then
+    echo "$flat_path"
+  else
+    echo "$nested_path"
+  fi
+}
+
+if [[ "$CONFIGURATION" == "Debug" ]]; then
+SCRIPT
+    'install_resource "${PODS_CONFIGURATION_BUILD_DIR}/firebase_messaging/firebase_messaging_Privacy.bundle"' =>
+      'install_resource "$(resolve_generated_resource_path "firebase_messaging" "firebase_messaging_Privacy.bundle")"',
+    'install_resource "${PODS_CONFIGURATION_BUILD_DIR}/google_sign_in_ios/google_sign_in_ios_privacy.bundle"' =>
+      'install_resource "$(resolve_generated_resource_path "google_sign_in_ios" "google_sign_in_ios_privacy.bundle")"',
+    'install_resource "${PODS_CONFIGURATION_BUILD_DIR}/permission_handler_apple/permission_handler_apple_privacy.bundle"' =>
+      'install_resource "$(resolve_generated_resource_path "permission_handler_apple" "permission_handler_apple_privacy.bundle")"',
+  }
+
+  resources_input_replacements = {
     '${PODS_CONFIGURATION_BUILD_DIR}/firebase_messaging/firebase_messaging_Privacy.bundle' => '${PODS_CONFIGURATION_BUILD_DIR}/firebase_messaging_Privacy.bundle',
     '${PODS_CONFIGURATION_BUILD_DIR}/google_sign_in_ios/google_sign_in_ios_privacy.bundle' => '${PODS_CONFIGURATION_BUILD_DIR}/google_sign_in_ios_privacy.bundle',
     '${PODS_CONFIGURATION_BUILD_DIR}/permission_handler_apple/permission_handler_apple_privacy.bundle' => '${PODS_CONFIGURATION_BUILD_DIR}/permission_handler_apple_privacy.bundle',
@@ -60,13 +87,13 @@ def patch_pods_runner_support_files
 
   patch_file_contents(
     File.join(support_files_dir, 'Pods-Runner-resources.sh'),
-    resources_replacements,
+    resources_script_replacements,
   )
 
   %w[Debug Release Profile].each do |configuration|
     patch_file_contents(
       File.join(support_files_dir, "Pods-Runner-resources-#{configuration}-input-files.xcfilelist"),
-      resources_replacements,
+      resources_input_replacements,
     )
   end
 end
