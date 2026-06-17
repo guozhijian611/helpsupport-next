@@ -92,6 +92,23 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
   ) {
     _saveHistoryOnce(item);
     _revealInitialSectionOnce();
+    if (item.materialType == 'entertainment' &&
+        MaterialMusicSupport.isAudioItem(item)) {
+      return _EntertainmentMusicDetailBody(
+        item: item,
+        comments: comments,
+        commentController: _commentController,
+        isSending: _isSending,
+        replyTarget: _replyTarget,
+        onReply: _replyComment,
+        onReport: _reportComment,
+        onDismissReply: () => setState(() => _replyTarget = null),
+        onSend: _sendComment,
+        scrollController: _detailScrollController,
+        overviewKey: _overviewKey,
+        commentsKey: _commentsKey,
+      );
+    }
     if (item.materialType == 'entertainment') {
       return _EntertainmentDetailBody(
         item: item,
@@ -272,6 +289,7 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
     if (content.isEmpty || _isSending) {
       return;
     }
+    final locale = Localizations.localeOf(context).toLanguageTag();
 
     setState(() => _isSending = true);
     try {
@@ -287,7 +305,6 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
                       : _replyTarget!.id),
           );
       _commentController.clear();
-      final locale = Localizations.localeOf(context).toLanguageTag();
       ref.invalidate(
         materialDetailProvider(
           MaterialDetailQuery(id: widget.materialId, locale: locale),
@@ -342,6 +359,103 @@ List<_MaterialCommentNode> _materialCommentNodes(List<MaterialComment> source) {
   }
 
   return roots.map(buildNode).toList(growable: false);
+}
+
+class _EntertainmentMusicDetailBody extends StatelessWidget {
+  const _EntertainmentMusicDetailBody({
+    required this.item,
+    required this.comments,
+    required this.commentController,
+    required this.isSending,
+    required this.replyTarget,
+    required this.onReply,
+    required this.onReport,
+    required this.onDismissReply,
+    required this.onSend,
+    required this.scrollController,
+    required this.overviewKey,
+    required this.commentsKey,
+  });
+
+  final MaterialItem item;
+  final AsyncValue<MaterialPage<MaterialComment>> comments;
+  final TextEditingController commentController;
+  final bool isSending;
+  final MaterialComment? replyTarget;
+  final ValueChanged<MaterialComment> onReply;
+  final ValueChanged<MaterialComment> onReport;
+  final VoidCallback onDismissReply;
+  final VoidCallback onSend;
+  final ScrollController scrollController;
+  final GlobalKey overviewKey;
+  final GlobalKey commentsKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          child: ListView(
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 22),
+            children: [
+              _MusicDetailHero(item: item),
+              const SizedBox(height: 18),
+              KeyedSubtree(
+                key: overviewKey,
+                child: _MusicDetailOverviewCard(item: item),
+              ),
+              const SizedBox(height: 24),
+              KeyedSubtree(
+                key: commentsKey,
+                child: _SectionTitle(
+                  title: _t(context, '评论区', 'Comments'),
+                  count: item.commentCount,
+                ),
+              ),
+              const SizedBox(height: 12),
+              comments.when(
+                data: (page) => page.list.isEmpty
+                    ? _CommentEmptyState(
+                        text: _t(
+                          context,
+                          '还没有评论，留下你的第一条感受。',
+                          'No comments yet. Share the first thought.',
+                        ),
+                      )
+                    : Column(
+                        children: [
+                          for (final node in _materialCommentNodes(page.list))
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _MaterialCommentThread(
+                                node: node,
+                                depth: 0,
+                                onReply: onReply,
+                                onReport: onReport,
+                              ),
+                            ),
+                        ],
+                      ),
+                error: (error, _) => _CommentEmptyState(text: error.toString()),
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ),
+            ],
+          ),
+        ),
+        _CommentComposer(
+          controller: commentController,
+          isSending: isSending,
+          replyTarget: replyTarget,
+          onDismissReply: onDismissReply,
+          onSend: onSend,
+        ),
+      ],
+    );
+  }
 }
 
 class _EntertainmentDetailBody extends StatelessWidget {
@@ -471,6 +585,333 @@ class _EntertainmentDetailBody extends StatelessWidget {
           onSend: onSend,
         ),
       ],
+    );
+  }
+}
+
+class _MusicDetailHero extends ConsumerWidget {
+  const _MusicDetailHero({required this.item});
+
+  final MaterialItem item;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _MaterialDetailPalette.of(context);
+    final apiClient = ref.watch(apiClientProvider);
+    final coverUrl = apiClient.resolveUrl(item.coverUrl);
+    final artist = item.artist.trim().isNotEmpty
+        ? item.artist.trim()
+        : _t(context, '官方发布', 'Official');
+    final album = item.album.trim().isNotEmpty
+        ? item.album.trim()
+        : item.summary.trim().isNotEmpty
+        ? item.summary.trim()
+        : _t(context, '单曲作品', 'Single');
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
+        borderRadius: BorderRadius.circular(32),
+      ),
+      child: Column(
+        children: [
+          AspectRatio(
+            aspectRatio: 1,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  coverUrl.isNotEmpty
+                      ? Image.network(
+                          coverUrl,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (_, child, loadingProgress) =>
+                              loadingProgress == null
+                              ? child
+                              : const _MusicDetailCoverShell(),
+                          errorBuilder: (_, _, _) =>
+                              const _MusicDetailCoverShell(),
+                        )
+                      : const _MusicDetailCoverShell(),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.05),
+                          Colors.black.withValues(alpha: 0.18),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            item.title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: palette.primaryText,
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '$artist · $album',
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: palette.secondaryText,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _MusicMetaChip(
+                icon: Icons.album_rounded,
+                label: _mediaTitle(context, item.mediaType),
+              ),
+              _MusicMetaChip(
+                icon: Icons.schedule_rounded,
+                label: item.durationSeconds > 0
+                    ? MaterialMusicSupport.formatDuration(
+                        Duration(seconds: item.durationSeconds),
+                      )
+                    : '--:--',
+              ),
+              _MusicMetaChip(
+                icon: Icons.headphones_rounded,
+                label: '${item.viewCount}',
+              ),
+              _MusicMetaChip(
+                icon: Icons.calendar_today_rounded,
+                label: _dateOnly(item.createTime),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _MusicDetailActionBar(item: item),
+        ],
+      ),
+    );
+  }
+}
+
+class _MusicDetailCoverShell extends StatelessWidget {
+  const _MusicDetailCoverShell();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _MaterialDetailPalette.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [palette.activeSoftBackground, palette.softBackground],
+        ),
+      ),
+      child: Center(
+        child: Container(
+          width: 92,
+          height: 92,
+          decoration: BoxDecoration(
+            color: palette.cardBackground.withValues(alpha: 0.92),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.play_arrow_rounded,
+            color: Color(0xFFFF9585),
+            size: 46,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MusicMetaChip extends StatelessWidget {
+  const _MusicMetaChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _MaterialDetailPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: palette.softBackground,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: palette.secondaryText),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: palette.bodyText,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MusicDetailActionBar extends ConsumerWidget {
+  const _MusicDetailActionBar({required this.item});
+
+  final MaterialItem item;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 12,
+      runSpacing: 10,
+      children: [
+        _ActionStatButton(
+          icon: item.isLiked
+              ? Icons.thumb_up_alt_rounded
+              : Icons.thumb_up_alt_outlined,
+          label: '${item.likeCount}',
+          onTap: () => _toggleLike(context, ref),
+          active: item.isLiked,
+        ),
+        _ActionStatButton(
+          icon: item.isCollected
+              ? Icons.favorite_rounded
+              : Icons.favorite_border_rounded,
+          label: '${item.collectCount}',
+          onTap: () => _toggleCollect(context, ref),
+          active: item.isCollected,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _toggleLike(BuildContext context, WidgetRef ref) async {
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    try {
+      await ref.read(materialRepositoryProvider).toggleLike(item.id);
+      ref.invalidate(
+        materialDetailProvider(
+          MaterialDetailQuery(id: item.id, locale: locale),
+        ),
+      );
+    } on Object catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      context.showCenteredNotice(error.toString());
+    }
+  }
+
+  Future<void> _toggleCollect(BuildContext context, WidgetRef ref) async {
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    try {
+      await ref.read(materialRepositoryProvider).toggleCollect(item.id);
+      ref.invalidate(
+        materialDetailProvider(
+          MaterialDetailQuery(id: item.id, locale: locale),
+        ),
+      );
+      ref.invalidate(
+        materialCollectionsProvider(
+          MaterialListQuery(
+            materialType: '',
+            categoryId: 0,
+            keyword: '',
+            locale: locale,
+          ),
+        ),
+      );
+    } on Object catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      context.showCenteredNotice(error.toString());
+    }
+  }
+}
+
+class _MusicDetailOverviewCard extends ConsumerWidget {
+  const _MusicDetailOverviewCard({required this.item});
+
+  final MaterialItem item;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _MaterialDetailPalette.of(context);
+    final overviewText = item.contentText.trim().isNotEmpty
+        ? item.contentText.trim()
+        : item.summary.trim().isNotEmpty
+        ? item.summary.trim()
+        : _t(
+            context,
+            '这首歌曲暂时还没有补充介绍。',
+            'No description has been added for this track yet.',
+          );
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _t(context, '歌曲介绍', 'Song Overview'),
+            style: TextStyle(
+              color: palette.primaryText,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SelectableText(
+            overviewText,
+            style: TextStyle(
+              color: palette.bodyText,
+              fontSize: 15,
+              height: 1.72,
+            ),
+          ),
+          if (item.tags.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: item.tags
+                  .take(4)
+                  .map((tag) => _HeroChip(label: tag))
+                  .toList(growable: false),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -766,9 +1207,9 @@ class _MaterialHero extends ConsumerWidget {
   }
 
   Future<void> _toggleLike(BuildContext context, WidgetRef ref) async {
+    final locale = Localizations.localeOf(context).toLanguageTag();
     try {
       await ref.read(materialRepositoryProvider).toggleLike(item.id);
-      final locale = Localizations.localeOf(context).toLanguageTag();
       ref.invalidate(
         materialDetailProvider(
           MaterialDetailQuery(id: item.id, locale: locale),
@@ -783,9 +1224,9 @@ class _MaterialHero extends ConsumerWidget {
   }
 
   Future<void> _toggleCollect(BuildContext context, WidgetRef ref) async {
+    final locale = Localizations.localeOf(context).toLanguageTag();
     try {
       await ref.read(materialRepositoryProvider).toggleCollect(item.id);
-      final locale = Localizations.localeOf(context).toLanguageTag();
       ref.invalidate(
         materialDetailProvider(
           MaterialDetailQuery(id: item.id, locale: locale),
@@ -840,7 +1281,7 @@ class _MaterialHero extends ConsumerWidget {
 }
 
 class _MaterialContentSection extends ConsumerWidget {
-  const _MaterialContentSection({super.key, required this.item});
+  const _MaterialContentSection({required this.item});
 
   final MaterialItem item;
 
@@ -1098,10 +1539,10 @@ class _MaterialCommentCard extends ConsumerWidget {
   }
 
   Future<void> _toggleCommentLike(BuildContext context, WidgetRef ref) async {
+    final locale = Localizations.localeOf(context).toLanguageTag();
     try {
       await ref.read(materialRepositoryProvider).toggleCommentLike(comment.id);
       ref.invalidate(materialCommentsProvider(comment.materialId));
-      final locale = Localizations.localeOf(context).toLanguageTag();
       ref.invalidate(
         materialDetailProvider(
           MaterialDetailQuery(id: comment.materialId, locale: locale),
