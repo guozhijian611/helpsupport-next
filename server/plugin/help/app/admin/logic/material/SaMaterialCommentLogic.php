@@ -118,7 +118,7 @@ class SaMaterialCommentLogic extends BaseLogic
 
         $comments = Db::table('sa_material_comment')
             ->alias('c')
-            ->innerJoin('sa_content_material m', 'm.id = c.material_id AND m.delete_time IS NULL')
+            ->leftJoin('sa_content_material m', 'm.id = c.material_id AND m.delete_time IS NULL')
             ->whereIn('c.id', $ids)
             ->whereIn('m.material_type', self::MANAGED_MATERIAL_TYPES)
             ->whereNull('c.delete_time')
@@ -160,7 +160,7 @@ class SaMaterialCommentLogic extends BaseLogic
     {
         return Db::table('sa_material_comment')
             ->alias('c')
-            ->innerJoin('sa_content_material mat', 'mat.id = c.material_id AND mat.delete_time IS NULL')
+            ->leftJoin('sa_content_material mat', 'mat.id = c.material_id AND mat.delete_time IS NULL')
             ->leftJoin('sa_member mem', 'mem.id = c.member_id AND mem.delete_time IS NULL')
             ->whereIn('mat.material_type', self::MANAGED_MATERIAL_TYPES)
             ->whereNull('c.delete_time')
@@ -199,7 +199,7 @@ class SaMaterialCommentLogic extends BaseLogic
     {
         $comment = Db::table('sa_material_comment')
             ->alias('c')
-            ->innerJoin('sa_content_material m', 'm.id = c.material_id AND m.delete_time IS NULL')
+            ->leftJoin('sa_content_material m', 'm.id = c.material_id AND m.delete_time IS NULL')
             ->where('c.id', $id)
             ->whereIn('m.material_type', self::MANAGED_MATERIAL_TYPES)
             ->whereNull('c.delete_time')
