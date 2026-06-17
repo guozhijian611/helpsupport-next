@@ -167,19 +167,6 @@ clear_ios_spm_cache() {
   done < <(awk -F'"' '/"identity"/ { print $4 }' "${resolved_file}")
 }
 
-clear_stale_ios_device_outputs() {
-  local stale_paths=(
-    "${FLUTTER_APP_DIR}/build/ios/iphoneos"
-    "${FLUTTER_APP_DIR}/build/ios/Debug-iphoneos"
-  )
-  local path
-  for path in "${stale_paths[@]}"; do
-    [[ -e "${path}" ]] || continue
-    log "Removing stale iPhoneOS build output: ${path}"
-    rm -rf "${path}"
-  done
-}
-
 dart_define_value() {
   local defines=(
     "HELP_SUPPORT_API_BASE_URL=${API_BASE_URL}"
@@ -238,6 +225,80 @@ verify_ios_llama_runtime() {
   log "iOS llama runtime bundled: ${runtime_path}"
 }
 
+framework_executable_name() {
+  local framework_path="$1"
+  local info_plist="${framework_path}/Info.plist"
+  if [[ ! -f "${info_plist}" ]]; then
+    return
+  fi
+
+  /usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "${info_plist}" 2>/dev/null || true
+}
+
+framework_is_dynamic() {
+  local framework_path="$1"
+  local executable_name executable_path
+  executable_name="$(framework_executable_name "${framework_path}")"
+  executable_name="${executable_name:-$(basename "${framework_path}" .framework)}"
+  executable_path="${framework_path}/${executable_name}"
+  [[ -f "${executable_path}" ]] || return 1
+  file "${executable_path}" | grep -q 'dynamically linked shared library'
+}
+
+repair_missing_dynamic_simulator_frameworks() {
+  local app_frameworks_dir="${APP_PATH}/Frameworks"
+  local repaired_count=0
+  mkdir -p "${app_frameworks_dir}"
+
+  while IFS= read -r -d '' source_framework; do
+    local framework_name executable_name dest_framework
+    framework_is_dynamic "${source_framework}" || continue
+    framework_name="$(basename "${source_framework}")"
+    executable_name="$(framework_executable_name "${source_framework}")"
+    executable_name="${executable_name:-${framework_name%.framework}}"
+    dest_framework="${app_frameworks_dir}/${framework_name}"
+
+    if [[ -d "${dest_framework}" && -f "${dest_framework}/${executable_name}" ]]; then
+      continue
+    fi
+
+    rm -rf "${dest_framework}"
+    ditto "${source_framework}" "${dest_framework}"
+    repaired_count=$((repaired_count + 1))
+    log "Repaired missing simulator framework: ${framework_name}"
+  done < <(
+    find "${SIMULATOR_PRODUCTS_DIR}" \
+      \( -path "${APP_PATH}" -o -path "${APP_PATH}/*" \) -prune -o \
+      -type d -name '*.framework' -print0
+  )
+
+  if [[ ${repaired_count} -gt 0 ]]; then
+    log "Repaired ${repaired_count} simulator frameworks"
+  fi
+}
+
+run_simulator_xcodebuild() {
+  local build_log
+  build_log="$(mktemp -t helpsupport-ios-sim-build.XXXXXX.log)"
+
+  set +e
+  DART_DEFINES="$(dart_define_value)" xcodebuild "$@" 2>&1 | tee "${build_log}"
+  local status=$?
+  set -e
+
+  if [[ ${status} -eq 0 ]]; then
+    return 0
+  fi
+
+  if [[ -d "${APP_PATH}" ]] &&
+    grep -q 'Build operation failed without specifying any errors' "${build_log}"; then
+    log "Xcode reported an internal inconsistency, but Runner.app was produced. Continuing."
+    return 0
+  fi
+
+  return "${status}"
+}
+
 main() {
   if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     usage
@@ -268,8 +329,8 @@ main() {
   run_pub_get_if_needed
   patch_generated_plugin_package
   clear_ios_spm_cache
-  clear_stale_ios_device_outputs
   resolve_ios_packages "${simulator_udid}"
+  rm -rf "${DERIVED_DATA_PATH}"
   local xcodebuild_args=(
     -quiet
     -workspace ios/Runner.xcworkspace
@@ -278,7 +339,6 @@ main() {
     -sdk iphonesimulator
     -destination "platform=iOS Simulator,id=${simulator_udid}"
     -derivedDataPath "${DERIVED_DATA_PATH}"
-    "CONFIGURATION_BUILD_DIR=${SIMULATOR_PRODUCTS_DIR}"
   )
   if [[ "${REFRESH_IOS_SPM:-0}" == "1" ]]; then
     xcodebuild_args+=(-disablePackageRepositoryCache)
@@ -286,9 +346,10 @@ main() {
   xcodebuild_args+=(ONLY_ACTIVE_ARCH=YES "$@" build)
 
   log "Building iOS simulator app with xcodebuild"
-  DART_DEFINES="$(dart_define_value)" xcodebuild "${xcodebuild_args[@]}"
+  run_simulator_xcodebuild "${xcodebuild_args[@]}"
 
   [[ -d "${APP_PATH}" ]] || fail "Build output not found: ${APP_PATH}"
+  repair_missing_dynamic_simulator_frameworks
   verify_ios_llama_runtime
   bundle_id="$(read_bundle_id)"
   [[ -n "${bundle_id}" ]] || fail "Unable to read bundle id from ${APP_PATH}/Info.plist"
