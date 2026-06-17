@@ -28,20 +28,47 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 
 flutter_ios_podfile_setup
 
-def patch_pods_runner_frameworks_script
-  runner_project_path = File.join(__dir__, 'Runner.xcodeproj', 'project.pbxproj')
-  original_script = '\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh\"\n'
-  patched_script = '/bin/sh \"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh\"\n'
+def patch_file_contents(path, replacements)
+  return unless File.exist?(path)
 
-  return unless File.exist?(runner_project_path)
+  original = File.read(path)
+  patched = replacements.reduce(original) do |content, (needle, replacement)|
+    content.gsub(needle, replacement)
+  end
+  return if patched == original
 
-  runner_project = File.read(runner_project_path)
-  return unless runner_project.include?(original_script)
+  File.write(path, patched)
+end
 
-  File.write(
-    runner_project_path,
-    runner_project.gsub(original_script, patched_script),
+def patch_pods_runner_support_files
+  support_files_dir = File.join(__dir__, 'Pods', 'Target Support Files', 'Pods-Runner')
+  resources_replacements = {
+    '${PODS_CONFIGURATION_BUILD_DIR}/firebase_messaging/firebase_messaging_Privacy.bundle' => '${PODS_CONFIGURATION_BUILD_DIR}/firebase_messaging_Privacy.bundle',
+    '${PODS_CONFIGURATION_BUILD_DIR}/google_sign_in_ios/google_sign_in_ios_privacy.bundle' => '${PODS_CONFIGURATION_BUILD_DIR}/google_sign_in_ios_privacy.bundle',
+    '${PODS_CONFIGURATION_BUILD_DIR}/permission_handler_apple/permission_handler_apple_privacy.bundle' => '${PODS_CONFIGURATION_BUILD_DIR}/permission_handler_apple_privacy.bundle',
+  }
+
+  patch_file_contents(
+    File.join(__dir__, 'Runner.xcodeproj', 'project.pbxproj'),
+    {
+      '\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh\"\n' =>
+        '/bin/sh \"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh\"\n',
+      '\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources.sh\"\n' =>
+        '/bin/sh \"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources.sh\"\n',
+    },
   )
+
+  patch_file_contents(
+    File.join(support_files_dir, 'Pods-Runner-resources.sh'),
+    resources_replacements,
+  )
+
+  %w[Debug Release Profile].each do |configuration|
+    patch_file_contents(
+      File.join(support_files_dir, "Pods-Runner-resources-#{configuration}-input-files.xcfilelist"),
+      resources_replacements,
+    )
+  end
 end
 
 target 'Runner' do
@@ -64,5 +91,5 @@ post_install do |installer|
 end
 
 post_integrate do |_installer|
-  patch_pods_runner_frameworks_script
+  patch_pods_runner_support_files
 end
