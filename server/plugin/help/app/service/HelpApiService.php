@@ -2009,6 +2009,7 @@ class HelpApiService
         }, $params);
 
         $page['list'] = $this->localizeMaterialRows($page['list'], $locale);
+        $page['list'] = $this->appendMaterialInteractionFlags($page['list'], $memberId);
 
         return $page;
     }
@@ -2276,6 +2277,7 @@ class HelpApiService
             ->field('c.id AS collect_id, c.create_time AS collect_time, m.*')
             ->order('c.id', 'desc'), $params);
         $page['list'] = $this->localizeMaterialRows($page['list'], $locale);
+        $page['list'] = $this->appendMaterialInteractionFlags($page['list'], $memberId);
 
         return $page;
     }
@@ -4678,6 +4680,57 @@ class HelpApiService
     private function localizeMaterialRows(array $rows, string $locale): array
     {
         return array_map(fn (array $row): array => $this->localizeMaterialRow($row, $locale), $rows);
+    }
+
+    private function appendMaterialInteractionFlags(array $rows, int $memberId): array
+    {
+        if ($rows === []) {
+            return [];
+        }
+
+        $materialIds = array_values(array_unique(array_filter(array_map(
+            static fn (array $row): int => (int) ($row['id'] ?? 0),
+            $rows
+        ))));
+        if ($materialIds === []) {
+            foreach ($rows as &$row) {
+                $row['is_liked'] = false;
+                $row['is_collected'] = false;
+            }
+            unset($row);
+
+            return $rows;
+        }
+
+        $likedLookup = [];
+        $collectedLookup = [];
+        if ($memberId > 0) {
+            $likedLookup = array_fill_keys(array_map(
+                'intval',
+                Db::table('sa_material_like')
+                    ->where('member_id', $memberId)
+                    ->whereIn('material_id', $materialIds)
+                    ->whereNull('delete_time')
+                    ->column('material_id')
+            ), true);
+            $collectedLookup = array_fill_keys(array_map(
+                'intval',
+                Db::table('sa_material_collect')
+                    ->where('member_id', $memberId)
+                    ->whereIn('material_id', $materialIds)
+                    ->whereNull('delete_time')
+                    ->column('material_id')
+            ), true);
+        }
+
+        foreach ($rows as &$row) {
+            $materialId = (int) ($row['id'] ?? 0);
+            $row['is_liked'] = isset($likedLookup[$materialId]);
+            $row['is_collected'] = isset($collectedLookup[$materialId]);
+        }
+        unset($row);
+
+        return $rows;
     }
 
     private function localizeMaterialRow(array $row, string $locale): array
