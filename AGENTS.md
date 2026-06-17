@@ -18,7 +18,7 @@
 - `server/`：Webman/SaiAdmin 后端，Composer 命令和 PHP 校验默认在此目录执行。
 - `saiadmin-artd/`：SaiAdmin 管理端前端，pnpm 命令默认在此目录执行。
 - `uniapp/`：uni-app/unibest 移动端，pnpm 命令默认在此目录执行。
-- `flutter_app/`：Flutter 客户端，Flutter 相关命令默认在此目录执行；日常开发联调优先连接 iOS 真机并使用 `flutter run -d <device id>` 获取热重载，提交前或需要补充模拟器链路验证时再使用 iOS 模拟器；热重启后如出现代码、路由、资源、生成缓存或启动状态异常，应停止当前运行会话并重新完整构建，不允许用兼容方法、旧分支、fallback、别名或临时适配绕过；完整构建、安装和启动验证使用 `./tool/build_ios_simulator.sh`。
+- `flutter_app/`：Flutter 客户端，Flutter 相关命令默认在此目录执行；日常开发联调优先连接 iOS 真机并使用 `flutter run -d <device id>` 获取热重载，提交前或需要补充模拟器链路验证时再使用 iOS 模拟器；允许在真机 `flutter run` 挂载期间并行执行 `./tool/build_ios_simulator.sh` 做模拟器验证，但模拟器链路不得清理或覆盖 `build/ios/iphoneos`、`build/ios/Debug-iphoneos` 等真机产物；热重启后如出现代码、路由、资源、生成缓存或启动状态异常，应停止当前运行会话并重新完整构建，不允许用兼容方法、旧分支、fallback、别名或临时适配绕过；完整构建、安装和启动验证使用 `./tool/build_ios_simulator.sh`。
 - `packages/`：本仓库维护的扩展包或插件源码，修改后需确认是否通过 `server/vendor` 软链或 Composer 安装进入运行时。
 - `.codex/skills/`：本项目沉淀的开发技能和参考手册；涉及对应技术时优先读取相关 `SKILL.md`。
 - `Doc/`、`OpenAPI/`、`Database/`：项目文档、接口文档和数据库资料，更新时以实际路由、控制器、数据库结构、安装 SQL 或 Phinx 迁移为准。
@@ -49,7 +49,7 @@
 - 生产部署中自动执行数据库迁移必须通过显式开关启用，默认关闭；执行前需确认数据库备份、目标环境和回滚窗口。
 - Webman 是常驻进程，修改 PHP、路由、插件配置后，验证前需要考虑 reload/restart。
 - 日志、调试页和请求记录默认要脱敏 Bearer、Cookie、token、secret 等敏感信息；如需放开，只能做成显式调试开关。
-- Flutter 客户端文件变更后，日常开发联调优先在 `flutter_app/` 目录连接 iOS 真机并执行 `flutter run -d <device id> --dart-define=HELP_SUPPORT_API_BASE_URL=...` 保持热重载，必要时先用 `flutter devices` 确认真机设备 ID；如果暂无真机、需要补充平板/刘海屏等模拟器适配验证、或需要完整构建安装链路，再切到 iOS 模拟器；如果热重启后出现代码问题、状态不一致、资源未更新、生成代码未生效或启动链路异常，直接停止会话并重新构建安装，不为了绕过问题新增兼容方法、旧入口、fallback 分支、接口别名或临时适配；需要完整构建、安装、启动链路验证时再执行 `./tool/build_ios_simulator.sh`，并可按需通过 `IOS_SIMULATOR_NAME`、`IOS_SIMULATOR_UDID`、`HELP_SUPPORT_API_BASE_URL` 指定目标和接口地址。
+- Flutter 客户端文件变更后，日常开发联调优先在 `flutter_app/` 目录连接 iOS 真机并执行 `flutter run -d <device id> --dart-define=HELP_SUPPORT_API_BASE_URL=...` 保持热重载，必要时先用 `flutter devices` 确认真机设备 ID；如果暂无真机、需要补充平板/刘海屏等模拟器适配验证、或需要完整构建安装链路，再切到 iOS 模拟器；允许真机 `flutter run` 与 `./tool/build_ios_simulator.sh` 并行运行，但模拟器脚本和相关清理动作不得影响真机构建产物与调试会话；如果热重启后出现代码问题、状态不一致、资源未更新、生成代码未生效或启动链路异常，直接停止会话并重新构建安装，不为了绕过问题新增兼容方法、旧入口、fallback 分支、接口别名或临时适配；需要完整构建、安装、启动链路验证时再执行 `./tool/build_ios_simulator.sh`，并可按需通过 `IOS_SIMULATOR_NAME`、`IOS_SIMULATOR_UDID`、`HELP_SUPPORT_API_BASE_URL` 指定目标和接口地址。
 - Flutter 客户端变更不使用 `flutter analyze` 或所谓 `flutter analysis` 作为默认验证；如果 `flutter run` 或模拟器脚本失败，记录失败阶段和原因，不改用 analyze 代替运行验证。
 
 ## 验证要求
