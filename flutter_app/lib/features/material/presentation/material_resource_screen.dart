@@ -5,8 +5,9 @@ import 'dart:math' as math;
 
 import 'package:archive/archive.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide MaterialPage;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -212,6 +213,17 @@ class _MaterialResourceScreenState
         );
       }
       final coverUrl = _apiClient.resolveUrl(item.coverUrl);
+      final playlist = ref.watch(
+        materialListProvider(
+          MaterialListQuery(
+            materialType: item.materialType,
+            categoryId: item.categoryId,
+            keyword: '',
+            locale: Localizations.localeOf(context).toLanguageTag(),
+            pageSize: 50,
+          ),
+        ),
+      );
       return _AudioPlayerPanel(
         player: player,
         item: item,
@@ -219,6 +231,10 @@ class _MaterialResourceScreenState
         lyrics: _lyricContent.trim().isNotEmpty
             ? _lyricContent
             : item.contentText,
+        playlist: playlist,
+        onOpenTrack: (track) {
+          context.push('/materials/resource/${track.id}', extra: track);
+        },
       );
     }
 
@@ -1129,12 +1145,16 @@ class _AudioPlayerPanel extends StatefulWidget {
     required this.item,
     required this.coverUrl,
     required this.lyrics,
+    required this.playlist,
+    required this.onOpenTrack,
   });
 
   final AudioPlayer player;
   final MaterialItem item;
   final String coverUrl;
   final String lyrics;
+  final AsyncValue<MaterialPage<MaterialItem>> playlist;
+  final ValueChanged<MaterialItem> onOpenTrack;
 
   @override
   State<_AudioPlayerPanel> createState() => _AudioPlayerPanelState();
@@ -1212,6 +1232,11 @@ class _AudioPlayerPanelState extends State<_AudioPlayerPanel> {
                             position: position,
                             onSeek: widget.player.seek,
                           ),
+                          _AudioPlaylistPage(
+                            activeId: widget.item.id,
+                            playlist: widget.playlist,
+                            onOpenTrack: widget.onOpenTrack,
+                          ),
                         ],
                       ),
                     ),
@@ -1223,6 +1248,8 @@ class _AudioPlayerPanelState extends State<_AudioPlayerPanel> {
                           _PageDot(selected: _pageIndex == 0),
                           const SizedBox(width: 8),
                           _PageDot(selected: _pageIndex == 1),
+                          const SizedBox(width: 8),
+                          _PageDot(selected: _pageIndex == 2),
                         ],
                       ),
                     ),
@@ -1406,6 +1433,151 @@ class _AudioPlaybackPage extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _AudioPlaylistPage extends StatelessWidget {
+  const _AudioPlaylistPage({
+    required this.activeId,
+    required this.playlist,
+    required this.onOpenTrack,
+  });
+
+  final int activeId;
+  final AsyncValue<MaterialPage<MaterialItem>> playlist;
+  final ValueChanged<MaterialItem> onOpenTrack;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return playlist.when(
+      data: (page) {
+        final tracks = page.list
+            .where((item) => _isAudioMediaType(item.mediaType))
+            .toList();
+        if (tracks.isEmpty) {
+          return _AudioPlaylistEmpty(
+            text: _t(context, '暂无同分类音乐', 'No music in this category yet'),
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(22, 30, 22, 48),
+          itemCount: tracks.length + 1,
+          separatorBuilder: (_, index) => index == 0
+              ? const SizedBox(height: 12)
+              : const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return Text(
+                _t(context, '播放列表', 'Playlist'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: scheme.onSurface,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                ),
+              );
+            }
+            final track = tracks[index - 1];
+            final selected = track.id == activeId;
+            final artist = track.artist.trim().isNotEmpty
+                ? track.artist.trim()
+                : _t(context, '未知歌手', 'Unknown artist');
+            final album = track.album.trim().isNotEmpty
+                ? track.album.trim()
+                : _t(context, '未设置专辑', 'No album');
+            final duration = track.durationSeconds > 0
+                ? _formatDuration(Duration(seconds: track.durationSeconds))
+                : '';
+            return Material(
+              color: selected
+                  ? const Color(0xFFFF9585).withValues(alpha: 0.12)
+                  : scheme.surfaceContainerHighest.withValues(alpha: 0.56),
+              borderRadius: BorderRadius.circular(16),
+              child: ListTile(
+                selected: selected,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                leading: CircleAvatar(
+                  backgroundColor: selected
+                      ? const Color(0xFFFF9585)
+                      : scheme.surface,
+                  foregroundColor: selected
+                      ? Colors.white
+                      : const Color(0xFFFF9585),
+                  child: Icon(
+                    selected
+                        ? Icons.equalizer_rounded
+                        : Icons.music_note_rounded,
+                  ),
+                ),
+                title: Text(
+                  track.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: scheme.onSurface,
+                    fontWeight: selected ? FontWeight.w900 : FontWeight.w800,
+                  ),
+                ),
+                subtitle: Text(
+                  duration.isEmpty ? '$artist · $album' : '$artist · $duration',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: selected
+                        ? const Color(0xFFFF9585)
+                        : scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                trailing: Icon(
+                  selected
+                      ? Icons.play_circle_fill_rounded
+                      : Icons.chevron_right_rounded,
+                  color: selected
+                      ? const Color(0xFFFF9585)
+                      : scheme.onSurfaceVariant,
+                ),
+                onTap: selected ? null : () => onOpenTrack(track),
+              ),
+            );
+          },
+        );
+      },
+      error: (_, _) => _AudioPlaylistEmpty(
+        text: _t(context, '播放列表加载失败', 'Playlist failed to load'),
+      ),
+      loading: () => Center(
+        child: CircularProgressIndicator(color: const Color(0xFFFF9585)),
+      ),
+    );
+  }
+}
+
+class _AudioPlaylistEmpty extends StatelessWidget {
+  const _AudioPlaylistEmpty({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1630,6 +1802,11 @@ int _activeLyricIndex(List<_LyricLine> lines, Duration position) {
     activeIndex = i;
   }
   return activeIndex;
+}
+
+bool _isAudioMediaType(String mediaType) {
+  final type = mediaType.trim().toLowerCase();
+  return type == 'audio' || type == 'mp3';
 }
 
 class _AudioCoverFallback extends StatelessWidget {
