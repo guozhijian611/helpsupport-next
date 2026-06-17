@@ -190,7 +190,7 @@ class _MaterialMusicFloatingOrbState
 
   static const double _collapsedSize = 66;
   static const double _expandedWidth = 248;
-  static const double _expandedHeight = 90;
+  static const double _expandedHeight = 80;
   static const double _edgeMargin = 16;
 
   @override
@@ -339,8 +339,9 @@ class _MaterialMusicFloatingOrbState
                                 alignment: Alignment.centerLeft,
                                 child: SizedBox(
                                   width: _expandedWidth - 20,
-                                  height: _expandedHeight - 18,
+                                  height: _expandedHeight - 16,
                                   child: _ExpandedOrbContent(
+                                    key: ValueKey<int>(item.id),
                                     itemTitle: item.title,
                                     itemArtist: item.artist.trim().isNotEmpty
                                         ? item.artist.trim()
@@ -443,6 +444,7 @@ class _MaterialMusicFloatingOrbState
 
 class _ExpandedOrbContent extends ConsumerWidget {
   const _ExpandedOrbContent({
+    super.key,
     required this.itemTitle,
     required this.itemArtist,
     required this.palette,
@@ -466,149 +468,88 @@ class _ExpandedOrbContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final localeCode = Localizations.localeOf(context).toLanguageTag();
 
-    return Column(
+    return Row(
       children: [
+        InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onOpenPlayer,
+          child: SizedBox(width: 54, height: 54, child: rotatingArtwork),
+        ),
+        const SizedBox(width: 10),
         Expanded(
-          child: Row(
-            children: [
-              InkWell(
-                customBorder: const CircleBorder(),
-                onTap: onOpenPlayer,
-                child: SizedBox(width: 54, height: 54, child: rotatingArtwork),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: GestureDetector(
-                  onTap: onCollapse,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        itemTitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: palette.primaryText,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        itemArtist,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: palette.secondaryText,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+          child: GestureDetector(
+            onTap: onCollapse,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  itemTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-              ),
-              StreamBuilder<PlayerState>(
-                stream: player.playerStateStream,
-                builder: (context, snapshot) {
-                  final playerState = snapshot.data;
-                  final isPlaying = playerState?.playing ?? player.playing;
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        tooltip: isPlaying
-                            ? _t(context, '暂停', 'Pause')
-                            : _t(context, '播放', 'Play'),
-                        onPressed: () => ref
-                            .read(materialMusicControllerProvider.notifier)
-                            .togglePlayback(),
-                        icon: Icon(
-                          isPlaying
-                              ? Icons.pause_rounded
-                              : Icons.play_arrow_rounded,
-                          color: palette.accent,
-                        ),
-                      ),
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        tooltip: _t(context, '下一首', 'Next track'),
-                        onPressed: () => ref
-                            .read(materialMusicControllerProvider.notifier)
-                            .playNext(localeCode: localeCode),
-                        icon: Icon(
-                          Icons.skip_next_rounded,
-                          color: palette.secondaryText,
-                        ),
-                      ),
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        tooltip: _t(context, '关闭', 'Close'),
-                        onPressed: onClose,
-                        icon: Icon(
-                          Icons.close_rounded,
-                          color: palette.secondaryText,
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 6),
-        _OrbPlaybackProgressBar(player: player, palette: palette),
-      ],
-    );
-  }
-}
-
-class _OrbPlaybackProgressBar extends StatelessWidget {
-  const _OrbPlaybackProgressBar({required this.player, required this.palette});
-
-  final AudioPlayer player;
-  final _MiniPlayerPalette palette;
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<Duration>(
-      stream: player.positionStream,
-      builder: (context, snapshot) {
-        final duration = player.duration ?? Duration.zero;
-        final totalMs = duration.inMilliseconds;
-        final currentMs = snapshot.data?.inMilliseconds ?? 0;
-        final progress = totalMs <= 0
-            ? 0.0
-            : (currentMs / totalMs).clamp(0.0, 1.0);
-
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: SizedBox(
-            height: 3,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                ColoredBox(
-                  color: palette.secondaryText.withValues(alpha: 0.12),
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: FractionallySizedBox(
-                    widthFactor: progress,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: palette.accent.withValues(alpha: 0.58),
-                      ),
-                    ),
+                const SizedBox(height: 4),
+                Text(
+                  itemArtist,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: palette.secondaryText,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
           ),
-        );
-      },
+        ),
+        StreamBuilder<PlayerState>(
+          stream: player.playerStateStream,
+          builder: (context, snapshot) {
+            final playerState = snapshot.data;
+            final isPlaying = playerState?.playing ?? player.playing;
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: isPlaying
+                      ? _t(context, '暂停', 'Pause')
+                      : _t(context, '播放', 'Play'),
+                  onPressed: () => ref
+                      .read(materialMusicControllerProvider.notifier)
+                      .togglePlayback(),
+                  icon: Icon(
+                    isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    color: palette.accent,
+                  ),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: _t(context, '下一首', 'Next track'),
+                  onPressed: () => ref
+                      .read(materialMusicControllerProvider.notifier)
+                      .playNext(localeCode: localeCode),
+                  icon: Icon(
+                    Icons.skip_next_rounded,
+                    color: palette.secondaryText,
+                  ),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: _t(context, '关闭', 'Close'),
+                  onPressed: onClose,
+                  icon: Icon(Icons.close_rounded, color: palette.secondaryText),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 }
