@@ -190,7 +190,7 @@ class _MaterialMusicFloatingOrbState
 
   static const double _collapsedSize = 66;
   static const double _expandedWidth = 248;
-  static const double _expandedHeight = 80;
+  static const double _expandedHeight = 90;
   static const double _edgeMargin = 16;
 
   @override
@@ -304,79 +304,79 @@ class _MaterialMusicFloatingOrbState
                 Positioned(
                   left: safeOffset.dx,
                   top: safeOffset.dy,
-                  child: GestureDetector(
-                    onPanUpdate: (details) {
-                      final next = Offset(
-                        (safeOffset.dx + details.delta.dx).clamp(0.0, maxX),
-                        (safeOffset.dy + details.delta.dy).clamp(0.0, maxY),
-                      );
-                      setState(() => _offset = next);
-                    },
-                    onTap: _expanded
-                        ? null
-                        : () => setState(() => _expanded = true),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 220),
-                      width: width,
-                      height: height,
-                      clipBehavior: Clip.antiAlias,
-                      decoration: BoxDecoration(
-                        color: palette.cardBackground,
-                        borderRadius: BorderRadius.circular(
-                          _expanded ? 28 : _collapsedSize / 2,
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: GestureDetector(
+                      onPanUpdate: (details) {
+                        final next = Offset(
+                          (safeOffset.dx + details.delta.dx).clamp(0.0, maxX),
+                          (safeOffset.dy + details.delta.dy).clamp(0.0, maxY),
+                        );
+                        setState(() => _offset = next);
+                      },
+                      onTap: _expanded
+                          ? null
+                          : () => setState(() => _expanded = true),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        width: width,
+                        height: height,
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          color: palette.cardBackground,
+                          borderRadius: BorderRadius.circular(
+                            _expanded ? 28 : _collapsedSize / 2,
+                          ),
+                          border: Border.all(color: palette.outline),
+                          boxShadow: palette.shadow,
                         ),
-                        border: Border.all(color: palette.outline),
-                        boxShadow: palette.shadow,
-                      ),
-                      padding: _expanded
-                          ? const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 8,
-                            )
-                          : EdgeInsets.zero,
-                      child: _expanded
-                          ? FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: SizedBox(
-                                width: _expandedWidth - 20,
-                                height: _expandedHeight - 16,
-                                child: _ExpandedOrbContent(
-                                  itemTitle: item.title,
-                                  itemArtist: item.artist.trim().isNotEmpty
-                                      ? item.artist.trim()
-                                      : _t(context, '音乐播放中', 'Playing now'),
-                                  palette: palette,
-                                  player: player,
-                                  rotatingArtwork: _buildOrbArtwork(
-                                    coverUrl: coverUrl,
+                        padding: _expanded
+                            ? const EdgeInsets.fromLTRB(10, 8, 10, 10)
+                            : EdgeInsets.zero,
+                        child: _expanded
+                            ? FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: SizedBox(
+                                  width: _expandedWidth - 20,
+                                  height: _expandedHeight - 18,
+                                  child: _ExpandedOrbContent(
+                                    itemTitle: item.title,
+                                    itemArtist: item.artist.trim().isNotEmpty
+                                        ? item.artist.trim()
+                                        : _t(context, '音乐播放中', 'Playing now'),
                                     palette: palette,
-                                    collapsed: false,
+                                    player: player,
+                                    rotatingArtwork: _buildOrbArtwork(
+                                      coverUrl: coverUrl,
+                                      palette: palette,
+                                      collapsed: false,
+                                    ),
+                                    onOpenPlayer: () =>
+                                        _openPlayer(playbackState, item),
+                                    onClose: () async {
+                                      await ref
+                                          .read(
+                                            materialMusicControllerProvider
+                                                .notifier,
+                                          )
+                                          .clearPlayback();
+                                      if (!mounted) {
+                                        return;
+                                      }
+                                      setState(() => _expanded = false);
+                                    },
+                                    onCollapse: () =>
+                                        setState(() => _expanded = false),
                                   ),
-                                  onOpenPlayer: () =>
-                                      _openPlayer(playbackState, item),
-                                  onClose: () async {
-                                    await ref
-                                        .read(
-                                          materialMusicControllerProvider
-                                              .notifier,
-                                        )
-                                        .clearPlayback();
-                                    if (!mounted) {
-                                      return;
-                                    }
-                                    setState(() => _expanded = false);
-                                  },
-                                  onCollapse: () =>
-                                      setState(() => _expanded = false),
                                 ),
+                              )
+                            : _buildOrbArtwork(
+                                coverUrl: coverUrl,
+                                palette: palette,
+                                collapsed: true,
                               ),
-                            )
-                          : _buildOrbArtwork(
-                              coverUrl: coverUrl,
-                              palette: palette,
-                              collapsed: true,
-                            ),
+                      ),
                     ),
                   ),
                 ),
@@ -464,70 +464,151 @@ class _ExpandedOrbContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Row(
+    final localeCode = Localizations.localeOf(context).toLanguageTag();
+
+    return Column(
       children: [
-        InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onOpenPlayer,
-          child: SizedBox(width: 54, height: 54, child: rotatingArtwork),
-        ),
-        const SizedBox(width: 10),
         Expanded(
-          child: GestureDetector(
-            onTap: onCollapse,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  itemTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: palette.primaryText,
-                    fontWeight: FontWeight.w800,
+          child: Row(
+            children: [
+              InkWell(
+                customBorder: const CircleBorder(),
+                onTap: onOpenPlayer,
+                child: SizedBox(width: 54, height: 54, child: rotatingArtwork),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: GestureDetector(
+                  onTap: onCollapse,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        itemTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: palette.primaryText,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        itemArtist,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: palette.secondaryText,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  itemArtist,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: palette.secondaryText,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+              ),
+              StreamBuilder<PlayerState>(
+                stream: player.playerStateStream,
+                builder: (context, snapshot) {
+                  final playerState = snapshot.data;
+                  final isPlaying = playerState?.playing ?? player.playing;
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        tooltip: isPlaying
+                            ? _t(context, '暂停', 'Pause')
+                            : _t(context, '播放', 'Play'),
+                        onPressed: () => ref
+                            .read(materialMusicControllerProvider.notifier)
+                            .togglePlayback(),
+                        icon: Icon(
+                          isPlaying
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                          color: palette.accent,
+                        ),
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        tooltip: _t(context, '下一首', 'Next track'),
+                        onPressed: () => ref
+                            .read(materialMusicControllerProvider.notifier)
+                            .playNext(localeCode: localeCode),
+                        icon: Icon(
+                          Icons.skip_next_rounded,
+                          color: palette.secondaryText,
+                        ),
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        tooltip: _t(context, '关闭', 'Close'),
+                        onPressed: onClose,
+                        icon: Icon(
+                          Icons.close_rounded,
+                          color: palette.secondaryText,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        _OrbPlaybackProgressBar(player: player, palette: palette),
+      ],
+    );
+  }
+}
+
+class _OrbPlaybackProgressBar extends StatelessWidget {
+  const _OrbPlaybackProgressBar({required this.player, required this.palette});
+
+  final AudioPlayer player;
+  final _MiniPlayerPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<Duration>(
+      stream: player.positionStream,
+      builder: (context, snapshot) {
+        final duration = player.duration ?? Duration.zero;
+        final totalMs = duration.inMilliseconds;
+        final currentMs = snapshot.data?.inMilliseconds ?? 0;
+        final progress = totalMs <= 0
+            ? 0.0
+            : (currentMs / totalMs).clamp(0.0, 1.0);
+
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: SizedBox(
+            height: 3,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ColoredBox(
+                  color: palette.secondaryText.withValues(alpha: 0.12),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FractionallySizedBox(
+                    widthFactor: progress,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: palette.accent.withValues(alpha: 0.58),
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        ),
-        StreamBuilder<PlayerState>(
-          stream: player.playerStateStream,
-          builder: (context, snapshot) {
-            final playerState = snapshot.data;
-            final isPlaying = playerState?.playing ?? player.playing;
-            return IconButton(
-              tooltip: isPlaying
-                  ? _t(context, '暂停', 'Pause')
-                  : _t(context, '播放', 'Play'),
-              onPressed: () => ref
-                  .read(materialMusicControllerProvider.notifier)
-                  .togglePlayback(),
-              icon: Icon(
-                isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                color: palette.accent,
-              ),
-            );
-          },
-        ),
-        IconButton(
-          tooltip: _t(context, '关闭', 'Close'),
-          onPressed: onClose,
-          icon: Icon(Icons.close_rounded, color: palette.secondaryText),
-        ),
-      ],
+        );
+      },
     );
   }
 }
