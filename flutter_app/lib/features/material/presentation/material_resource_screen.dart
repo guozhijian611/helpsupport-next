@@ -45,6 +45,7 @@ class _MaterialResourceScreenState
   WebViewController? _webViewController;
   VideoPlayerController? _videoController;
   AudioPlayer? _audioPlayer;
+  Uri? _pdfUri;
   StreamSubscription<Duration>? _audioPositionSubscription;
   StreamSubscription<PlayerState>? _audioStateSubscription;
   MaterialItem? _activeItem;
@@ -52,6 +53,7 @@ class _MaterialResourceScreenState
   String _textContent = '';
   String _lyricContent = '';
   String _cachePath = '';
+  String _activeResourceUrl = '';
   String _resourceError = '';
   double _cacheProgress = 0;
   double _readingProgress = 0;
@@ -106,6 +108,8 @@ class _MaterialResourceScreenState
               cachePath: _cachePath,
               cacheProgress: _cacheProgress,
               isCaching: _isCaching,
+              canCache: _canCacheActiveResource,
+              onCache: _cacheActiveResource,
               child: _resourceBody(item),
             );
           },
@@ -120,6 +124,8 @@ class _MaterialResourceScreenState
               cachePath: _cachePath,
               cacheProgress: _cacheProgress,
               isCaching: _isCaching,
+              canCache: _canCacheActiveResource,
+              onCache: _cacheActiveResource,
               child: _resourceBody(fallback),
             );
           },
@@ -129,6 +135,8 @@ class _MaterialResourceScreenState
                   cachePath: _cachePath,
                   cacheProgress: _cacheProgress,
                   isCaching: _isCaching,
+                  canCache: _canCacheActiveResource,
+                  onCache: _cacheActiveResource,
                   child: _resourceBody(fallback),
                 ),
         ),
@@ -171,12 +179,17 @@ class _MaterialResourceScreenState
     }
 
     if (_isPdfResource(item)) {
-      if (_isPreparingResource || _cachePath.trim().isEmpty) {
+      final pdfUri = _pdfUri;
+      if (_isPreparingResource ||
+          (_cachePath.trim().isEmpty && pdfUri == null)) {
         return _ResourceLoading(
           text: _t(context, '正在准备 PDF 阅读器', 'Preparing PDF reader'),
         );
       }
-      return PdfViewer.file(_cachePath);
+      if (_cachePath.trim().isNotEmpty) {
+        return PdfViewer.file(_cachePath);
+      }
+      return PdfViewer.uri(pdfUri!);
     }
 
     if (_isVideoResource(item)) {
@@ -229,11 +242,13 @@ class _MaterialResourceScreenState
 
     _activeCacheKey = cacheKey;
     _activeItem = item;
+    _activeResourceUrl = resourceUrl;
     _openedAt = DateTime.now();
     _readingProgress = item.historyProgress.clamp(0, 100).toDouble();
     _textContent = item.contentText;
     _lyricContent = '';
     _cachePath = '';
+    _pdfUri = null;
     _resourceError = '';
     _cacheProgress = 0;
     _isCaching = false;
@@ -280,24 +295,23 @@ class _MaterialResourceScreenState
       });
     }
     var content = item.contentText;
-    File? localFile;
     if (resourceUrl.trim().isNotEmpty) {
-      localFile = await _cacheFileFor(item, resourceUrl);
-      var hasCachedFile = await localFile.exists();
+      final localFile = await _cacheFileFor(item, resourceUrl);
+      final hasCachedFile = await localFile.exists();
       if (hasCachedFile && mounted) {
         setState(() {
-          _cachePath = localFile!.path;
+          _cachePath = localFile.path;
           _cacheProgress = 100;
         });
-      }
-      if (!hasCachedFile) {
-        await _cacheRemoteFile(resourceUrl, localFile);
-        hasCachedFile = await localFile.exists();
       }
       if (hasCachedFile) {
         content = _isEpubResource(item)
             ? await _loadEpubResource(localFile)
             : await _loadPlainTextResource(localFile);
+      } else {
+        content = _isEpubResource(item)
+            ? await _loadRemoteEpubResource(resourceUrl)
+            : await _loadRemotePlainTextResource(resourceUrl);
       }
     }
 
@@ -306,10 +320,6 @@ class _MaterialResourceScreenState
     }
     setState(() {
       _textContent = content;
-      if (localFile != null && localFile.existsSync()) {
-        _cachePath = localFile.path;
-        _cacheProgress = 100;
-      }
       _isLoadingText = false;
       _isPreparingResource = false;
     });
@@ -320,18 +330,28 @@ class _MaterialResourceScreenState
     MaterialItem item,
     String resourceUrl,
   ) async {
-    final localFile = await _downloadRequiredResource(
-      item: item,
-      resourceUrl: resourceUrl,
-      emptyMessage: _t(context, '暂无 PDF 文件地址', 'Missing PDF file URL'),
-      failedMessage: _t(context, 'PDF 文件加载失败', 'Failed to load PDF file'),
-    );
+    if (resourceUrl.trim().isEmpty) {
+      throw _t(context, '暂无 PDF 文件地址', 'Missing PDF file URL');
+    }
+    final uri = Uri.tryParse(resourceUrl);
+    if (uri == null || !uri.hasScheme) {
+      throw _t(context, 'PDF 地址无效', 'Invalid PDF URL');
+    }
+    if (mounted) {
+      setState(() => _isPreparingResource = true);
+    }
+    final localFile = await _cacheFileFor(item, resourceUrl);
+    final hasCachedFile = await localFile.exists();
     if (!mounted || _activeItem?.id != item.id) {
       return;
     }
     setState(() {
-      _cachePath = localFile.path;
-      _cacheProgress = 100;
+      if (hasCachedFile) {
+        _cachePath = localFile.path;
+        _cacheProgress = 100;
+      } else {
+        _pdfUri = uri;
+      }
       _isPreparingResource = false;
     });
   }
@@ -375,9 +395,6 @@ class _MaterialResourceScreenState
       return;
     }
     setState(() => _isPreparingResource = false);
-    if (!hasCachedFile) {
-      unawaited(_cacheRemoteFile(resourceUrl, localFile));
-    }
   }
 
   Future<void> _prepareAudioResource(
@@ -436,9 +453,6 @@ class _MaterialResourceScreenState
       _lyricContent = lyricContent;
       _isPreparingResource = false;
     });
-    if (!hasCachedFile) {
-      unawaited(_cacheRemoteFile(resourceUrl, localFile));
-    }
   }
 
   Future<String> _loadLyricContent(MaterialItem item) async {
@@ -473,27 +487,48 @@ class _MaterialResourceScreenState
     }
   }
 
-  Future<File> _downloadRequiredResource({
-    required MaterialItem item,
-    required String resourceUrl,
-    required String emptyMessage,
-    required String failedMessage,
-  }) async {
-    if (resourceUrl.trim().isEmpty) {
-      throw emptyMessage;
+  bool get _canCacheActiveResource {
+    final item = _activeItem;
+    if (item == null ||
+        _activeResourceUrl.trim().isEmpty ||
+        _isCaching ||
+        _cachePath.trim().isNotEmpty) {
+      return false;
     }
-    if (mounted) {
-      setState(() => _isPreparingResource = true);
+    return _isBookReader(item) ||
+        _isPdfResource(item) ||
+        _isVideoResource(item) ||
+        _isAudioResource(item);
+  }
+
+  Future<void> _cacheActiveResource() async {
+    final item = _activeItem;
+    final resourceUrl = _activeResourceUrl.trim();
+    if (item == null ||
+        resourceUrl.isEmpty ||
+        _isCaching ||
+        _cachePath.trim().isNotEmpty) {
+      return;
     }
     final localFile = await _cacheFileFor(item, resourceUrl);
     if (await localFile.exists()) {
-      return localFile;
+      if (mounted) {
+        setState(() {
+          _cachePath = localFile.path;
+          _cacheProgress = 100;
+        });
+      }
+      return;
     }
     await _cacheRemoteFile(resourceUrl, localFile);
-    if (!await localFile.exists()) {
-      throw failedMessage;
+    if (!mounted) {
+      return;
     }
-    return localFile;
+    if (await localFile.exists()) {
+      context.showCenteredNotice(_t(context, '已缓存到本地', 'Cached offline'));
+    } else {
+      context.showCenteredNotice(_t(context, '缓存失败', 'Cache failed'));
+    }
   }
 
   WebViewController _buildWebViewController() {
@@ -517,8 +552,28 @@ class _MaterialResourceScreenState
     return utf8.decode(bytes, allowMalformed: true);
   }
 
+  Future<String> _loadRemotePlainTextResource(String resourceUrl) async {
+    final response = await _apiClient.dio.get<List<int>>(
+      resourceUrl,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return utf8.decode(response.data ?? const [], allowMalformed: true);
+  }
+
   Future<String> _loadEpubResource(File file) async {
-    final archive = ZipDecoder().decodeBytes(await file.readAsBytes());
+    return _loadEpubBytes(await file.readAsBytes());
+  }
+
+  Future<String> _loadRemoteEpubResource(String resourceUrl) async {
+    final response = await _apiClient.dio.get<List<int>>(
+      resourceUrl,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return _loadEpubBytes(response.data ?? const []);
+  }
+
+  String _loadEpubBytes(List<int> bytes) {
+    final archive = ZipDecoder().decodeBytes(bytes);
     final containerText = _archiveText(archive, 'META-INF/container.xml');
     if (containerText == null || containerText.trim().isEmpty) {
       throw _t(context, 'EPUB 文件缺少目录信息', 'Invalid EPUB container');
@@ -879,22 +934,30 @@ class _ResourceScaffold extends StatelessWidget {
     required this.cachePath,
     required this.cacheProgress,
     required this.isCaching,
+    required this.canCache,
+    required this.onCache,
     required this.child,
   });
 
   final String cachePath;
   final double cacheProgress;
   final bool isCaching;
+  final bool canCache;
+  final VoidCallback onCache;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
+    final cached = cachePath.isNotEmpty && !isCaching;
     return Column(
       children: [
-        if (isCaching || cachePath.isNotEmpty)
+        if (isCaching || cached || canCache)
           _CacheStatusBar(
             progress: cacheProgress,
-            cached: cachePath.isNotEmpty && !isCaching,
+            cached: cached,
+            caching: isCaching,
+            canCache: canCache,
+            onCache: onCache,
           ),
         Expanded(child: child),
       ],
@@ -1116,6 +1179,12 @@ class _AudioPlayerPanelState extends State<_AudioPlayerPanel> {
                 final currentMilliseconds = position.inMilliseconds
                     .clamp(0, maxMilliseconds)
                     .toInt();
+                final activeLyricIndex = _activeLyricIndex(lines, position);
+                final currentLyric = activeLyricIndex >= 0
+                    ? lines[activeLyricIndex].text
+                    : lines.isNotEmpty
+                    ? lines.first.text
+                    : _t(context, '暂无歌词', 'No lyrics yet');
                 return Column(
                   children: [
                     Expanded(
@@ -1136,8 +1205,13 @@ class _AudioPlayerPanelState extends State<_AudioPlayerPanel> {
                             duration: duration,
                             currentMilliseconds: currentMilliseconds,
                             maxMilliseconds: maxMilliseconds,
+                            currentLyric: currentLyric,
                           ),
-                          _AudioLyricsPage(lines: lines, position: position),
+                          _AudioLyricsPage(
+                            lines: lines,
+                            position: position,
+                            onSeek: widget.player.seek,
+                          ),
                         ],
                       ),
                     ),
@@ -1176,6 +1250,7 @@ class _AudioPlaybackPage extends StatelessWidget {
     required this.duration,
     required this.currentMilliseconds,
     required this.maxMilliseconds,
+    required this.currentLyric,
   });
 
   final AudioPlayer player;
@@ -1189,6 +1264,7 @@ class _AudioPlaybackPage extends StatelessWidget {
   final Duration duration;
   final int currentMilliseconds;
   final int maxMilliseconds;
+  final String currentLyric;
 
   @override
   Widget build(BuildContext context) {
@@ -1314,11 +1390,15 @@ class _AudioPlaybackPage extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         Text(
-          _t(context, '左滑查看同步歌词', 'Swipe left for synced lyrics'),
+          currentLyric,
           textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: scheme.onSurfaceVariant,
-            fontWeight: FontWeight.w700,
+            color: const Color(0xFFFF9585),
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
+            height: 1.35,
           ),
         ),
       ],
@@ -1327,10 +1407,15 @@ class _AudioPlaybackPage extends StatelessWidget {
 }
 
 class _AudioLyricsPage extends StatefulWidget {
-  const _AudioLyricsPage({required this.lines, required this.position});
+  const _AudioLyricsPage({
+    required this.lines,
+    required this.position,
+    required this.onSeek,
+  });
 
   final List<_LyricLine> lines;
   final Duration position;
+  final ValueChanged<Duration> onSeek;
 
   @override
   State<_AudioLyricsPage> createState() => _AudioLyricsPageState();
@@ -1423,6 +1508,7 @@ class _AudioLyricsPageState extends State<_AudioLyricsPage> {
         final lineIndex = index - 1;
         final line = lines[lineIndex];
         final selected = lineIndex == activeIndex;
+        final time = line.time;
         return AnimatedDefaultTextStyle(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
@@ -1432,9 +1518,13 @@ class _AudioLyricsPageState extends State<_AudioLyricsPage> {
             height: 1.45,
             fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
           ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Text(line.text, textAlign: TextAlign.center),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: time == null ? null : () => widget.onSeek(time),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+              child: Text(line.text, textAlign: TextAlign.center),
+            ),
           ),
         );
       },
@@ -1559,10 +1649,19 @@ class _AudioCoverFallback extends StatelessWidget {
 }
 
 class _CacheStatusBar extends StatelessWidget {
-  const _CacheStatusBar({required this.progress, required this.cached});
+  const _CacheStatusBar({
+    required this.progress,
+    required this.cached,
+    required this.caching,
+    required this.canCache,
+    required this.onCache,
+  });
 
   final double progress;
   final bool cached;
+  final bool caching;
+  final bool canCache;
+  final VoidCallback onCache;
 
   @override
   Widget build(BuildContext context) {
@@ -1582,17 +1681,31 @@ class _CacheStatusBar extends StatelessWidget {
             child: Text(
               cached
                   ? _t(context, '已支持离线查看', 'Available offline')
-                  : _t(
+                  : caching
+                  ? _t(
                       context,
                       '正在缓存 ${progress.clamp(0, 100).toStringAsFixed(0)}%',
                       'Caching ${progress.clamp(0, 100).toStringAsFixed(0)}%',
-                    ),
+                    )
+                  : _t(context, '未缓存，在线打开', 'Not cached, opened online'),
               style: TextStyle(
                 color: scheme.onSurfaceVariant,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
+          if (canCache) ...[
+            const SizedBox(width: 10),
+            TextButton.icon(
+              onPressed: onCache,
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFFF9585),
+                visualDensity: VisualDensity.compact,
+              ),
+              icon: const Icon(Icons.download_for_offline_outlined, size: 18),
+              label: Text(_t(context, '缓存', 'Cache')),
+            ),
+          ],
         ],
       ),
     );
