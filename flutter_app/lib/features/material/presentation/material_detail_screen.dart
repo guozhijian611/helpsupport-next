@@ -686,25 +686,11 @@ class _MusicDetailHero extends ConsumerWidget {
                 label: _mediaTitle(context, item.mediaType),
               ),
               _MusicMetaChip(
-                icon: Icons.schedule_rounded,
-                label: item.durationSeconds > 0
-                    ? MaterialMusicSupport.formatDuration(
-                        Duration(seconds: item.durationSeconds),
-                      )
-                    : '--:--',
-              ),
-              _MusicMetaChip(
                 icon: Icons.headphones_rounded,
                 label: '${item.viewCount}',
               ),
-              _MusicMetaChip(
-                icon: Icons.calendar_today_rounded,
-                label: _dateOnly(item.createTime),
-              ),
             ],
           ),
-          const SizedBox(height: 18),
-          _MusicDetailActionBar(item: item),
         ],
       ),
     );
@@ -775,83 +761,6 @@ class _MusicMetaChip extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _MusicDetailActionBar extends ConsumerWidget {
-  const _MusicDetailActionBar({required this.item});
-
-  final MaterialItem item;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 12,
-      runSpacing: 10,
-      children: [
-        _ActionStatButton(
-          icon: item.isLiked
-              ? Icons.thumb_up_alt_rounded
-              : Icons.thumb_up_alt_outlined,
-          label: '${item.likeCount}',
-          onTap: () => _toggleLike(context, ref),
-          active: item.isLiked,
-        ),
-        _ActionStatButton(
-          icon: item.isCollected
-              ? Icons.favorite_rounded
-              : Icons.favorite_border_rounded,
-          label: '${item.collectCount}',
-          onTap: () => _toggleCollect(context, ref),
-          active: item.isCollected,
-        ),
-      ],
-    );
-  }
-
-  Future<void> _toggleLike(BuildContext context, WidgetRef ref) async {
-    final locale = Localizations.localeOf(context).toLanguageTag();
-    try {
-      await ref.read(materialRepositoryProvider).toggleLike(item.id);
-      ref.invalidate(
-        materialDetailProvider(
-          MaterialDetailQuery(id: item.id, locale: locale),
-        ),
-      );
-    } on Object catch (error) {
-      if (!context.mounted) {
-        return;
-      }
-      context.showCenteredNotice(error.toString());
-    }
-  }
-
-  Future<void> _toggleCollect(BuildContext context, WidgetRef ref) async {
-    final locale = Localizations.localeOf(context).toLanguageTag();
-    try {
-      await ref.read(materialRepositoryProvider).toggleCollect(item.id);
-      ref.invalidate(
-        materialDetailProvider(
-          MaterialDetailQuery(id: item.id, locale: locale),
-        ),
-      );
-      ref.invalidate(
-        materialCollectionsProvider(
-          MaterialListQuery(
-            materialType: '',
-            categoryId: 0,
-            keyword: '',
-            locale: locale,
-          ),
-        ),
-      );
-    } on Object catch (error) {
-      if (!context.mounted) {
-        return;
-      }
-      context.showCenteredNotice(error.toString());
-    }
   }
 }
 
@@ -1640,11 +1549,6 @@ class _CommentComposer extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(Icons.sentiment_satisfied_alt_outlined),
-                const SizedBox(width: 20),
-                const Icon(Icons.image_outlined),
-                const SizedBox(width: 20),
-                const Icon(Icons.mood_outlined),
                 const Spacer(),
                 FilledButton(
                   onPressed: isSending ? null : onSend,
