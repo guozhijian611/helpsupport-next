@@ -42,8 +42,9 @@ class SaEntertainmentMaterialController extends BaseController
         ]);
         $where['material_type'] = self::MATERIAL_TYPE;
         $query = $this->logic->search($where);
+        $data = $this->withMaterialLabels($this->logic->getList($query));
 
-        return $this->success($this->logic->getList($query));
+        return $this->success($data);
     }
 
     #[Permission('娱乐素材读取', 'help:material:entertainment:read')]
@@ -54,6 +55,7 @@ class SaEntertainmentMaterialController extends BaseController
         if ($data === []) {
             return $this->fail('未查找到娱乐素材');
         }
+        $data = $this->appendMaterialLabels($data);
         $data['audit_logs'] = (new HelpAuditLogService())->list('content_material', $id);
 
         return $this->success($data);
@@ -127,6 +129,60 @@ class SaEntertainmentMaterialController extends BaseController
         $data['material_type'] = self::MATERIAL_TYPE;
 
         return $data;
+    }
+
+    private function withMaterialLabels(array $page): array
+    {
+        $rowsKey = null;
+        if (isset($page['data']) && is_array($page['data'])) {
+            $rowsKey = 'data';
+        } elseif (isset($page['list']) && is_array($page['list'])) {
+            $rowsKey = 'list';
+        }
+        if ($rowsKey === null) {
+            return $page;
+        }
+
+        $page[$rowsKey] = $this->appendMaterialLabelsToRows($page[$rowsKey]);
+
+        return $page;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private function appendMaterialLabelsToRows(array $rows): array
+    {
+        $categoryIds = array_values(array_unique(array_filter(
+            array_map(fn (array $row): int => (int) ($row['category_id'] ?? 0), $rows),
+            fn (int $id): bool => $id > 0
+        )));
+        $categories = $categoryIds === []
+            ? []
+            : Db::table('sa_content_category')
+                ->whereIn('id', $categoryIds)
+                ->whereNull('delete_time')
+                ->column('name', 'id');
+
+        foreach ($rows as &$row) {
+            $categoryId = (int) ($row['category_id'] ?? 0);
+            $memberId = (int) ($row['member_id'] ?? 0);
+            $row['category_name'] = $categoryId > 0 ? (string) ($categories[$categoryId] ?? '分类已删除') : '未分类';
+            $row['author_label'] = $memberId === 0 ? '管理员上传' : '会员 #' . $memberId;
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function appendMaterialLabels(array $data): array
+    {
+        return $this->appendMaterialLabelsToRows([$data])[0] ?? $data;
     }
 
     /**
