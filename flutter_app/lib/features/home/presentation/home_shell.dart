@@ -6,11 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
-import '../../../core/ui/app_tab_shell_metrics.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../community/presentation/community_feed_screen.dart';
-import '../../material/application/material_music_controller.dart';
-import '../../material/presentation/material_music_mini_player_bar.dart';
 import '../../me/presentation/me_screen.dart';
 import '../../plan/presentation/plan_screen.dart';
 import 'home_dashboard_screen.dart';
@@ -44,7 +41,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
-    final metrics = AppTabShellMetrics.of(context);
     ref.listen(authControllerProvider, (previous, next) {
       final wasAuthenticated = switch (previous) {
         AsyncData(:final value) => value != null,
@@ -86,30 +82,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       3 => const MeScreen(),
       _ => const HomeDashboardScreen(),
     };
-    final showMiniPlayer =
-        _index == 0 &&
-        ref.watch(materialMusicControllerProvider).currentItem != null;
 
     return Scaffold(
       extendBody: true,
-      body: SafeArea(
-        top: true,
-        bottom: false,
-        child: Stack(
-          children: [
-            Positioned.fill(child: body),
-            if (showMiniPlayer)
-              Positioned.fill(
-                child: MaterialMusicFloatingOrb(
-                  bottomInset: metrics.floatingTabBarInset(
-                    context,
-                    extraSpacing: 10,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
+      body: SafeArea(top: true, bottom: false, child: body),
       floatingActionButton: _index == 1
           ? FloatingActionButton(
               tooltip: context.l10n.communityNewPost,

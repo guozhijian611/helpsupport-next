@@ -9,7 +9,6 @@ import '../../material/application/material_controller.dart';
 import '../../material/application/material_music_controller.dart';
 import '../../material/data/material_models.dart';
 import '../../material/data/material_music_support.dart';
-import 'material_music_mini_player_bar.dart';
 import 'material_music_player_screen.dart';
 
 enum _MusicListFilter { all, collected, downloaded }
@@ -133,11 +132,6 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
               ]
             : null,
       ),
-      bottomNavigationBar:
-          widget.materialType == 'entertainment' &&
-              ref.watch(materialMusicControllerProvider).currentItem != null
-          ? const MaterialMusicMiniPlayerBar()
-          : null,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => _refreshCurrent(),
