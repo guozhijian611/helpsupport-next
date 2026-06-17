@@ -10,9 +10,14 @@ import '../application/material_controller.dart';
 import '../data/material_models.dart';
 
 class MaterialDetailScreen extends ConsumerStatefulWidget {
-  const MaterialDetailScreen({super.key, required this.materialId});
+  const MaterialDetailScreen({
+    super.key,
+    required this.materialId,
+    this.initialItem,
+  });
 
   final int materialId;
+  final MaterialItem? initialItem;
 
   @override
   ConsumerState<MaterialDetailScreen> createState() =>
@@ -41,6 +46,7 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
     );
     final material = ref.watch(materialDetailProvider(detailQuery));
     final comments = ref.watch(materialCommentsProvider(widget.materialId));
+    final fallback = widget.initialItem;
 
     return Scaffold(
       backgroundColor: palette.pageBackground,
@@ -48,103 +54,112 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
         backgroundColor: palette.pageBackground,
         foregroundColor: palette.primaryText,
         surfaceTintColor: Colors.transparent,
-        title: Text(_t(context, '素材详情', 'Material')),
+        title: Text(
+          material.maybeWhen(
+            data: (item) => item.title,
+            orElse: () => fallback?.title ?? _t(context, '素材详情', 'Material'),
+          ),
+        ),
       ),
       body: SafeArea(
         child: material.when(
-          data: (item) {
-            _saveHistoryOnce(item);
-            if (item.materialType == 'entertainment') {
-              return _EntertainmentDetailBody(
-                item: item,
-                comments: comments,
-                commentController: _commentController,
-                isSending: _isSending,
-                replyTarget: _replyTarget,
-                onReply: _replyComment,
-                onReport: _reportComment,
-                onDismissReply: () => setState(() => _replyTarget = null),
-                onSend: _sendComment,
-              );
-            }
-            return Column(
-              children: [
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: () async {
-                      ref.invalidate(materialDetailProvider(detailQuery));
-                      ref.invalidate(
-                        materialCommentsProvider(widget.materialId),
-                      );
-                      await Future.wait([
-                        ref.read(materialDetailProvider(detailQuery).future),
-                        ref.read(
-                          materialCommentsProvider(widget.materialId).future,
-                        ),
-                      ]);
-                    },
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(18, 12, 18, 22),
-                      children: [
-                        _MaterialHero(item: item),
-                        const SizedBox(height: 18),
-                        _MaterialContentSection(item: item),
-                        const SizedBox(height: 18),
-                        _SectionTitle(
-                          title: _t(context, '评论区', 'Comments'),
-                          count: item.commentCount,
-                        ),
-                        const SizedBox(height: 12),
-                        comments.when(
-                          data: (page) => page.list.isEmpty
-                              ? _CommentEmptyState(
-                                  text: _t(
-                                    context,
-                                    '还没有评论，留下你的第一条感受。',
-                                    'No comments yet. Share the first thought.',
-                                  ),
-                                )
-                              : Column(
-                                  children: [
-                                    for (final node in _commentNodes(page.list))
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 12,
-                                        ),
-                                        child: _MaterialCommentThread(
-                                          node: node,
-                                          depth: 0,
-                                          onReply: _replyComment,
-                                          onReport: _reportComment,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                          error: (error, _) =>
-                              _CommentEmptyState(text: error.toString()),
-                          loading: () => const Padding(
-                            padding: EdgeInsets.all(20),
-                            child: Center(child: CircularProgressIndicator()),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                _CommentComposer(
-                  controller: _commentController,
-                  isSending: _isSending,
-                  replyTarget: _replyTarget,
-                  onDismissReply: () => setState(() => _replyTarget = null),
-                  onSend: _sendComment,
-                ),
-              ],
-            );
-          },
-          error: (error, _) => Center(child: Text(error.toString())),
-          loading: () => const Center(child: CircularProgressIndicator()),
+          data: (item) => _buildDetailBody(item, comments, detailQuery),
+          error: (error, _) => fallback == null
+              ? Center(child: Text(error.toString()))
+              : _buildDetailBody(fallback, comments, detailQuery),
+          loading: () => fallback == null
+              ? const Center(child: CircularProgressIndicator())
+              : _buildDetailBody(fallback, comments, detailQuery),
         ),
       ),
+    );
+  }
+
+  Widget _buildDetailBody(
+    MaterialItem item,
+    AsyncValue<MaterialPage<MaterialComment>> comments,
+    MaterialDetailQuery detailQuery,
+  ) {
+    _saveHistoryOnce(item);
+    if (item.materialType == 'entertainment') {
+      return _EntertainmentDetailBody(
+        item: item,
+        comments: comments,
+        commentController: _commentController,
+        isSending: _isSending,
+        replyTarget: _replyTarget,
+        onReply: _replyComment,
+        onReport: _reportComment,
+        onDismissReply: () => setState(() => _replyTarget = null),
+        onSend: _sendComment,
+      );
+    }
+    return Column(
+      children: [
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(materialDetailProvider(detailQuery));
+              ref.invalidate(materialCommentsProvider(widget.materialId));
+              await Future.wait([
+                ref.read(materialDetailProvider(detailQuery).future),
+                ref.read(materialCommentsProvider(widget.materialId).future),
+              ]);
+            },
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 22),
+              children: [
+                _MaterialHero(item: item),
+                const SizedBox(height: 18),
+                _MaterialContentSection(item: item),
+                const SizedBox(height: 18),
+                _SectionTitle(
+                  title: _t(context, '评论区', 'Comments'),
+                  count: item.commentCount,
+                ),
+                const SizedBox(height: 12),
+                comments.when(
+                  data: (page) => page.list.isEmpty
+                      ? _CommentEmptyState(
+                          text: _t(
+                            context,
+                            '还没有评论，留下你的第一条感受。',
+                            'No comments yet. Share the first thought.',
+                          ),
+                        )
+                      : Column(
+                          children: [
+                            for (final node in _commentNodes(page.list))
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _MaterialCommentThread(
+                                  node: node,
+                                  depth: 0,
+                                  onReply: _replyComment,
+                                  onReport: _reportComment,
+                                ),
+                              ),
+                          ],
+                        ),
+                  error: (error, _) =>
+                      _CommentEmptyState(text: error.toString()),
+                  loading: () => const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        _CommentComposer(
+          controller: _commentController,
+          isSending: _isSending,
+          replyTarget: _replyTarget,
+          onDismissReply: () => setState(() => _replyTarget = null),
+          onSend: _sendComment,
+        ),
+      ],
     );
   }
 

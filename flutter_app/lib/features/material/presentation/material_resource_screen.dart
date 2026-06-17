@@ -496,11 +496,22 @@ class _MaterialResourceScreenState
     if (uri == null || !uri.hasScheme) {
       throw _t(context, '游戏地址无效', 'Invalid game URL');
     }
-    _webViewController = _buildWebViewController();
-    await _webViewController!.loadRequest(uri);
+    final controller = _buildWebViewController();
+    _webViewController = controller;
     if (mounted) {
       setState(() {});
     }
+    unawaited(
+      controller.loadRequest(uri).catchError((Object error) {
+        if (!mounted || _webViewController != controller) {
+          return;
+        }
+        setState(() {
+          _resourceError = error.toString();
+          _isPreparingResource = false;
+        });
+      }),
+    );
   }
 
   bool get _canCacheActiveResource {

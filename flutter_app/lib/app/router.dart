@@ -334,6 +334,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           return MaterialDetailScreen(
             materialId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+            initialItem: state.extra is MaterialItem
+                ? state.extra as MaterialItem
+                : null,
           );
         },
       ),

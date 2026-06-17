@@ -739,7 +739,7 @@ class _EntertainmentGridCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: () => item.mediaType == 'link'
             ? context.push('/materials/resource/${item.id}', extra: item)
-            : context.push('/materials/detail/${item.id}'),
+            : context.push('/materials/detail/${item.id}', extra: item),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
