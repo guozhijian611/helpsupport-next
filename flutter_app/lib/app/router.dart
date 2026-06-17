@@ -31,7 +31,6 @@ import '../features/me/presentation/ai_capability_test_screen.dart';
 import '../features/material/data/material_models.dart';
 import '../features/material/presentation/material_detail_screen.dart';
 import '../features/material/presentation/material_library_screen.dart';
-import '../features/material/presentation/material_music_lyrics_screen.dart';
 import '../features/material/presentation/material_music_player_screen.dart';
 import '../features/material/presentation/material_private_upload_screen.dart';
 import '../features/material/presentation/material_resource_screen.dart';
@@ -334,11 +333,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/materials/music/lyrics/:id',
         name: 'material-music-lyrics',
         builder: (context, state) {
-          return MaterialMusicLyricsScreen(
+          return MaterialMusicPlayerScreen(
             materialId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
             initialItem: state.extra is MaterialItem
                 ? state.extra as MaterialItem
                 : null,
+            initialPage: 1,
           );
         },
       ),

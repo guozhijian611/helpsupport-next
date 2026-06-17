@@ -12,29 +12,70 @@ import '../application/material_music_controller.dart';
 import '../data/material_models.dart';
 import '../data/material_music_support.dart';
 
-class MaterialMusicPlayerScreen extends ConsumerWidget {
+class MaterialMusicPlayerScreen extends ConsumerStatefulWidget {
   const MaterialMusicPlayerScreen({
     super.key,
     required this.materialId,
     this.initialItem,
+    this.initialPage = 0,
   });
 
   final int materialId;
   final MaterialItem? initialItem;
+  final int initialPage;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MaterialMusicPlayerScreen> createState() =>
+      _MaterialMusicPlayerScreenState();
+}
+
+class _MaterialMusicPlayerScreenState
+    extends ConsumerState<MaterialMusicPlayerScreen> {
+  late final PageController _pageController;
+  int _bootstrappedMaterialId = -1;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(
+      initialPage: widget.initialPage.clamp(0, 1),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant MaterialMusicPlayerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.materialId != widget.materialId) {
+      _bootstrappedMaterialId = -1;
+    }
+    if (oldWidget.initialPage != widget.initialPage &&
+        _pageController.hasClients) {
+      _pageController.jumpToPage(widget.initialPage.clamp(0, 1));
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final localeTag = Localizations.localeOf(context).toLanguageTag();
     final localeCode = Localizations.localeOf(context).languageCode;
-    final detailQuery = MaterialDetailQuery(id: materialId, locale: localeTag);
+    final detailQuery = MaterialDetailQuery(
+      id: widget.materialId,
+      locale: localeTag,
+    );
     final detail = ref.watch(materialDetailProvider(detailQuery));
     final controllerState = ref.watch(materialMusicControllerProvider);
     final controller = ref.read(materialMusicControllerProvider.notifier);
     final player = ref.watch(materialMusicAudioPlayerProvider);
 
-    final fallback = controllerState.currentItem?.id == materialId
+    final fallback = controllerState.currentItem?.id == widget.materialId
         ? controllerState.currentItem
-        : initialItem;
+        : widget.initialItem;
     final detailItem = detail.maybeWhen(
       data: (item) => item,
       orElse: () => fallback,
@@ -48,7 +89,7 @@ class MaterialMusicPlayerScreen extends ConsumerWidget {
 
     final activeItem =
         controllerState.currentItem != null &&
-            controllerState.currentItem!.id == materialId
+            controllerState.currentItem!.id == widget.materialId
         ? controllerState.currentItem
         : detailItem;
 
@@ -64,27 +105,37 @@ class MaterialMusicPlayerScreen extends ConsumerWidget {
     final playlist = playlistQuery == null
         ? const AsyncLoading<MaterialPage<MaterialItem>>()
         : ref.watch(materialListProvider(playlistQuery));
+    final playlistItems = switch (playlist) {
+      AsyncData(:final value) => value.list,
+      _ => null,
+    };
 
-    if (activeItem != null &&
-        MaterialMusicSupport.isAudioItem(activeItem) &&
-        playlist.hasValue) {
+    if (detailItem != null &&
+        MaterialMusicSupport.isAudioItem(detailItem) &&
+        _bootstrappedMaterialId != widget.materialId) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        controller.syncPlaylist(playlist.value?.list ?? const <MaterialItem>[]);
+        if (!mounted || _bootstrappedMaterialId == widget.materialId) {
+          return;
+        }
+        _bootstrappedMaterialId = widget.materialId;
+        if (playlistItems != null) {
+          controller.syncPlaylist(playlistItems);
+        }
         controller.openTrack(
-          activeItem,
+          detailItem,
           localeCode: localeCode,
-          playlist: playlist.value?.list,
-          autoplay: true,
+          playlist: playlistItems,
+          autoplay: controllerState.currentItem?.id != detailItem.id,
         );
       });
-    } else if (activeItem != null &&
-        MaterialMusicSupport.isAudioItem(activeItem)) {
+    } else if (playlistItems != null &&
+        activeItem != null &&
+        controllerState.playlist.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        controller.openTrack(
-          activeItem,
-          localeCode: localeCode,
-          autoplay: true,
-        );
+        if (!mounted) {
+          return;
+        }
+        controller.syncPlaylist(playlistItems);
       });
     }
 
@@ -103,7 +154,7 @@ class MaterialMusicPlayerScreen extends ConsumerWidget {
             tooltip: _t(context, '播放列表', 'Playlist'),
             onPressed: controllerState.playlist.isEmpty
                 ? null
-                : () => _showQueueSheet(context, ref, localeCode),
+                : () => _showQueueSheet(context, localeCode),
             icon: const Icon(Icons.queue_music_rounded),
           ),
         ],
@@ -114,30 +165,17 @@ class MaterialMusicPlayerScreen extends ConsumerWidget {
             item: activeItem ?? detailData,
             player: player,
             controllerState: controllerState,
+            pageController: _pageController,
             onToggleCollect: () => _toggleCollect(
               context,
-              ref,
               localeTag: localeTag,
-              localeCode: localeCode,
               item: activeItem ?? detailData,
             ),
-            onDownload: () => _cacheCurrentTrack(context, ref, localeCode),
-            onOpenLyrics: () => _openLyrics(context, activeItem ?? detailData),
-            onOpenOverview: () => _openDetailSection(
-              context,
-              activeItem ?? detailData,
-              'overview',
-            ),
-            onOpenComments: () => _openDetailSection(
-              context,
-              activeItem ?? detailData,
-              'comments',
-            ),
+            onDownload: () => _cacheCurrentTrack(context, localeCode),
             onPlayPrevious: () =>
-                _playAdjacentTrack(context, ref, localeCode, step: -1),
+                _playAdjacentTrack(context, localeCode, step: -1),
             onTogglePlayback: controller.togglePlayback,
-            onPlayNext: () =>
-                _playAdjacentTrack(context, ref, localeCode, step: 1),
+            onPlayNext: () => _playAdjacentTrack(context, localeCode, step: 1),
           ),
           error: (error, _) => activeItem == null
               ? Center(child: Text(error.toString()))
@@ -145,25 +183,18 @@ class MaterialMusicPlayerScreen extends ConsumerWidget {
                   item: activeItem,
                   player: player,
                   controllerState: controllerState,
+                  pageController: _pageController,
                   onToggleCollect: () => _toggleCollect(
                     context,
-                    ref,
                     localeTag: localeTag,
-                    localeCode: localeCode,
                     item: activeItem,
                   ),
-                  onDownload: () =>
-                      _cacheCurrentTrack(context, ref, localeCode),
-                  onOpenLyrics: () => _openLyrics(context, activeItem),
-                  onOpenOverview: () =>
-                      _openDetailSection(context, activeItem, 'overview'),
-                  onOpenComments: () =>
-                      _openDetailSection(context, activeItem, 'comments'),
+                  onDownload: () => _cacheCurrentTrack(context, localeCode),
                   onPlayPrevious: () =>
-                      _playAdjacentTrack(context, ref, localeCode, step: -1),
+                      _playAdjacentTrack(context, localeCode, step: -1),
                   onTogglePlayback: controller.togglePlayback,
                   onPlayNext: () =>
-                      _playAdjacentTrack(context, ref, localeCode, step: 1),
+                      _playAdjacentTrack(context, localeCode, step: 1),
                 ),
           loading: () => activeItem == null
               ? const Center(child: CircularProgressIndicator())
@@ -171,25 +202,18 @@ class MaterialMusicPlayerScreen extends ConsumerWidget {
                   item: activeItem,
                   player: player,
                   controllerState: controllerState,
+                  pageController: _pageController,
                   onToggleCollect: () => _toggleCollect(
                     context,
-                    ref,
                     localeTag: localeTag,
-                    localeCode: localeCode,
                     item: activeItem,
                   ),
-                  onDownload: () =>
-                      _cacheCurrentTrack(context, ref, localeCode),
-                  onOpenLyrics: () => _openLyrics(context, activeItem),
-                  onOpenOverview: () =>
-                      _openDetailSection(context, activeItem, 'overview'),
-                  onOpenComments: () =>
-                      _openDetailSection(context, activeItem, 'comments'),
+                  onDownload: () => _cacheCurrentTrack(context, localeCode),
                   onPlayPrevious: () =>
-                      _playAdjacentTrack(context, ref, localeCode, step: -1),
+                      _playAdjacentTrack(context, localeCode, step: -1),
                   onTogglePlayback: controller.togglePlayback,
                   onPlayNext: () =>
-                      _playAdjacentTrack(context, ref, localeCode, step: 1),
+                      _playAdjacentTrack(context, localeCode, step: 1),
                 ),
         ),
       ),
@@ -197,10 +221,8 @@ class MaterialMusicPlayerScreen extends ConsumerWidget {
   }
 
   Future<void> _toggleCollect(
-    BuildContext context,
-    WidgetRef ref, {
+    BuildContext context, {
     required String localeTag,
-    required String localeCode,
     required MaterialItem item,
   }) async {
     try {
@@ -262,7 +284,6 @@ class MaterialMusicPlayerScreen extends ConsumerWidget {
 
   Future<void> _cacheCurrentTrack(
     BuildContext context,
-    WidgetRef ref,
     String localeCode,
   ) async {
     final controller = ref.read(materialMusicControllerProvider.notifier);
@@ -275,30 +296,12 @@ class MaterialMusicPlayerScreen extends ConsumerWidget {
       return;
     }
     final after = ref.read(materialMusicControllerProvider);
-    if (after.isCached) {
-      context.showCenteredNotice(_t(context, '已下载到本地', 'Downloaded offline'));
-    } else if (after.errorMessage.trim().isNotEmpty) {
+    if (after.errorMessage.trim().isNotEmpty) {
       context.showCenteredNotice(after.errorMessage);
     }
   }
 
-  void _openLyrics(BuildContext context, MaterialItem item) {
-    context.push('/materials/music/lyrics/${item.id}', extra: item);
-  }
-
-  void _openDetailSection(
-    BuildContext context,
-    MaterialItem item,
-    String section,
-  ) {
-    context.push('/materials/detail/${item.id}?section=$section', extra: item);
-  }
-
-  Future<void> _showQueueSheet(
-    BuildContext context,
-    WidgetRef ref,
-    String localeCode,
-  ) async {
+  Future<void> _showQueueSheet(BuildContext context, String localeCode) async {
     final state = ref.read(materialMusicControllerProvider);
     final activeId = state.currentItem?.id ?? 0;
     await showModalBottomSheet<void>(
@@ -310,7 +313,7 @@ class MaterialMusicPlayerScreen extends ConsumerWidget {
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(18, 8, 18, 26),
           itemCount: state.playlist.length + 1,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          separatorBuilder: (_, _) => const SizedBox(height: 10),
           itemBuilder: (sheetContext, index) {
             if (index == 0) {
               return Padding(
@@ -338,7 +341,7 @@ class MaterialMusicPlayerScreen extends ConsumerWidget {
                     ? null
                     : () async {
                         Navigator.of(sheetContext).pop();
-                        await _openTrack(context, ref, track, localeCode);
+                        await _openTrack(context, track, localeCode);
                       },
                 leading: CircleAvatar(
                   backgroundColor: selected
@@ -392,31 +395,28 @@ class MaterialMusicPlayerScreen extends ConsumerWidget {
 
   Future<void> _playAdjacentTrack(
     BuildContext context,
-    WidgetRef ref,
     String localeCode, {
     required int step,
   }) async {
-    final state = ref.read(materialMusicControllerProvider);
-    final current = state.currentItem;
-    if (current == null || state.playlist.isEmpty) {
+    final controller = ref.read(materialMusicControllerProvider.notifier);
+    final beforeId = ref.read(materialMusicControllerProvider).currentItem?.id;
+    if (step < 0) {
+      await controller.playPrevious(localeCode: localeCode);
+    } else {
+      await controller.playNext(localeCode: localeCode);
+    }
+    if (!context.mounted) {
       return;
     }
-    final currentIndex = state.playlist.indexWhere(
-      (item) => item.id == current.id,
-    );
-    if (currentIndex < 0) {
+    final current = ref.read(materialMusicControllerProvider).currentItem;
+    if (current == null || current.id == beforeId) {
       return;
     }
-    final nextIndex = currentIndex + step;
-    if (nextIndex < 0 || nextIndex >= state.playlist.length) {
-      return;
-    }
-    await _openTrack(context, ref, state.playlist[nextIndex], localeCode);
+    context.replace('/materials/music/player/${current.id}', extra: current);
   }
 
   Future<void> _openTrack(
     BuildContext context,
-    WidgetRef ref,
     MaterialItem track,
     String localeCode,
   ) async {
@@ -435,11 +435,9 @@ class _MusicPlayerLoadedView extends ConsumerWidget {
     required this.item,
     required this.player,
     required this.controllerState,
+    required this.pageController,
     required this.onToggleCollect,
     required this.onDownload,
-    required this.onOpenLyrics,
-    required this.onOpenOverview,
-    required this.onOpenComments,
     required this.onPlayPrevious,
     required this.onTogglePlayback,
     required this.onPlayNext,
@@ -448,11 +446,9 @@ class _MusicPlayerLoadedView extends ConsumerWidget {
   final MaterialItem item;
   final AudioPlayer player;
   final MaterialMusicState controllerState;
+  final PageController pageController;
   final VoidCallback onToggleCollect;
   final VoidCallback onDownload;
-  final VoidCallback onOpenLyrics;
-  final VoidCallback onOpenOverview;
-  final VoidCallback onOpenComments;
   final VoidCallback onPlayPrevious;
   final VoidCallback onTogglePlayback;
   final VoidCallback onPlayNext;
@@ -469,362 +465,248 @@ class _MusicPlayerLoadedView extends ConsumerWidget {
         ? item.album.trim()
         : _t(context, '未设置专辑', 'No album');
 
-    return StreamBuilder<PlayerState>(
-      stream: player.playerStateStream,
-      builder: (context, playerSnapshot) {
-        final playerState = playerSnapshot.data;
-        final isPlaying = playerState?.playing ?? player.playing;
-        final isBuffering =
-            playerState?.processingState == ProcessingState.loading ||
-            playerState?.processingState == ProcessingState.buffering;
-        return StreamBuilder<Duration?>(
-          stream: player.durationStream,
-          builder: (context, durationSnapshot) {
-            final duration = durationSnapshot.data ?? Duration.zero;
-            return StreamBuilder<Duration>(
-              stream: player.positionStream,
-              builder: (context, positionSnapshot) {
-                final position = positionSnapshot.data ?? Duration.zero;
-                final maxMilliseconds = math.max(duration.inMilliseconds, 1);
-                final currentMilliseconds = position.inMilliseconds
-                    .clamp(0, maxMilliseconds)
-                    .toInt();
-                final lyricLines = MaterialMusicSupport.parseLyrics(
-                  controllerState.lyrics,
-                );
-                final activeIndex = MaterialMusicSupport.activeLyricIndex(
-                  lyricLines,
-                  position,
-                );
-                final currentLyric = activeIndex >= 0
-                    ? lyricLines[activeIndex].text
-                    : lyricLines.isNotEmpty
-                    ? lyricLines.first.text
-                    : item.summary.isNotEmpty
-                    ? item.summary
-                    : _t(
-                        context,
-                        '点击封面查看歌曲介绍和评论区',
-                        'Tap cover to view details and comments',
-                      );
-                return ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
-                  children: [
-                    GestureDetector(
-                      onTap: onOpenOverview,
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: palette.cardBackground,
-                          borderRadius: BorderRadius.circular(34),
-                          boxShadow: palette.cardShadow,
-                        ),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 286,
-                              height: 286,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(28),
-                                color: palette.softBackground,
-                              ),
-                              clipBehavior: Clip.antiAlias,
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  coverUrl.isNotEmpty
-                                      ? Image.network(
-                                          coverUrl,
-                                          fit: BoxFit.cover,
-                                          loadingBuilder:
-                                              (_, child, progress) =>
-                                                  progress == null
-                                                  ? child
-                                                  : _MusicCoverFallback(
-                                                      palette: palette,
-                                                    ),
-                                          errorBuilder: (_, _, _) =>
-                                              _MusicCoverFallback(
-                                                palette: palette,
-                                              ),
-                                        )
-                                      : _MusicCoverFallback(palette: palette),
-                                  DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          Colors.transparent,
-                                          Colors.black.withValues(alpha: 0.18),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  Align(
-                                    alignment: Alignment.center,
-                                    child: Container(
-                                      width: 72,
-                                      height: 72,
-                                      decoration: const BoxDecoration(
-                                        color: Colors.white,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        Icons.play_arrow_rounded,
-                                        color: palette.accent,
-                                        size: 42,
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    left: 16,
-                                    right: 16,
-                                    bottom: 16,
-                                    child: Text(
-                                      _t(
-                                        context,
-                                        '点按封面进入 歌曲介绍 + 评论区',
-                                        'Tap cover to open details and comments',
-                                      ),
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-                            Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
-                              alignment: WrapAlignment.center,
-                              children: [
-                                _MusicActionChip(
-                                  icon: item.isCollected
-                                      ? Icons.favorite_rounded
-                                      : Icons.favorite_border_rounded,
-                                  label: item.isCollected
-                                      ? _t(context, '已收藏', 'Collected')
-                                      : _t(context, '收藏', 'Collect'),
-                                  accent: palette.accent,
-                                  backgroundColor: item.isCollected
-                                      ? palette.accentSoft
-                                      : palette.softBackground,
-                                  onTap: onToggleCollect,
-                                ),
-                                _MusicActionChip(
-                                  icon: controllerState.isCached
-                                      ? Icons.download_done_rounded
-                                      : controllerState.isCaching
-                                      ? Icons.downloading_rounded
-                                      : Icons.download_for_offline_outlined,
-                                  label: controllerState.isCached
-                                      ? _t(context, '已下载本地', 'Downloaded')
-                                      : controllerState.isCaching
-                                      ? _t(
-                                          context,
-                                          '下载中 ${controllerState.cacheProgress.clamp(0, 100).toStringAsFixed(0)}%',
-                                          'Downloading ${controllerState.cacheProgress.clamp(0, 100).toStringAsFixed(0)}%',
-                                        )
-                                      : _t(
-                                          context,
-                                          '下载到本地',
-                                          'Download offline',
-                                        ),
-                                  accent: palette.infoAccent,
-                                  backgroundColor: controllerState.isCached
-                                      ? palette.infoSoft
-                                      : palette.softBackground,
-                                  onTap:
-                                      controllerState.isCached ||
-                                          controllerState.isCaching
-                                      ? null
-                                      : onDownload,
-                                ),
-                                _MusicActionChip(
-                                  icon: Icons.lyrics_outlined,
-                                  label: _t(context, '歌词', 'Lyrics'),
-                                  accent: palette.secondaryText,
-                                  backgroundColor: palette.softBackground,
-                                  onTap: onOpenLyrics,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      item.title,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: palette.primaryText,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        height: 1.22,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '$artist · $album',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: palette.secondaryText,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
+    return PageView(
+      controller: pageController,
+      children: [
+        StreamBuilder<PlayerState>(
+          stream: player.playerStateStream,
+          builder: (context, playerSnapshot) {
+            final playerState = playerSnapshot.data;
+            final isPlaying = playerState?.playing ?? player.playing;
+            final isBuffering =
+                playerState?.processingState == ProcessingState.loading ||
+                playerState?.processingState == ProcessingState.buffering;
+            return StreamBuilder<Duration?>(
+              stream: player.durationStream,
+              builder: (context, durationSnapshot) {
+                final duration = durationSnapshot.data ?? Duration.zero;
+                return StreamBuilder<Duration>(
+                  stream: player.positionStream,
+                  builder: (context, positionSnapshot) {
+                    final position = positionSnapshot.data ?? Duration.zero;
+                    final maxMilliseconds = math.max(
+                      duration.inMilliseconds,
+                      1,
+                    );
+                    final currentMilliseconds = position.inMilliseconds
+                        .clamp(0, maxMilliseconds)
+                        .toInt();
+                    final lyricLines = MaterialMusicSupport.parseLyrics(
+                      controllerState.lyrics,
+                    );
+                    final activeIndex = MaterialMusicSupport.activeLyricIndex(
+                      lyricLines,
+                      position,
+                    );
+                    final currentLyric = activeIndex >= 0
+                        ? lyricLines[activeIndex].text
+                        : lyricLines.isNotEmpty
+                        ? lyricLines.first.text
+                        : item.summary.trim().isNotEmpty
+                        ? item.summary.trim()
+                        : _t(
+                            context,
+                            '左滑查看同步歌词',
+                            'Swipe left for synced lyrics',
+                          );
+
+                    return ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
                       children: [
-                        Expanded(
-                          child: _MusicEntryButton(
-                            title: _t(context, '歌曲介绍', 'Overview'),
-                            subtitle: _t(
-                              context,
-                              '专辑说明 / 场景标签',
-                              'Album note / scene tags',
-                            ),
-                            onTap: onOpenOverview,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _MusicEntryButton(
-                            title: _t(context, '评论区', 'Comments'),
-                            subtitle: _t(
-                              context,
-                              '热评 / 最新 / 写评论',
-                              'Top / latest / write',
-                            ),
-                            onTap: onOpenComments,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    if (item.summary.trim().isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                        decoration: BoxDecoration(
-                          color: palette.softBackground,
-                          borderRadius: BorderRadius.circular(22),
-                        ),
-                        child: Text(
-                          item.summary,
-                          style: TextStyle(
-                            color: palette.bodyText,
-                            fontSize: 14,
-                            height: 1.6,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 20),
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        activeTrackColor: palette.accent,
-                        thumbColor: palette.accent,
-                        inactiveTrackColor: palette.trackBackground,
-                      ),
-                      child: Slider(
-                        value: currentMilliseconds.toDouble(),
-                        min: 0,
-                        max: maxMilliseconds.toDouble(),
-                        onChanged: (next) =>
-                            player.seek(Duration(milliseconds: next.round())),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            MaterialMusicSupport.formatDuration(position),
-                            style: TextStyle(
-                              color: palette.secondaryText,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            MaterialMusicSupport.formatDuration(duration),
-                            style: TextStyle(
-                              color: palette.secondaryText,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _CirclePlayerButton(
-                          icon: Icons.skip_previous_rounded,
-                          backgroundColor: palette.softBackground,
-                          foregroundColor: palette.secondaryText,
-                          onTap: onPlayPrevious,
-                        ),
-                        const SizedBox(width: 28),
-                        _CirclePlayerButton(
-                          icon: isBuffering
+                        _MusicCoverCard(
+                          palette: palette,
+                          coverUrl: coverUrl,
+                          centerIcon: isBuffering
                               ? Icons.hourglass_top_rounded
                               : isPlaying
                               ? Icons.pause_rounded
                               : Icons.play_arrow_rounded,
-                          size: 72,
-                          iconSize: 38,
-                          backgroundColor: palette.accent,
-                          foregroundColor: Colors.white,
-                          onTap: isBuffering ? null : onTogglePlayback,
                         ),
-                        const SizedBox(width: 28),
-                        _CirclePlayerButton(
-                          icon: Icons.skip_next_rounded,
-                          backgroundColor: palette.softBackground,
-                          foregroundColor: palette.secondaryText,
-                          onTap: onPlayNext,
+                        const SizedBox(height: 24),
+                        Text(
+                          item.title,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: palette.primaryText,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            height: 1.22,
+                          ),
                         ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '$artist · $album',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: palette.secondaryText,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _MusicIconAction(
+                              icon: item.isCollected
+                                  ? Icons.favorite_rounded
+                                  : Icons.favorite_border_rounded,
+                              color: item.isCollected
+                                  ? palette.accent
+                                  : palette.secondaryText,
+                              backgroundColor: item.isCollected
+                                  ? palette.accentSoft
+                                  : palette.softBackground,
+                              tooltip: item.isCollected
+                                  ? _t(context, '取消收藏', 'Remove collection')
+                                  : _t(context, '收藏', 'Collect'),
+                              onTap: onToggleCollect,
+                            ),
+                            const SizedBox(width: 14),
+                            _MusicIconAction(
+                              icon: controllerState.isCached
+                                  ? Icons.check_rounded
+                                  : controllerState.isCaching
+                                  ? Icons.downloading_rounded
+                                  : Icons.download_for_offline_outlined,
+                              color: controllerState.isCached
+                                  ? palette.infoAccent
+                                  : palette.secondaryText,
+                              backgroundColor: controllerState.isCached
+                                  ? palette.infoSoft
+                                  : palette.softBackground,
+                              tooltip: controllerState.isCached
+                                  ? _t(context, '已下载', 'Downloaded')
+                                  : _t(context, '下载', 'Download'),
+                              onTap:
+                                  controllerState.isCached ||
+                                      controllerState.isCaching
+                                  ? null
+                                  : onDownload,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 22),
+                        SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            activeTrackColor: palette.accent,
+                            thumbColor: palette.accent,
+                            inactiveTrackColor: palette.trackBackground,
+                          ),
+                          child: Slider(
+                            value: currentMilliseconds.toDouble(),
+                            min: 0,
+                            max: maxMilliseconds.toDouble(),
+                            onChanged: (next) => player.seek(
+                              Duration(milliseconds: next.round()),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                MaterialMusicSupport.formatDuration(position),
+                                style: TextStyle(
+                                  color: palette.secondaryText,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                MaterialMusicSupport.formatDuration(duration),
+                                style: TextStyle(
+                                  color: palette.secondaryText,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _CirclePlayerButton(
+                              icon: Icons.skip_previous_rounded,
+                              backgroundColor: palette.softBackground,
+                              foregroundColor: palette.secondaryText,
+                              onTap: onPlayPrevious,
+                            ),
+                            const SizedBox(width: 28),
+                            _CirclePlayerButton(
+                              icon: isBuffering
+                                  ? Icons.hourglass_top_rounded
+                                  : isPlaying
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                              size: 72,
+                              iconSize: 38,
+                              backgroundColor: palette.accent,
+                              foregroundColor: Colors.white,
+                              onTap: isBuffering ? null : onTogglePlayback,
+                            ),
+                            const SizedBox(width: 28),
+                            _CirclePlayerButton(
+                              icon: Icons.skip_next_rounded,
+                              backgroundColor: palette.softBackground,
+                              foregroundColor: palette.secondaryText,
+                              onTap: onPlayNext,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          currentLyric,
+                          textAlign: TextAlign.center,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: palette.accent,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            height: 1.45,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _t(
+                            context,
+                            '左滑查看同步歌词',
+                            'Swipe left for synced lyrics',
+                          ),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: palette.secondaryText,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (controllerState.errorMessage.trim().isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            controllerState.errorMessage,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: palette.errorText,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ],
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      currentLyric,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: palette.accent,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        height: 1.4,
-                      ),
-                    ),
-                    if (controllerState.errorMessage.trim().isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        controllerState.errorMessage,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: palette.errorText,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ],
+                    );
+                  },
                 );
               },
             );
           },
-        );
-      },
+        ),
+        _MusicLyricsPage(
+          item: item,
+          player: player,
+          controllerState: controllerState,
+        ),
+      ],
     );
   }
 }
@@ -851,40 +733,65 @@ class _MusicCoverFallback extends StatelessWidget {
   }
 }
 
-class _MusicActionChip extends StatelessWidget {
-  const _MusicActionChip({
-    required this.icon,
-    required this.label,
-    required this.accent,
-    required this.backgroundColor,
-    required this.onTap,
+class _MusicCoverCard extends StatelessWidget {
+  const _MusicCoverCard({
+    required this.palette,
+    required this.coverUrl,
+    required this.centerIcon,
   });
 
-  final IconData icon;
-  final String label;
-  final Color accent;
-  final Color backgroundColor;
-  final VoidCallback? onTap;
+  final _MaterialMusicPalette palette;
+  final String coverUrl;
+  final IconData centerIcon;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
+        borderRadius: BorderRadius.circular(34),
+        boxShadow: palette.cardShadow,
+      ),
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            Icon(icon, size: 18, color: accent),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(color: accent, fontWeight: FontWeight.w700),
+            coverUrl.isNotEmpty
+                ? Image.network(
+                    coverUrl,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (_, child, progress) => progress == null
+                        ? child
+                        : _MusicCoverFallback(palette: palette),
+                    errorBuilder: (_, _, _) =>
+                        _MusicCoverFallback(palette: palette),
+                  )
+                : _MusicCoverFallback(palette: palette),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.08),
+                    Colors.black.withValues(alpha: 0.28),
+                  ],
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.center,
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(centerIcon, color: palette.accent, size: 40),
+              ),
             ),
           ],
         ),
@@ -893,51 +800,228 @@ class _MusicActionChip extends StatelessWidget {
   }
 }
 
-class _MusicEntryButton extends StatelessWidget {
-  const _MusicEntryButton({
-    required this.title,
-    required this.subtitle,
+class _MusicIconAction extends StatelessWidget {
+  const _MusicIconAction({
+    required this.icon,
+    required this.color,
+    required this.backgroundColor,
+    required this.tooltip,
     required this.onTap,
   });
 
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
+  final IconData icon;
+  final Color color;
+  final Color backgroundColor;
+  final String tooltip;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Ink(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 22),
+        ),
+      ),
+    );
+  }
+}
+
+class _MusicLyricsPage extends StatefulWidget {
+  const _MusicLyricsPage({
+    required this.item,
+    required this.player,
+    required this.controllerState,
+  });
+
+  final MaterialItem item;
+  final AudioPlayer player;
+  final MaterialMusicState controllerState;
+
+  @override
+  State<_MusicLyricsPage> createState() => _MusicLyricsPageState();
+}
+
+class _MusicLyricsPageState extends State<_MusicLyricsPage> {
+  final ScrollController _scrollController = ScrollController();
+  final Map<int, GlobalKey> _lineKeys = <int, GlobalKey>{};
+  int _lastAutoScrollIndex = -1;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  GlobalKey _keyFor(int index) {
+    return _lineKeys.putIfAbsent(index, GlobalKey.new);
+  }
+
+  void _scrollToActiveLine(int activeIndex) {
+    if (activeIndex < 0 || activeIndex == _lastAutoScrollIndex) {
+      return;
+    }
+    final targetContext = _keyFor(activeIndex).currentContext;
+    if (targetContext == null) {
+      return;
+    }
+    _lastAutoScrollIndex = activeIndex;
+    Scrollable.ensureVisible(
+      targetContext,
+      alignment: 0.5,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final palette = _MaterialMusicPalette.of(context);
-    return InkWell(
-      borderRadius: BorderRadius.circular(22),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        decoration: BoxDecoration(
-          color: palette.cardBackground,
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                color: palette.primaryText,
-                fontWeight: FontWeight.w800,
+    final title = widget.item.title;
+    final artist = widget.item.artist.trim().isNotEmpty
+        ? widget.item.artist.trim()
+        : _t(context, '未知歌手', 'Unknown artist');
+
+    return StreamBuilder<Duration>(
+      stream: widget.player.positionStream,
+      builder: (context, positionSnapshot) {
+        final position = positionSnapshot.data ?? Duration.zero;
+        final duration = widget.player.duration ?? Duration.zero;
+        final lines = MaterialMusicSupport.parseLyrics(
+          widget.controllerState.lyrics,
+        );
+        final activeIndex = MaterialMusicSupport.activeLyricIndex(
+          lines,
+          position,
+        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          _scrollToActiveLine(activeIndex);
+        });
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
+          child: Column(
+            children: [
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: palette.primaryText,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              style: TextStyle(
-                color: palette.secondaryText,
-                height: 1.45,
-                fontWeight: FontWeight.w600,
+              const SizedBox(height: 8),
+              Text(
+                artist,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: palette.secondaryText,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(height: 22),
+              Expanded(
+                child: lines.isEmpty
+                    ? Center(
+                        child: Text(
+                          _t(context, '暂无歌词', 'No lyrics yet'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: palette.secondaryText,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.symmetric(vertical: 48),
+                        itemCount: lines.length,
+                        itemBuilder: (context, index) {
+                          final active = index == activeIndex;
+                          return Padding(
+                            key: _keyFor(index),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Text(
+                              lines[index].text,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: active
+                                    ? palette.primaryText
+                                    : palette.secondaryText,
+                                fontSize: active ? 26 : 18,
+                                fontWeight: active
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
+                                height: 1.55,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              const SizedBox(height: 12),
+              SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  activeTrackColor: palette.accent,
+                  thumbColor: palette.accent,
+                  inactiveTrackColor: palette.trackBackground,
+                ),
+                child: Slider(
+                  value: position.inMilliseconds
+                      .clamp(
+                        0,
+                        duration.inMilliseconds <= 0
+                            ? 1
+                            : duration.inMilliseconds,
+                      )
+                      .toDouble(),
+                  min: 0,
+                  max:
+                      (duration.inMilliseconds <= 0
+                              ? 1
+                              : duration.inMilliseconds)
+                          .toDouble(),
+                  onChanged: (next) =>
+                      widget.player.seek(Duration(milliseconds: next.round())),
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    MaterialMusicSupport.formatDuration(position),
+                    style: TextStyle(
+                      color: palette.secondaryText,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    MaterialMusicSupport.formatDuration(duration),
+                    style: TextStyle(
+                      color: palette.secondaryText,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

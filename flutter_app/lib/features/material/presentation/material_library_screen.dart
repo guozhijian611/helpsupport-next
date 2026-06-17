@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:just_audio/just_audio.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
@@ -10,6 +9,7 @@ import '../../material/application/material_controller.dart';
 import '../../material/application/material_music_controller.dart';
 import '../../material/data/material_models.dart';
 import '../../material/data/material_music_support.dart';
+import 'material_music_mini_player_bar.dart';
 
 enum _MusicListFilter { all, collected, downloaded }
 
@@ -31,6 +31,7 @@ class MaterialLibraryScreen extends ConsumerStatefulWidget {
 class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
   final _searchController = TextEditingController();
   final Set<int> _submittingCollectionIds = <int>{};
+  final Set<int> _downloadingMusicIds = <int>{};
   String _keyword = '';
   int _categoryId = 0;
   _MusicListFilter _musicFilter = _MusicListFilter.all;
@@ -133,7 +134,7 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
       bottomNavigationBar:
           widget.materialType == 'entertainment' &&
               ref.watch(materialMusicControllerProvider).currentItem != null
-          ? const _MusicMiniPlayerBar()
+          ? const MaterialMusicMiniPlayerBar()
           : null,
       body: SafeArea(
         child: RefreshIndicator(
@@ -228,6 +229,13 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
                                   items: filteredItems,
                                   downloadedMap: downloadedMap,
                                   categoryLookup: categoryLookup,
+                                  downloadingIds: _downloadingMusicIds,
+                                  submittingCollectionIds:
+                                      _submittingCollectionIds,
+                                  onToggleCollect: (item) =>
+                                      _toggleMusicCollection(context, item),
+                                  onDownload: (item) =>
+                                      _downloadMusicItem(context, item),
                                 ),
                             ],
                           );
@@ -416,11 +424,11 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
       return false;
     }
     setState(() => _submittingCollectionIds.add(item.id));
+    final locale = Localizations.localeOf(context).toLanguageTag();
     try {
       final isCollected = await ref
           .read(materialRepositoryProvider)
           .toggleCollect(item.id);
-      final locale = Localizations.localeOf(context).toLanguageTag();
       ref.invalidate(
         materialCollectionsProvider(
           MaterialListQuery(
@@ -452,6 +460,122 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
     } finally {
       if (mounted) {
         setState(() => _submittingCollectionIds.remove(item.id));
+      }
+    }
+  }
+
+  Future<void> _toggleMusicCollection(
+    BuildContext context,
+    MaterialItem item,
+  ) async {
+    if (_submittingCollectionIds.contains(item.id)) {
+      return;
+    }
+    setState(() => _submittingCollectionIds.add(item.id));
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    try {
+      final isCollected = await ref
+          .read(materialRepositoryProvider)
+          .toggleCollect(item.id);
+      final nextCount = isCollected
+          ? item.isCollected
+                ? item.collectCount
+                : item.collectCount + 1
+          : item.isCollected
+          ? (item.collectCount > 0 ? item.collectCount - 1 : 0)
+          : item.collectCount;
+      final nextItem = item.copyWith(
+        isCollected: isCollected,
+        collectCount: nextCount,
+      );
+      ref
+          .read(materialMusicControllerProvider.notifier)
+          .syncCurrentItem(nextItem);
+      ref.invalidate(
+        materialDetailProvider(
+          MaterialDetailQuery(id: item.id, locale: locale),
+        ),
+      );
+      ref.invalidate(
+        materialCollectionsProvider(
+          MaterialListQuery(
+            materialType: '',
+            categoryId: 0,
+            keyword: '',
+            locale: locale,
+          ),
+        ),
+      );
+      ref.invalidate(
+        materialListProvider(
+          MaterialListQuery(
+            materialType: widget.materialType,
+            categoryId: _categoryId,
+            keyword: _keyword,
+            locale: locale,
+          ),
+        ),
+      );
+      if (!context.mounted) {
+        return;
+      }
+      context.showCenteredNotice(
+        isCollected
+            ? _t(context, '已加入收藏', 'Added to collections')
+            : _t(context, '已取消收藏', 'Removed from collections'),
+      );
+    } on Object catch (error) {
+      if (context.mounted) {
+        context.showCenteredNotice(error.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _submittingCollectionIds.remove(item.id));
+      }
+    }
+  }
+
+  Future<void> _downloadMusicItem(
+    BuildContext context,
+    MaterialItem item,
+  ) async {
+    if (_downloadingMusicIds.contains(item.id)) {
+      return;
+    }
+    final apiClient = ref.read(apiClientProvider);
+    final resourceUrl = MaterialMusicSupport.resolveContentUrl(apiClient, item);
+    if (resourceUrl.isEmpty) {
+      context.showCenteredNotice(
+        _t(context, '暂无音乐文件地址', 'Missing music file URL'),
+      );
+      return;
+    }
+    final file = await MaterialMusicSupport.cacheFileFor(item, resourceUrl);
+    if (await file.exists()) {
+      ref.invalidate(materialOfflineStatusProvider);
+      return;
+    }
+    setState(() => _downloadingMusicIds.add(item.id));
+    try {
+      final cachedFile = await MaterialMusicSupport.cacheRemoteFile(
+        apiClient: apiClient,
+        resourceUrl: resourceUrl,
+        localFile: file,
+      );
+      ref.invalidate(materialOfflineStatusProvider);
+      if (!context.mounted) {
+        return;
+      }
+      if (cachedFile == null) {
+        context.showCenteredNotice(_t(context, '下载失败', 'Download failed'));
+      }
+    } on Object catch (error) {
+      if (context.mounted) {
+        context.showCenteredNotice(error.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _downloadingMusicIds.remove(item.id));
       }
     }
   }
@@ -901,11 +1025,19 @@ class _EntertainmentMusicList extends StatelessWidget {
     required this.items,
     required this.downloadedMap,
     required this.categoryLookup,
+    required this.downloadingIds,
+    required this.submittingCollectionIds,
+    required this.onToggleCollect,
+    required this.onDownload,
   });
 
   final List<MaterialItem> items;
   final Map<int, bool> downloadedMap;
   final Map<int, String> categoryLookup;
+  final Set<int> downloadingIds;
+  final Set<int> submittingCollectionIds;
+  final ValueChanged<MaterialItem> onToggleCollect;
+  final ValueChanged<MaterialItem> onDownload;
 
   @override
   Widget build(BuildContext context) {
@@ -919,7 +1051,11 @@ class _EntertainmentMusicList extends StatelessWidget {
             child: _EntertainmentMusicCard(
               item: items[index],
               downloaded: downloadedMap[items[index].id] == true,
+              downloadPending: downloadingIds.contains(items[index].id),
+              collectPending: submittingCollectionIds.contains(items[index].id),
               categoryName: categoryLookup[items[index].categoryId] ?? '',
+              onToggleCollect: () => onToggleCollect(items[index]),
+              onDownload: () => onDownload(items[index]),
             ),
           ),
       ],
@@ -931,12 +1067,20 @@ class _EntertainmentMusicCard extends ConsumerWidget {
   const _EntertainmentMusicCard({
     required this.item,
     required this.downloaded,
+    required this.downloadPending,
+    required this.collectPending,
     required this.categoryName,
+    required this.onToggleCollect,
+    required this.onDownload,
   });
 
   final MaterialItem item;
   final bool downloaded;
+  final bool downloadPending;
+  final bool collectPending;
   final String categoryName;
+  final VoidCallback onToggleCollect;
+  final VoidCallback onDownload;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1045,12 +1189,6 @@ class _EntertainmentMusicCard extends ConsumerWidget {
                             backgroundColor: palette.musicCollectedBackground,
                             textColor: palette.musicCollectedText,
                           ),
-                        if (downloaded)
-                          _MusicStateBadge(
-                            label: _t(context, '已下载本地', 'Downloaded'),
-                            backgroundColor: palette.musicDownloadedBackground,
-                            textColor: palette.musicDownloadedText,
-                          ),
                       ],
                     ),
                   ],
@@ -1060,24 +1198,62 @@ class _EntertainmentMusicCard extends ConsumerWidget {
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    item.isCollected
-                        ? Icons.favorite_rounded
-                        : Icons.favorite_border_rounded,
-                    color: item.isCollected
-                        ? palette.musicCollectedText
-                        : palette.mutedIcon,
-                    size: 28,
+                  IconButton(
+                    tooltip: item.isCollected
+                        ? _t(context, '取消收藏', 'Remove collection')
+                        : _t(context, '收藏', 'Collect'),
+                    onPressed: collectPending ? null : onToggleCollect,
+                    icon: collectPending
+                        ? SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                item.isCollected
+                                    ? palette.musicCollectedText
+                                    : palette.mutedIcon,
+                              ),
+                            ),
+                          )
+                        : Icon(
+                            item.isCollected
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            color: item.isCollected
+                                ? palette.musicCollectedText
+                                : palette.mutedIcon,
+                            size: 28,
+                          ),
                   ),
                   const SizedBox(height: 10),
-                  Icon(
-                    downloaded
-                        ? Icons.download_done_rounded
-                        : Icons.download_for_offline_outlined,
-                    color: downloaded
-                        ? palette.musicDownloadedText
-                        : palette.mutedIcon,
-                    size: 28,
+                  IconButton(
+                    tooltip: downloaded
+                        ? _t(context, '已下载', 'Downloaded')
+                        : _t(context, '下载', 'Download'),
+                    onPressed: downloaded || downloadPending
+                        ? null
+                        : onDownload,
+                    icon: downloadPending
+                        ? SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                palette.musicDownloadedText,
+                              ),
+                            ),
+                          )
+                        : Icon(
+                            downloaded
+                                ? Icons.check_rounded
+                                : Icons.download_for_offline_outlined,
+                            color: downloaded
+                                ? palette.musicDownloadedText
+                                : palette.mutedIcon,
+                            size: 28,
+                          ),
                   ),
                 ],
               ),
@@ -1114,122 +1290,6 @@ class _MusicStateBadge extends StatelessWidget {
           color: textColor,
           fontSize: 12,
           fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _MusicMiniPlayerBar extends ConsumerWidget {
-  const _MusicMiniPlayerBar();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final palette = _MaterialLibraryPalette.of(context);
-    final playbackState = ref.watch(materialMusicControllerProvider);
-    final item = playbackState.currentItem;
-    if (item == null) {
-      return const SizedBox.shrink();
-    }
-    final apiClient = ref.watch(apiClientProvider);
-    final coverUrl = apiClient.resolveUrl(item.coverUrl);
-    final player = ref.watch(materialMusicAudioPlayerProvider);
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(28),
-            onTap: () =>
-                context.push('/materials/music/player/${item.id}', extra: item),
-            child: Ink(
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-              decoration: BoxDecoration(
-                color: palette.cardBackground,
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: palette.bottomBarShadow,
-              ),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 50,
-                    height: 50,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: coverUrl.isNotEmpty
-                          ? Image.network(
-                              coverUrl,
-                              fit: BoxFit.cover,
-                              loadingBuilder: _materialImageLoadingBuilder,
-                              errorBuilder: (_, _, _) =>
-                                  const _MaterialThumbShell(),
-                            )
-                          : const _MaterialThumbShell(),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          item.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: palette.primaryText,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        StreamBuilder<Duration>(
-                          stream: player.positionStream,
-                          builder: (context, snapshot) {
-                            final position = snapshot.data ?? Duration.zero;
-                            final duration = player.duration ?? Duration.zero;
-                            return Text(
-                              '${_t(context, '正在播放', 'Now playing')} · ${MaterialMusicSupport.formatDuration(position)} / ${MaterialMusicSupport.formatDuration(duration)}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: palette.secondaryText,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  StreamBuilder<PlayerState>(
-                    stream: player.playerStateStream,
-                    builder: (context, snapshot) {
-                      final playerState = snapshot.data;
-                      final isPlaying = playerState?.playing ?? player.playing;
-                      return IconButton.filled(
-                        style: IconButton.styleFrom(
-                          backgroundColor: palette.musicMiniAccent,
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: () => ref
-                            .read(materialMusicControllerProvider.notifier)
-                            .togglePlayback(),
-                        icon: Icon(
-                          isPlaying
-                              ? Icons.pause_rounded
-                              : Icons.play_arrow_rounded,
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
         ),
       ),
     );
