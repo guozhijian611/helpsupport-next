@@ -1222,19 +1222,6 @@ class _EntertainmentMusicCard extends ConsumerWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        if (item.isCollected)
-                          _MusicStateBadge(
-                            label: _t(context, '已收藏', 'Collected'),
-                            backgroundColor: palette.musicCollectedBackground,
-                            textColor: palette.musicCollectedText,
-                          ),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -1320,37 +1307,6 @@ class _EntertainmentMusicCard extends ConsumerWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MusicStateBadge extends StatelessWidget {
-  const _MusicStateBadge({
-    required this.label,
-    required this.backgroundColor,
-    required this.textColor,
-  });
-
-  final String label;
-  final Color backgroundColor;
-  final Color textColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: textColor,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
         ),
       ),
     );

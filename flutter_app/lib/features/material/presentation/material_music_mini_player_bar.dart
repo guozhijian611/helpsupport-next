@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 
 import '../../../core/providers/app_providers.dart';
 import '../application/material_music_controller.dart';
+import '../data/material_models.dart';
 import '../data/material_music_support.dart';
 import 'material_music_player_screen.dart';
 
@@ -176,14 +179,76 @@ class MaterialMusicFloatingOrb extends ConsumerStatefulWidget {
 }
 
 class _MaterialMusicFloatingOrbState
-    extends ConsumerState<MaterialMusicFloatingOrb> {
+    extends ConsumerState<MaterialMusicFloatingOrb>
+    with TickerProviderStateMixin {
   Offset? _offset;
   bool _expanded = false;
+  bool _orbAnimating = false;
+
+  late final AnimationController _rotationController;
+  late final AnimationController _pulseController;
 
   static const double _collapsedSize = 66;
   static const double _expandedWidth = 248;
   static const double _expandedHeight = 80;
   static const double _edgeMargin = 16;
+
+  @override
+  void initState() {
+    super.initState();
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    );
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    );
+  }
+
+  @override
+  void dispose() {
+    _rotationController.dispose();
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  void _syncOrbAnimation(bool shouldAnimate) {
+    if (_orbAnimating == shouldAnimate) {
+      return;
+    }
+    _orbAnimating = shouldAnimate;
+    if (shouldAnimate) {
+      _rotationController.repeat();
+      _pulseController.repeat(reverse: true);
+      return;
+    }
+    _rotationController.stop();
+    _pulseController.stop();
+    _rotationController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+    _pulseController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+    );
+  }
+
+  void _openPlayer(MaterialMusicState playbackState, MaterialItem item) {
+    if (!mounted) {
+      return;
+    }
+    GoRouter.of(context).push(
+      '/materials/music/player/${item.id}',
+      extra: MaterialMusicRoutePayload(
+        item: item,
+        playlist: List<MaterialItem>.from(playbackState.playlist),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -200,116 +265,176 @@ class _MaterialMusicFloatingOrbState
     final width = _expanded ? _expandedWidth : _collapsedSize;
     final height = _expanded ? _expandedHeight : _collapsedSize;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final maxX = (constraints.maxWidth - width - _edgeMargin).clamp(
-          0.0,
-          double.infinity,
-        );
-        final maxY = (constraints.maxHeight - height - widget.bottomInset)
-            .clamp(0.0, double.infinity);
-        final defaultOffset = Offset(maxX, maxY);
-        final current = _offset ?? defaultOffset;
-        final safeOffset = Offset(
-          current.dx.clamp(0.0, maxX),
-          current.dy.clamp(0.0, maxY),
-        );
-        if (_offset != null && safeOffset != _offset) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) {
-              return;
+    return StreamBuilder<PlayerState>(
+      stream: player.playerStateStream,
+      builder: (context, snapshot) {
+        final playerState = snapshot.data;
+        final isPlaying = playerState?.playing ?? player.playing;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          _syncOrbAnimation(isPlaying);
+        });
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final maxX = (constraints.maxWidth - width - _edgeMargin).clamp(
+              0.0,
+              double.infinity,
+            );
+            final maxY = (constraints.maxHeight - height - widget.bottomInset)
+                .clamp(0.0, double.infinity);
+            final defaultOffset = Offset(maxX, maxY);
+            final current = _offset ?? defaultOffset;
+            final safeOffset = Offset(
+              current.dx.clamp(0.0, maxX),
+              current.dy.clamp(0.0, maxY),
+            );
+            if (_offset != null && safeOffset != _offset) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) {
+                  return;
+                }
+                setState(() => _offset = safeOffset);
+              });
             }
-            setState(() => _offset = safeOffset);
-          });
-        }
 
-        return Stack(
-          children: [
-            Positioned(
-              left: safeOffset.dx,
-              top: safeOffset.dy,
-              child: GestureDetector(
-                onPanUpdate: (details) {
-                  final next = Offset(
-                    (safeOffset.dx + details.delta.dx).clamp(0.0, maxX),
-                    (safeOffset.dy + details.delta.dy).clamp(0.0, maxY),
-                  );
-                  setState(() => _offset = next);
-                },
-                onTap: _expanded
-                    ? null
-                    : () => setState(() => _expanded = true),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  width: width,
-                  height: height,
-                  decoration: BoxDecoration(
-                    color: palette.cardBackground,
-                    shape: _expanded ? BoxShape.rectangle : BoxShape.circle,
-                    borderRadius: _expanded ? BorderRadius.circular(28) : null,
-                    border: Border.all(color: palette.outline),
-                    boxShadow: palette.shadow,
-                  ),
-                  padding: _expanded
-                      ? const EdgeInsets.symmetric(horizontal: 10, vertical: 8)
-                      : EdgeInsets.zero,
-                  child: _expanded
-                      ? _ExpandedOrbContent(
-                          coverUrl: coverUrl,
-                          itemTitle: item.title,
-                          itemArtist: item.artist.trim().isNotEmpty
-                              ? item.artist.trim()
-                              : _t(context, '音乐播放中', 'Playing now'),
-                          palette: palette,
-                          player: player,
-                          onOpenPlayer: () {
-                            context.push(
-                              '/materials/music/player/${item.id}',
-                              extra: MaterialMusicRoutePayload(
-                                item: item,
-                                playlist: playbackState.playlist,
-                              ),
-                            );
-                          },
-                          onClose: () async {
-                            await ref
-                                .read(materialMusicControllerProvider.notifier)
-                                .clearPlayback();
-                            if (!mounted) {
-                              return;
-                            }
-                            setState(() => _expanded = false);
-                          },
-                          onCollapse: () => setState(() => _expanded = false),
-                        )
-                      : ClipOval(
-                          child: coverUrl.isNotEmpty
-                              ? Image.network(
-                                  coverUrl,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder: (context, child, progress) {
-                                    return progress == null
-                                        ? child
-                                        : _MiniPlayerArtworkFallback(
-                                            compact: false,
-                                            palette: palette,
-                                          );
-                                  },
-                                  errorBuilder: (_, _, _) =>
-                                      _MiniPlayerArtworkFallback(
-                                        compact: false,
-                                        palette: palette,
-                                      ),
-                                )
-                              : _MiniPlayerArtworkFallback(
-                                  compact: false,
-                                  palette: palette,
-                                ),
+            return Stack(
+              children: [
+                Positioned(
+                  left: safeOffset.dx,
+                  top: safeOffset.dy,
+                  child: GestureDetector(
+                    onPanUpdate: (details) {
+                      final next = Offset(
+                        (safeOffset.dx + details.delta.dx).clamp(0.0, maxX),
+                        (safeOffset.dy + details.delta.dy).clamp(0.0, maxY),
+                      );
+                      setState(() => _offset = next);
+                    },
+                    onTap: _expanded
+                        ? null
+                        : () => setState(() => _expanded = true),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      width: width,
+                      height: height,
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        color: palette.cardBackground,
+                        borderRadius: BorderRadius.circular(
+                          _expanded ? 28 : _collapsedSize / 2,
                         ),
+                        border: Border.all(color: palette.outline),
+                        boxShadow: palette.shadow,
+                      ),
+                      padding: _expanded
+                          ? const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            )
+                          : EdgeInsets.zero,
+                      child: _expanded
+                          ? FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: SizedBox(
+                                width: _expandedWidth - 20,
+                                height: _expandedHeight - 16,
+                                child: _ExpandedOrbContent(
+                                  itemTitle: item.title,
+                                  itemArtist: item.artist.trim().isNotEmpty
+                                      ? item.artist.trim()
+                                      : _t(context, '音乐播放中', 'Playing now'),
+                                  palette: palette,
+                                  player: player,
+                                  rotatingArtwork: _buildOrbArtwork(
+                                    coverUrl: coverUrl,
+                                    palette: palette,
+                                    collapsed: false,
+                                  ),
+                                  onOpenPlayer: () =>
+                                      _openPlayer(playbackState, item),
+                                  onClose: () async {
+                                    await ref
+                                        .read(
+                                          materialMusicControllerProvider
+                                              .notifier,
+                                        )
+                                        .clearPlayback();
+                                    if (!mounted) {
+                                      return;
+                                    }
+                                    setState(() => _expanded = false);
+                                  },
+                                  onCollapse: () =>
+                                      setState(() => _expanded = false),
+                                ),
+                              ),
+                            )
+                          : _buildOrbArtwork(
+                              coverUrl: coverUrl,
+                              palette: palette,
+                              collapsed: true,
+                            ),
+                    ),
+                  ),
                 ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildOrbArtwork({
+    required String coverUrl,
+    required _MiniPlayerPalette palette,
+    required bool collapsed,
+  }) {
+    final artwork = coverUrl.isNotEmpty
+        ? Image.network(
+            coverUrl,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, progress) {
+              return progress == null
+                  ? child
+                  : _MiniPlayerArtworkFallback(
+                      compact: false,
+                      palette: palette,
+                    );
+            },
+            errorBuilder: (_, _, _) =>
+                _MiniPlayerArtworkFallback(compact: false, palette: palette),
+          )
+        : _MiniPlayerArtworkFallback(compact: false, palette: palette);
+
+    return AnimatedBuilder(
+      animation: Listenable.merge([_rotationController, _pulseController]),
+      child: ClipOval(child: artwork),
+      builder: (context, child) {
+        final glowAlpha = collapsed
+            ? 0.14 + _pulseController.value * 0.18
+            : 0.08 + _pulseController.value * 0.12;
+        final blurRadius = collapsed
+            ? (24 + _pulseController.value * 10).toDouble()
+            : 14.0;
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: palette.accent.withValues(alpha: glowAlpha),
+                blurRadius: blurRadius,
+                spreadRadius: (1 + _pulseController.value * 1.5).toDouble(),
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Transform.rotate(
+            angle: _rotationController.value * math.pi * 2,
+            child: child,
+          ),
         );
       },
     );
@@ -318,21 +443,21 @@ class _MaterialMusicFloatingOrbState
 
 class _ExpandedOrbContent extends ConsumerWidget {
   const _ExpandedOrbContent({
-    required this.coverUrl,
     required this.itemTitle,
     required this.itemArtist,
     required this.palette,
     required this.player,
+    required this.rotatingArtwork,
     required this.onOpenPlayer,
     required this.onClose,
     required this.onCollapse,
   });
 
-  final String coverUrl;
   final String itemTitle;
   final String itemArtist;
   final _MiniPlayerPalette palette;
   final AudioPlayer player;
+  final Widget rotatingArtwork;
   final VoidCallback onOpenPlayer;
   final VoidCallback onClose;
   final VoidCallback onCollapse;
@@ -344,33 +469,7 @@ class _ExpandedOrbContent extends ConsumerWidget {
         InkWell(
           customBorder: const CircleBorder(),
           onTap: onOpenPlayer,
-          child: SizedBox(
-            width: 54,
-            height: 54,
-            child: ClipOval(
-              child: coverUrl.isNotEmpty
-                  ? Image.network(
-                      coverUrl,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, progress) {
-                        return progress == null
-                            ? child
-                            : _MiniPlayerArtworkFallback(
-                                compact: false,
-                                palette: palette,
-                              );
-                      },
-                      errorBuilder: (_, _, _) => _MiniPlayerArtworkFallback(
-                        compact: false,
-                        palette: palette,
-                      ),
-                    )
-                  : _MiniPlayerArtworkFallback(
-                      compact: false,
-                      palette: palette,
-                    ),
-            ),
-          ),
+          child: SizedBox(width: 54, height: 54, child: rotatingArtwork),
         ),
         const SizedBox(width: 10),
         Expanded(

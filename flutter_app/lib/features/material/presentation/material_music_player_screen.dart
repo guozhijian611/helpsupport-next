@@ -97,21 +97,12 @@ class _MaterialMusicPlayerScreenState
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final current = ref.read(materialMusicControllerProvider).currentItem;
         if (current != null && current.id == detailItem.id) {
-          controller.syncCurrentItem(
-            detailItem.copyWith(
-              isCollected: current.isCollected,
-              collectCount: current.collectCount,
-            ),
-          );
+          controller.syncCurrentItem(detailItem);
         }
       });
     }
 
-    final activeItem =
-        controllerState.currentItem != null &&
-            controllerState.currentItem!.id == widget.materialId
-        ? controllerState.currentItem
-        : detailItem;
+    final activeItem = controllerState.currentItem ?? detailItem;
 
     final playlistQuery = activeItem == null
         ? null
@@ -203,6 +194,7 @@ class _MaterialMusicPlayerScreenState
             ),
             onDownload: () => _cacheCurrentTrack(context, localeCode),
             onOpenDetail: () => _openDetail(context, activeItem ?? detailData),
+            onCyclePlayMode: controller.cyclePlayMode,
             onPlayPrevious: () =>
                 _playAdjacentTrack(context, localeCode, step: -1),
             onTogglePlayback: controller.togglePlayback,
@@ -222,6 +214,7 @@ class _MaterialMusicPlayerScreenState
                   ),
                   onDownload: () => _cacheCurrentTrack(context, localeCode),
                   onOpenDetail: () => _openDetail(context, activeItem),
+                  onCyclePlayMode: controller.cyclePlayMode,
                   onPlayPrevious: () =>
                       _playAdjacentTrack(context, localeCode, step: -1),
                   onTogglePlayback: controller.togglePlayback,
@@ -242,6 +235,7 @@ class _MaterialMusicPlayerScreenState
                   ),
                   onDownload: () => _cacheCurrentTrack(context, localeCode),
                   onOpenDetail: () => _openDetail(context, activeItem),
+                  onCyclePlayMode: controller.cyclePlayMode,
                   onPlayPrevious: () =>
                       _playAdjacentTrack(context, localeCode, step: -1),
                   onTogglePlayback: controller.togglePlayback,
@@ -341,7 +335,7 @@ class _MaterialMusicPlayerScreenState
   Future<void> _showQueueSheet(BuildContext context, String localeCode) async {
     final state = ref.read(materialMusicControllerProvider);
     final activeId = state.currentItem?.id ?? 0;
-    await showModalBottomSheet<void>(
+    final selectedTrack = await showModalBottomSheet<MaterialItem>(
       context: context,
       backgroundColor: _MaterialMusicPalette.of(context).cardBackground,
       showDragHandle: true,
@@ -376,10 +370,7 @@ class _MaterialMusicPlayerScreenState
               child: ListTile(
                 onTap: selected
                     ? null
-                    : () async {
-                        Navigator.of(sheetContext).pop();
-                        await _openTrack(context, track, localeCode);
-                      },
+                    : () => Navigator.of(sheetContext).pop(track),
                 leading: CircleAvatar(
                   backgroundColor: selected
                       ? palette.accent
@@ -428,6 +419,19 @@ class _MaterialMusicPlayerScreenState
         );
       },
     );
+    if (selectedTrack == null || !context.mounted) {
+      return;
+    }
+    await _openTrack(context, selectedTrack, localeCode);
+  }
+
+  String _targetMusicRoute(int trackId) {
+    final isLyricsPage = _pageController.hasClients
+        ? (_pageController.page ?? widget.initialPage.toDouble()) >= 0.5
+        : widget.initialPage == 1;
+    return isLyricsPage
+        ? '/materials/music/lyrics/$trackId'
+        : '/materials/music/player/$trackId';
   }
 
   Future<void> _playAdjacentTrack(
@@ -450,7 +454,7 @@ class _MaterialMusicPlayerScreenState
       return;
     }
     context.replace(
-      '/materials/music/player/${current.id}',
+      _targetMusicRoute(current.id),
       extra: MaterialMusicRoutePayload(
         item: current,
         playlist: ref.read(materialMusicControllerProvider).playlist,
@@ -470,7 +474,7 @@ class _MaterialMusicPlayerScreenState
       return;
     }
     context.replace(
-      '/materials/music/player/${track.id}',
+      _targetMusicRoute(track.id),
       extra: MaterialMusicRoutePayload(
         item: track,
         playlist: ref.read(materialMusicControllerProvider).playlist,
@@ -488,6 +492,7 @@ class _MusicPlayerLoadedView extends ConsumerWidget {
     required this.onToggleCollect,
     required this.onDownload,
     required this.onOpenDetail,
+    required this.onCyclePlayMode,
     required this.onPlayPrevious,
     required this.onTogglePlayback,
     required this.onPlayNext,
@@ -500,6 +505,7 @@ class _MusicPlayerLoadedView extends ConsumerWidget {
   final VoidCallback onToggleCollect;
   final VoidCallback onDownload;
   final VoidCallback onOpenDetail;
+  final VoidCallback onCyclePlayMode;
   final VoidCallback onPlayPrevious;
   final VoidCallback onTogglePlayback;
   final VoidCallback onPlayNext;
@@ -594,6 +600,12 @@ class _MusicPlayerLoadedView extends ConsumerWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
+                            _MusicModeAction(
+                              mode: controllerState.playMode,
+                              palette: palette,
+                              onTap: onCyclePlayMode,
+                            ),
+                            const SizedBox(width: 14),
                             _MusicIconAction(
                               keyValue: item.isCollected,
                               selectedIcon: Icons.favorite_rounded,
@@ -903,6 +915,62 @@ class _MusicIconAction extends StatelessWidget {
   }
 }
 
+class _MusicModeAction extends StatelessWidget {
+  const _MusicModeAction({
+    required this.mode,
+    required this.palette,
+    required this.onTap,
+  });
+
+  final MaterialMusicPlayMode mode;
+  final _MaterialMusicPalette palette;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = switch (mode) {
+      MaterialMusicPlayMode.sequential => Icons.repeat_rounded,
+      MaterialMusicPlayMode.singleLoop => Icons.repeat_one_rounded,
+      MaterialMusicPlayMode.shuffle => Icons.shuffle_rounded,
+    };
+    final label = switch (mode) {
+      MaterialMusicPlayMode.sequential => _t(context, '顺序', 'Order'),
+      MaterialMusicPlayMode.singleLoop => _t(context, '单曲', 'Repeat'),
+      MaterialMusicPlayMode.shuffle => _t(context, '随机', 'Shuffle'),
+    };
+
+    return Tooltip(
+      message: _t(context, '切换播放模式', 'Switch play mode'),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: palette.softBackground,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: palette.secondaryText, size: 18),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: palette.secondaryText,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _MusicLyricsPage extends StatefulWidget {
   const _MusicLyricsPage({
     required this.item,
@@ -1019,21 +1087,34 @@ class _MusicLyricsPageState extends State<_MusicLyricsPage> {
                         itemCount: lines.length,
                         itemBuilder: (context, index) {
                           final active = index == activeIndex;
+                          final timestamp = lines[index].time;
                           return Padding(
                             key: _keyFor(index),
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: Text(
-                              lines[index].text,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: active
-                                    ? palette.primaryText
-                                    : palette.secondaryText,
-                                fontSize: active ? 26 : 18,
-                                fontWeight: active
-                                    ? FontWeight.w800
-                                    : FontWeight.w600,
-                                height: 1.55,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(18),
+                              onTap: timestamp == null
+                                  ? null
+                                  : () => widget.player.seek(timestamp),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
+                                child: Text(
+                                  lines[index].text,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: active
+                                        ? palette.primaryText
+                                        : palette.secondaryText,
+                                    fontSize: active ? 26 : 18,
+                                    fontWeight: active
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    height: 1.55,
+                                  ),
+                                ),
                               ),
                             ),
                           );

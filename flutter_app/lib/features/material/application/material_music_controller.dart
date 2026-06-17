@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
@@ -55,10 +56,13 @@ class MaterialOfflineStatusQuery {
   int get hashCode => _signature.hashCode;
 }
 
+enum MaterialMusicPlayMode { sequential, singleLoop, shuffle }
+
 class MaterialMusicState {
   const MaterialMusicState({
     this.currentItem,
     this.playlist = const <MaterialItem>[],
+    this.playMode = MaterialMusicPlayMode.sequential,
     this.lyrics = '',
     this.resourceUrl = '',
     this.cachePath = '',
@@ -70,6 +74,7 @@ class MaterialMusicState {
 
   final MaterialItem? currentItem;
   final List<MaterialItem> playlist;
+  final MaterialMusicPlayMode playMode;
   final String lyrics;
   final String resourceUrl;
   final String cachePath;
@@ -84,6 +89,7 @@ class MaterialMusicState {
     MaterialItem? currentItem,
     bool clearCurrentItem = false,
     List<MaterialItem>? playlist,
+    MaterialMusicPlayMode? playMode,
     String? lyrics,
     String? resourceUrl,
     String? cachePath,
@@ -95,6 +101,7 @@ class MaterialMusicState {
     return MaterialMusicState(
       currentItem: clearCurrentItem ? null : (currentItem ?? this.currentItem),
       playlist: playlist ?? this.playlist,
+      playMode: playMode ?? this.playMode,
       lyrics: lyrics ?? this.lyrics,
       resourceUrl: resourceUrl ?? this.resourceUrl,
       cachePath: cachePath ?? this.cachePath,
@@ -129,8 +136,10 @@ class MaterialMusicController extends Notifier<MaterialMusicState> {
   DateTime _openedAt = DateTime.now();
   DateTime _lastSavedAt = DateTime.fromMillisecondsSinceEpoch(0);
   String _activeSignature = '';
+  String _lastLocaleCode = 'zh';
   int _loadToken = 0;
   bool _isDisposed = false;
+  final math.Random _random = math.Random();
 
   AudioPlayer get player => _player;
 
@@ -140,6 +149,7 @@ class MaterialMusicController extends Notifier<MaterialMusicState> {
     List<MaterialItem>? playlist,
     bool autoplay = true,
   }) async {
+    _lastLocaleCode = localeCode;
     final nextPlaylist = _normalizePlaylist(playlist, fallback: item);
     final resourceUrl = MaterialMusicSupport.resolveContentUrl(
       _apiClient,
@@ -202,7 +212,7 @@ class MaterialMusicController extends Notifier<MaterialMusicState> {
     try {
       await _player.stop();
       final duration = hasCachedFile
-          ? await _player.setFilePath(localFile!.path)
+          ? await _player.setFilePath(localFile.path)
           : await _player.setUrl(resourceUrl);
       final lyrics = await MaterialMusicSupport.loadLyrics(_apiClient, item);
       final restoredPosition = MaterialMusicSupport.positionFromHistoryProgress(
@@ -219,7 +229,7 @@ class MaterialMusicController extends Notifier<MaterialMusicState> {
         currentItem: item,
         playlist: nextPlaylist,
         lyrics: lyrics,
-        cachePath: hasCachedFile ? localFile!.path : '',
+        cachePath: hasCachedFile ? localFile.path : '',
         errorMessage: '',
         isPreparing: false,
         cacheProgress: hasCachedFile ? 100 : state.cacheProgress,
@@ -257,6 +267,19 @@ class MaterialMusicController extends Notifier<MaterialMusicState> {
     state = state.copyWith(playlist: nextPlaylist);
   }
 
+  Future<void> cyclePlayMode() async {
+    final nextMode = switch (state.playMode) {
+      MaterialMusicPlayMode.sequential => MaterialMusicPlayMode.singleLoop,
+      MaterialMusicPlayMode.singleLoop => MaterialMusicPlayMode.shuffle,
+      MaterialMusicPlayMode.shuffle => MaterialMusicPlayMode.sequential,
+    };
+    await _applyPlayMode(nextMode);
+    if (_isDisposed) {
+      return;
+    }
+    state = state.copyWith(playMode: nextMode);
+  }
+
   Future<void> togglePlayback() async {
     if (_player.playing) {
       await _player.pause();
@@ -274,15 +297,21 @@ class MaterialMusicController extends Notifier<MaterialMusicState> {
     if (current == null) {
       return;
     }
-    final playlist = state.playlist;
-    final index = playlist.indexWhere((item) => item.id == current.id);
-    if (index < 0 || index >= playlist.length - 1) {
+    final next = _resolveAdjacentTrack(current, step: 1);
+    if (next == null) {
+      return;
+    }
+    if (next.id == current.id) {
+      await _player.seek(Duration.zero);
+      if (!_player.playing) {
+        await _player.play();
+      }
       return;
     }
     await openTrack(
-      playlist[index + 1],
+      next,
       localeCode: localeCode,
-      playlist: playlist,
+      playlist: state.playlist,
       autoplay: true,
     );
   }
@@ -292,15 +321,21 @@ class MaterialMusicController extends Notifier<MaterialMusicState> {
     if (current == null) {
       return;
     }
-    final playlist = state.playlist;
-    final index = playlist.indexWhere((item) => item.id == current.id);
-    if (index <= 0) {
+    final previous = _resolveAdjacentTrack(current, step: -1);
+    if (previous == null) {
+      return;
+    }
+    if (previous.id == current.id) {
+      await _player.seek(Duration.zero);
+      if (!_player.playing) {
+        await _player.play();
+      }
       return;
     }
     await openTrack(
-      playlist[index - 1],
+      previous,
       localeCode: localeCode,
-      playlist: playlist,
+      playlist: state.playlist,
       autoplay: true,
     );
   }
@@ -365,11 +400,12 @@ class MaterialMusicController extends Notifier<MaterialMusicState> {
   }
 
   Future<void> clearPlayback() async {
+    final playMode = state.playMode;
     await _saveProgress(force: true);
     _activeSignature = '';
     _loadToken += 1;
     await _player.stop();
-    state = const MaterialMusicState();
+    state = MaterialMusicState(playMode: playMode);
   }
 
   void _handlePosition(Duration position) {
@@ -384,6 +420,78 @@ class MaterialMusicController extends Notifier<MaterialMusicState> {
   void _handlePlayerState(PlayerState playerState) {
     if (playerState.processingState == ProcessingState.completed) {
       unawaited(_saveProgress(force: true));
+      if (state.playMode != MaterialMusicPlayMode.singleLoop) {
+        unawaited(_continueAfterCompletion());
+      }
+    }
+  }
+
+  Future<void> _continueAfterCompletion() async {
+    final current = state.currentItem;
+    if (current == null) {
+      return;
+    }
+    final next = _resolveAdjacentTrack(current, step: 1);
+    if (next == null || next.id == current.id) {
+      return;
+    }
+    await openTrack(
+      next,
+      localeCode: _lastLocaleCode,
+      playlist: state.playlist,
+      autoplay: true,
+    );
+  }
+
+  Future<void> _applyPlayMode(MaterialMusicPlayMode mode) async {
+    switch (mode) {
+      case MaterialMusicPlayMode.sequential:
+        await _player.setLoopMode(LoopMode.off);
+        await _player.setShuffleModeEnabled(false);
+        break;
+      case MaterialMusicPlayMode.singleLoop:
+        await _player.setLoopMode(LoopMode.one);
+        await _player.setShuffleModeEnabled(false);
+        break;
+      case MaterialMusicPlayMode.shuffle:
+        await _player.setLoopMode(LoopMode.off);
+        await _player.setShuffleModeEnabled(true);
+        break;
+    }
+  }
+
+  MaterialItem? _resolveAdjacentTrack(
+    MaterialItem current, {
+    required int step,
+  }) {
+    final playlist = state.playlist;
+    if (playlist.isEmpty) {
+      return null;
+    }
+    final index = playlist.indexWhere((item) => item.id == current.id);
+    if (index < 0) {
+      return playlist.first;
+    }
+    switch (state.playMode) {
+      case MaterialMusicPlayMode.sequential:
+        final nextIndex = index + step;
+        if (nextIndex < 0 || nextIndex >= playlist.length) {
+          return null;
+        }
+        return playlist[nextIndex];
+      case MaterialMusicPlayMode.singleLoop:
+        return current;
+      case MaterialMusicPlayMode.shuffle:
+        if (playlist.length == 1) {
+          return current;
+        }
+        final candidates = playlist
+            .where((item) => item.id != current.id)
+            .toList(growable: false);
+        if (candidates.isEmpty) {
+          return current;
+        }
+        return candidates[_random.nextInt(candidates.length)];
     }
   }
 
@@ -447,7 +555,6 @@ class MaterialMusicController extends Notifier<MaterialMusicState> {
     return localeCode == 'zh' ? zh : en;
   }
 
-  @override
   void _dispose() {
     _isDisposed = true;
     unawaited(_saveProgress(force: true));
