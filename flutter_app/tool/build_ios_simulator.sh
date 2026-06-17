@@ -4,7 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FLUTTER_APP_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DERIVED_DATA_PATH="${FLUTTER_APP_DIR}/build/ios_simulator_derived"
-APP_PATH="${DERIVED_DATA_PATH}/Build/Products/Debug-iphonesimulator/Runner.app"
+SIMULATOR_PRODUCTS_DIR="${DERIVED_DATA_PATH}/Build/Products/Debug-iphonesimulator"
+APP_PATH="${SIMULATOR_PRODUCTS_DIR}/Runner.app"
 API_BASE_URL="${HELP_SUPPORT_API_BASE_URL:-http://10.0.0.6:8787}"
 IOS_DEPLOYMENT_TARGET="${IOS_DEPLOYMENT_TARGET:-15.0}"
 
@@ -166,6 +167,19 @@ clear_ios_spm_cache() {
   done < <(awk -F'"' '/"identity"/ { print $4 }' "${resolved_file}")
 }
 
+clear_stale_ios_device_outputs() {
+  local stale_paths=(
+    "${FLUTTER_APP_DIR}/build/ios/iphoneos"
+    "${FLUTTER_APP_DIR}/build/ios/Debug-iphoneos"
+  )
+  local path
+  for path in "${stale_paths[@]}"; do
+    [[ -e "${path}" ]] || continue
+    log "Removing stale iPhoneOS build output: ${path}"
+    rm -rf "${path}"
+  done
+}
+
 dart_define_value() {
   local defines=(
     "HELP_SUPPORT_API_BASE_URL=${API_BASE_URL}"
@@ -254,6 +268,7 @@ main() {
   run_pub_get_if_needed
   patch_generated_plugin_package
   clear_ios_spm_cache
+  clear_stale_ios_device_outputs
   resolve_ios_packages "${simulator_udid}"
   local xcodebuild_args=(
     -quiet
@@ -263,6 +278,7 @@ main() {
     -sdk iphonesimulator
     -destination "platform=iOS Simulator,id=${simulator_udid}"
     -derivedDataPath "${DERIVED_DATA_PATH}"
+    "CONFIGURATION_BUILD_DIR=${SIMULATOR_PRODUCTS_DIR}"
   )
   if [[ "${REFRESH_IOS_SPM:-0}" == "1" ]]; then
     xcodebuild_args+=(-disablePackageRepositoryCache)
