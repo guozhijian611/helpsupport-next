@@ -1142,26 +1142,26 @@ class _EntertainmentMusicCard extends ConsumerWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
         onTap: onOpenItem,
         child: Ink(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
           decoration: BoxDecoration(
             color: isActive
                 ? palette.musicCardActiveBackground
                 : palette.cardBackground,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(22),
           ),
           child: Row(
             children: [
               SizedBox(
-                width: 74,
-                height: 74,
+                width: 62,
+                height: 62,
                 child: Stack(
                   children: [
                     Positioned.fill(
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(16),
                         child: coverUrl.isNotEmpty
                             ? Image.network(
                                 coverUrl,
@@ -1177,7 +1177,7 @@ class _EntertainmentMusicCard extends ConsumerWidget {
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           color: Colors.black.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(18),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: Center(
                           child: Icon(
@@ -1185,7 +1185,7 @@ class _EntertainmentMusicCard extends ConsumerWidget {
                                 ? Icons.graphic_eq_rounded
                                 : Icons.play_circle_fill_rounded,
                             color: Colors.white,
-                            size: isActive ? 26 : 30,
+                            size: isActive ? 22 : 26,
                           ),
                         ),
                       ),
@@ -1193,7 +1193,7 @@ class _EntertainmentMusicCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1204,11 +1204,11 @@ class _EntertainmentMusicCard extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: palette.primaryText,
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       item.durationSeconds > 0
                           ? '$artist · ${MaterialMusicSupport.formatDuration(Duration(seconds: item.durationSeconds))}'
@@ -1219,25 +1219,32 @@ class _EntertainmentMusicCard extends ConsumerWidget {
                         color: isActive
                             ? palette.accentText
                             : palette.secondaryText,
+                        fontSize: 13,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 34,
+                      height: 34,
+                    ),
                     tooltip: item.isCollected
                         ? _t(context, '取消收藏', 'Remove collection')
                         : _t(context, '收藏', 'Collect'),
                     onPressed: collectPending ? null : onToggleCollect,
                     icon: collectPending
                         ? SizedBox(
-                            width: 22,
-                            height: 22,
+                            width: 20,
+                            height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.2,
                               valueColor: AlwaysStoppedAnimation<Color>(
@@ -1270,12 +1277,18 @@ class _EntertainmentMusicCard extends ConsumerWidget {
                               color: item.isCollected
                                   ? palette.musicCollectedText
                                   : palette.mutedIcon,
-                              size: 28,
+                              size: 24,
                             ),
                           ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 6),
                   IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 34,
+                      height: 34,
+                    ),
                     tooltip: downloaded
                         ? _t(context, '已下载', 'Downloaded')
                         : _t(context, '下载', 'Download'),
@@ -1284,8 +1297,8 @@ class _EntertainmentMusicCard extends ConsumerWidget {
                         : onDownload,
                     icon: downloadPending
                         ? SizedBox(
-                            width: 22,
-                            height: 22,
+                            width: 20,
+                            height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.2,
                               valueColor: AlwaysStoppedAnimation<Color>(
@@ -1300,7 +1313,7 @@ class _EntertainmentMusicCard extends ConsumerWidget {
                             color: downloaded
                                 ? palette.musicDownloadedText
                                 : palette.mutedIcon,
-                            size: 28,
+                            size: 24,
                           ),
                   ),
                 ],
