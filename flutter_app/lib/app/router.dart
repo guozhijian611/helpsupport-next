@@ -321,11 +321,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/materials/music/player/:id',
         name: 'material-music-player',
         builder: (context, state) {
+          final payload = state.extra is MaterialMusicRoutePayload
+              ? state.extra as MaterialMusicRoutePayload
+              : null;
           return MaterialMusicPlayerScreen(
             materialId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
-            initialItem: state.extra is MaterialItem
-                ? state.extra as MaterialItem
-                : null,
+            initialItem:
+                payload?.item ??
+                (state.extra is MaterialItem
+                    ? state.extra as MaterialItem
+                    : null),
+            initialPlaylist: payload?.playlist ?? const <MaterialItem>[],
           );
         },
       ),
@@ -333,11 +339,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/materials/music/lyrics/:id',
         name: 'material-music-lyrics',
         builder: (context, state) {
+          final payload = state.extra is MaterialMusicRoutePayload
+              ? state.extra as MaterialMusicRoutePayload
+              : null;
           return MaterialMusicPlayerScreen(
             materialId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
-            initialItem: state.extra is MaterialItem
-                ? state.extra as MaterialItem
-                : null,
+            initialItem:
+                payload?.item ??
+                (state.extra is MaterialItem
+                    ? state.extra as MaterialItem
+                    : null),
+            initialPlaylist: payload?.playlist ?? const <MaterialItem>[],
             initialPage: 1,
           );
         },

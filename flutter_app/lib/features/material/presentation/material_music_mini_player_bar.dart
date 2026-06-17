@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart';
 import '../../../core/providers/app_providers.dart';
 import '../application/material_music_controller.dart';
 import '../data/material_music_support.dart';
+import 'material_music_player_screen.dart';
 
 class MaterialMusicMiniPlayerBar extends ConsumerWidget {
   const MaterialMusicMiniPlayerBar({
@@ -41,8 +42,13 @@ class MaterialMusicMiniPlayerBar extends ConsumerWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(borderRadius),
-          onTap: () =>
-              context.push('/materials/music/player/${item.id}', extra: item),
+          onTap: () => context.push(
+            '/materials/music/player/${item.id}',
+            extra: MaterialMusicRoutePayload(
+              item: item,
+              playlist: playbackState.playlist,
+            ),
+          ),
           child: Ink(
             padding: EdgeInsets.fromLTRB(
               compact ? 12 : 14,
@@ -155,6 +161,274 @@ class MaterialMusicMiniPlayerBar extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class MaterialMusicFloatingOrb extends ConsumerStatefulWidget {
+  const MaterialMusicFloatingOrb({super.key, required this.bottomInset});
+
+  final double bottomInset;
+
+  @override
+  ConsumerState<MaterialMusicFloatingOrb> createState() =>
+      _MaterialMusicFloatingOrbState();
+}
+
+class _MaterialMusicFloatingOrbState
+    extends ConsumerState<MaterialMusicFloatingOrb> {
+  Offset? _offset;
+  bool _expanded = false;
+
+  static const double _collapsedSize = 66;
+  static const double _expandedWidth = 248;
+  static const double _expandedHeight = 80;
+  static const double _edgeMargin = 16;
+
+  @override
+  Widget build(BuildContext context) {
+    final playbackState = ref.watch(materialMusicControllerProvider);
+    final item = playbackState.currentItem;
+    if (item == null) {
+      return const SizedBox.shrink();
+    }
+
+    final palette = _MiniPlayerPalette.of(context);
+    final apiClient = ref.watch(apiClientProvider);
+    final coverUrl = apiClient.resolveUrl(item.coverUrl);
+    final player = ref.watch(materialMusicAudioPlayerProvider);
+    final width = _expanded ? _expandedWidth : _collapsedSize;
+    final height = _expanded ? _expandedHeight : _collapsedSize;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxX = (constraints.maxWidth - width - _edgeMargin).clamp(
+          0.0,
+          double.infinity,
+        );
+        final maxY = (constraints.maxHeight - height - widget.bottomInset)
+            .clamp(0.0, double.infinity);
+        final defaultOffset = Offset(maxX, maxY);
+        final current = _offset ?? defaultOffset;
+        final safeOffset = Offset(
+          current.dx.clamp(0.0, maxX),
+          current.dy.clamp(0.0, maxY),
+        );
+        if (_offset != null && safeOffset != _offset) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) {
+              return;
+            }
+            setState(() => _offset = safeOffset);
+          });
+        }
+
+        return Stack(
+          children: [
+            Positioned(
+              left: safeOffset.dx,
+              top: safeOffset.dy,
+              child: GestureDetector(
+                onPanUpdate: (details) {
+                  final next = Offset(
+                    (safeOffset.dx + details.delta.dx).clamp(0.0, maxX),
+                    (safeOffset.dy + details.delta.dy).clamp(0.0, maxY),
+                  );
+                  setState(() => _offset = next);
+                },
+                onTap: _expanded
+                    ? null
+                    : () => setState(() => _expanded = true),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  width: width,
+                  height: height,
+                  decoration: BoxDecoration(
+                    color: palette.cardBackground,
+                    shape: _expanded ? BoxShape.rectangle : BoxShape.circle,
+                    borderRadius: _expanded ? BorderRadius.circular(28) : null,
+                    border: Border.all(color: palette.outline),
+                    boxShadow: palette.shadow,
+                  ),
+                  padding: _expanded
+                      ? const EdgeInsets.symmetric(horizontal: 10, vertical: 8)
+                      : EdgeInsets.zero,
+                  child: _expanded
+                      ? _ExpandedOrbContent(
+                          coverUrl: coverUrl,
+                          itemTitle: item.title,
+                          itemArtist: item.artist.trim().isNotEmpty
+                              ? item.artist.trim()
+                              : _t(context, '音乐播放中', 'Playing now'),
+                          palette: palette,
+                          player: player,
+                          onOpenPlayer: () {
+                            context.push(
+                              '/materials/music/player/${item.id}',
+                              extra: MaterialMusicRoutePayload(
+                                item: item,
+                                playlist: playbackState.playlist,
+                              ),
+                            );
+                          },
+                          onClose: () async {
+                            await ref
+                                .read(materialMusicControllerProvider.notifier)
+                                .clearPlayback();
+                            if (!mounted) {
+                              return;
+                            }
+                            setState(() => _expanded = false);
+                          },
+                          onCollapse: () => setState(() => _expanded = false),
+                        )
+                      : ClipOval(
+                          child: coverUrl.isNotEmpty
+                              ? Image.network(
+                                  coverUrl,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, progress) {
+                                    return progress == null
+                                        ? child
+                                        : _MiniPlayerArtworkFallback(
+                                            compact: false,
+                                            palette: palette,
+                                          );
+                                  },
+                                  errorBuilder: (_, _, _) =>
+                                      _MiniPlayerArtworkFallback(
+                                        compact: false,
+                                        palette: palette,
+                                      ),
+                                )
+                              : _MiniPlayerArtworkFallback(
+                                  compact: false,
+                                  palette: palette,
+                                ),
+                        ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ExpandedOrbContent extends ConsumerWidget {
+  const _ExpandedOrbContent({
+    required this.coverUrl,
+    required this.itemTitle,
+    required this.itemArtist,
+    required this.palette,
+    required this.player,
+    required this.onOpenPlayer,
+    required this.onClose,
+    required this.onCollapse,
+  });
+
+  final String coverUrl;
+  final String itemTitle;
+  final String itemArtist;
+  final _MiniPlayerPalette palette;
+  final AudioPlayer player;
+  final VoidCallback onOpenPlayer;
+  final VoidCallback onClose;
+  final VoidCallback onCollapse;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Row(
+      children: [
+        InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onOpenPlayer,
+          child: SizedBox(
+            width: 54,
+            height: 54,
+            child: ClipOval(
+              child: coverUrl.isNotEmpty
+                  ? Image.network(
+                      coverUrl,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) {
+                        return progress == null
+                            ? child
+                            : _MiniPlayerArtworkFallback(
+                                compact: false,
+                                palette: palette,
+                              );
+                      },
+                      errorBuilder: (_, _, _) => _MiniPlayerArtworkFallback(
+                        compact: false,
+                        palette: palette,
+                      ),
+                    )
+                  : _MiniPlayerArtworkFallback(
+                      compact: false,
+                      palette: palette,
+                    ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: GestureDetector(
+            onTap: onCollapse,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  itemTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  itemArtist,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: palette.secondaryText,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        StreamBuilder<PlayerState>(
+          stream: player.playerStateStream,
+          builder: (context, snapshot) {
+            final playerState = snapshot.data;
+            final isPlaying = playerState?.playing ?? player.playing;
+            return IconButton(
+              tooltip: isPlaying
+                  ? _t(context, '暂停', 'Pause')
+                  : _t(context, '播放', 'Play'),
+              onPressed: () => ref
+                  .read(materialMusicControllerProvider.notifier)
+                  .togglePlayback(),
+              icon: Icon(
+                isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                color: palette.accent,
+              ),
+            );
+          },
+        ),
+        IconButton(
+          tooltip: _t(context, '关闭', 'Close'),
+          onPressed: onClose,
+          icon: Icon(Icons.close_rounded, color: palette.secondaryText),
+        ),
+      ],
     );
   }
 }

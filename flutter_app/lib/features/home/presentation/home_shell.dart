@@ -99,13 +99,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           children: [
             Positioned.fill(child: body),
             if (showMiniPlayer)
-              Positioned(
-                left: 8,
-                right: 8,
-                bottom: metrics.floatingTabBarInset(context, extraSpacing: 6),
-                child: const MaterialMusicMiniPlayerBar(
-                  compact: true,
-                  padding: EdgeInsets.zero,
+              Positioned.fill(
+                child: MaterialMusicFloatingOrb(
+                  bottomInset: metrics.floatingTabBarInset(
+                    context,
+                    extraSpacing: 10,
+                  ),
                 ),
               ),
           ],

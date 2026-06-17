@@ -10,6 +10,7 @@ import '../../material/application/material_music_controller.dart';
 import '../../material/data/material_models.dart';
 import '../../material/data/material_music_support.dart';
 import 'material_music_mini_player_bar.dart';
+import 'material_music_player_screen.dart';
 
 enum _MusicListFilter { all, collected, downloaded }
 
@@ -32,6 +33,7 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
   final _searchController = TextEditingController();
   final Set<int> _submittingCollectionIds = <int>{};
   final Set<int> _downloadingMusicIds = <int>{};
+  final Map<int, bool> _musicCollectedOverrides = <int, bool>{};
   String _keyword = '';
   int _categoryId = 0;
   _MusicListFilter _musicFilter = _MusicListFilter.all;
@@ -190,6 +192,7 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
                     if (shouldUseMusicList) {
                       final audioItems = list
                           .where(MaterialMusicSupport.isAudioItem)
+                          .map(_applyMusicCollectionOverride)
                           .toList(growable: false);
                       final offlineQuery = MaterialOfflineStatusQuery(
                         items: audioItems,
@@ -236,6 +239,11 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
                                       _toggleMusicCollection(context, item),
                                   onDownload: (item) =>
                                       _downloadMusicItem(context, item),
+                                  onOpenItem: (item) => _openMusicPlayer(
+                                    context,
+                                    item,
+                                    filteredItems,
+                                  ),
                                 ),
                             ],
                           );
@@ -471,7 +479,13 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
     if (_submittingCollectionIds.contains(item.id)) {
       return;
     }
-    setState(() => _submittingCollectionIds.add(item.id));
+    final previousCollected =
+        _musicCollectedOverrides[item.id] ?? item.isCollected;
+    final nextCollected = !previousCollected;
+    setState(() {
+      _submittingCollectionIds.add(item.id);
+      _musicCollectedOverrides[item.id] = nextCollected;
+    });
     final locale = Localizations.localeOf(context).toLanguageTag();
     try {
       final isCollected = await ref
@@ -488,6 +502,9 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
         isCollected: isCollected,
         collectCount: nextCount,
       );
+      if (mounted) {
+        setState(() => _musicCollectedOverrides[item.id] = isCollected);
+      }
       ref
           .read(materialMusicControllerProvider.notifier)
           .syncCurrentItem(nextItem);
@@ -527,6 +544,9 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
     } on Object catch (error) {
       if (context.mounted) {
         context.showCenteredNotice(error.toString());
+      }
+      if (mounted) {
+        setState(() => _musicCollectedOverrides[item.id] = previousCollected);
       }
     } finally {
       if (mounted) {
@@ -609,6 +629,25 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
             .toList(growable: false),
       _MusicListFilter.all => items,
     };
+  }
+
+  MaterialItem _applyMusicCollectionOverride(MaterialItem item) {
+    final override = _musicCollectedOverrides[item.id];
+    if (override == null || override == item.isCollected) {
+      return item;
+    }
+    return item.copyWith(isCollected: override);
+  }
+
+  void _openMusicPlayer(
+    BuildContext context,
+    MaterialItem item,
+    List<MaterialItem> playlist,
+  ) {
+    context.push(
+      '/materials/music/player/${item.id}',
+      extra: MaterialMusicRoutePayload(item: item, playlist: playlist),
+    );
   }
 }
 
@@ -1029,6 +1068,7 @@ class _EntertainmentMusicList extends StatelessWidget {
     required this.submittingCollectionIds,
     required this.onToggleCollect,
     required this.onDownload,
+    required this.onOpenItem,
   });
 
   final List<MaterialItem> items;
@@ -1038,6 +1078,7 @@ class _EntertainmentMusicList extends StatelessWidget {
   final Set<int> submittingCollectionIds;
   final ValueChanged<MaterialItem> onToggleCollect;
   final ValueChanged<MaterialItem> onDownload;
+  final ValueChanged<MaterialItem> onOpenItem;
 
   @override
   Widget build(BuildContext context) {
@@ -1056,6 +1097,7 @@ class _EntertainmentMusicList extends StatelessWidget {
               categoryName: categoryLookup[items[index].categoryId] ?? '',
               onToggleCollect: () => onToggleCollect(items[index]),
               onDownload: () => onDownload(items[index]),
+              onOpenItem: () => onOpenItem(items[index]),
             ),
           ),
       ],
@@ -1072,6 +1114,7 @@ class _EntertainmentMusicCard extends ConsumerWidget {
     required this.categoryName,
     required this.onToggleCollect,
     required this.onDownload,
+    required this.onOpenItem,
   });
 
   final MaterialItem item;
@@ -1081,6 +1124,7 @@ class _EntertainmentMusicCard extends ConsumerWidget {
   final String categoryName;
   final VoidCallback onToggleCollect;
   final VoidCallback onDownload;
+  final VoidCallback onOpenItem;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1099,7 +1143,7 @@ class _EntertainmentMusicCard extends ConsumerWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
-        onTap: () => _openMaterialItem(context, item),
+        onTap: onOpenItem,
         child: Ink(
           padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
           decoration: BoxDecoration(
@@ -1216,14 +1260,31 @@ class _EntertainmentMusicCard extends ConsumerWidget {
                               ),
                             ),
                           )
-                        : Icon(
-                            item.isCollected
-                                ? Icons.favorite_rounded
-                                : Icons.favorite_border_rounded,
-                            color: item.isCollected
-                                ? palette.musicCollectedText
-                                : palette.mutedIcon,
-                            size: 28,
+                        : AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 220),
+                            transitionBuilder: (child, animation) {
+                              final curved = CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeOutBack,
+                              );
+                              return ScaleTransition(
+                                scale: curved,
+                                child: FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: Icon(
+                              item.isCollected
+                                  ? Icons.favorite_rounded
+                                  : Icons.favorite_border_rounded,
+                              key: ValueKey<bool>(item.isCollected),
+                              color: item.isCollected
+                                  ? palette.musicCollectedText
+                                  : palette.mutedIcon,
+                              size: 28,
+                            ),
                           ),
                   ),
                   const SizedBox(height: 10),

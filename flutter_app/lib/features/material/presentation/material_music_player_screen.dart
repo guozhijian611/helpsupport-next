@@ -12,16 +12,28 @@ import '../application/material_music_controller.dart';
 import '../data/material_models.dart';
 import '../data/material_music_support.dart';
 
+class MaterialMusicRoutePayload {
+  const MaterialMusicRoutePayload({
+    required this.item,
+    this.playlist = const <MaterialItem>[],
+  });
+
+  final MaterialItem item;
+  final List<MaterialItem> playlist;
+}
+
 class MaterialMusicPlayerScreen extends ConsumerStatefulWidget {
   const MaterialMusicPlayerScreen({
     super.key,
     required this.materialId,
     this.initialItem,
+    this.initialPlaylist = const <MaterialItem>[],
     this.initialPage = 0,
   });
 
   final int materialId;
   final MaterialItem? initialItem;
+  final List<MaterialItem> initialPlaylist;
   final int initialPage;
 
   @override
@@ -83,7 +95,15 @@ class _MaterialMusicPlayerScreenState
 
     if (detailItem != null && MaterialMusicSupport.isAudioItem(detailItem)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        controller.syncCurrentItem(detailItem);
+        final current = ref.read(materialMusicControllerProvider).currentItem;
+        if (current != null && current.id == detailItem.id) {
+          controller.syncCurrentItem(
+            detailItem.copyWith(
+              isCollected: current.isCollected,
+              collectCount: current.collectCount,
+            ),
+          );
+        }
       });
     }
 
@@ -109,6 +129,16 @@ class _MaterialMusicPlayerScreenState
       AsyncData(:final value) => value.list,
       _ => null,
     };
+    final existingQueue = controllerState.playlist;
+    final hasExistingQueue =
+        detailItem != null &&
+        existingQueue.length > 1 &&
+        existingQueue.any((entry) => entry.id == detailItem.id);
+    final queueSeed = widget.initialPlaylist.isNotEmpty
+        ? widget.initialPlaylist
+        : hasExistingQueue
+        ? existingQueue
+        : playlistItems;
 
     if (detailItem != null &&
         MaterialMusicSupport.isAudioItem(detailItem) &&
@@ -118,24 +148,24 @@ class _MaterialMusicPlayerScreenState
           return;
         }
         _bootstrappedMaterialId = widget.materialId;
-        if (playlistItems != null) {
-          controller.syncPlaylist(playlistItems);
+        if (queueSeed != null) {
+          controller.syncPlaylist(queueSeed);
         }
         controller.openTrack(
           detailItem,
           localeCode: localeCode,
-          playlist: playlistItems,
+          playlist: queueSeed,
           autoplay: controllerState.currentItem?.id != detailItem.id,
         );
       });
-    } else if (playlistItems != null &&
+    } else if (queueSeed != null &&
         activeItem != null &&
         controllerState.playlist.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) {
           return;
         }
-        controller.syncPlaylist(playlistItems);
+        controller.syncPlaylist(queueSeed);
       });
     }
 
@@ -172,6 +202,7 @@ class _MaterialMusicPlayerScreenState
               item: activeItem ?? detailData,
             ),
             onDownload: () => _cacheCurrentTrack(context, localeCode),
+            onOpenDetail: () => _openDetail(context, activeItem ?? detailData),
             onPlayPrevious: () =>
                 _playAdjacentTrack(context, localeCode, step: -1),
             onTogglePlayback: controller.togglePlayback,
@@ -190,6 +221,7 @@ class _MaterialMusicPlayerScreenState
                     item: activeItem,
                   ),
                   onDownload: () => _cacheCurrentTrack(context, localeCode),
+                  onOpenDetail: () => _openDetail(context, activeItem),
                   onPlayPrevious: () =>
                       _playAdjacentTrack(context, localeCode, step: -1),
                   onTogglePlayback: controller.togglePlayback,
@@ -209,6 +241,7 @@ class _MaterialMusicPlayerScreenState
                     item: activeItem,
                   ),
                   onDownload: () => _cacheCurrentTrack(context, localeCode),
+                  onOpenDetail: () => _openDetail(context, activeItem),
                   onPlayPrevious: () =>
                       _playAdjacentTrack(context, localeCode, step: -1),
                   onTogglePlayback: controller.togglePlayback,
@@ -299,6 +332,10 @@ class _MaterialMusicPlayerScreenState
     if (after.errorMessage.trim().isNotEmpty) {
       context.showCenteredNotice(after.errorMessage);
     }
+  }
+
+  void _openDetail(BuildContext context, MaterialItem item) {
+    context.push('/materials/detail/${item.id}', extra: item);
   }
 
   Future<void> _showQueueSheet(BuildContext context, String localeCode) async {
@@ -412,7 +449,13 @@ class _MaterialMusicPlayerScreenState
     if (current == null || current.id == beforeId) {
       return;
     }
-    context.replace('/materials/music/player/${current.id}', extra: current);
+    context.replace(
+      '/materials/music/player/${current.id}',
+      extra: MaterialMusicRoutePayload(
+        item: current,
+        playlist: ref.read(materialMusicControllerProvider).playlist,
+      ),
+    );
   }
 
   Future<void> _openTrack(
@@ -426,7 +469,13 @@ class _MaterialMusicPlayerScreenState
     if (!context.mounted) {
       return;
     }
-    context.replace('/materials/music/player/${track.id}', extra: track);
+    context.replace(
+      '/materials/music/player/${track.id}',
+      extra: MaterialMusicRoutePayload(
+        item: track,
+        playlist: ref.read(materialMusicControllerProvider).playlist,
+      ),
+    );
   }
 }
 
@@ -438,6 +487,7 @@ class _MusicPlayerLoadedView extends ConsumerWidget {
     required this.pageController,
     required this.onToggleCollect,
     required this.onDownload,
+    required this.onOpenDetail,
     required this.onPlayPrevious,
     required this.onTogglePlayback,
     required this.onPlayNext,
@@ -449,6 +499,7 @@ class _MusicPlayerLoadedView extends ConsumerWidget {
   final PageController pageController;
   final VoidCallback onToggleCollect;
   final VoidCallback onDownload;
+  final VoidCallback onOpenDetail;
   final VoidCallback onPlayPrevious;
   final VoidCallback onTogglePlayback;
   final VoidCallback onPlayNext;
@@ -516,11 +567,7 @@ class _MusicPlayerLoadedView extends ConsumerWidget {
                         _MusicCoverCard(
                           palette: palette,
                           coverUrl: coverUrl,
-                          centerIcon: isBuffering
-                              ? Icons.hourglass_top_rounded
-                              : isPlaying
-                              ? Icons.pause_rounded
-                              : Icons.play_arrow_rounded,
+                          onTap: onOpenDetail,
                         ),
                         const SizedBox(height: 24),
                         Text(
@@ -548,9 +595,9 @@ class _MusicPlayerLoadedView extends ConsumerWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             _MusicIconAction(
-                              icon: item.isCollected
-                                  ? Icons.favorite_rounded
-                                  : Icons.favorite_border_rounded,
+                              keyValue: item.isCollected,
+                              selectedIcon: Icons.favorite_rounded,
+                              unselectedIcon: Icons.favorite_border_rounded,
                               color: item.isCollected
                                   ? palette.accent
                                   : palette.secondaryText,
@@ -564,9 +611,9 @@ class _MusicPlayerLoadedView extends ConsumerWidget {
                             ),
                             const SizedBox(width: 14),
                             _MusicIconAction(
-                              icon: controllerState.isCached
-                                  ? Icons.check_rounded
-                                  : controllerState.isCaching
+                              keyValue: controllerState.isCached,
+                              selectedIcon: Icons.check_rounded,
+                              unselectedIcon: controllerState.isCaching
                                   ? Icons.downloading_rounded
                                   : Icons.download_for_offline_outlined,
                               color: controllerState.isCached
@@ -737,63 +784,61 @@ class _MusicCoverCard extends StatelessWidget {
   const _MusicCoverCard({
     required this.palette,
     required this.coverUrl,
-    required this.centerIcon,
+    required this.onTap,
   });
 
   final _MaterialMusicPalette palette;
   final String coverUrl;
-  final IconData centerIcon;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: palette.cardBackground,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(34),
-        boxShadow: palette.cardShadow,
-      ),
-      child: AspectRatio(
-        aspectRatio: 1,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            coverUrl.isNotEmpty
-                ? Image.network(
-                    coverUrl,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (_, child, progress) => progress == null
-                        ? child
-                        : _MusicCoverFallback(palette: palette),
-                    errorBuilder: (_, _, _) =>
-                        _MusicCoverFallback(palette: palette),
-                  )
-                : _MusicCoverFallback(palette: palette),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.08),
-                    Colors.black.withValues(alpha: 0.28),
-                  ],
-                ),
+        onTap: onTap,
+        child: Ink(
+          decoration: BoxDecoration(
+            color: palette.cardBackground,
+            borderRadius: BorderRadius.circular(34),
+            boxShadow: palette.cardShadow,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(34),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  coverUrl.isNotEmpty
+                      ? Image.network(
+                          coverUrl,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (_, child, progress) =>
+                              progress == null
+                              ? child
+                              : _MusicCoverFallback(palette: palette),
+                          errorBuilder: (_, _, _) =>
+                              _MusicCoverFallback(palette: palette),
+                        )
+                      : _MusicCoverFallback(palette: palette),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.04),
+                          Colors.black.withValues(alpha: 0.18),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            Align(
-              alignment: Alignment.center,
-              child: Container(
-                width: 72,
-                height: 72,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(centerIcon, color: palette.accent, size: 40),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -802,14 +847,18 @@ class _MusicCoverCard extends StatelessWidget {
 
 class _MusicIconAction extends StatelessWidget {
   const _MusicIconAction({
-    required this.icon,
+    required this.keyValue,
+    required this.selectedIcon,
+    required this.unselectedIcon,
     required this.color,
     required this.backgroundColor,
     required this.tooltip,
     required this.onTap,
   });
 
-  final IconData icon;
+  final bool keyValue;
+  final IconData selectedIcon;
+  final IconData unselectedIcon;
   final Color color;
   final Color backgroundColor;
   final String tooltip;
@@ -829,7 +878,25 @@ class _MusicIconAction extends StatelessWidget {
             color: backgroundColor,
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: color, size: 22),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            transitionBuilder: (child, animation) {
+              final curved = CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutBack,
+              );
+              return ScaleTransition(
+                scale: curved,
+                child: FadeTransition(opacity: animation, child: child),
+              );
+            },
+            child: Icon(
+              keyValue ? selectedIcon : unselectedIcon,
+              key: ValueKey<bool>(keyValue),
+              color: color,
+              size: 22,
+            ),
+          ),
         ),
       ),
     );
