@@ -50,6 +50,7 @@ class _MaterialResourceScreenState
   MaterialItem? _activeItem;
   String _activeCacheKey = '';
   String _textContent = '';
+  String _lyricContent = '';
   String _cachePath = '';
   String _resourceError = '';
   double _cacheProgress = 0;
@@ -198,7 +199,14 @@ class _MaterialResourceScreenState
         );
       }
       final coverUrl = _apiClient.resolveUrl(item.coverUrl);
-      return _AudioPlayerPanel(player: player, item: item, coverUrl: coverUrl);
+      return _AudioPlayerPanel(
+        player: player,
+        item: item,
+        coverUrl: coverUrl,
+        lyrics: _lyricContent.trim().isNotEmpty
+            ? _lyricContent
+            : item.contentText,
+      );
     }
 
     final webController = _webViewController;
@@ -211,7 +219,7 @@ class _MaterialResourceScreenState
   Future<void> _configureResource(MaterialItem item) async {
     final resourceUrl = _apiClient.resolveUrl(item.contentUrl);
     final cacheKey =
-        '${item.id}:${item.mediaType}:$resourceUrl:${item.contentText.hashCode}';
+        '${item.id}:${item.mediaType}:$resourceUrl:${item.lyricUrl.hashCode}:${item.contentText.hashCode}';
     if (_activeCacheKey == cacheKey) {
       return;
     }
@@ -224,6 +232,7 @@ class _MaterialResourceScreenState
     _openedAt = DateTime.now();
     _readingProgress = item.historyProgress.clamp(0, 100).toDouble();
     _textContent = item.contentText;
+    _lyricContent = '';
     _cachePath = '';
     _resourceError = '';
     _cacheProgress = 0;
@@ -412,6 +421,7 @@ class _MaterialResourceScreenState
     final duration = hasCachedFile
         ? await player.setFilePath(localFile.path)
         : await player.setUrl(resourceUrl);
+    final lyricContent = await _loadLyricContent(item);
     final restoredPosition = _positionFromProgress(
       duration ?? player.duration,
       _readingProgress,
@@ -422,9 +432,29 @@ class _MaterialResourceScreenState
     if (!mounted || _activeItem?.id != item.id) {
       return;
     }
-    setState(() => _isPreparingResource = false);
+    setState(() {
+      _lyricContent = lyricContent;
+      _isPreparingResource = false;
+    });
     if (!hasCachedFile) {
       unawaited(_cacheRemoteFile(resourceUrl, localFile));
+    }
+  }
+
+  Future<String> _loadLyricContent(MaterialItem item) async {
+    final lyricUrl = _apiClient.resolveUrl(item.lyricUrl).trim();
+    if (lyricUrl.isEmpty) {
+      return item.contentText;
+    }
+    try {
+      final response = await _apiClient.dio.get<String>(
+        lyricUrl,
+        options: Options(responseType: ResponseType.plain),
+      );
+      final content = (response.data ?? '').trim();
+      return content.isEmpty ? item.contentText : content;
+    } on Object {
+      return item.contentText;
     }
   }
 
@@ -1030,189 +1060,98 @@ class _VideoPlayerPanel extends StatelessWidget {
   }
 }
 
-class _AudioPlayerPanel extends StatelessWidget {
+class _AudioPlayerPanel extends StatefulWidget {
   const _AudioPlayerPanel({
     required this.player,
     required this.item,
     required this.coverUrl,
+    required this.lyrics,
   });
 
   final AudioPlayer player;
   final MaterialItem item;
   final String coverUrl;
+  final String lyrics;
+
+  @override
+  State<_AudioPlayerPanel> createState() => _AudioPlayerPanelState();
+}
+
+class _AudioPlayerPanelState extends State<_AudioPlayerPanel> {
+  final _pageController = PageController();
+  int _pageIndex = 0;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final artist = item.artist.trim().isNotEmpty
-        ? item.artist.trim()
+    final artist = widget.item.artist.trim().isNotEmpty
+        ? widget.item.artist.trim()
         : _t(context, '未知歌手', 'Unknown artist');
-    final album = item.album.trim().isNotEmpty
-        ? item.album.trim()
+    final album = widget.item.album.trim().isNotEmpty
+        ? widget.item.album.trim()
         : _t(context, '未设置专辑', 'No album');
+    final lines = _parseLrc(widget.lyrics);
     return StreamBuilder<PlayerState>(
-      stream: player.playerStateStream,
+      stream: widget.player.playerStateStream,
       builder: (context, playerSnapshot) {
         final playerState = playerSnapshot.data;
-        final isPlaying = playerState?.playing ?? player.playing;
+        final isPlaying = playerState?.playing ?? widget.player.playing;
         final isBuffering =
             playerState?.processingState == ProcessingState.loading ||
             playerState?.processingState == ProcessingState.buffering;
         return StreamBuilder<Duration?>(
-          stream: player.durationStream,
+          stream: widget.player.durationStream,
           builder: (context, durationSnapshot) {
             final duration = durationSnapshot.data ?? Duration.zero;
             return StreamBuilder<Duration>(
-              stream: player.positionStream,
+              stream: widget.player.positionStream,
               builder: (context, positionSnapshot) {
                 final position = positionSnapshot.data ?? Duration.zero;
                 final maxMilliseconds = math.max(duration.inMilliseconds, 1);
-                final currentMilliseconds = position.inMilliseconds.clamp(
-                  0,
-                  maxMilliseconds,
-                );
-                return ListView(
-                  padding: const EdgeInsets.fromLTRB(22, 22, 22, 34),
+                final currentMilliseconds = position.inMilliseconds
+                    .clamp(0, maxMilliseconds)
+                    .toInt();
+                return Column(
                   children: [
-                    Center(
-                      child: Container(
-                        width: 238,
-                        height: 238,
-                        decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.12),
-                              blurRadius: 24,
-                              offset: const Offset(0, 14),
-                            ),
-                          ],
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: coverUrl.isNotEmpty
-                            ? Image.network(
-                                coverUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) =>
-                                    const _AudioCoverFallback(),
-                              )
-                            : const _AudioCoverFallback(),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      item.title,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: scheme.onSurface,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        height: 1.25,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '$artist · $album',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: scheme.onSurfaceVariant,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        activeTrackColor: const Color(0xFFFF9585),
-                        thumbColor: const Color(0xFFFF9585),
-                        inactiveTrackColor: scheme.outlineVariant,
-                      ),
-                      child: Slider(
-                        value: currentMilliseconds.toDouble(),
-                        min: 0,
-                        max: maxMilliseconds.toDouble(),
-                        onChanged: (next) =>
-                            player.seek(Duration(milliseconds: next.round())),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Expanded(
+                      child: PageView(
+                        controller: _pageController,
+                        onPageChanged: (index) =>
+                            setState(() => _pageIndex = index),
                         children: [
-                          Text(
-                            _formatDuration(position),
-                            style: TextStyle(
-                              color: scheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w700,
-                            ),
+                          _AudioPlaybackPage(
+                            player: widget.player,
+                            item: widget.item,
+                            coverUrl: widget.coverUrl,
+                            artist: artist,
+                            album: album,
+                            isPlaying: isPlaying,
+                            isBuffering: isBuffering,
+                            position: position,
+                            duration: duration,
+                            currentMilliseconds: currentMilliseconds,
+                            maxMilliseconds: maxMilliseconds,
                           ),
-                          Text(
-                            _formatDuration(duration),
-                            style: TextStyle(
-                              color: scheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                          _AudioLyricsPage(lines: lines, position: position),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 18),
-                    Center(
-                      child: SizedBox(
-                        width: 72,
-                        height: 72,
-                        child: IconButton.filled(
-                          style: IconButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF9585),
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: isBuffering
-                              ? null
-                              : () {
-                                  isPlaying ? player.pause() : player.play();
-                                },
-                          iconSize: 38,
-                          icon: isBuffering
-                              ? const SizedBox(
-                                  width: 28,
-                                  height: 28,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 3,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Icon(
-                                  isPlaying
-                                      ? Icons.pause_rounded
-                                      : Icons.play_arrow_rounded,
-                                ),
-                        ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 6, 22, 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _PageDot(selected: _pageIndex == 0),
+                          const SizedBox(width: 8),
+                          _PageDot(selected: _pageIndex == 1),
+                        ],
                       ),
                     ),
-                    if (item.contentText.trim().isNotEmpty) ...[
-                      const SizedBox(height: 30),
-                      Text(
-                        _t(context, '歌词', 'Lyrics'),
-                        style: TextStyle(
-                          color: scheme.onSurface,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SelectableText(
-                        item.contentText,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: scheme.onSurfaceVariant,
-                          fontSize: 16,
-                          height: 1.75,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
                   ],
                 );
               },
@@ -1222,6 +1161,381 @@ class _AudioPlayerPanel extends StatelessWidget {
       },
     );
   }
+}
+
+class _AudioPlaybackPage extends StatelessWidget {
+  const _AudioPlaybackPage({
+    required this.player,
+    required this.item,
+    required this.coverUrl,
+    required this.artist,
+    required this.album,
+    required this.isPlaying,
+    required this.isBuffering,
+    required this.position,
+    required this.duration,
+    required this.currentMilliseconds,
+    required this.maxMilliseconds,
+  });
+
+  final AudioPlayer player;
+  final MaterialItem item;
+  final String coverUrl;
+  final String artist;
+  final String album;
+  final bool isPlaying;
+  final bool isBuffering;
+  final Duration position;
+  final Duration duration;
+  final int currentMilliseconds;
+  final int maxMilliseconds;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 34),
+      children: [
+        Center(
+          child: Container(
+            width: 238,
+            height: 238,
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 24,
+                  offset: const Offset(0, 14),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: coverUrl.isNotEmpty
+                ? Image.network(
+                    coverUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const _AudioCoverFallback(),
+                  )
+                : const _AudioCoverFallback(),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          item.title,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: scheme.onSurface,
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            height: 1.25,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '$artist · $album',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: scheme.onSurfaceVariant,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 28),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: const Color(0xFFFF9585),
+            thumbColor: const Color(0xFFFF9585),
+            inactiveTrackColor: scheme.outlineVariant,
+          ),
+          child: Slider(
+            value: currentMilliseconds.toDouble(),
+            min: 0,
+            max: maxMilliseconds.toDouble(),
+            onChanged: (next) =>
+                player.seek(Duration(milliseconds: next.round())),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _formatDuration(position),
+                style: TextStyle(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                _formatDuration(duration),
+                style: TextStyle(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        Center(
+          child: SizedBox(
+            width: 72,
+            height: 72,
+            child: IconButton.filled(
+              style: IconButton.styleFrom(
+                backgroundColor: const Color(0xFFFF9585),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: isBuffering
+                  ? null
+                  : () {
+                      isPlaying ? player.pause() : player.play();
+                    },
+              iconSize: 38,
+              icon: isBuffering
+                  ? const SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(
+                      isPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                    ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          _t(context, '左滑查看同步歌词', 'Swipe left for synced lyrics'),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: scheme.onSurfaceVariant,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AudioLyricsPage extends StatefulWidget {
+  const _AudioLyricsPage({required this.lines, required this.position});
+
+  final List<_LyricLine> lines;
+  final Duration position;
+
+  @override
+  State<_AudioLyricsPage> createState() => _AudioLyricsPageState();
+}
+
+class _AudioLyricsPageState extends State<_AudioLyricsPage> {
+  final _scrollController = ScrollController();
+  int _lastActiveIndex = -1;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncActiveLine());
+  }
+
+  @override
+  void didUpdateWidget(covariant _AudioLyricsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncActiveLine();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _syncActiveLine() {
+    final activeIndex = _activeLyricIndex(widget.lines, widget.position);
+    if (activeIndex < 0 || activeIndex == _lastActiveIndex) {
+      return;
+    }
+    _lastActiveIndex = activeIndex;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) {
+        return;
+      }
+      final target = (activeIndex * 48.0 - 120).clamp(
+        0.0,
+        _scrollController.position.maxScrollExtent,
+      );
+      _scrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final lines = widget.lines;
+    if (lines.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Text(
+            _t(context, '暂无 LRC 歌词', 'No LRC lyrics yet'),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: scheme.onSurfaceVariant,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      );
+    }
+    final activeIndex = _activeLyricIndex(lines, widget.position);
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(26, 48, 26, 80),
+      itemCount: lines.length + 1,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 26),
+            child: Text(
+              _t(context, '歌词', 'Lyrics'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: scheme.onSurface,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          );
+        }
+        final lineIndex = index - 1;
+        final line = lines[lineIndex];
+        final selected = lineIndex == activeIndex;
+        return AnimatedDefaultTextStyle(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          style: TextStyle(
+            color: selected ? const Color(0xFFFF9585) : scheme.onSurfaceVariant,
+            fontSize: selected ? 20 : 16,
+            height: 1.45,
+            fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Text(line.text, textAlign: TextAlign.center),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PageDot extends StatelessWidget {
+  const _PageDot({required this.selected});
+
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      width: selected ? 18 : 7,
+      height: 7,
+      decoration: BoxDecoration(
+        color: selected
+            ? const Color(0xFFFF9585)
+            : Theme.of(context).colorScheme.outlineVariant,
+        borderRadius: BorderRadius.circular(999),
+      ),
+    );
+  }
+}
+
+class _LyricLine {
+  const _LyricLine({required this.time, required this.text});
+
+  final Duration? time;
+  final String text;
+}
+
+List<_LyricLine> _parseLrc(String source) {
+  final lines = <_LyricLine>[];
+  final timestampPattern = RegExp(r'\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]');
+  for (final rawLine in const LineSplitter().convert(source)) {
+    final matches = timestampPattern.allMatches(rawLine).toList();
+    final text = rawLine.replaceAll(timestampPattern, '').trim();
+    if (matches.isEmpty) {
+      if (text.isNotEmpty && !rawLine.trim().startsWith('[')) {
+        lines.add(_LyricLine(time: null, text: text));
+      }
+      continue;
+    }
+    if (text.isEmpty) {
+      continue;
+    }
+    for (final match in matches) {
+      lines.add(_LyricLine(time: _durationFromLrcMatch(match), text: text));
+    }
+  }
+  lines.sort((a, b) {
+    final left = a.time;
+    final right = b.time;
+    if (left == null && right == null) {
+      return 0;
+    }
+    if (left == null) {
+      return 1;
+    }
+    if (right == null) {
+      return -1;
+    }
+    return left.compareTo(right);
+  });
+  return lines;
+}
+
+Duration _durationFromLrcMatch(RegExpMatch match) {
+  final minutes = int.tryParse(match.group(1) ?? '') ?? 0;
+  final seconds = int.tryParse(match.group(2) ?? '') ?? 0;
+  final fraction = match.group(3) ?? '';
+  final milliseconds = switch (fraction.length) {
+    0 => 0,
+    1 => int.parse(fraction) * 100,
+    2 => int.parse(fraction) * 10,
+    _ => int.parse(fraction.substring(0, 3)),
+  };
+  return Duration(
+    minutes: minutes,
+    seconds: seconds,
+    milliseconds: milliseconds,
+  );
+}
+
+int _activeLyricIndex(List<_LyricLine> lines, Duration position) {
+  var activeIndex = -1;
+  for (var i = 0; i < lines.length; i += 1) {
+    final time = lines[i].time;
+    if (time == null) {
+      continue;
+    }
+    if (time > position) {
+      break;
+    }
+    activeIndex = i;
+  }
+  return activeIndex;
 }
 
 class _AudioCoverFallback extends StatelessWidget {

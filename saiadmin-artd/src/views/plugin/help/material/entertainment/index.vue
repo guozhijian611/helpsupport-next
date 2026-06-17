@@ -125,16 +125,28 @@
       minWidth: 220
     },
     {
+      prop: 'lyric_url',
+      label: '歌词文件',
+      type: 'file',
+      form: true,
+      table: false,
+      accept: '.lrc',
+      acceptHint: 'LRC',
+      maxSize: 5,
+      placeholder: '音乐素材上传 .lrc 歌词文件'
+    },
+    {
       prop: 'content_text',
-      label: '正文/歌词',
+      label: '正文/歌词备选',
       type: 'textarea',
       rows: 8,
       form: true,
-      table: false
+      table: false,
+      placeholder: '书籍正文，或音乐未上传 LRC 时的歌词备选'
     },
     {
       prop: 'content_text_i18n',
-      label: '多语言正文/歌词JSON',
+      label: '多语言正文/歌词备选JSON',
       type: 'json',
       rows: 8,
       form: true,

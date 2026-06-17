@@ -33,7 +33,7 @@ class HelpApiService
         'mov',
         'mp3',
     ];
-    private const MATERIAL_UPLOAD_EXTENSIONS = ['txt', 'epub', 'pdf', 'mp4', 'mov', 'mp3'];
+    private const MATERIAL_UPLOAD_EXTENSIONS = ['txt', 'epub', 'pdf', 'mp4', 'mov', 'mp3', 'lrc'];
     private const MATERIAL_CATEGORY_NAMES = [
         'education' => ['入门', '动机与认知', '应对技能', '复发预防', '家属指南'],
         'entertainment' => ['书籍', '电影', '音乐', '游戏'],
@@ -1922,7 +1922,7 @@ class HelpApiService
         $locale = (string) ($params['locale'] ?? '');
         $page = $this->paginate(function () use ($memberId, $params) {
             $query = $this->visibleMaterialQuery($memberId)
-                ->field('id, member_id, category_id, media_type, material_type, title, title_i18n, summary, summary_i18n, artist, album, cover_url, content_url, duration_seconds, is_public, is_recommended, view_count, like_count, collect_count, comment_count, sort, create_time');
+                ->field('id, member_id, category_id, media_type, material_type, title, title_i18n, summary, summary_i18n, artist, album, cover_url, content_url, lyric_url, duration_seconds, is_public, is_recommended, view_count, like_count, collect_count, comment_count, sort, create_time');
 
             if (!empty($params['material_type'])) {
                 $query->where('material_type', (string) $params['material_type']);
@@ -2057,6 +2057,7 @@ class HelpApiService
             'album' => mb_substr(trim((string) ($data['album'] ?? '')), 0, 120),
             'cover_url' => (string) ($data['cover_url'] ?? ''),
             'content_url' => (string) ($data['content_url'] ?? ''),
+            'lyric_url' => (string) ($data['lyric_url'] ?? ''),
             'content_text' => $contentText,
             'content_text_i18n' => $this->jsonValue($data['content_text_i18n'] ?? null),
             'tags' => $this->jsonValue($data['tags'] ?? null),
@@ -2125,7 +2126,7 @@ class HelpApiService
 
         $extension = strtolower((string) ($file->getUploadExtension() ?: pathinfo((string) $file->getUploadName(), PATHINFO_EXTENSION)));
         if (!in_array($extension, self::MATERIAL_UPLOAD_EXTENSIONS, true)) {
-            throw new ApiException('私人素材仅支持 txt、epub、pdf、mp4、mov、mp3 文件', 400);
+            throw new ApiException('私人素材仅支持 txt、epub、pdf、mp4、mov、mp3、lrc 文件', 400);
         }
 
         $upload = (new SystemAttachmentLogic())->uploadBase('file');

@@ -59,6 +59,7 @@ class MaterialItem {
     required this.album,
     required this.coverUrl,
     required this.contentUrl,
+    required this.lyricUrl,
     required this.contentText,
     required this.tags,
     required this.durationSeconds,
@@ -87,6 +88,7 @@ class MaterialItem {
   final String album;
   final String coverUrl;
   final String contentUrl;
+  final String lyricUrl;
   final String contentText;
   final List<String> tags;
   final int durationSeconds;
@@ -116,6 +118,7 @@ class MaterialItem {
       album: _stringValue(json['album']),
       coverUrl: _stringValue(json['cover_url']),
       contentUrl: _stringValue(json['content_url']),
+      lyricUrl: _stringValue(json['lyric_url']),
       contentText: _stringValue(json['content_text']),
       tags: _stringList(json['tags']),
       durationSeconds: _intValue(json['duration_seconds']),
