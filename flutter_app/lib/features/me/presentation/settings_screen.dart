@@ -181,6 +181,7 @@ class SettingsDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
+  static const _developerTapTarget = 9;
   static const _privacyPrefix = 'settings.privacy.';
   static const _notificationPrefix = 'settings.notification.';
   final _dateFormat = DateFormat('yyyy-MM-dd');
@@ -202,6 +203,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   bool _notificationSaving = false;
   bool _remoteLoading = false;
   String? _remoteError;
+  int _developerTapCount = 0;
+  DateTime? _lastDeveloperTapAt;
+  Timer? _developerTapResetTimer;
   MeProfileBundle? _profileBundle;
   SecurityOverview? _securityOverview;
   PushPreferenceSettings? _pushPreference;
@@ -243,6 +247,12 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       widget.section == SettingsSectionType.profile ||
       widget.section == SettingsSectionType.security ||
       widget.section == SettingsSectionType.notifications;
+
+  @override
+  void dispose() {
+    _developerTapResetTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1023,6 +1033,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
             title: _t(context, '版本号', 'Version'),
             value: BuildInfo.shortVersion,
             showChevron: false,
+            onTap: () => _openDeveloperTools(context),
           ),
           _SettingsNavRow(
             title: _t(context, '用户协议', 'Terms of use'),
@@ -1043,18 +1054,46 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
               applicationVersion: BuildInfo.appVersion,
             ),
           ),
-          _SettingsNavRow(
-            title: context.l10n.aiCapabilityTestEntryTitle,
-            subtitle: context.l10n.aiCapabilityTestEntrySubtitle,
-            onTap: () => context.push('/me/settings/about/ai-capability'),
-          ),
-          _SettingsNavRow(
-            title: _t(context, '诊断信息', 'Diagnostics'),
-            onTap: () => context.push('/me/settings/about/diagnostics'),
-          ),
         ],
       ),
     ];
+  }
+
+  void _openDeveloperTools(BuildContext context) {
+    final now = DateTime.now();
+    if (_lastDeveloperTapAt == null ||
+        now.difference(_lastDeveloperTapAt!) > const Duration(seconds: 2)) {
+      _developerTapCount = 0;
+    }
+    _lastDeveloperTapAt = now;
+    _developerTapCount += 1;
+    final remaining = _developerTapTarget - _developerTapCount;
+    _developerTapResetTimer?.cancel();
+    _developerTapResetTimer = Timer(const Duration(seconds: 2), () {
+      _developerTapCount = 0;
+      _lastDeveloperTapAt = null;
+    });
+
+    if (remaining <= 0) {
+      _developerTapCount = 0;
+      _lastDeveloperTapAt = null;
+      _developerTapResetTimer?.cancel();
+      context.showCenteredNotice(
+        _t(context, '已进入开发者界面', 'Developer tools unlocked'),
+      );
+      context.push('/me/settings/about/developer');
+      return;
+    }
+
+    if (remaining <= 4) {
+      context.showCenteredNotice(
+        _t(
+          context,
+          '再点击 $remaining 次进入开发者界面',
+          'Tap $remaining more times to open developer tools',
+        ),
+      );
+    }
   }
 
   Future<void> _savePrivacySettings() async {

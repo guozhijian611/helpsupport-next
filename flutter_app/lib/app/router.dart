@@ -39,6 +39,7 @@ import '../features/material/presentation/material_music_player_screen.dart';
 import '../features/material/presentation/material_private_upload_screen.dart';
 import '../features/material/presentation/material_resource_screen.dart';
 import '../features/message/presentation/message_center_screen.dart';
+import '../features/me/presentation/about_developer_screen.dart';
 import '../features/me/presentation/diagnostic_logs_screen.dart';
 import '../features/me/presentation/journal_screen.dart';
 import '../features/me/presentation/memoir_screen.dart';
@@ -266,6 +267,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/me/settings/about/ai-capability',
             name: 'me-settings-ai-capability',
             builder: (context, state) => const AiCapabilityTestScreen(),
+          ),
+          GoRoute(
+            path: '/me/settings/about/developer',
+            name: 'me-settings-about-developer',
+            builder: (context, state) => const AboutDeveloperScreen(),
           ),
           GoRoute(
             path: '/me/settings/:section',

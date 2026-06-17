@@ -13,8 +13,16 @@ class PermissionService {
     return Permission.camera.status;
   }
 
+  Future<PermissionStatus> requestCamera() {
+    return Permission.camera.request();
+  }
+
   Future<PermissionStatus> microphoneStatus() {
     return Permission.microphone.status;
+  }
+
+  Future<PermissionStatus> requestMicrophone() {
+    return Permission.microphone.request();
   }
 
   Future<Map<Permission, PermissionStatus>> requestVideoCallPermissions() {
