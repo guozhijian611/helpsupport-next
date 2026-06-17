@@ -335,6 +335,7 @@ class _MaterialMusicPlayerScreenState
   Future<void> _showQueueSheet(BuildContext context, String localeCode) async {
     final state = ref.read(materialMusicControllerProvider);
     final activeId = state.currentItem?.id ?? 0;
+    final apiClient = ref.read(apiClientProvider);
     final selectedTrack = await showModalBottomSheet<MaterialItem>(
       context: context,
       backgroundColor: _MaterialMusicPalette.of(context).cardBackground,
@@ -371,16 +372,10 @@ class _MaterialMusicPlayerScreenState
                 onTap: selected
                     ? null
                     : () => Navigator.of(sheetContext).pop(track),
-                leading: CircleAvatar(
-                  backgroundColor: selected
-                      ? palette.accent
-                      : palette.pageBackground,
-                  foregroundColor: selected ? Colors.white : palette.accent,
-                  child: Icon(
-                    selected
-                        ? Icons.graphic_eq_rounded
-                        : Icons.music_note_rounded,
-                  ),
+                leading: _QueueTrackArtwork(
+                  coverUrl: apiClient.resolveUrl(track.coverUrl),
+                  selected: selected,
+                  palette: palette,
                 ),
                 title: Text(
                   track.title,
@@ -478,6 +473,99 @@ class _MaterialMusicPlayerScreenState
       extra: MaterialMusicRoutePayload(
         item: track,
         playlist: ref.read(materialMusicControllerProvider).playlist,
+      ),
+    );
+  }
+}
+
+class _QueueTrackArtwork extends StatelessWidget {
+  const _QueueTrackArtwork({
+    required this.coverUrl,
+    required this.selected,
+    required this.palette,
+  });
+
+  final String coverUrl;
+  final bool selected;
+  final _MaterialMusicPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 52,
+      height: 52,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            coverUrl.isNotEmpty
+                ? Image.network(
+                    coverUrl,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      return loadingProgress == null
+                          ? child
+                          : _QueueTrackArtworkFallback(
+                              selected: selected,
+                              palette: palette,
+                            );
+                    },
+                    errorBuilder: (_, _, _) => _QueueTrackArtworkFallback(
+                      selected: selected,
+                      palette: palette,
+                    ),
+                  )
+                : _QueueTrackArtworkFallback(
+                    selected: selected,
+                    palette: palette,
+                  ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.08),
+                    Colors.black.withValues(alpha: selected ? 0.26 : 0.18),
+                  ],
+                ),
+              ),
+            ),
+            Center(
+              child: Icon(
+                selected ? Icons.graphic_eq_rounded : Icons.music_note_rounded,
+                color: Colors.white,
+                size: selected ? 22 : 20,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QueueTrackArtworkFallback extends StatelessWidget {
+  const _QueueTrackArtworkFallback({
+    required this.selected,
+    required this.palette,
+  });
+
+  final bool selected;
+  final _MaterialMusicPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: selected
+              ? [palette.accent.withValues(alpha: 0.78), palette.accent]
+              : [palette.softBackground, palette.selectedBackground],
+        ),
       ),
     );
   }
