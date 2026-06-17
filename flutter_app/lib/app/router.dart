@@ -31,6 +31,8 @@ import '../features/me/presentation/ai_capability_test_screen.dart';
 import '../features/material/data/material_models.dart';
 import '../features/material/presentation/material_detail_screen.dart';
 import '../features/material/presentation/material_library_screen.dart';
+import '../features/material/presentation/material_music_lyrics_screen.dart';
+import '../features/material/presentation/material_music_player_screen.dart';
 import '../features/material/presentation/material_private_upload_screen.dart';
 import '../features/material/presentation/material_resource_screen.dart';
 import '../features/message/presentation/message_center_screen.dart';
@@ -317,6 +319,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const MaterialPrivateUploadScreen(),
       ),
       GoRoute(
+        path: '/materials/music/player/:id',
+        name: 'material-music-player',
+        builder: (context, state) {
+          return MaterialMusicPlayerScreen(
+            materialId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+            initialItem: state.extra is MaterialItem
+                ? state.extra as MaterialItem
+                : null,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/materials/music/lyrics/:id',
+        name: 'material-music-lyrics',
+        builder: (context, state) {
+          return MaterialMusicLyricsScreen(
+            materialId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+            initialItem: state.extra is MaterialItem
+                ? state.extra as MaterialItem
+                : null,
+          );
+        },
+      ),
+      GoRoute(
         path: '/materials/resource/:id',
         name: 'material-resource',
         builder: (context, state) {
@@ -337,6 +363,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             initialItem: state.extra is MaterialItem
                 ? state.extra as MaterialItem
                 : null,
+            initialSection: state.uri.queryParameters['section'] == 'comments'
+                ? MaterialDetailInitialSection.comments
+                : MaterialDetailInitialSection.overview,
           );
         },
       ),

@@ -8,16 +8,21 @@ import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../application/material_controller.dart';
 import '../data/material_models.dart';
+import '../data/material_music_support.dart';
+
+enum MaterialDetailInitialSection { overview, comments }
 
 class MaterialDetailScreen extends ConsumerStatefulWidget {
   const MaterialDetailScreen({
     super.key,
     required this.materialId,
     this.initialItem,
+    this.initialSection = MaterialDetailInitialSection.overview,
   });
 
   final int materialId;
   final MaterialItem? initialItem;
+  final MaterialDetailInitialSection initialSection;
 
   @override
   ConsumerState<MaterialDetailScreen> createState() =>
@@ -26,13 +31,18 @@ class MaterialDetailScreen extends ConsumerStatefulWidget {
 
 class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
   final _commentController = TextEditingController();
+  final _detailScrollController = ScrollController();
+  final _overviewKey = GlobalKey();
+  final _commentsKey = GlobalKey();
   bool _isSending = false;
   bool _historySaved = false;
+  bool _didRevealInitialSection = false;
   MaterialComment? _replyTarget;
 
   @override
   void dispose() {
     _commentController.dispose();
+    _detailScrollController.dispose();
     super.dispose();
   }
 
@@ -81,6 +91,7 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
     MaterialDetailQuery detailQuery,
   ) {
     _saveHistoryOnce(item);
+    _revealInitialSectionOnce();
     if (item.materialType == 'entertainment') {
       return _EntertainmentDetailBody(
         item: item,
@@ -92,6 +103,9 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
         onReport: _reportComment,
         onDismissReply: () => setState(() => _replyTarget = null),
         onSend: _sendComment,
+        scrollController: _detailScrollController,
+        overviewKey: _overviewKey,
+        commentsKey: _commentsKey,
       );
     }
     return Column(
@@ -107,15 +121,22 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
               ]);
             },
             child: ListView(
+              controller: _detailScrollController,
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 22),
               children: [
                 _MaterialHero(item: item),
                 const SizedBox(height: 18),
-                _MaterialContentSection(item: item),
+                KeyedSubtree(
+                  key: _overviewKey,
+                  child: _MaterialContentSection(item: item),
+                ),
                 const SizedBox(height: 18),
-                _SectionTitle(
-                  title: _t(context, '评论区', 'Comments'),
-                  count: item.commentCount,
+                KeyedSubtree(
+                  key: _commentsKey,
+                  child: _SectionTitle(
+                    title: _t(context, '评论区', 'Comments'),
+                    count: item.commentCount,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 comments.when(
@@ -161,6 +182,35 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
         ),
       ],
     );
+  }
+
+  void _revealInitialSectionOnce() {
+    if (_didRevealInitialSection) {
+      return;
+    }
+    _didRevealInitialSection = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final targetContext =
+          (widget.initialSection == MaterialDetailInitialSection.comments
+                  ? _commentsKey
+                  : _overviewKey)
+              .currentContext;
+      if (targetContext == null) {
+        return;
+      }
+      Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+        alignment:
+            widget.initialSection == MaterialDetailInitialSection.comments
+            ? 0.04
+            : 0,
+      );
+    });
   }
 
   void _saveHistoryOnce(MaterialItem item) {
@@ -305,6 +355,9 @@ class _EntertainmentDetailBody extends StatelessWidget {
     required this.onReport,
     required this.onDismissReply,
     required this.onSend,
+    required this.scrollController,
+    required this.overviewKey,
+    required this.commentsKey,
   });
 
   final MaterialItem item;
@@ -316,6 +369,9 @@ class _EntertainmentDetailBody extends StatelessWidget {
   final ValueChanged<MaterialComment> onReport;
   final VoidCallback onDismissReply;
   final VoidCallback onSend;
+  final ScrollController scrollController;
+  final GlobalKey overviewKey;
+  final GlobalKey commentsKey;
 
   @override
   Widget build(BuildContext context) {
@@ -325,6 +381,7 @@ class _EntertainmentDetailBody extends StatelessWidget {
       children: [
         Expanded(
           child: ListView(
+            controller: scrollController,
             padding: EdgeInsets.zero,
             children: [
               _EntertainmentHero(item: item),
@@ -353,11 +410,19 @@ class _EntertainmentDetailBody extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 26),
-                    _MaterialContentSection(item: item),
+                    KeyedSubtree(
+                      key: overviewKey,
+                      child: _MaterialContentSection(item: item),
+                    ),
                     const SizedBox(height: 24),
-                    _SectionTitle(
-                      title: _t(context, '评论区', 'Comments'),
-                      count: item.commentCount,
+                    Divider(color: palette.outline, height: 1),
+                    const SizedBox(height: 24),
+                    KeyedSubtree(
+                      key: commentsKey,
+                      child: _SectionTitle(
+                        title: _t(context, '评论区', 'Comments'),
+                        count: item.commentCount,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     comments.when(
@@ -775,7 +840,7 @@ class _MaterialHero extends ConsumerWidget {
 }
 
 class _MaterialContentSection extends ConsumerWidget {
-  const _MaterialContentSection({required this.item});
+  const _MaterialContentSection({super.key, required this.item});
 
   final MaterialItem item;
 
@@ -796,7 +861,9 @@ class _MaterialContentSection extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _t(context, '内容概览', 'Overview'),
+            MaterialMusicSupport.isAudioItem(item)
+                ? _t(context, '歌曲介绍', 'Song Overview')
+                : _t(context, '内容概览', 'Overview'),
             style: TextStyle(
               color: palette.primaryText,
               fontSize: 18,
@@ -855,6 +922,10 @@ class _MaterialContentSection extends ConsumerWidget {
     MaterialItem item,
     String url,
   ) async {
+    if (MaterialMusicSupport.isAudioItem(item)) {
+      context.push('/materials/music/player/${item.id}', extra: item);
+      return;
+    }
     final trimmed = url.trim();
     if (trimmed.isNotEmpty) {
       final uri = Uri.tryParse(trimmed);
@@ -1410,6 +1481,7 @@ class _MaterialDetailPalette {
     required this.pageBackground,
     required this.cardBackground,
     required this.softBackground,
+    required this.outline,
     required this.activeSoftBackground,
     required this.avatarBackground,
     required this.entertainmentHeroBackground,
@@ -1427,6 +1499,7 @@ class _MaterialDetailPalette {
       pageBackground: scheme.surface,
       cardBackground: scheme.surfaceContainerLowest,
       softBackground: scheme.surfaceContainerLow,
+      outline: scheme.outlineVariant,
       activeSoftBackground: isDark
           ? const Color(0x33FF9585)
           : const Color(0xFFFFF1ED),
@@ -1453,6 +1526,7 @@ class _MaterialDetailPalette {
   final Color pageBackground;
   final Color cardBackground;
   final Color softBackground;
+  final Color outline;
   final Color activeSoftBackground;
   final Color avatarBackground;
   final Color entertainmentHeroBackground;

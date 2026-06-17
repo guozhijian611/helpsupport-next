@@ -105,6 +105,67 @@ class MaterialItem {
   final int historyDurationSeconds;
   final List<MaterialComment> comments;
 
+  MaterialItem copyWith({
+    int? id,
+    int? memberId,
+    int? categoryId,
+    String? mediaType,
+    String? materialType,
+    String? title,
+    String? summary,
+    String? artist,
+    String? album,
+    String? coverUrl,
+    String? contentUrl,
+    String? lyricUrl,
+    String? contentText,
+    List<String>? tags,
+    int? durationSeconds,
+    bool? isPublic,
+    bool? isRecommended,
+    int? viewCount,
+    int? likeCount,
+    int? collectCount,
+    int? commentCount,
+    String? createTime,
+    bool? isLiked,
+    bool? isCollected,
+    double? historyProgress,
+    int? historyDurationSeconds,
+    List<MaterialComment>? comments,
+  }) {
+    return MaterialItem(
+      id: id ?? this.id,
+      memberId: memberId ?? this.memberId,
+      categoryId: categoryId ?? this.categoryId,
+      mediaType: mediaType ?? this.mediaType,
+      materialType: materialType ?? this.materialType,
+      title: title ?? this.title,
+      summary: summary ?? this.summary,
+      artist: artist ?? this.artist,
+      album: album ?? this.album,
+      coverUrl: coverUrl ?? this.coverUrl,
+      contentUrl: contentUrl ?? this.contentUrl,
+      lyricUrl: lyricUrl ?? this.lyricUrl,
+      contentText: contentText ?? this.contentText,
+      tags: tags ?? this.tags,
+      durationSeconds: durationSeconds ?? this.durationSeconds,
+      isPublic: isPublic ?? this.isPublic,
+      isRecommended: isRecommended ?? this.isRecommended,
+      viewCount: viewCount ?? this.viewCount,
+      likeCount: likeCount ?? this.likeCount,
+      collectCount: collectCount ?? this.collectCount,
+      commentCount: commentCount ?? this.commentCount,
+      createTime: createTime ?? this.createTime,
+      isLiked: isLiked ?? this.isLiked,
+      isCollected: isCollected ?? this.isCollected,
+      historyProgress: historyProgress ?? this.historyProgress,
+      historyDurationSeconds:
+          historyDurationSeconds ?? this.historyDurationSeconds,
+      comments: comments ?? this.comments,
+    );
+  }
+
   factory MaterialItem.fromJson(Map<String, dynamic> json) {
     return MaterialItem(
       id: _intValue(json['id']),

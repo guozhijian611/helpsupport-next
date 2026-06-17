@@ -61,6 +61,7 @@ class _MaterialResourceScreenState
   bool _isCaching = false;
   bool _isLoadingText = false;
   bool _isPreparingResource = false;
+  bool _isRedirectingMusic = false;
   DateTime _openedAt = DateTime.now();
   DateTime _lastSavedAt = DateTime.fromMillisecondsSinceEpoch(0);
 
@@ -102,6 +103,10 @@ class _MaterialResourceScreenState
       body: SafeArea(
         child: detail.when(
           data: (item) {
+            final redirect = _maybeBuildMusicRedirect(item);
+            if (redirect != null) {
+              return redirect;
+            }
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _configureResource(item);
             });
@@ -118,6 +123,10 @@ class _MaterialResourceScreenState
             if (fallback == null) {
               return Center(child: Text(error.toString()));
             }
+            final redirect = _maybeBuildMusicRedirect(fallback);
+            if (redirect != null) {
+              return redirect;
+            }
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _configureResource(fallback);
             });
@@ -132,16 +141,36 @@ class _MaterialResourceScreenState
           },
           loading: () => fallback == null
               ? const Center(child: CircularProgressIndicator())
-              : _ResourceScaffold(
-                  cachePath: _cachePath,
-                  cacheProgress: _cacheProgress,
-                  isCaching: _isCaching,
-                  canCache: _canCacheActiveResource,
-                  onCache: _cacheActiveResource,
-                  child: _resourceBody(fallback),
-                ),
+              : (_maybeBuildMusicRedirect(fallback) ??
+                    _ResourceScaffold(
+                      cachePath: _cachePath,
+                      cacheProgress: _cacheProgress,
+                      isCaching: _isCaching,
+                      canCache: _canCacheActiveResource,
+                      onCache: _cacheActiveResource,
+                      child: _resourceBody(fallback),
+                    )),
         ),
       ),
+    );
+  }
+
+  Widget? _maybeBuildMusicRedirect(MaterialItem item) {
+    if (!_isAudioResource(item)) {
+      _isRedirectingMusic = false;
+      return null;
+    }
+    if (!_isRedirectingMusic) {
+      _isRedirectingMusic = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        context.replace('/materials/music/player/${item.id}', extra: item);
+      });
+    }
+    return _ResourceLoading(
+      text: _t(context, '正在切换新的音乐播放器', 'Switching to music player'),
     );
   }
 
