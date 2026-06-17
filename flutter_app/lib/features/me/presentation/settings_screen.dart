@@ -1145,7 +1145,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         _ChoiceSheetItem('en', 'English'),
       ],
     );
-    if (selected == null) {
+    if (selected == null || !mounted) {
       return;
     }
     unawaited(ref.read(appLocaleProvider.notifier).setLocale(Locale(selected)));
@@ -1165,7 +1165,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         _ChoiceSheetItem(ThemeMode.dark, _t(context, '深色', 'Dark')),
       ],
     );
-    if (selected == null) {
+    if (selected == null || !mounted) {
       return;
     }
     unawaited(ref.read(appThemeModeProvider.notifier).setMode(selected));
@@ -1191,7 +1191,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         ),
       ],
     );
-    if (selected == null) {
+    if (selected == null || !mounted) {
       return;
     }
     unawaited(ref.read(appTextScaleProvider.notifier).setScale(selected));
@@ -1408,6 +1408,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         );
       },
     );
+    if (!mounted) {
+      return;
+    }
     if (shouldReplace == true) {
       await _pickAvatar();
     }
@@ -1606,6 +1609,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       hintText: _t(context, '请输入手机号', 'Enter phone number'),
       keyboardType: TextInputType.phone,
     );
+    if (!mounted) {
+      return;
+    }
     if (mobile == null || mobile.trim().isEmpty) {
       return;
     }
@@ -1631,6 +1637,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         hintText: _t(context, '请输入短信验证码', 'Enter SMS verification code'),
         keyboardType: TextInputType.number,
       );
+      if (!mounted) {
+        return;
+      }
       if (code == null || code.trim().isEmpty) {
         return;
       }
@@ -1667,6 +1676,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       hintText: _t(context, '请输入邮箱', 'Enter email'),
       keyboardType: TextInputType.emailAddress,
     );
+    if (!mounted) {
+      return;
+    }
     if (email == null || email.trim().isEmpty) {
       return;
     }
@@ -1692,6 +1704,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         hintText: _t(context, '请输入邮箱验证码', 'Enter email verification code'),
         keyboardType: TextInputType.number,
       );
+      if (!mounted) {
+        return;
+      }
       if (code == null || code.trim().isEmpty) {
         return;
       }
@@ -1973,7 +1988,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         ],
       ),
     );
-    if (confirmed != true) {
+    if (confirmed != true || !mounted) {
       return;
     }
 
@@ -2447,6 +2462,7 @@ class _SettingsNavRow extends StatelessWidget {
     final iconBackground = danger
         ? palette.danger.withValues(alpha: 0.10)
         : palette.iconBackground;
+    final hasChevron = showChevron && onTap != null;
 
     return InkWell(
       borderRadius: BorderRadius.circular(24),
@@ -2455,71 +2471,85 @@ class _SettingsNavRow extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 68),
         child: Padding(
           padding: EdgeInsets.fromLTRB(icon == null ? 18 : 16, 12, 14, 12),
-          child: Row(
-            children: [
-              if (icon != null) ...[
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: iconBackground,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(icon, size: 21, color: accentColor),
-                ),
-                const SizedBox(width: 14),
-              ],
-              Expanded(
-                flex: value != null ? 11 : 1,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: titleColor,
-                        fontWeight: FontWeight.w600,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final valueWidth = value == null
+                  ? 0.0
+                  : (constraints.maxWidth * (icon == null ? 0.32 : 0.36))
+                        .clamp(88.0, icon == null ? 126.0 : 154.0)
+                        .toDouble();
+              return Row(
+                children: [
+                  if (icon != null) ...[
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: iconBackground,
+                        borderRadius: BorderRadius.circular(14),
                       ),
+                      child: Icon(icon, size: 21, color: accentColor),
                     ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: palette.secondaryText,
+                    const SizedBox(width: 14),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: titleColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: palette.secondaryText,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (value != null) ...[
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: valueWidth,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          value!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.right,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: palette.valueText,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ],
-                  ],
-                ),
-              ),
-              if (value != null) ...[
-                const SizedBox(width: 12),
-                Flexible(
-                  flex: 10,
-                  child: Text(
-                    value!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.right,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: palette.valueText,
-                      fontWeight: FontWeight.w600,
                     ),
-                  ),
-                ),
-              ],
-              if (trailing != null) ...[const SizedBox(width: 12), trailing!],
-              if (showChevron && onTap != null) ...[
-                const SizedBox(width: 4),
-                Icon(Icons.chevron_right_rounded, color: palette.chevron),
-              ],
-            ],
+                  ],
+                  if (trailing != null) ...[
+                    const SizedBox(width: 12),
+                    trailing!,
+                  ],
+                  if (hasChevron) ...[
+                    const SizedBox(width: 4),
+                    Icon(Icons.chevron_right_rounded, color: palette.chevron),
+                  ],
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -2578,13 +2608,20 @@ class _SettingsSwitchRow extends StatelessWidget {
                 ],
               ),
             ),
-            Switch(
-              value: value,
-              onChanged: onChanged,
-              activeThumbColor: palette.accent,
-              activeTrackColor: palette.switchActiveTrack,
-              inactiveThumbColor: palette.switchInactiveThumb,
-              inactiveTrackColor: palette.switchInactiveTrack,
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 58,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Switch(
+                  value: value,
+                  onChanged: onChanged,
+                  activeThumbColor: palette.accent,
+                  activeTrackColor: palette.switchActiveTrack,
+                  inactiveThumbColor: palette.switchInactiveThumb,
+                  inactiveTrackColor: palette.switchInactiveTrack,
+                ),
+              ),
             ),
           ],
         ),
@@ -2729,33 +2766,133 @@ Future<String?> _showTextInputDialog({
   bool obscureText = false,
   TextInputType? keyboardType,
 }) async {
-  final controller = TextEditingController(text: initialValue);
-  final result = await showDialog<String>(
+  final palette = _SettingsPalette.of(context);
+  return showModalBottomSheet<String>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(title),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        maxLines: obscureText ? 1 : maxLines,
-        obscureText: obscureText,
-        keyboardType: keyboardType,
-        decoration: InputDecoration(hintText: hintText),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
-          child: Text(_t(dialogContext, '取消', 'Cancel')),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(dialogContext).pop(controller.text),
-          child: Text(_t(dialogContext, '确定', 'Confirm')),
-        ),
-      ],
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: palette.pageBackground,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    showDragHandle: true,
+    builder: (sheetContext) => _SettingsTextInputSheet(
+      title: title,
+      initialValue: initialValue,
+      hintText: hintText,
+      maxLines: maxLines,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
     ),
   );
-  controller.dispose();
-  return result;
+}
+
+class _SettingsTextInputSheet extends StatefulWidget {
+  const _SettingsTextInputSheet({
+    required this.title,
+    required this.initialValue,
+    required this.hintText,
+    required this.maxLines,
+    required this.obscureText,
+    this.keyboardType,
+  });
+
+  final String title;
+  final String initialValue;
+  final String hintText;
+  final int maxLines;
+  final bool obscureText;
+  final TextInputType? keyboardType;
+
+  @override
+  State<_SettingsTextInputSheet> createState() =>
+      _SettingsTextInputSheetState();
+}
+
+class _SettingsTextInputSheetState extends State<_SettingsTextInputSheet> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _close([String? value]) {
+    FocusScope.of(context).unfocus();
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = _SettingsPalette.of(context);
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+            child: Text(
+              widget.title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: palette.primaryText,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: palette.cardBackground,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: palette.cardBorder),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+              child: TextField(
+                controller: _controller,
+                autofocus: true,
+                maxLines: widget.obscureText ? 1 : widget.maxLines,
+                obscureText: widget.obscureText,
+                keyboardType: widget.keyboardType,
+                decoration: InputDecoration(
+                  hintText: widget.hintText,
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _close(),
+                  child: Text(_t(context, '取消', 'Cancel')),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => _close(_controller.text),
+                  child: Text(_t(context, '确定', 'Confirm')),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 void _openDetail(BuildContext context, SettingsSectionType section) {
