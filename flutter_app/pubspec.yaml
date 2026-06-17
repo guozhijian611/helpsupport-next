@@ -80,6 +80,7 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
   config:
+    enable-lldb-debugging: true
     enable-swift-package-manager: false
   generate: true
 
