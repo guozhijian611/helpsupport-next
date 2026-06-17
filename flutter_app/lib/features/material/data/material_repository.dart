@@ -107,11 +107,15 @@ class MaterialRepository {
     required int materialId,
     int page = 1,
     int pageSize = 20,
+    int parentId = 0,
+    bool includeReplies = false,
   }) async {
     final result = await _apiClient.getApi<MaterialPage<MaterialComment>>(
       '/app/help/material/comments',
       queryParameters: {
         'material_id': materialId,
+        if (parentId > 0) 'parent_id': parentId,
+        if (includeReplies) 'with_replies': 1,
         'page': page,
         'page_size': pageSize,
       },
@@ -124,10 +128,15 @@ class MaterialRepository {
   Future<MaterialComment> createComment({
     required int materialId,
     required String content,
+    int? parentId,
   }) async {
     final result = await _apiClient.postApi<MaterialComment>(
       '/app/help/material/comment',
-      data: {'material_id': materialId, 'content': content},
+      data: {
+        'material_id': materialId,
+        'content': content,
+        if (parentId != null && parentId > 0) 'parent_id': parentId,
+      },
       decode: (value) {
         if (value is Map<String, dynamic>) {
           return MaterialComment.fromJson(value);
@@ -184,6 +193,29 @@ class MaterialRepository {
     return result.data ?? false;
   }
 
+  Future<void> reportTarget({
+    required int targetType,
+    required int targetId,
+    required String reason,
+    String description = '',
+  }) async {
+    await _apiClient.postApi<Map<String, dynamic>>(
+      '/app/help/material/report',
+      data: {
+        'target_type': targetType,
+        'target_id': targetId,
+        'reason': reason,
+        if (description.trim().isNotEmpty) 'description': description.trim(),
+      },
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return value;
+        }
+        return const {};
+      },
+    );
+  }
+
   Future<MaterialUploadResult> uploadPrivateMaterialFile({
     required PlatformFile file,
   }) async {
@@ -228,6 +260,24 @@ class MaterialRepository {
       throw const FormatException('私人素材保存失败');
     }
     return item;
+  }
+
+  Future<MaterialCategory> savePrivateCategory(String name) async {
+    final result = await _apiClient.postApi<MaterialCategory>(
+      '/app/help/material/private/category',
+      data: {'name': name},
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return MaterialCategory.fromJson(value);
+        }
+        throw const FormatException('Unexpected private category shape');
+      },
+    );
+    final category = result.data;
+    if (category == null || category.id <= 0) {
+      throw const FormatException('私人分类保存失败');
+    }
+    return category;
   }
 
   Future<void> saveHistory({

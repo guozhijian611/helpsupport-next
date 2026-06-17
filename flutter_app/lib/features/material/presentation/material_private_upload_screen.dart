@@ -23,6 +23,7 @@ class _MaterialPrivateUploadScreenState
   final _linkController = TextEditingController();
 
   String _mediaType = 'txt';
+  int _selectedCategoryId = 0;
   PlatformFile? _selectedFile;
   bool _submitting = false;
 
@@ -46,6 +47,12 @@ class _MaterialPrivateUploadScreenState
   Widget build(BuildContext context) {
     final palette = _PrivateUploadPalette.of(context);
     final option = _currentOption;
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    final categoriesQuery = MaterialCategoriesQuery(
+      type: 'private',
+      locale: locale,
+    );
+    final categories = ref.watch(materialCategoriesProvider(categoriesQuery));
 
     return Scaffold(
       backgroundColor: palette.pageBackground,
@@ -69,7 +76,12 @@ class _MaterialPrivateUploadScreenState
               linkController: _linkController,
               selectedFile: _selectedFile,
               mediaType: _mediaType,
+              selectedCategoryId: _selectedCategoryId,
+              categories: categories.asData?.value ?? const [],
               option: option,
+              onCategoryChanged: (value) =>
+                  setState(() => _selectedCategoryId = value ?? 0),
+              onCreateCategory: _createCategory,
               onMediaChanged: (value) {
                 if (value == null || value == _mediaType) {
                   return;
@@ -126,7 +138,7 @@ class _MaterialPrivateUploadScreenState
 
     final option = _currentOption;
     final payload = <String, dynamic>{
-      'category_id': 0,
+      'category_id': _selectedCategoryId,
       'media_type': option.value,
       'title': title,
       'summary': _summaryController.text.trim(),
@@ -147,6 +159,9 @@ class _MaterialPrivateUploadScreenState
             .read(materialRepositoryProvider)
             .uploadPrivateMaterialFile(file: file);
         payload['content_url'] = upload.url;
+        if (option.value == 'image') {
+          payload['cover_url'] = upload.url;
+        }
         if ((payload['summary'] as String).isEmpty &&
             upload.originName.trim().isNotEmpty) {
           payload['summary'] = upload.originName.trim();
@@ -195,16 +210,18 @@ class _MaterialPrivateUploadScreenState
     try {
       await ref.read(materialRepositoryProvider).savePrivateMaterial(payload);
       final locale = Localizations.localeOf(context).toLanguageTag();
-      ref.invalidate(
-        materialListProvider(
-          MaterialListQuery(
-            materialType: 'private',
-            categoryId: 0,
-            keyword: '',
-            locale: locale,
+      for (final categoryId in {0, _selectedCategoryId}) {
+        ref.invalidate(
+          materialListProvider(
+            MaterialListQuery(
+              materialType: 'private',
+              categoryId: categoryId,
+              keyword: '',
+              locale: locale,
+            ),
           ),
-        ),
-      );
+        );
+      }
       if (!mounted) {
         return;
       }
@@ -215,6 +232,79 @@ class _MaterialPrivateUploadScreenState
         return;
       }
       context.showCenteredNotice(error.toString());
+    }
+  }
+
+  Future<void> _createCategory() async {
+    final controller = TextEditingController();
+    try {
+      final name = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) {
+          String? errorText;
+          return StatefulBuilder(
+            builder: (context, setState) => AlertDialog(
+              title: Text(_t(context, '新建分类', 'New category')),
+              content: TextField(
+                controller: controller,
+                autofocus: true,
+                maxLength: 60,
+                decoration: InputDecoration(
+                  labelText: _t(context, '分类名称', 'Category name'),
+                  errorText: errorText,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: Text(_t(context, '取消', 'Cancel')),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final value = controller.text.trim();
+                    if (value.isEmpty) {
+                      setState(() {
+                        errorText = _t(
+                          context,
+                          '请填写分类名称',
+                          'Enter a category name',
+                        );
+                      });
+                      return;
+                    }
+                    Navigator.of(dialogContext).pop(value);
+                  },
+                  child: Text(_t(context, '保存', 'Save')),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+      if (name == null || name.trim().isEmpty) {
+        return;
+      }
+      final category = await ref
+          .read(materialRepositoryProvider)
+          .savePrivateCategory(name.trim());
+      final locale = Localizations.localeOf(context).toLanguageTag();
+      ref.invalidate(
+        materialCategoriesProvider(
+          MaterialCategoriesQuery(type: 'private', locale: locale),
+        ),
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() => _selectedCategoryId = category.id);
+      context.showCenteredNotice(_t(context, '分类已创建', 'Category created'));
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(error.toString());
+    } finally {
+      controller.dispose();
     }
   }
 }
@@ -228,7 +318,11 @@ class _PrivateUploadPanel extends StatelessWidget {
     required this.linkController,
     required this.selectedFile,
     required this.mediaType,
+    required this.selectedCategoryId,
+    required this.categories,
     required this.option,
+    required this.onCategoryChanged,
+    required this.onCreateCategory,
     required this.onMediaChanged,
     required this.onPickFile,
     required this.onClearFile,
@@ -241,7 +335,11 @@ class _PrivateUploadPanel extends StatelessWidget {
   final TextEditingController linkController;
   final PlatformFile? selectedFile;
   final String mediaType;
+  final int selectedCategoryId;
+  final List<MaterialCategory> categories;
   final _PrivateMediaOption option;
+  final ValueChanged<int?> onCategoryChanged;
+  final VoidCallback onCreateCategory;
   final ValueChanged<String?> onMediaChanged;
   final VoidCallback onPickFile;
   final VoidCallback onClearFile;
@@ -256,6 +354,46 @@ class _PrivateUploadPanel extends StatelessWidget {
       ),
       child: Column(
         children: [
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<int>(
+                  value: selectedCategoryId,
+                  decoration: _inputDecoration(
+                    context,
+                    _t(context, '素材分类', 'Category'),
+                  ),
+                  items: [
+                    DropdownMenuItem(
+                      value: 0,
+                      child: Text(_t(context, '未分类', 'Uncategorized')),
+                    ),
+                    for (final category in categories)
+                      DropdownMenuItem(
+                        value: category.id,
+                        child: Text(category.name),
+                      ),
+                    if (selectedCategoryId > 0 &&
+                        categories.every(
+                          (category) => category.id != selectedCategoryId,
+                        ))
+                      DropdownMenuItem(
+                        value: selectedCategoryId,
+                        child: Text('#$selectedCategoryId'),
+                      ),
+                  ],
+                  onChanged: onCategoryChanged,
+                ),
+              ),
+              const SizedBox(width: 10),
+              IconButton.filledTonal(
+                tooltip: _t(context, '新建分类', 'New category'),
+                onPressed: onCreateCategory,
+                icon: const Icon(Icons.create_new_folder_outlined),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
           DropdownButtonFormField<String>(
             value: mediaType,
             decoration: _inputDecoration(context, _t(context, '素材类型', 'Type')),
@@ -500,6 +638,13 @@ const _privateMediaOptions = <_PrivateMediaOption>[
     en: 'Music MP3',
     icon: Icons.music_note_rounded,
     extensions: ['mp3'],
+  ),
+  _PrivateMediaOption(
+    value: 'image',
+    zh: '图片素材',
+    en: 'Image',
+    icon: Icons.image_rounded,
+    extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
   ),
   _PrivateMediaOption(
     value: 'link',

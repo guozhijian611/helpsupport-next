@@ -51,6 +51,11 @@
             <span>{{ plainText(row.content).slice(0, 72) }}</span>
           </ElTooltip>
         </template>
+        <template #audit_status="{ row }">
+          <ElTag :type="auditStatusType(row.audit_status)">
+            {{ auditStatusText(row.audit_status) }}
+          </ElTag>
+        </template>
         <template #status="{ row }">
           <ElTag :type="row.status === 1 ? 'success' : 'info'">
             {{ row.status === 1 ? '正常' : '隐藏' }}
@@ -59,6 +64,24 @@
         <template #operation="{ row }">
           <div class="flex gap-2">
             <ElButton size="small" @click="openDetail(row)">查看</ElButton>
+            <ElButton
+              v-if="row.audit_status !== 1"
+              v-permission="'help:material:comment:audit'"
+              size="small"
+              type="success"
+              @click="auditComment(row, 1)"
+            >
+              通过
+            </ElButton>
+            <ElButton
+              v-if="row.audit_status !== 2"
+              v-permission="'help:material:comment:audit'"
+              size="small"
+              type="warning"
+              @click="auditComment(row, 2)"
+            >
+              拒绝
+            </ElButton>
             <ElButton
               v-if="row.status !== 2"
               v-permission="'help:material:comment:status'"
@@ -101,9 +124,18 @@
         <ElDescriptionsItem label="评论内容">
           <div class="content-text">{{ detail.content }}</div>
         </ElDescriptionsItem>
+        <ElDescriptionsItem label="审核状态">
+          {{ auditStatusText(detail.audit_status) }}
+        </ElDescriptionsItem>
+        <ElDescriptionsItem label="审核备注">{{ detail.audit_remark || '无' }}</ElDescriptionsItem>
+        <ElDescriptionsItem label="审核人">{{ detail.audit_by || '无' }}</ElDescriptionsItem>
+        <ElDescriptionsItem label="审核时间">{{ detail.audit_time || '无' }}</ElDescriptionsItem>
         <ElDescriptionsItem label="点赞数">{{ detail.like_count }}</ElDescriptionsItem>
         <ElDescriptionsItem label="状态">{{ detail.status === 1 ? '正常' : '隐藏' }}</ElDescriptionsItem>
         <ElDescriptionsItem label="备注">{{ detail.remark || '无' }}</ElDescriptionsItem>
+        <ElDescriptionsItem label="审核日志">
+          <AuditLogTimeline :logs="detail.audit_logs || []" />
+        </ElDescriptionsItem>
         <ElDescriptionsItem label="评论时间">{{ detail.create_time }}</ElDescriptionsItem>
         <ElDescriptionsItem label="更新时间">{{ detail.update_time || '无' }}</ElDescriptionsItem>
       </ElDescriptions>
@@ -115,6 +147,7 @@
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { useTable } from '@/hooks/core/useTable'
   import { useSaiAdmin } from '@/composables/useSaiAdmin'
+  import AuditLogTimeline from '../../components/AuditLogTimeline.vue'
   import api from '../../api/material/comment'
   import TableSearch from './modules/table-search.vue'
 
@@ -124,6 +157,7 @@
     material_title: undefined,
     member_id: undefined,
     content: undefined,
+    audit_status: undefined,
     status: undefined
   })
 
@@ -158,9 +192,12 @@
         { prop: 'member_id', label: '会员', minWidth: 160, useSlot: true },
         { prop: 'content', label: '评论内容', minWidth: 280, useSlot: true },
         { prop: 'like_count', label: '点赞', width: 80 },
+        { prop: 'audit_status', label: '审核', width: 110, useSlot: true },
+        { prop: 'audit_by', label: '审核人', width: 100 },
+        { prop: 'audit_time', label: '审核时间', width: 170 },
         { prop: 'status', label: '状态', width: 90, useSlot: true },
         { prop: 'create_time', label: '评论时间', width: 170 },
-        { prop: 'operation', label: '操作', width: 230, fixed: 'right', useSlot: true }
+        { prop: 'operation', label: '操作', width: 320, fixed: 'right', useSlot: true }
       ]
     }
   })
@@ -172,6 +209,24 @@
   const openDetail = async (row: Record<string, any>) => {
     detail.value = await api.read(row.id)
     detailVisible.value = true
+  }
+
+  const auditComment = async (row: Record<string, any>, auditStatus: number) => {
+    let auditRemark = ''
+    if (auditStatus === 2) {
+      const result = await ElMessageBox.prompt('请输入拒绝原因', '审核素材评论', {
+        inputType: 'textarea',
+        inputValidator: (value) => String(value || '').trim() !== '' || '拒绝原因必须填写',
+        confirmButtonText: '确定',
+        cancelButtonText: '取消'
+      })
+      auditRemark = String(result.value || '').trim()
+    } else {
+      await ElMessageBox.confirm(`确定通过评论 #${row.id} 吗？`, '审核素材评论', { type: 'warning' })
+    }
+    await api.audit({ id: row.id, audit_status: auditStatus, audit_remark: auditRemark })
+    ElMessage.success('审核成功')
+    refreshData()
   }
 
   const setCommentStatus = async (row: Record<string, any>, status: number) => {
@@ -204,6 +259,26 @@
       entertainment: '娱乐素材'
     }
     return map[String(type || '')] || '未知类型'
+  }
+
+  const auditStatusText = (status: number) => {
+    const map: Record<number, string> = {
+      0: '待审核',
+      1: '已通过',
+      2: '已拒绝',
+      3: 'AI预审'
+    }
+    return map[Number(status)] || '未知'
+  }
+
+  const auditStatusType = (status: number) => {
+    const map: Record<number, 'success' | 'warning' | 'danger' | 'info'> = {
+      0: 'warning',
+      1: 'success',
+      2: 'danger',
+      3: 'warning'
+    }
+    return map[Number(status)] || 'info'
   }
 </script>
 

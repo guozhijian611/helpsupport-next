@@ -23,6 +23,7 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
   final _commentController = TextEditingController();
   bool _isSending = false;
   bool _historySaved = false;
+  MaterialComment? _replyTarget;
 
   @override
   void dispose() {
@@ -59,6 +60,10 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
                 comments: comments,
                 commentController: _commentController,
                 isSending: _isSending,
+                replyTarget: _replyTarget,
+                onReply: _replyComment,
+                onReport: _reportComment,
+                onDismissReply: () => setState(() => _replyTarget = null),
                 onSend: _sendComment,
               );
             }
@@ -101,13 +106,16 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
                                 )
                               : Column(
                                   children: [
-                                    for (final comment in page.list)
+                                    for (final node in _commentNodes(page.list))
                                       Padding(
                                         padding: const EdgeInsets.only(
                                           bottom: 12,
                                         ),
-                                        child: _MaterialCommentCard(
-                                          comment: comment,
+                                        child: _MaterialCommentThread(
+                                          node: node,
+                                          depth: 0,
+                                          onReply: _replyComment,
+                                          onReport: _reportComment,
                                         ),
                                       ),
                                   ],
@@ -126,6 +134,8 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
                 _CommentComposer(
                   controller: _commentController,
                   isSending: _isSending,
+                  replyTarget: _replyTarget,
+                  onDismissReply: () => setState(() => _replyTarget = null),
                   onSend: _sendComment,
                 ),
               ],
@@ -155,6 +165,43 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
     );
   }
 
+  List<_MaterialCommentNode> _commentNodes(List<MaterialComment> source) {
+    return _materialCommentNodes(source);
+  }
+
+  void _replyComment(MaterialComment comment) {
+    setState(() => _replyTarget = comment);
+  }
+
+  Future<void> _reportComment(MaterialComment comment) async {
+    final draft = await _showMaterialReportDialog(
+      context,
+      title: _t(context, '举报评论', 'Report comment'),
+    );
+    if (draft == null) {
+      return;
+    }
+    try {
+      await ref
+          .read(materialRepositoryProvider)
+          .reportTarget(
+            targetType: 2,
+            targetId: comment.id,
+            reason: draft.reason,
+            description: draft.description,
+          );
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(_t(context, '举报已提交', 'Report submitted'));
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(error.toString());
+    }
+  }
+
   Future<void> _sendComment() async {
     final content = _commentController.text.trim();
     if (content.isEmpty || _isSending) {
@@ -165,7 +212,15 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
     try {
       await ref
           .read(materialRepositoryProvider)
-          .createComment(materialId: widget.materialId, content: content);
+          .createComment(
+            materialId: widget.materialId,
+            content: content,
+            parentId: _replyTarget == null
+                ? null
+                : (_replyTarget!.parentId > 0
+                      ? _replyTarget!.parentId
+                      : _replyTarget!.id),
+          );
       _commentController.clear();
       final locale = Localizations.localeOf(context).toLanguageTag();
       ref.invalidate(
@@ -174,6 +229,9 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
         ),
       );
       ref.invalidate(materialCommentsProvider(widget.materialId));
+      if (mounted) {
+        setState(() => _replyTarget = null);
+      }
     } on Object catch (error) {
       if (!mounted) {
         return;
@@ -187,12 +245,50 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
   }
 }
 
+class _MaterialCommentNode {
+  const _MaterialCommentNode({required this.comment, required this.replies});
+
+  final MaterialComment comment;
+  final List<_MaterialCommentNode> replies;
+}
+
+List<_MaterialCommentNode> _materialCommentNodes(List<MaterialComment> source) {
+  final repliesByParent = <int, List<MaterialComment>>{};
+  final roots = <MaterialComment>[];
+  for (final comment in source) {
+    if (comment.parentId > 0) {
+      repliesByParent.putIfAbsent(comment.parentId, () => []).add(comment);
+    } else {
+      roots.add(comment);
+    }
+  }
+  roots.sort((left, right) => left.id.compareTo(right.id));
+  for (final replies in repliesByParent.values) {
+    replies.sort((left, right) => left.id.compareTo(right.id));
+  }
+
+  _MaterialCommentNode buildNode(MaterialComment comment) {
+    return _MaterialCommentNode(
+      comment: comment,
+      replies: (repliesByParent[comment.id] ?? const <MaterialComment>[])
+          .map(buildNode)
+          .toList(growable: false),
+    );
+  }
+
+  return roots.map(buildNode).toList(growable: false);
+}
+
 class _EntertainmentDetailBody extends StatelessWidget {
   const _EntertainmentDetailBody({
     required this.item,
     required this.comments,
     required this.commentController,
     required this.isSending,
+    required this.replyTarget,
+    required this.onReply,
+    required this.onReport,
+    required this.onDismissReply,
     required this.onSend,
   });
 
@@ -200,6 +296,10 @@ class _EntertainmentDetailBody extends StatelessWidget {
   final AsyncValue<MaterialPage<MaterialComment>> comments;
   final TextEditingController commentController;
   final bool isSending;
+  final MaterialComment? replyTarget;
+  final ValueChanged<MaterialComment> onReply;
+  final ValueChanged<MaterialComment> onReport;
+  final VoidCallback onDismissReply;
   final VoidCallback onSend;
 
   @override
@@ -256,11 +356,16 @@ class _EntertainmentDetailBody extends StatelessWidget {
                             )
                           : Column(
                               children: [
-                                for (final comment in page.list)
+                                for (final node in _materialCommentNodes(
+                                  page.list,
+                                ))
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 12),
-                                    child: _MaterialCommentCard(
-                                      comment: comment,
+                                    child: _MaterialCommentThread(
+                                      node: node,
+                                      depth: 0,
+                                      onReply: onReply,
+                                      onReport: onReport,
                                     ),
                                   ),
                               ],
@@ -281,6 +386,8 @@ class _EntertainmentDetailBody extends StatelessWidget {
         _CommentComposer(
           controller: commentController,
           isSending: isSending,
+          replyTarget: replyTarget,
+          onDismissReply: onDismissReply,
           onSend: onSend,
         ),
       ],
@@ -313,6 +420,10 @@ class _EntertainmentHero extends ConsumerWidget {
                   ? Image.network(
                       coverUrl,
                       fit: BoxFit.cover,
+                      loadingBuilder: (_, child, loadingProgress) =>
+                          loadingProgress == null
+                          ? child
+                          : const _EntertainmentCoverShell(),
                       errorBuilder: (_, _, _) =>
                           const _EntertainmentCoverShell(),
                     )
@@ -389,6 +500,28 @@ class _EntertainmentCoverShell extends StatelessWidget {
   }
 }
 
+class _MaterialDetailImageLoadingShell extends StatelessWidget {
+  const _MaterialDetailImageLoadingShell();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _MaterialDetailPalette.of(context);
+    return SizedBox(
+      height: 188,
+      width: double.infinity,
+      child: ColoredBox(
+        color: palette.softBackground,
+        child: Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: palette.secondaryText.withValues(alpha: 0.58),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _EntertainmentStatTile extends StatelessWidget {
   const _EntertainmentStatTile({required this.value, required this.label});
 
@@ -454,7 +587,12 @@ class _MaterialHero extends ConsumerWidget {
                 height: 188,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                loadingBuilder: (_, child, loadingProgress) =>
+                    loadingProgress == null
+                    ? child
+                    : const _MaterialDetailImageLoadingShell(),
+                errorBuilder: (_, _, _) =>
+                    const _MaterialDetailImageLoadingShell(),
               ),
             ),
           if (url.isNotEmpty) const SizedBox(height: 16),
@@ -520,6 +658,17 @@ class _MaterialHero extends ConsumerWidget {
                 onTap: null,
                 active: false,
               ),
+              const SizedBox(width: 10),
+              IconButton(
+                tooltip: _t(context, '举报素材', 'Report material'),
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _reportMaterial(context, ref),
+                icon: Icon(
+                  Icons.flag_outlined,
+                  color: palette.secondaryText,
+                  size: 20,
+                ),
+              ),
               const Spacer(),
               Text(
                 item.createTime,
@@ -572,6 +721,35 @@ class _MaterialHero extends ConsumerWidget {
           ),
         ),
       );
+    } on Object catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      context.showCenteredNotice(error.toString());
+    }
+  }
+
+  Future<void> _reportMaterial(BuildContext context, WidgetRef ref) async {
+    final draft = await _showMaterialReportDialog(
+      context,
+      title: _t(context, '举报素材', 'Report material'),
+    );
+    if (draft == null) {
+      return;
+    }
+    try {
+      await ref
+          .read(materialRepositoryProvider)
+          .reportTarget(
+            targetType: 1,
+            targetId: item.id,
+            reason: draft.reason,
+            description: draft.description,
+          );
+      if (!context.mounted) {
+        return;
+      }
+      context.showCenteredNotice(_t(context, '举报已提交', 'Report submitted'));
     } on Object catch (error) {
       if (!context.mounted) {
         return;
@@ -676,10 +854,56 @@ class _MaterialContentSection extends ConsumerWidget {
   }
 }
 
+class _MaterialCommentThread extends StatelessWidget {
+  const _MaterialCommentThread({
+    required this.node,
+    required this.depth,
+    required this.onReply,
+    required this.onReport,
+  });
+
+  final _MaterialCommentNode node;
+  final int depth;
+  final ValueChanged<MaterialComment> onReply;
+  final ValueChanged<MaterialComment> onReport;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _MaterialCommentCard(
+          comment: node.comment,
+          indent: depth * 22.0,
+          onReply: () => onReply(node.comment),
+          onReport: () => onReport(node.comment),
+        ),
+        for (final reply in node.replies)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: _MaterialCommentThread(
+              node: reply,
+              depth: depth + 1,
+              onReply: onReply,
+              onReport: onReport,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _MaterialCommentCard extends ConsumerWidget {
-  const _MaterialCommentCard({required this.comment});
+  const _MaterialCommentCard({
+    required this.comment,
+    required this.indent,
+    required this.onReply,
+    required this.onReport,
+  });
 
   final MaterialComment comment;
+  final double indent;
+  final VoidCallback onReply;
+  final VoidCallback onReport;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -687,87 +911,102 @@ class _MaterialCommentCard extends ConsumerWidget {
     final apiClient = ref.watch(apiClientProvider);
     final avatarUrl = apiClient.resolveUrl(comment.authorAvatar);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: palette.cardBackground,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: palette.avatarBackground,
-            backgroundImage: avatarUrl.isNotEmpty
-                ? NetworkImage(avatarUrl)
-                : null,
-            child: avatarUrl.isEmpty
-                ? const Icon(
-                    Icons.person_outline_rounded,
-                    color: Color(0xFFFF9585),
-                  )
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: EdgeInsets.only(left: indent),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: palette.cardBackground,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: palette.avatarBackground,
+              backgroundImage: avatarUrl.isNotEmpty
+                  ? NetworkImage(avatarUrl)
+                  : null,
+              child: avatarUrl.isEmpty
+                  ? const Icon(
+                      Icons.person_outline_rounded,
+                      color: Color(0xFFFF9585),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    comment.authorName,
+                    style: TextStyle(
+                      color: palette.secondaryText,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    comment.content,
+                    style: TextStyle(
+                      color: palette.primaryText,
+                      fontSize: 16,
+                      height: 1.65,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Text(
+                        comment.createTime,
+                        style: TextStyle(
+                          color: palette.mutedText,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      GestureDetector(
+                        onTap: onReply,
+                        child: Text(
+                          _t(context, '回复', 'Reply'),
+                          style: TextStyle(
+                            color: palette.secondaryText,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Column(
               children: [
-                Text(
-                  comment.authorName,
-                  style: TextStyle(
-                    color: palette.secondaryText,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                IconButton(
+                  tooltip: _t(context, '点赞评论', 'Like comment'),
+                  onPressed: () => _toggleCommentLike(context, ref),
+                  icon: Icon(
+                    comment.isLiked
+                        ? Icons.thumb_up_alt_rounded
+                        : Icons.thumb_up_alt_outlined,
+                    color: comment.isLiked
+                        ? const Color(0xFFFF9585)
+                        : palette.bodyText,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  comment.content,
-                  style: TextStyle(
-                    color: palette.primaryText,
-                    fontSize: 16,
-                    height: 1.65,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Text(
-                      comment.createTime,
-                      style: TextStyle(
-                        color: palette.mutedText,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Text(
-                      _t(context, '回复', 'Reply'),
-                      style: TextStyle(
-                        color: palette.secondaryText,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
+                IconButton(
+                  tooltip: _t(context, '举报评论', 'Report comment'),
+                  onPressed: onReport,
+                  icon: Icon(Icons.flag_outlined, color: palette.secondaryText),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 12),
-          IconButton(
-            tooltip: _t(context, '点赞评论', 'Like comment'),
-            onPressed: () => _toggleCommentLike(context, ref),
-            icon: Icon(
-              comment.isLiked
-                  ? Icons.thumb_up_alt_rounded
-                  : Icons.thumb_up_alt_outlined,
-              color: comment.isLiked
-                  ? const Color(0xFFFF9585)
-                  : palette.bodyText,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -795,11 +1034,15 @@ class _CommentComposer extends StatelessWidget {
   const _CommentComposer({
     required this.controller,
     required this.isSending,
+    required this.replyTarget,
+    required this.onDismissReply,
     required this.onSend,
   });
 
   final TextEditingController controller;
   final bool isSending;
+  final MaterialComment? replyTarget;
+  final VoidCallback onDismissReply;
   final VoidCallback onSend;
 
   @override
@@ -817,6 +1060,42 @@ class _CommentComposer extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (replyTarget != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: palette.softBackground,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _t(
+                          context,
+                          '回复 ${replyTarget!.authorName}',
+                          'Reply to ${replyTarget!.authorName}',
+                        ),
+                        style: TextStyle(
+                          color: palette.bodyText,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: onDismissReply,
+                      child: Icon(
+                        Icons.close_rounded,
+                        color: palette.secondaryText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             TextField(
               controller: controller,
               minLines: 1,
@@ -881,6 +1160,91 @@ class _HeroChip extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _MaterialReportDraft {
+  const _MaterialReportDraft({required this.reason, required this.description});
+
+  final String reason;
+  final String description;
+}
+
+Future<_MaterialReportDraft?> _showMaterialReportDialog(
+  BuildContext context, {
+  required String title,
+}) async {
+  final reasonController = TextEditingController();
+  final descriptionController = TextEditingController();
+  try {
+    return showDialog<_MaterialReportDraft>(
+      context: context,
+      builder: (dialogContext) {
+        String? errorText;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(title),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: reasonController,
+                    autofocus: true,
+                    maxLength: 100,
+                    decoration: InputDecoration(
+                      labelText: _t(context, '举报原因', 'Reason'),
+                      errorText: errorText,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: descriptionController,
+                    minLines: 3,
+                    maxLines: 4,
+                    maxLength: 500,
+                    decoration: InputDecoration(
+                      labelText: _t(context, '补充描述（可选）', 'Details (optional)'),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: Text(_t(context, '取消', 'Cancel')),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final reason = reasonController.text.trim();
+                    if (reason.isEmpty) {
+                      setState(() {
+                        errorText = _t(
+                          context,
+                          '请填写举报原因',
+                          'Please enter a reason',
+                        );
+                      });
+                      return;
+                    }
+                    Navigator.of(dialogContext).pop(
+                      _MaterialReportDraft(
+                        reason: reason,
+                        description: descriptionController.text.trim(),
+                      ),
+                    );
+                  },
+                  child: Text(_t(context, '提交', 'Submit')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  } finally {
+    reasonController.dispose();
+    descriptionController.dispose();
   }
 }
 

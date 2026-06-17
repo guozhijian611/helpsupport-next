@@ -1292,6 +1292,10 @@ class _AudioPlaybackPage extends StatelessWidget {
                 ? Image.network(
                     coverUrl,
                     fit: BoxFit.cover,
+                    loadingBuilder: (_, child, loadingProgress) =>
+                        loadingProgress == null
+                        ? child
+                        : const _AudioCoverFallback(),
                     errorBuilder: (_, _, _) => const _AudioCoverFallback(),
                   )
                 : const _AudioCoverFallback(),

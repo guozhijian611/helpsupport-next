@@ -40,6 +40,20 @@ final communityFollowingPostsSearchProvider = FutureProvider.autoDispose
           .fetchPosts(keyword: keyword, scope: 'following');
     });
 
+final communityFollowedTopicPostsProvider =
+    FutureProvider.autoDispose<CommunityPage<CommunityPost>>((ref) {
+      return ref
+          .watch(communityRepositoryProvider)
+          .fetchPosts(scope: 'followed_topics');
+    });
+
+final communityFollowedTopicPostsSearchProvider = FutureProvider.autoDispose
+    .family<CommunityPage<CommunityPost>, String>((ref, keyword) {
+      return ref
+          .watch(communityRepositoryProvider)
+          .fetchPosts(keyword: keyword, scope: 'followed_topics');
+    });
+
 final communityPostProvider = FutureProvider.autoDispose
     .family<CommunityPost, int>((ref, postId) {
       return ref.watch(communityRepositoryProvider).fetchPost(postId);

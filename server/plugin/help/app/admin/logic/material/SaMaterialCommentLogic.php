@@ -3,6 +3,7 @@
 namespace plugin\help\app\admin\logic\material;
 
 use plugin\help\app\model\material\SaMaterialComment;
+use plugin\help\app\service\HelpAuditLogService;
 use plugin\saiadmin\basic\think\BaseLogic;
 use plugin\saiadmin\exception\ApiException;
 use think\facade\Db;
@@ -84,11 +85,13 @@ class SaMaterialCommentLogic extends BaseLogic
 
         $comment = $this->managedComment($id);
         $oldStatus = (int) ($comment['status'] ?? 0);
+        $oldVisible = $oldStatus === 1 && (int) ($comment['audit_status'] ?? 1) === 1;
+        $newVisible = $status === 1 && (int) ($comment['audit_status'] ?? 1) === 1;
         if ($oldStatus === $status) {
             return true;
         }
 
-        return Db::transaction(function () use ($id, $status, $remark, $adminId, $comment, $oldStatus) {
+        return Db::transaction(function () use ($id, $status, $remark, $adminId, $comment, $oldVisible, $newVisible) {
             Db::table('sa_material_comment')
                 ->where('id', $id)
                 ->whereNull('delete_time')
@@ -99,11 +102,64 @@ class SaMaterialCommentLogic extends BaseLogic
                     'update_time' => date('Y-m-d H:i:s'),
                 ]);
 
-            if ($oldStatus === 1 && $status === 2) {
+            if ($oldVisible && !$newVisible) {
                 $this->syncMaterialCommentCount((int) $comment['material_id'], -1);
-            } elseif ($oldStatus === 2 && $status === 1) {
+            } elseif (!$oldVisible && $newVisible) {
                 $this->syncMaterialCommentCount((int) $comment['material_id'], 1);
             }
+
+            return true;
+        });
+    }
+
+    public function audit(int $id, int $auditStatus, string $remark, int $adminId): bool
+    {
+        if ($id <= 0) {
+            throw new ApiException('请选择要审核的评论');
+        }
+        if (!in_array($auditStatus, [1, 2], true)) {
+            throw new ApiException('审核状态参数错误');
+        }
+        if ($auditStatus === 2 && $remark === '') {
+            throw new ApiException('拒绝原因必须填写');
+        }
+
+        $comment = $this->managedComment($id);
+        $oldAuditStatus = (int) ($comment['audit_status'] ?? 0);
+        $oldVisible = $oldAuditStatus === 1 && (int) ($comment['status'] ?? 1) === 1;
+        $newVisible = $auditStatus === 1 && (int) ($comment['status'] ?? 1) === 1;
+        if ($oldAuditStatus === $auditStatus) {
+            return true;
+        }
+
+        return Db::transaction(function () use ($id, $auditStatus, $remark, $adminId, $comment, $oldVisible, $newVisible, $oldAuditStatus) {
+            Db::table('sa_material_comment')
+                ->where('id', $id)
+                ->whereNull('delete_time')
+                ->update([
+                    'audit_status' => $auditStatus,
+                    'audit_remark' => $remark,
+                    'audit_by' => $adminId > 0 ? $adminId : null,
+                    'audit_time' => date('Y-m-d H:i:s'),
+                    'updated_by' => $adminId > 0 ? $adminId : null,
+                    'update_time' => date('Y-m-d H:i:s'),
+                ]);
+
+            if (!$oldVisible && $newVisible) {
+                $this->syncMaterialCommentCount((int) $comment['material_id'], 1);
+            } elseif ($oldVisible && !$newVisible) {
+                $this->syncMaterialCommentCount((int) $comment['material_id'], -1);
+            }
+
+            (new HelpAuditLogService())->record(
+                'material_comment',
+                $id,
+                'audit',
+                $oldAuditStatus,
+                $auditStatus,
+                $remark,
+                $adminId
+            );
 
             return true;
         });
@@ -122,7 +178,7 @@ class SaMaterialCommentLogic extends BaseLogic
             ->whereIn('c.id', $ids)
             ->whereIn('m.material_type', self::MANAGED_MATERIAL_TYPES)
             ->whereNull('c.delete_time')
-            ->field('c.id, c.material_id, c.status')
+            ->field('c.id, c.material_id, c.status, c.audit_status')
             ->select()
             ->toArray();
 
@@ -142,7 +198,7 @@ class SaMaterialCommentLogic extends BaseLogic
 
             $visibleCounts = [];
             foreach ($comments as $comment) {
-                if ((int) ($comment['status'] ?? 0) !== 1) {
+                if ((int) ($comment['status'] ?? 0) !== 1 || (int) ($comment['audit_status'] ?? 1) !== 1) {
                     continue;
                 }
                 $materialId = (int) ($comment['material_id'] ?? 0);
@@ -182,6 +238,9 @@ class SaMaterialCommentLogic extends BaseLogic
         }
         if (($where['status'] ?? '') !== '') {
             $query->where('c.status', (int) $where['status']);
+        }
+        if (($where['audit_status'] ?? '') !== '') {
+            $query->where('c.audit_status', (int) $where['audit_status']);
         }
         if (($where['material_type'] ?? '') !== '') {
             $type = (string) $where['material_type'];

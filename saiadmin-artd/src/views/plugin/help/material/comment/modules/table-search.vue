@@ -36,6 +36,16 @@
       </ElFormItem>
     </ElCol>
     <ElCol v-bind="setSpan(6)">
+      <ElFormItem label="审核状态" prop="audit_status">
+        <ElSelect v-model="formData.audit_status" placeholder="请选择审核状态" clearable>
+          <ElOption label="待审核" :value="0" />
+          <ElOption label="已通过" :value="1" />
+          <ElOption label="已拒绝" :value="2" />
+          <ElOption label="AI预审" :value="3" />
+        </ElSelect>
+      </ElFormItem>
+    </ElCol>
+    <ElCol v-bind="setSpan(6)">
       <ElFormItem label="状态" prop="status">
         <ElSelect v-model="formData.status" placeholder="请选择状态" clearable>
           <ElOption label="正常" :value="1" />

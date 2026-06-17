@@ -62,5 +62,5 @@ final materialCommentsProvider = FutureProvider.autoDispose
     .family<MaterialPage<MaterialComment>, int>((ref, materialId) {
       return ref
           .watch(materialRepositoryProvider)
-          .fetchComments(materialId: materialId);
+          .fetchComments(materialId: materialId, includeReplies: true);
     });

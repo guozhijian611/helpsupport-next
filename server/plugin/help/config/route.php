@@ -37,6 +37,7 @@ use plugin\help\app\admin\controller\material\SaContentCategoryController as Adm
 use plugin\help\app\admin\controller\material\SaContentMaterialController as AdminContentMaterialController;
 use plugin\help\app\admin\controller\material\SaEntertainmentMaterialController as AdminEntertainmentMaterialController;
 use plugin\help\app\admin\controller\material\SaMaterialCommentController as AdminMaterialCommentController;
+use plugin\help\app\admin\controller\material\SaMaterialReportController as AdminMaterialReportController;
 use plugin\help\app\admin\controller\material\SaPrivateMaterialController as AdminPrivateMaterialController;
 use plugin\help\app\admin\controller\me\SaMemberDiagnosticLogController as AdminMemberDiagnosticLogController;
 use plugin\help\app\admin\controller\me\SaMemberJournalController as AdminMemberJournalController;
@@ -145,6 +146,7 @@ Route::group('/app/help', function () {
     Route::get('/material/comments', [MaterialController::class, 'comments']);
     Route::post('/material/comment', [MaterialController::class, 'saveComment']);
     Route::post('/material/comment/like', [MaterialController::class, 'toggleCommentLike']);
+    Route::post('/material/report', [MaterialController::class, 'report']);
     Route::post('/material/like', [MaterialController::class, 'toggleLike']);
     Route::post('/material/collect', [MaterialController::class, 'toggleCollect']);
 
@@ -240,6 +242,9 @@ Route::group('/app/help/admin/material', function () {
     Route::post('/SaEntertainmentMaterial/audit', [AdminEntertainmentMaterialController::class, 'audit']);
     fastRoute('SaMaterialComment', AdminMaterialCommentController::class);
     Route::post('/SaMaterialComment/status', [AdminMaterialCommentController::class, 'status']);
+    Route::post('/SaMaterialComment/audit', [AdminMaterialCommentController::class, 'audit']);
+    fastRoute('SaMaterialReport', AdminMaterialReportController::class);
+    Route::post('/SaMaterialReport/handle', [AdminMaterialReportController::class, 'handle']);
     fastRoute('SaPrivateMaterial', AdminPrivateMaterialController::class);
     Route::post('/SaPrivateMaterial/audit', [AdminPrivateMaterialController::class, 'audit']);
 });

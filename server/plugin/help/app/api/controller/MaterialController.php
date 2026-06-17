@@ -66,7 +66,7 @@ class MaterialController extends BaseController
     #[Apidoc\Title('上传私人素材文件')]
     #[Apidoc\Url('/app/help/material/private/upload')]
     #[Apidoc\Method('POST')]
-    #[Apidoc\Param('file', type: 'file', require: true, desc: '素材文件，支持 txt/epub/pdf/mp4/mov/mp3/lrc')]
+    #[Apidoc\Param('file', type: 'file', require: true, desc: '素材文件，支持 txt/epub/pdf/mp4/mov/mp3/lrc/jpg/jpeg/png/webp/gif')]
     #[Apidoc\Returned('url', type: 'string', desc: '素材文件地址')]
     #[Apidoc\Returned('origin_name', type: 'string', desc: '原始文件名')]
     #[Apidoc\Returned('mime_type', type: 'string', desc: 'MIME 类型')]
@@ -107,7 +107,7 @@ class MaterialController extends BaseController
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('id', type: 'int', require: false, desc: '素材ID，空为新增')]
     #[Apidoc\Param('category_id', type: 'int', require: false, desc: '私人素材分类ID')]
-    #[Apidoc\Param('media_type', type: 'string', require: false, default: 'article', desc: '素材类型 article/video/audio/pdf/epub/link/txt/mp4/mov/mp3')]
+    #[Apidoc\Param('media_type', type: 'string', require: false, default: 'article', desc: '素材类型 article/video/audio/pdf/epub/link/txt/mp4/mov/mp3/image')]
     #[Apidoc\Param('title', type: 'string', require: true, desc: '素材标题')]
     #[Apidoc\Param('title_i18n', type: 'object', require: false, desc: '多语言标题，例如 {"zh":"标题","en":"Title"}')]
     #[Apidoc\Param('summary', type: 'string', require: false, desc: '摘要')]
@@ -178,6 +178,7 @@ class MaterialController extends BaseController
     #[Apidoc\Method('GET')]
     #[Apidoc\Query('material_id', type: 'int', require: true, desc: '素材ID')]
     #[Apidoc\Query('parent_id', type: 'int', require: false, default: 0, desc: '父评论ID')]
+    #[Apidoc\Query('with_replies', type: 'int', require: false, default: 2, desc: '是否同时返回回复 1是 2否，仅 parent_id=0 生效')]
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
     #[Apidoc\Returned('list', type: 'array', desc: '评论列表')]
@@ -198,6 +199,19 @@ class MaterialController extends BaseController
     public function saveComment(Request $request): Response
     {
         return ok($this->service->saveMaterialComment($this->memberId, $request->post()));
+    }
+
+    #[Apidoc\Title('素材举报')]
+    #[Apidoc\Url('/app/help/material/report')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('target_type', type: 'int', require: true, desc: '举报类型 1素材 2评论')]
+    #[Apidoc\Param('target_id', type: 'int', require: true, desc: '举报目标ID')]
+    #[Apidoc\Param('reason', type: 'string', require: true, desc: '举报原因')]
+    #[Apidoc\Param('description', type: 'string', require: false, desc: '举报描述')]
+    #[Apidoc\Returned('id', type: 'int', desc: '举报ID')]
+    public function report(Request $request): Response
+    {
+        return ok($this->service->reportMaterialTarget($this->memberId, $request->post()));
     }
 
     #[Apidoc\Title('素材评论点赞切换')]

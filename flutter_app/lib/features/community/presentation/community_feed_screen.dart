@@ -19,7 +19,7 @@ class CommunityFeedScreen extends ConsumerStatefulWidget {
       _CommunityFeedScreenState();
 }
 
-enum _CommunityFeedScope { public, following }
+enum _CommunityFeedScope { public, following, topics }
 
 class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
   final _searchController = TextEditingController();
@@ -154,6 +154,11 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
           ? ref.watch(communityFollowingPostsProvider)
           : ref.watch(communityFollowingPostsSearchProvider(keyword));
     }
+    if (_scope == _CommunityFeedScope.topics) {
+      return keyword.isEmpty
+          ? ref.watch(communityFollowedTopicPostsProvider)
+          : ref.watch(communityFollowedTopicPostsSearchProvider(keyword));
+    }
     return keyword.isEmpty
         ? ref.watch(communityPostsProvider)
         : ref.watch(communityPostsSearchProvider(keyword));
@@ -164,6 +169,11 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
       return keyword.isEmpty
           ? ref.read(communityFollowingPostsProvider.future)
           : ref.read(communityFollowingPostsSearchProvider(keyword).future);
+    }
+    if (_scope == _CommunityFeedScope.topics) {
+      return keyword.isEmpty
+          ? ref.read(communityFollowedTopicPostsProvider.future)
+          : ref.read(communityFollowedTopicPostsSearchProvider(keyword).future);
     }
     return keyword.isEmpty
         ? ref.read(communityPostsProvider.future)
@@ -178,6 +188,13 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
       }
       return;
     }
+    if (_scope == _CommunityFeedScope.topics) {
+      ref.invalidate(communityFollowedTopicPostsProvider);
+      if (keyword.isNotEmpty) {
+        ref.invalidate(communityFollowedTopicPostsSearchProvider(keyword));
+      }
+      return;
+    }
     ref.invalidate(communityPostsProvider);
     if (keyword.isNotEmpty) {
       ref.invalidate(communityPostsSearchProvider(keyword));
@@ -189,6 +206,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
       await ref.read(communityRepositoryProvider).toggleFollowTag(tag.id);
       ref.invalidate(communityTagsProvider);
       ref.invalidate(communityPostsProvider);
+      ref.invalidate(communityFollowedTopicPostsProvider);
       if (!mounted) {
         return;
       }
@@ -404,6 +422,16 @@ class CommunityPostCard extends ConsumerWidget {
                       onTap: () => _toggleCollect(context, ref, post.id),
                     ),
                     const Spacer(),
+                    IconButton(
+                      tooltip: _t(context, '举报帖子', 'Report post'),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _reportPost(context, ref, post.id),
+                      icon: Icon(
+                        Icons.flag_outlined,
+                        size: 20,
+                        color: palette.secondaryText,
+                      ),
+                    ),
                     Icon(
                       Icons.visibility_outlined,
                       size: 18,
@@ -436,6 +464,7 @@ class CommunityPostCard extends ConsumerWidget {
       await ref.read(communityRepositoryProvider).togglePostLike(postId);
       ref.invalidate(communityPostsProvider);
       ref.invalidate(communityFollowingPostsProvider);
+      ref.invalidate(communityFollowedTopicPostsProvider);
       ref.invalidate(communityPostProvider(postId));
       onPostChanged?.call();
     } on Object catch (error) {
@@ -455,6 +484,7 @@ class CommunityPostCard extends ConsumerWidget {
       await ref.read(communityRepositoryProvider).togglePostCollect(postId);
       ref.invalidate(communityPostsProvider);
       ref.invalidate(communityFollowingPostsProvider);
+      ref.invalidate(communityFollowedTopicPostsProvider);
       ref.invalidate(communityPostProvider(postId));
       onPostChanged?.call();
     } on Object catch (error) {
@@ -476,6 +506,7 @@ class CommunityPostCard extends ConsumerWidget {
           .toggleFollowMember(post.memberId);
       ref.invalidate(communityPostsProvider);
       ref.invalidate(communityFollowingPostsProvider);
+      ref.invalidate(communityFollowedTopicPostsProvider);
       ref.invalidate(communityPostProvider(post.id));
       onPostChanged?.call();
       if (!context.mounted) {
@@ -486,6 +517,39 @@ class CommunityPostCard extends ConsumerWidget {
             ? _t(context, '已取消关注', 'Unfollowed')
             : _t(context, '已关注', 'Followed'),
       );
+    } on Object catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      context.showCenteredNotice(error.toString());
+    }
+  }
+
+  Future<void> _reportPost(
+    BuildContext context,
+    WidgetRef ref,
+    int postId,
+  ) async {
+    final draft = await showCommunityReportSheet(
+      context,
+      title: _t(context, '举报帖子', 'Report post'),
+    );
+    if (draft == null) {
+      return;
+    }
+    try {
+      await ref
+          .read(communityRepositoryProvider)
+          .reportTarget(
+            targetType: 1,
+            targetId: postId,
+            reason: draft.reason,
+            description: draft.description,
+          );
+      if (!context.mounted) {
+        return;
+      }
+      context.showCenteredNotice(_t(context, '举报已提交', 'Report submitted'));
     } on Object catch (error) {
       if (!context.mounted) {
         return;
@@ -593,6 +657,11 @@ class _FeedScopeSwitcher extends StatelessWidget {
             selected: selected == _CommunityFeedScope.following,
             onTap: () => onChanged(_CommunityFeedScope.following),
           ),
+          _FeedScopeSegment(
+            scope: _CommunityFeedScope.topics,
+            selected: selected == _CommunityFeedScope.topics,
+            onTap: () => onChanged(_CommunityFeedScope.topics),
+          ),
         ],
       ),
     );
@@ -649,6 +718,91 @@ String? _badgeText(int count) {
     return null;
   }
   return count > 99 ? '99+' : '$count';
+}
+
+class CommunityReportDraft {
+  const CommunityReportDraft({required this.reason, required this.description});
+
+  final String reason;
+  final String description;
+}
+
+Future<CommunityReportDraft?> showCommunityReportSheet(
+  BuildContext context, {
+  required String title,
+}) async {
+  final reasonController = TextEditingController();
+  final descriptionController = TextEditingController();
+  try {
+    return showDialog<CommunityReportDraft>(
+      context: context,
+      builder: (dialogContext) {
+        String? errorText;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(title),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: reasonController,
+                    autofocus: true,
+                    maxLength: 100,
+                    decoration: InputDecoration(
+                      labelText: _t(context, '举报原因', 'Reason'),
+                      errorText: errorText,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: descriptionController,
+                    minLines: 3,
+                    maxLines: 4,
+                    maxLength: 500,
+                    decoration: InputDecoration(
+                      labelText: _t(context, '补充描述（可选）', 'Details (optional)'),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: Text(_t(context, '取消', 'Cancel')),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final reason = reasonController.text.trim();
+                    if (reason.isEmpty) {
+                      setState(() {
+                        errorText = _t(
+                          context,
+                          '请填写举报原因',
+                          'Please enter a reason',
+                        );
+                      });
+                      return;
+                    }
+                    Navigator.of(dialogContext).pop(
+                      CommunityReportDraft(
+                        reason: reason,
+                        description: descriptionController.text.trim(),
+                      ),
+                    );
+                  },
+                  child: Text(_t(context, '提交', 'Submit')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  } finally {
+    reasonController.dispose();
+    descriptionController.dispose();
+  }
 }
 
 class _TopicFollowStrip extends StatelessWidget {
@@ -953,10 +1107,13 @@ class _CommunityEmptyState extends StatelessWidget {
     final palette = _CommunityFeedPalette.of(context);
     final hasQuery = query.trim().isNotEmpty;
     final isFollowing = scope == _CommunityFeedScope.following;
+    final isTopics = scope == _CommunityFeedScope.topics;
     final message = hasQuery
         ? _t(context, '没有找到相关动态', 'No matching posts')
         : isFollowing
         ? _t(context, '关注的人还没有发帖', 'No posts from people you follow')
+        : isTopics
+        ? _t(context, '关注的话题还没有动态', 'No posts in followed topics')
         : context.l10n.communityFeedEmpty;
     final helper = hasQuery
         ? _t(
@@ -969,6 +1126,12 @@ class _CommunityEmptyState extends StatelessWidget {
             context,
             '去广场发现更多作者，关注后这里会出现他们的动态。',
             'Find more authors in the public feed. Their posts will appear here after you follow them.',
+          )
+        : isTopics
+        ? _t(
+            context,
+            '先在话题栏关注标签，相关帖子会集中出现在这里。',
+            'Follow tags in the topic bar. Matching posts will appear here.',
           )
         : _t(context, '你可以发布第一条支持内容。', 'Publish your first support post.');
 
@@ -1153,6 +1316,7 @@ String _scopeLabel(BuildContext context, _CommunityFeedScope scope) {
   return switch (scope) {
     _CommunityFeedScope.public => _t(context, '广场', 'Public'),
     _CommunityFeedScope.following => _t(context, '关注', 'Following'),
+    _CommunityFeedScope.topics => _t(context, '话题', 'Topics'),
   };
 }
 

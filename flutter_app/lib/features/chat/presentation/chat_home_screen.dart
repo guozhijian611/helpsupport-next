@@ -196,9 +196,7 @@ class _ModeCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  mode.promptText.trim().isNotEmpty
-                      ? mode.promptText
-                      : _modeDescription(context, mode.chatMode),
+                  _modeDescription(context, mode.chatMode),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(

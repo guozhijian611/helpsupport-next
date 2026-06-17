@@ -5,6 +5,7 @@ namespace plugin\help\app\admin\controller\material;
 use hg\apidoc\annotation as Apidoc;
 use plugin\help\app\admin\logic\material\SaMaterialCommentLogic;
 use plugin\help\app\admin\validate\material\SaMaterialCommentValidate;
+use plugin\help\app\service\HelpAuditLogService;
 use plugin\saiadmin\basic\BaseController;
 use plugin\saiadmin\service\Permission;
 use support\Request;
@@ -32,6 +33,7 @@ class SaMaterialCommentController extends BaseController
     #[Apidoc\Query('material_title', type: 'string', require: false, desc: '素材标题')]
     #[Apidoc\Query('member_id', type: 'int', require: false, desc: '会员ID')]
     #[Apidoc\Query('content', type: 'string', require: false, desc: '评论内容')]
+    #[Apidoc\Query('audit_status', type: 'int', require: false, desc: '审核状态 0待审 1通过 2拒绝 3AI预审标记')]
     #[Apidoc\Query('status', type: 'int', require: false, desc: '状态 1正常 2隐藏')]
     #[Apidoc\Returned('list', type: 'array', desc: '评论分页列表')]
     #[Permission('素材评论列表', 'help:material:comment:index')]
@@ -43,6 +45,7 @@ class SaMaterialCommentController extends BaseController
             ['material_title', ''],
             ['member_id', ''],
             ['content', ''],
+            ['audit_status', ''],
             ['status', ''],
         ]);
 
@@ -61,6 +64,7 @@ class SaMaterialCommentController extends BaseController
         if ($data === []) {
             return $this->fail('未查找到素材评论');
         }
+        $data['audit_logs'] = (new HelpAuditLogService())->list('material_comment', (int) ($data['id'] ?? 0));
 
         return $this->success($data);
     }
@@ -84,6 +88,27 @@ class SaMaterialCommentController extends BaseController
         );
 
         return $result ? $this->success('处理成功') : $this->fail('处理失败');
+    }
+
+    #[Apidoc\Title('素材评论审核')]
+    #[Apidoc\Url('/app/help/admin/material/SaMaterialComment/audit')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('id', type: 'int', require: true, desc: '评论ID')]
+    #[Apidoc\Param('audit_status', type: 'int', require: true, desc: '审核状态 1通过 2拒绝')]
+    #[Apidoc\Param('audit_remark', type: 'string', require: false, desc: '审核备注')]
+    #[Permission('素材评论审核', 'help:material:comment:audit')]
+    public function audit(Request $request): Response
+    {
+        $data = $request->post();
+        $this->validate('audit', $data);
+        $result = $this->logic->audit(
+            (int) $data['id'],
+            (int) $data['audit_status'],
+            trim((string) ($data['audit_remark'] ?? '')),
+            isset($this->adminId) ? (int) $this->adminId : 0
+        );
+
+        return $result ? $this->success('审核成功') : $this->fail('审核失败');
     }
 
     #[Apidoc\Title('素材评论删除')]

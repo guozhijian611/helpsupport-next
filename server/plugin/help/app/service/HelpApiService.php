@@ -23,6 +23,7 @@ class HelpApiService
     private const CODE_RESEND_AFTER = 120;
     private const MATERIAL_MEDIA_TYPES = [
         'article',
+        'image',
         'video',
         'audio',
         'pdf',
@@ -33,7 +34,8 @@ class HelpApiService
         'mov',
         'mp3',
     ];
-    private const MATERIAL_UPLOAD_EXTENSIONS = ['txt', 'epub', 'pdf', 'mp4', 'mov', 'mp3', 'lrc'];
+    private const MATERIAL_UPLOAD_EXTENSIONS = ['txt', 'epub', 'pdf', 'mp4', 'mov', 'mp3', 'lrc', 'jpg', 'jpeg', 'png', 'webp', 'gif'];
+    private const MATERIAL_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
     private const MATERIAL_CATEGORY_NAMES = [
         'education' => ['入门', '动机与认知', '应对技能', '复发预防', '家属指南'],
         'entertainment' => ['书籍', '电影', '音乐', '游戏'],
@@ -1582,6 +1584,26 @@ class HelpApiService
                         ->where('p.is_anonymous', '<>', 1);
                 }
             }
+            if ($scope === 'followed_topics') {
+                if ($memberId <= 0) {
+                    $query->whereRaw('1 = 0');
+                } else {
+                    $query->whereRaw(sprintf(
+                        'EXISTS (
+                            SELECT 1
+                            FROM `sa_community_follow_tag` cft
+                            INNER JOIN `sa_community_tag` ft
+                                ON ft.`id` = cft.`tag_id`
+                               AND ft.`status` = 1
+                               AND ft.`delete_time` IS NULL
+                            WHERE cft.`member_id` = %d
+                              AND cft.`delete_time` IS NULL
+                              AND JSON_CONTAINS(p.`tags`, JSON_QUOTE(ft.`tag_name`))
+                        )',
+                        $memberId
+                    ));
+                }
+            }
             if ((int) ($params['mine'] ?? 2) === 1) {
                 $query->where('p.member_id', $memberId);
             }
@@ -1824,6 +1846,42 @@ class HelpApiService
         return Db::table('sa_community_report')->where('id', $id)->find() ?: [];
     }
 
+    public function reportMaterialTarget(int $memberId, array $data): array
+    {
+        $targetType = $this->intIn($data['target_type'] ?? 0, [1, 2], '举报目标类型错误');
+        $targetId = (int) ($data['target_id'] ?? 0);
+        if ($targetId <= 0) {
+            throw new ApiException('举报目标ID必须填写', 400);
+        }
+        if ($targetType === 1) {
+            $this->assertVisibleMaterial($memberId, $targetId);
+        } else {
+            $this->assertVisibleMaterialComment($memberId, $targetId);
+        }
+
+        $reason = trim((string) ($data['reason'] ?? ''));
+        if ($reason === '') {
+            throw new ApiException('举报原因必须填写', 400);
+        }
+        $risk = new HelpRiskService();
+        $reason = $risk->filterText('material', $reason);
+        $description = $risk->filterText('material', (string) ($data['description'] ?? ''));
+        if ($reason === '') {
+            throw new ApiException('举报原因必须填写', 400);
+        }
+
+        $id = $this->saveRow('sa_material_report', [
+            'member_id' => $memberId,
+            'target_type' => $targetType,
+            'target_id' => $targetId,
+            'reason' => $reason,
+            'description' => $description,
+            'handle_status' => 0,
+        ], $memberId);
+
+        return Db::table('sa_material_report')->where('id', $id)->find() ?: [];
+    }
+
     public function materialCategories(int $memberId, array $params): array
     {
         $locale = (string) ($params['locale'] ?? '');
@@ -1981,6 +2039,9 @@ class HelpApiService
             ->where('material_id', $materialId)
             ->where('status', 1)
             ->whereNull('delete_time')
+            ->where(function ($query) use ($memberId) {
+                $query->where('audit_status', 1)->whereOr('member_id', $memberId);
+            })
             ->order('id', 'desc')
             ->limit(10)
             ->select()
@@ -2126,10 +2187,12 @@ class HelpApiService
 
         $extension = strtolower((string) ($file->getUploadExtension() ?: pathinfo((string) $file->getUploadName(), PATHINFO_EXTENSION)));
         if (!in_array($extension, self::MATERIAL_UPLOAD_EXTENSIONS, true)) {
-            throw new ApiException('私人素材仅支持 txt、epub、pdf、mp4、mov、mp3、lrc 文件', 400);
+            throw new ApiException('私人素材仅支持 txt、epub、pdf、mp4、mov、mp3、lrc、jpg、jpeg、png、webp、gif 文件', 400);
         }
 
-        $upload = (new SystemAttachmentLogic())->uploadBase('file');
+        $upload = (new SystemAttachmentLogic())->uploadBase(
+            in_array($extension, self::MATERIAL_IMAGE_EXTENSIONS, true) ? 'image' : 'file'
+        );
         $url = trim((string) ($upload['url'] ?? ''));
         if ($url === '') {
             throw new ApiException('私人素材上传失败，请稍后重试', 500);
@@ -2222,16 +2285,25 @@ class HelpApiService
         $materialId = (int) ($params['material_id'] ?? 0);
         $this->assertVisibleMaterial($memberId, $materialId);
         $parentId = max(0, (int) ($params['parent_id'] ?? 0));
+        $withReplies = $parentId === 0 && (int) ($params['with_replies'] ?? 2) === 1;
 
-        $page = $this->paginate(function () use ($materialId, $parentId) {
-            return Db::table('sa_material_comment')
+        $page = $this->paginate(function () use ($memberId, $materialId, $parentId, $withReplies) {
+            $query = Db::table('sa_material_comment')
                 ->alias('c')
                 ->leftJoin('sa_member m', 'm.id = c.member_id AND m.delete_time IS NULL')
                 ->where('c.material_id', $materialId)
-                ->where('c.parent_id', $parentId)
                 ->where('c.status', 1)
                 ->whereNull('c.delete_time')
-                ->field('c.*, m.nickname AS author_name, m.avatar AS author_avatar')
+                ->where(function ($query) use ($memberId) {
+                    $query->where('c.audit_status', 1)->whereOr('c.member_id', $memberId);
+                })
+                ->field('c.*, m.nickname AS author_name, m.avatar AS author_avatar');
+            if (!$withReplies) {
+                $query->where('c.parent_id', $parentId);
+            }
+
+            return $query
+                ->order('c.parent_id', 'asc')
                 ->order('c.id', 'asc');
         }, $params);
 
@@ -2255,12 +2327,14 @@ class HelpApiService
         if ($content === '') {
             throw new ApiException('评论内容必须填写', 400);
         }
-        $content = (new HelpRiskService())->filterText('material', $content);
+        $riskResult = (new HelpRiskService())->filter('material', $content);
+        $content = (string) $riskResult['text'];
         if ($content === '') {
             throw new ApiException('评论内容必须填写', 400);
         }
+        $reviewRequired = (bool) ($riskResult['review_required'] ?? false);
 
-        $commentId = Db::transaction(function () use ($memberId, $materialId, $parentId, $content, $data) {
+        $commentId = Db::transaction(function () use ($memberId, $materialId, $parentId, $content, $data, $reviewRequired) {
             $id = $this->saveRow('sa_material_comment', [
                 'material_id' => $materialId,
                 'member_id' => $memberId,
@@ -2268,9 +2342,13 @@ class HelpApiService
                 'content' => $content,
                 'attachments' => $this->jsonValue($data['attachments'] ?? null),
                 'like_count' => 0,
+                'audit_status' => $reviewRequired ? 3 : 1,
+                'audit_remark' => $reviewRequired ? self::RISK_REVIEW_REMARK : '',
                 'status' => 1,
             ], $memberId);
-            $this->syncMaterialCounter($materialId, 'comment_count', true);
+            if (!$reviewRequired) {
+                $this->syncMaterialCounter($materialId, 'comment_count', true);
+            }
 
             return $id;
         });
@@ -5033,6 +5111,9 @@ class HelpApiService
             ->where('id', $commentId)
             ->where('status', 1)
             ->whereNull('delete_time')
+            ->where(function ($query) use ($memberId) {
+                $query->where('audit_status', 1)->whereOr('member_id', $memberId);
+            })
             ->find();
         if (!$comment) {
             throw new ApiException('评论不存在或无权访问', 404);

@@ -219,6 +219,29 @@ class CommunityRepository {
     return result.data ?? false;
   }
 
+  Future<void> reportTarget({
+    required int targetType,
+    required int targetId,
+    required String reason,
+    String description = '',
+  }) async {
+    await _apiClient.postApi<Map<String, dynamic>>(
+      '/app/help/community/report',
+      data: {
+        'target_type': targetType,
+        'target_id': targetId,
+        'reason': reason,
+        if (description.trim().isNotEmpty) 'description': description.trim(),
+      },
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return value;
+        }
+        return const {};
+      },
+    );
+  }
+
   Future<String> uploadImage({required XFile file}) async {
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(file.path, filename: file.name),

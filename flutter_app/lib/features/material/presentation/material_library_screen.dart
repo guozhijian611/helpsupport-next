@@ -637,6 +637,7 @@ class _MaterialCard extends ConsumerWidget {
                             ? Image.network(
                                 coverUrl,
                                 fit: BoxFit.cover,
+                                loadingBuilder: _materialImageLoadingBuilder,
                                 errorBuilder: (_, _, _) =>
                                     const _MaterialThumbShell(),
                               )
@@ -736,7 +737,9 @@ class _EntertainmentGridCard extends ConsumerWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: () => context.push('/materials/detail/${item.id}'),
+        onTap: () => item.mediaType == 'link'
+            ? context.push('/materials/resource/${item.id}', extra: item)
+            : context.push('/materials/detail/${item.id}'),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -750,6 +753,7 @@ class _EntertainmentGridCard extends ConsumerWidget {
                         ? Image.network(
                             coverUrl,
                             fit: BoxFit.cover,
+                            loadingBuilder: _materialImageLoadingBuilder,
                             errorBuilder: (_, _, _) =>
                                 const _MaterialThumbShell(),
                           )
@@ -1257,7 +1261,22 @@ String _mediaLabel(BuildContext context, String mediaType) {
 }
 
 bool _isPlayableMedia(String mediaType) {
-  return mediaType == 'video' || mediaType == 'mp4' || mediaType == 'mov';
+  return mediaType == 'video' ||
+      mediaType == 'mp4' ||
+      mediaType == 'mov' ||
+      mediaType == 'audio' ||
+      mediaType == 'mp3';
+}
+
+Widget _materialImageLoadingBuilder(
+  BuildContext context,
+  Widget child,
+  ImageChunkEvent? loadingProgress,
+) {
+  if (loadingProgress == null) {
+    return child;
+  }
+  return const _MaterialThumbShell();
 }
 
 String _historyDateLabel(String value) {

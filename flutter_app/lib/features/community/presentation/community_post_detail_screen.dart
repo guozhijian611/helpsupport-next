@@ -92,10 +92,11 @@ class _CommunityPostDetailScreenState
                                 ? page.total
                                 : item.commentCount,
                             sortMode: _sortMode,
-                            comments: _sortedComments(page.list),
+                            comments: _commentNodes(page.list),
                             apiClient: ref.watch(apiClientProvider),
                             onReply: _replyComment,
                             onLike: _toggleCommentLike,
+                            onReport: _reportComment,
                             onSortChanged: (mode) =>
                                 setState(() => _sortMode = mode),
                           ),
@@ -132,10 +133,18 @@ class _CommunityPostDetailScreenState
     );
   }
 
-  List<CommunityComment> _sortedComments(List<CommunityComment> source) {
-    final items = [...source];
+  List<_CommentNode> _commentNodes(List<CommunityComment> source) {
+    final repliesByParent = <int, List<CommunityComment>>{};
+    final roots = <CommunityComment>[];
+    for (final comment in source) {
+      if (comment.parentId > 0) {
+        repliesByParent.putIfAbsent(comment.parentId, () => []).add(comment);
+      } else {
+        roots.add(comment);
+      }
+    }
     if (_sortMode == _CommentSortMode.time) {
-      items.sort((left, right) {
+      roots.sort((left, right) {
         final leftTime =
             DateTime.tryParse(left.createTime) ??
             DateTime.fromMillisecondsSinceEpoch(0);
@@ -144,17 +153,29 @@ class _CommunityPostDetailScreenState
             DateTime.fromMillisecondsSinceEpoch(0);
         return rightTime.compareTo(leftTime);
       });
-      return items;
+    } else {
+      roots.sort((left, right) {
+        final likeCompare = right.likeCount.compareTo(left.likeCount);
+        if (likeCompare != 0) {
+          return likeCompare;
+        }
+        return left.id.compareTo(right.id);
+      });
     }
 
-    items.sort((left, right) {
-      final likeCompare = right.likeCount.compareTo(left.likeCount);
-      if (likeCompare != 0) {
-        return likeCompare;
-      }
-      return left.id.compareTo(right.id);
-    });
-    return items;
+    for (final replies in repliesByParent.values) {
+      replies.sort((left, right) => left.id.compareTo(right.id));
+    }
+    _CommentNode buildNode(CommunityComment comment) {
+      return _CommentNode(
+        comment: comment,
+        replies: (repliesByParent[comment.id] ?? const <CommunityComment>[])
+            .map(buildNode)
+            .toList(growable: false),
+      );
+    }
+
+    return roots.map(buildNode).toList(growable: false);
   }
 
   void _replyComment(CommunityComment comment) {
@@ -168,6 +189,35 @@ class _CommunityPostDetailScreenState
       ref.invalidate(communityPostProvider(widget.postId));
       ref.invalidate(communityCommentsProvider(widget.postId));
       ref.invalidate(communityPostsProvider);
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(error.toString());
+    }
+  }
+
+  Future<void> _reportComment(CommunityComment comment) async {
+    final draft = await showCommunityReportSheet(
+      context,
+      title: _t(context, '举报评论', 'Report comment'),
+    );
+    if (draft == null) {
+      return;
+    }
+    try {
+      await ref
+          .read(communityRepositoryProvider)
+          .reportTarget(
+            targetType: 2,
+            targetId: comment.id,
+            reason: draft.reason,
+            description: draft.description,
+          );
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(_t(context, '举报已提交', 'Report submitted'));
     } on Object catch (error) {
       if (!mounted) {
         return;
@@ -351,6 +401,13 @@ class _CommunityPostDetailScreenState
 
 enum _CommentSortMode { recommend, time }
 
+class _CommentNode {
+  const _CommentNode({required this.comment, required this.replies});
+
+  final CommunityComment comment;
+  final List<_CommentNode> replies;
+}
+
 class _CommentPanel extends StatelessWidget {
   const _CommentPanel({
     required this.total,
@@ -359,15 +416,17 @@ class _CommentPanel extends StatelessWidget {
     required this.apiClient,
     required this.onReply,
     required this.onLike,
+    required this.onReport,
     required this.onSortChanged,
   });
 
   final int total;
   final _CommentSortMode sortMode;
-  final List<CommunityComment> comments;
+  final List<_CommentNode> comments;
   final ApiClient apiClient;
   final ValueChanged<CommunityComment> onReply;
   final ValueChanged<CommunityComment> onLike;
+  final ValueChanged<CommunityComment> onReport;
   final ValueChanged<_CommentSortMode> onSortChanged;
 
   @override
@@ -424,20 +483,69 @@ class _CommentPanel extends StatelessWidget {
             ),
           )
         else
-          for (final comment in comments)
+          for (final node in comments)
             Padding(
               padding: const EdgeInsets.only(bottom: 22),
-              child: _CommentTile(
-                comment: comment,
-                avatarUrl: apiClient.resolveUrl(comment.authorAvatar),
-                imageUrls: comment.attachments
-                    .map((item) => apiClient.resolveUrl(item))
-                    .where((item) => item.trim().isNotEmpty)
-                    .toList(growable: false),
-                onReply: () => onReply(comment),
-                onLike: () => onLike(comment),
+              child: _CommentThread(
+                node: node,
+                depth: 0,
+                apiClient: apiClient,
+                onReply: onReply,
+                onLike: onLike,
+                onReport: onReport,
               ),
             ),
+      ],
+    );
+  }
+}
+
+class _CommentThread extends StatelessWidget {
+  const _CommentThread({
+    required this.node,
+    required this.depth,
+    required this.apiClient,
+    required this.onReply,
+    required this.onLike,
+    required this.onReport,
+  });
+
+  final _CommentNode node;
+  final int depth;
+  final ApiClient apiClient;
+  final ValueChanged<CommunityComment> onReply;
+  final ValueChanged<CommunityComment> onLike;
+  final ValueChanged<CommunityComment> onReport;
+
+  @override
+  Widget build(BuildContext context) {
+    final comment = node.comment;
+    return Column(
+      children: [
+        _CommentTile(
+          comment: comment,
+          indent: depth * 24.0,
+          avatarUrl: apiClient.resolveUrl(comment.authorAvatar),
+          imageUrls: comment.attachments
+              .map((item) => apiClient.resolveUrl(item))
+              .where((item) => item.trim().isNotEmpty)
+              .toList(growable: false),
+          onReply: () => onReply(comment),
+          onLike: () => onLike(comment),
+          onReport: () => onReport(comment),
+        ),
+        for (final reply in node.replies)
+          Padding(
+            padding: const EdgeInsets.only(top: 14),
+            child: _CommentThread(
+              node: reply,
+              depth: depth + 1,
+              apiClient: apiClient,
+              onReply: onReply,
+              onLike: onLike,
+              onReport: onReport,
+            ),
+          ),
       ],
     );
   }
@@ -478,17 +586,21 @@ class _SortTab extends StatelessWidget {
 class _CommentTile extends StatelessWidget {
   const _CommentTile({
     required this.comment,
+    required this.indent,
     required this.avatarUrl,
     required this.imageUrls,
     required this.onReply,
     required this.onLike,
+    required this.onReport,
   });
 
   final CommunityComment comment;
+  final double indent;
   final String avatarUrl;
   final List<String> imageUrls;
   final VoidCallback onReply;
   final VoidCallback onLike;
+  final VoidCallback onReport;
 
   @override
   Widget build(BuildContext context) {
@@ -501,95 +613,103 @@ class _CommentTile extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: onReply,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _CommentAvatar(
-            avatarUrl: avatarUrl,
-            isAnonymous: comment.isAnonymous,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: EdgeInsets.only(left: indent),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _CommentAvatar(
+              avatarUrl: avatarUrl,
+              isAnonymous: comment.isAnonymous,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    replyTarget.isNotEmpty
+                        ? '$displayName  >  $replyTarget'
+                        : displayName,
+                    style: TextStyle(
+                      color: palette.secondaryText,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    comment.content,
+                    style: TextStyle(
+                      color: palette.primaryText,
+                      fontSize: 18,
+                      height: 1.55,
+                    ),
+                  ),
+                  if (imageUrls.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _CommentAttachmentGrid(urls: imageUrls),
+                  ],
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Text(
+                        _timeLabel(context, comment.createTime),
+                        style: TextStyle(
+                          color: palette.mutedText,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 18),
+                      GestureDetector(
+                        onTap: onReply,
+                        child: Text(
+                          _t(context, '回复', 'Reply'),
+                          style: TextStyle(
+                            color: palette.secondaryText,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Column(
               children: [
+                IconButton(
+                  onPressed: onLike,
+                  icon: Icon(
+                    comment.isLiked
+                        ? Icons.thumb_up_alt_rounded
+                        : Icons.thumb_up_alt_outlined,
+                    color: comment.isLiked
+                        ? const Color(0xFFFF9585)
+                        : palette.primaryText,
+                  ),
+                ),
                 Text(
-                  replyTarget.isNotEmpty
-                      ? '$displayName  >  $replyTarget'
-                      : displayName,
+                  comment.likeCount > 0 ? '${comment.likeCount}' : '',
                   style: TextStyle(
-                    color: palette.secondaryText,
-                    fontSize: 15,
+                    color: comment.isLiked
+                        ? const Color(0xFFFF9585)
+                        : palette.secondaryText,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  comment.content,
-                  style: TextStyle(
-                    color: palette.primaryText,
-                    fontSize: 18,
-                    height: 1.55,
-                  ),
-                ),
-                if (imageUrls.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  _CommentAttachmentGrid(urls: imageUrls),
-                ],
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Text(
-                      _timeLabel(context, comment.createTime),
-                      style: TextStyle(
-                        color: palette.mutedText,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 18),
-                    GestureDetector(
-                      onTap: onReply,
-                      child: Text(
-                        _t(context, '回复', 'Reply'),
-                        style: TextStyle(
-                          color: palette.secondaryText,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
+                IconButton(
+                  tooltip: _t(context, '举报评论', 'Report comment'),
+                  onPressed: onReport,
+                  icon: Icon(Icons.flag_outlined, color: palette.secondaryText),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            children: [
-              IconButton(
-                onPressed: onLike,
-                icon: Icon(
-                  comment.isLiked
-                      ? Icons.thumb_up_alt_rounded
-                      : Icons.thumb_up_alt_outlined,
-                  color: comment.isLiked
-                      ? const Color(0xFFFF9585)
-                      : palette.primaryText,
-                ),
-              ),
-              Text(
-                comment.likeCount > 0 ? '${comment.likeCount}' : '',
-                style: TextStyle(
-                  color: comment.isLiked
-                      ? const Color(0xFFFF9585)
-                      : palette.secondaryText,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
