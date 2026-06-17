@@ -14,10 +14,12 @@ import 'package:video_player/video_player.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:xml/xml.dart';
 
+import '../../../core/api/api_client.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../application/material_controller.dart';
 import '../data/material_models.dart';
+import '../data/material_repository.dart';
 
 class MaterialResourceScreen extends ConsumerStatefulWidget {
   const MaterialResourceScreen({
@@ -38,6 +40,8 @@ class _MaterialResourceScreenState
     extends ConsumerState<MaterialResourceScreen> {
   final _scrollController = ScrollController();
 
+  late final ApiClient _apiClient;
+  late final MaterialRepository _materialRepository;
   WebViewController? _webViewController;
   VideoPlayerController? _videoController;
   AudioPlayer? _audioPlayer;
@@ -59,6 +63,8 @@ class _MaterialResourceScreenState
   @override
   void initState() {
     super.initState();
+    _apiClient = ref.read(apiClientProvider);
+    _materialRepository = ref.read(materialRepositoryProvider);
     _scrollController.addListener(_handleTextScroll);
   }
 
@@ -191,7 +197,7 @@ class _MaterialResourceScreenState
           text: _t(context, '正在准备音乐播放器', 'Preparing music player'),
         );
       }
-      final coverUrl = ref.read(apiClientProvider).resolveUrl(item.coverUrl);
+      final coverUrl = _apiClient.resolveUrl(item.coverUrl);
       return _AudioPlayerPanel(player: player, item: item, coverUrl: coverUrl);
     }
 
@@ -203,8 +209,7 @@ class _MaterialResourceScreenState
   }
 
   Future<void> _configureResource(MaterialItem item) async {
-    final apiClient = ref.read(apiClientProvider);
-    final resourceUrl = apiClient.resolveUrl(item.contentUrl);
+    final resourceUrl = _apiClient.resolveUrl(item.contentUrl);
     final cacheKey =
         '${item.id}:${item.mediaType}:$resourceUrl:${item.contentText.hashCode}';
     if (_activeCacheKey == cacheKey) {
@@ -626,19 +631,16 @@ class _MaterialResourceScreenState
       });
     }
     try {
-      await ref
-          .read(apiClientProvider)
-          .dio
-          .download(
-            resourceUrl,
-            localFile.path,
-            onReceiveProgress: (received, total) {
-              if (!mounted || total <= 0) {
-                return;
-              }
-              setState(() => _cacheProgress = received * 100 / total);
-            },
-          );
+      await _apiClient.dio.download(
+        resourceUrl,
+        localFile.path,
+        onReceiveProgress: (received, total) {
+          if (!mounted || total <= 0) {
+            return;
+          }
+          setState(() => _cacheProgress = received * 100 / total);
+        },
+      );
       if (mounted) {
         setState(() {
           _cachePath = localFile.path;
@@ -770,15 +772,13 @@ class _MaterialResourceScreenState
     final elapsedSeconds = durationSeconds > 0
         ? durationSeconds
         : now.difference(_openedAt).inSeconds;
-    await ref
-        .read(materialRepositoryProvider)
-        .saveHistory(
-          materialId: item.id,
-          title: item.title,
-          route: '/materials/resource/${item.id}',
-          progress: _readingProgress,
-          durationSeconds: elapsedSeconds,
-        );
+    await _materialRepository.saveHistory(
+      materialId: item.id,
+      title: item.title,
+      route: '/materials/resource/${item.id}',
+      progress: _readingProgress,
+      durationSeconds: elapsedSeconds,
+    );
   }
 
   Future<void> _disposePlaybackControllers() async {
@@ -1306,4 +1306,16 @@ class _CenteredResourceMessage extends StatelessWidget {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+String _formatDuration(Duration duration) {
+  final safeDuration = duration.isNegative ? Duration.zero : duration;
+  final totalSeconds = safeDuration.inSeconds;
+  final hours = totalSeconds ~/ 3600;
+  final minutes = (totalSeconds % 3600) ~/ 60;
+  final seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+  return '$minutes:${seconds.toString().padLeft(2, '0')}';
 }
