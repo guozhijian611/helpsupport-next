@@ -9,6 +9,7 @@ use plugin\saiadmin\basic\BaseController;
 use plugin\saiadmin\service\Permission;
 use support\Request;
 use support\Response;
+use think\facade\Db;
 
 /**
  * 社区评论管理控制器
@@ -33,8 +34,9 @@ class SaCommunityCommentController extends BaseController
             ['status', ''],
         ]);
         $query = $this->logic->search($where);
+        $data = $this->withRelatedNames($this->logic->getList($query));
 
-        return $this->success($this->logic->getList($query));
+        return $this->success($data);
     }
 
     #[Permission('社区评论读取', 'help:community:comment:read')]
@@ -42,6 +44,7 @@ class SaCommunityCommentController extends BaseController
     {
         $model = $this->logic->read($request->input('id', ''));
         $data = is_array($model) ? $model : $model->toArray();
+        $data = $this->appendRelatedNames([$data])[0] ?? $data;
         $data['audit_logs'] = (new HelpAuditLogService())->list('community_comment', (int) ($data['id'] ?? 0));
 
         return $this->success($data);
@@ -95,5 +98,83 @@ class SaCommunityCommentController extends BaseController
         );
 
         return $result ? $this->success('审核成功') : $this->fail('审核失败');
+    }
+
+    private function withRelatedNames(array $page): array
+    {
+        foreach (['data', 'list'] as $rowsKey) {
+            if (isset($page[$rowsKey]) && is_array($page[$rowsKey])) {
+                $page[$rowsKey] = $this->appendRelatedNames($page[$rowsKey]);
+                break;
+            }
+        }
+
+        return $page;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private function appendRelatedNames(array $rows): array
+    {
+        $memberIds = array_values(array_unique(array_filter(
+            array_map(fn (array $row): int => (int) ($row['member_id'] ?? 0), $rows),
+            fn (int $id): bool => $id > 0
+        )));
+        $postIds = array_values(array_unique(array_filter(
+            array_map(fn (array $row): int => (int) ($row['post_id'] ?? 0), $rows),
+            fn (int $id): bool => $id > 0
+        )));
+
+        $memberMap = [];
+        if ($memberIds !== []) {
+            $members = Db::table('sa_member')
+                ->whereIn('id', $memberIds)
+                ->whereNull('delete_time')
+                ->field('id, nickname, username')
+                ->select()
+                ->toArray();
+            foreach ($members as $member) {
+                $name = trim((string) ($member['nickname'] ?? ''));
+                if ($name === '') {
+                    $name = trim((string) ($member['username'] ?? ''));
+                }
+                $memberMap[(int) $member['id']] = $name;
+            }
+        }
+
+        $postMap = [];
+        if ($postIds !== []) {
+            $posts = Db::table('sa_community_post')
+                ->whereIn('id', $postIds)
+                ->whereNull('delete_time')
+                ->field('id, content')
+                ->select()
+                ->toArray();
+            foreach ($posts as $post) {
+                $postMap[(int) $post['id']] = $this->excerpt((string) ($post['content'] ?? ''));
+            }
+        }
+
+        foreach ($rows as &$row) {
+            $memberId = (int) ($row['member_id'] ?? 0);
+            $postId = (int) ($row['post_id'] ?? 0);
+            $row['member_name'] = $memberMap[$memberId] ?? ('会员#' . $memberId);
+            $row['post_title'] = $postMap[$postId] ?? '帖子已删除';
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    private function excerpt(string $content): string
+    {
+        $text = trim(preg_replace('/\s+/', ' ', strip_tags($content)) ?: '');
+        if ($text === '') {
+            return '无内容';
+        }
+
+        return mb_strlen($text) > 60 ? mb_substr($text, 0, 60) . '...' : $text;
     }
 }

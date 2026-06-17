@@ -36,6 +36,7 @@ use plugin\help\app\admin\controller\localModel\SaLocalModelPromptController as 
 use plugin\help\app\admin\controller\material\SaContentCategoryController as AdminContentCategoryController;
 use plugin\help\app\admin\controller\material\SaContentMaterialController as AdminContentMaterialController;
 use plugin\help\app\admin\controller\material\SaEntertainmentMaterialController as AdminEntertainmentMaterialController;
+use plugin\help\app\admin\controller\material\SaMaterialCommentController as AdminMaterialCommentController;
 use plugin\help\app\admin\controller\material\SaPrivateMaterialController as AdminPrivateMaterialController;
 use plugin\help\app\admin\controller\me\SaMemberDiagnosticLogController as AdminMemberDiagnosticLogController;
 use plugin\help\app\admin\controller\me\SaMemberJournalController as AdminMemberJournalController;
@@ -237,6 +238,8 @@ Route::group('/app/help/admin/material', function () {
     Route::post('/SaContentMaterial/audit', [AdminContentMaterialController::class, 'audit']);
     fastRoute('SaEntertainmentMaterial', AdminEntertainmentMaterialController::class);
     Route::post('/SaEntertainmentMaterial/audit', [AdminEntertainmentMaterialController::class, 'audit']);
+    fastRoute('SaMaterialComment', AdminMaterialCommentController::class);
+    Route::post('/SaMaterialComment/status', [AdminMaterialCommentController::class, 'status']);
     fastRoute('SaPrivateMaterial', AdminPrivateMaterialController::class);
     Route::post('/SaPrivateMaterial/audit', [AdminPrivateMaterialController::class, 'audit']);
 });
