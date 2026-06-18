@@ -35,6 +35,33 @@ class LocalNotificationService {
 
   final FlutterLocalNotificationsPlugin _plugin;
 
+  static const NotificationDetails _developerNotificationDetails =
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _developerChannelId,
+          _developerChannelName,
+          channelDescription: _developerChannelDescription,
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBanner: true,
+          presentBadge: true,
+          presentList: true,
+          presentSound: true,
+          interruptionLevel: InterruptionLevel.active,
+        ),
+        macOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBanner: true,
+          presentBadge: true,
+          presentList: true,
+          presentSound: true,
+          interruptionLevel: InterruptionLevel.active,
+        ),
+      );
+
   Future<void> initialize() async {
     await _configureLocalTimeZone();
     const androidSettings = AndroidInitializationSettings(
@@ -109,6 +136,34 @@ class LocalNotificationService {
         await android?.requestNotificationsPermission();
   }
 
+  Future<DeveloperNotificationDispatchResult> showDeveloperTestNotificationNow({
+    required String title,
+    required String body,
+  }) async {
+    final timeZoneIdentifier = await _configureLocalTimeZone();
+    await _plugin.cancelAll();
+    final id = DateTime.now().millisecondsSinceEpoch.remainder(1 << 31);
+    final shownAt = DateTime.now();
+    await _plugin.show(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: _developerNotificationDetails,
+      payload: 'developer-test-now:$id',
+    );
+    final pendingRequests = await _plugin.pendingNotificationRequests();
+    final deliveredNotifications = await _plugin.getActiveNotifications();
+    final diagnostics = await readDeveloperNotificationDiagnostics();
+    return DeveloperNotificationDispatchResult(
+      id: id,
+      pendingCount: pendingRequests.length,
+      deliveredCount: deliveredNotifications.length,
+      scheduledAt: shownAt,
+      timeZoneIdentifier: timeZoneIdentifier,
+      diagnostics: diagnostics,
+    );
+  }
+
   Future<DeveloperNotificationDispatchResult>
   scheduleDeveloperTestNotification({
     required String title,
@@ -117,32 +172,6 @@ class LocalNotificationService {
   }) async {
     final timeZoneIdentifier = await _configureLocalTimeZone();
     final displayScheduledAt = DateTime.now().add(delay);
-    const details = NotificationDetails(
-      android: AndroidNotificationDetails(
-        _developerChannelId,
-        _developerChannelName,
-        channelDescription: _developerChannelDescription,
-        importance: Importance.max,
-        priority: Priority.high,
-      ),
-      iOS: DarwinNotificationDetails(
-        presentAlert: true,
-        presentBanner: true,
-        presentBadge: true,
-        presentList: true,
-        presentSound: true,
-        interruptionLevel: InterruptionLevel.active,
-      ),
-      macOS: DarwinNotificationDetails(
-        presentAlert: true,
-        presentBanner: true,
-        presentBadge: true,
-        presentList: true,
-        presentSound: true,
-        interruptionLevel: InterruptionLevel.active,
-      ),
-    );
-
     await _plugin.cancelAll();
     final id = DateTime.now().millisecondsSinceEpoch.remainder(1 << 31);
     final scheduledAt = timezone.TZDateTime.now(timezone.local).add(delay);
@@ -151,7 +180,7 @@ class LocalNotificationService {
       title: title,
       body: body,
       scheduledDate: scheduledAt,
-      notificationDetails: details,
+      notificationDetails: _developerNotificationDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       payload: 'developer-test:$id',
     );

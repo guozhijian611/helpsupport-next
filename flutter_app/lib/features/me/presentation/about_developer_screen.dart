@@ -285,6 +285,104 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
     }
   }
 
+  Future<void> _showForegroundNotification() async {
+    if (_sendingNotification) {
+      return;
+    }
+    setState(() => _sendingNotification = true);
+    final permissionService = ref.read(permissionServiceProvider);
+    final notificationService = ref.read(localNotificationServiceProvider);
+    try {
+      final currentStatus = await permissionService.notificationStatus();
+      if (!_isPermissionUsable(currentStatus)) {
+        await permissionService.requestNotifications();
+        await notificationService.requestPermissions();
+      }
+      final refreshedStatus = await permissionService.notificationStatus();
+      if (!_isPermissionUsable(refreshedStatus)) {
+        if (mounted) {
+          context.showCenteredNotice(
+            _t(
+              context,
+              '通知权限未开启，请先授权后再测试本地通知',
+              'Notification permission is required before testing local notifications.',
+            ),
+          );
+        }
+        await _recordInfo(
+          'developer.notification',
+          'Skipped immediate local notification test because permission is unavailable',
+        );
+        return;
+      }
+      final result = await notificationService.showDeveloperTestNotificationNow(
+        title: _t(
+          context,
+          'HelpSupport 前台通知测试',
+          'HelpSupport foreground notification test',
+        ),
+        body: _t(
+          context,
+          '如果前台横幅链路正常，这条通知会立刻显示出来',
+          'This notification should appear immediately if foreground presentation is working.',
+        ),
+      );
+      if (!mounted) {
+        return;
+      }
+      final shownAt = result.scheduledAt ?? DateTime.now();
+      setState(() {
+        _lastNotificationAt = shownAt;
+        _lastNotificationSnapshot = _t(
+          context,
+          '待发送 ${result.pendingCount} 条，通知中心中 ${result.deliveredCount} 条',
+          'Pending ${result.pendingCount}, delivered ${result.deliveredCount}',
+        );
+        _notificationDiagnosticsText = result.diagnostics == null
+            ? null
+            : 'iOS: auth=${result.diagnostics!['authorizationStatus'] ?? '-'}, alert=${result.diagnostics!['alertSetting'] ?? '-'}, lock=${result.diagnostics!['lockScreenSetting'] ?? '-'}, center=${result.diagnostics!['notificationCenterSetting'] ?? '-'}, style=${result.diagnostics!['alertStyle'] ?? '-'}, tz=${result.timeZoneIdentifier ?? result.diagnostics!['timeZoneIdentifier'] ?? '-'}';
+      });
+      context.showCenteredNotice(
+        _t(
+          context,
+          '已触发前台通知，请直接看当前页面顶部是否出现系统横幅',
+          'Foreground notification sent. Check whether a system banner appears at the top immediately.',
+        ),
+      );
+      await _recordInfo(
+        'developer.notification',
+        'Triggered immediate foreground local notification',
+        details: <String, Object?>{
+          'notification_id': result.id,
+          'shown_at': shownAt.toIso8601String(),
+          'pending_count': result.pendingCount,
+          'delivered_count': result.deliveredCount,
+          'time_zone_identifier': result.timeZoneIdentifier,
+          'diagnostics': result.diagnostics,
+        },
+      );
+      unawaited(
+        Future<void>.delayed(const Duration(seconds: 1), () async {
+          await _refreshNotificationDiagnostics();
+        }),
+      );
+    } on Object catch (error) {
+      await _recordError(
+        'developer.notification',
+        'Sending immediate foreground local notification failed',
+        error,
+      );
+      if (mounted) {
+        context.showCenteredNotice(_errorText(context, error));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _sendingNotification = false);
+        await _loadPermissionStatuses();
+      }
+    }
+  }
+
   Future<void> _pickImage() async {
     final permissionService = ref.read(permissionServiceProvider);
     try {
@@ -950,8 +1048,8 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
                     Text(
                       _t(
                         context,
-                        '安排一条 3 秒后的系统通知，用来确认通知权限、横幅与通知中心投递链路。点击后请先回桌面或锁屏观察。',
-                        'Schedule a system notification 3 seconds later to verify permissions, banners, and Notification Center delivery. Leave the app or lock the device after tapping.',
+                        '先用“立即前台横幅”确认当前页顶部能否立刻弹出系统横幅，再用“3 秒后系统通知”验证回桌面或锁屏后的投递链路。',
+                        'Use the immediate foreground banner test first, then use the 3-second system notification test to verify delivery after leaving the app or locking the device.',
                       ),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: palette.secondaryText,
@@ -963,6 +1061,31 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
                       spacing: 10,
                       runSpacing: 10,
                       children: [
+                        FilledButton.icon(
+                          onPressed: _sendingNotification
+                              ? null
+                              : _showForegroundNotification,
+                          icon: _sendingNotification
+                              ? const SizedBox.square(
+                                  dimension: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.notification_important_rounded,
+                                ),
+                          label: Text(
+                            _t(
+                              context,
+                              '立即前台横幅',
+                              'Immediate foreground banner',
+                            ),
+                          ),
+                        ),
                         FilledButton.icon(
                           onPressed: _sendingNotification
                               ? null
