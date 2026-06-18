@@ -5,21 +5,24 @@ import UserNotifications
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private let developerToolsChannelName = "helpsupport/developer_tools"
+  private var developerToolsChannel: FlutterMethodChannel?
 
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     let didFinish = super.application(application, didFinishLaunchingWithOptions: launchOptions)
-    if let controller = window?.rootViewController as? FlutterViewController {
-      let channel = FlutterMethodChannel(
-        name: developerToolsChannelName,
-        binaryMessenger: controller.binaryMessenger
-      )
-      channel.setMethodCallHandler { [weak self] call, result in
-        self?.handleDeveloperToolsMethod(call: call, result: result)
-      }
+    guard let registrar = self.registrar(forPlugin: developerToolsChannelName) else {
+      return didFinish
     }
+    let channel = FlutterMethodChannel(
+      name: developerToolsChannelName,
+      binaryMessenger: registrar.messenger()
+    )
+    channel.setMethodCallHandler { [weak self] call, result in
+      self?.handleDeveloperToolsMethod(call: call, result: result)
+    }
+    developerToolsChannel = channel
     return didFinish
   }
 

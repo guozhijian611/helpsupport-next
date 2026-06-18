@@ -116,6 +116,7 @@ class LocalNotificationService {
     Duration delay = _developerNotificationDelay,
   }) async {
     final timeZoneIdentifier = await _configureLocalTimeZone();
+    final displayScheduledAt = DateTime.now().add(delay);
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
         _developerChannelId,
@@ -161,7 +162,7 @@ class LocalNotificationService {
       id: id,
       pendingCount: pendingRequests.length,
       deliveredCount: deliveredNotifications.length,
-      scheduledAt: scheduledAt.toLocal(),
+      scheduledAt: displayScheduledAt,
       timeZoneIdentifier: timeZoneIdentifier,
       diagnostics: diagnostics,
     );
