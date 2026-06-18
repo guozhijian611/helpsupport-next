@@ -135,21 +135,19 @@ class _CommunityMemberProfileScreenState
 
     setState(() => _followingSubmitting = true);
     try {
-      await ref
+      final state = await ref
           .read(communityRepositoryProvider)
           .toggleFollowMember(profile.memberId);
       ref.invalidate(communityMemberProfileProvider(widget.memberId));
       ref.invalidate(communityFollowingProvider(widget.memberId));
       ref.invalidate(communityFollowersProvider(widget.memberId));
       ref.invalidate(communityPostsProvider);
+      ref.invalidate(communityFollowingPostsProvider);
+      ref.invalidate(communityFollowedTopicPostsProvider);
       if (!context.mounted) {
         return;
       }
-      context.showCenteredNotice(
-        profile.isFollowed
-            ? _t(context, '已取消关注', 'Unfollowed')
-            : _t(context, '已关注', 'Followed'),
-      );
+      context.showCenteredNotice(_followNoticeText(context, state));
     } on Object catch (error) {
       if (!context.mounted) {
         return;
@@ -295,6 +293,7 @@ class _ProfileHero extends StatelessWidget {
                   const SizedBox(width: 12),
                   _FollowActionButton(
                     followed: profile.isFollowed,
+                    mutualFollowed: profile.isMutualFollow,
                     busy: followBusy,
                     onTap: onFollow!,
                   ),
@@ -416,11 +415,13 @@ class _StatItem extends StatelessWidget {
 class _FollowActionButton extends StatelessWidget {
   const _FollowActionButton({
     required this.followed,
+    required this.mutualFollowed,
     required this.busy,
     required this.onTap,
   });
 
   final bool followed;
+  final bool mutualFollowed;
   final bool busy;
   final VoidCallback onTap;
 
@@ -448,9 +449,11 @@ class _FollowActionButton extends StatelessWidget {
               ),
             )
           : Text(
-              followed
-                  ? _t(context, '已关注', 'Following')
-                  : _t(context, '关注', 'Follow'),
+              _followButtonLabel(
+                context,
+                isFollowed: followed,
+                isMutualFollow: mutualFollowed,
+              ),
             ),
     );
   }
@@ -623,6 +626,30 @@ String _countText(int value) {
     return '${(value / 10000).round()}W';
   }
   return '$value';
+}
+
+String _followButtonLabel(
+  BuildContext context, {
+  required bool isFollowed,
+  required bool isMutualFollow,
+}) {
+  if (isMutualFollow) {
+    return _t(context, '已互关', 'Mutual');
+  }
+  if (isFollowed) {
+    return _t(context, '已关注', 'Following');
+  }
+  return _t(context, '关注', 'Follow');
+}
+
+String _followNoticeText(BuildContext context, CommunityFollowState state) {
+  if (!state.isFollowed) {
+    return _t(context, '已取消关注', 'Unfollowed');
+  }
+  if (state.isMutualFollow) {
+    return _t(context, '已互关', 'Mutual');
+  }
+  return _t(context, '已关注', 'Followed');
 }
 
 String _t(BuildContext context, String zh, String en) {

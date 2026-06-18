@@ -178,21 +178,20 @@ class _CommunityMemberRelationsScreenState
 
     setState(() => _submittingMemberIds.add(member.memberId));
     try {
-      await ref
+      final state = await ref
           .read(communityRepositoryProvider)
           .toggleFollowMember(member.memberId);
       ref.invalidate(communityFollowingProvider(widget.memberId));
       ref.invalidate(communityFollowersProvider(widget.memberId));
       ref.invalidate(communityMemberProfileProvider(widget.memberId));
       ref.invalidate(communityMemberProfileProvider(member.memberId));
+      ref.invalidate(communityPostsProvider);
+      ref.invalidate(communityFollowingPostsProvider);
+      ref.invalidate(communityFollowedTopicPostsProvider);
       if (!context.mounted) {
         return;
       }
-      context.showCenteredNotice(
-        member.isFollowed
-            ? _t(context, '已取消关注', 'Unfollowed')
-            : _t(context, '已关注', 'Followed'),
-      );
+      context.showCenteredNotice(_followNoticeText(context, state));
     } on Object catch (error) {
       if (!context.mounted) {
         return;
@@ -303,7 +302,7 @@ class _RelationMemberCard extends StatelessWidget {
                     ? palette.followedButtonBackground
                     : palette.followButtonBackground,
                 foregroundColor: Colors.white,
-                minimumSize: const Size(104, 46),
+                minimumSize: const Size(112, 46),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18),
                 ),
@@ -322,9 +321,11 @@ class _RelationMemberCard extends StatelessWidget {
                       ),
                     )
                   : Text(
-                      member.isFollowed
-                          ? _t(context, '已关注', 'Following')
-                          : _t(context, '关注', 'Follow'),
+                      _followButtonLabel(
+                        context,
+                        isFollowed: member.isFollowed,
+                        isMutualFollow: member.isMutualFollow,
+                      ),
                     ),
             ),
           ],
@@ -386,6 +387,30 @@ class _RelationStatusCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _followButtonLabel(
+  BuildContext context, {
+  required bool isFollowed,
+  required bool isMutualFollow,
+}) {
+  if (isMutualFollow) {
+    return _t(context, '已互关', 'Mutual');
+  }
+  if (isFollowed) {
+    return _t(context, '已关注', 'Following');
+  }
+  return _t(context, '关注', 'Follow');
+}
+
+String _followNoticeText(BuildContext context, CommunityFollowState state) {
+  if (!state.isFollowed) {
+    return _t(context, '已取消关注', 'Unfollowed');
+  }
+  if (state.isMutualFollow) {
+    return _t(context, '已互关', 'Mutual');
+  }
+  return _t(context, '已关注', 'Followed');
 }
 
 String _t(BuildContext context, String zh, String en) {

@@ -51,6 +51,7 @@ class CommunityPost {
     required this.isLiked,
     required this.isCollected,
     required this.isFollowedAuthor,
+    required this.isMutualFollowAuthor,
   });
 
   final int id;
@@ -74,6 +75,7 @@ class CommunityPost {
   final bool isLiked;
   final bool isCollected;
   final bool isFollowedAuthor;
+  final bool isMutualFollowAuthor;
 
   bool get isPendingReview => auditStatus == 0;
   CommunityStructuredText get structuredText => _splitStructuredText(content);
@@ -104,6 +106,7 @@ class CommunityPost {
       isLiked: _boolValue(json['is_liked']),
       isCollected: _boolValue(json['is_collected']),
       isFollowedAuthor: _boolValue(json['is_followed_author']),
+      isMutualFollowAuthor: _boolValue(json['is_mutual_follow_author']),
     );
   }
 }
@@ -205,6 +208,7 @@ class CommunityMemberProfile {
     required this.recoveryDays,
     required this.isSelf,
     required this.isFollowed,
+    required this.isMutualFollow,
     required this.followCount,
     required this.followerCount,
     required this.likeCount,
@@ -222,6 +226,7 @@ class CommunityMemberProfile {
   final int recoveryDays;
   final bool isSelf;
   final bool isFollowed;
+  final bool isMutualFollow;
   final int followCount;
   final int followerCount;
   final int likeCount;
@@ -240,6 +245,7 @@ class CommunityMemberProfile {
       recoveryDays: _intValue(json['recovery_days']),
       isSelf: _boolValue(json['is_self']),
       isFollowed: _boolValue(json['is_followed']),
+      isMutualFollow: _boolValue(json['is_mutual_follow']),
       followCount: _intValue(json['follow_count']),
       followerCount: _intValue(json['follower_count']),
       likeCount: _intValue(json['like_count']),
@@ -261,6 +267,7 @@ class CommunityMember {
     required this.recoveryDays,
     required this.isSelf,
     required this.isFollowed,
+    required this.isMutualFollow,
   });
 
   final int memberId;
@@ -274,6 +281,7 @@ class CommunityMember {
   final int recoveryDays;
   final bool isSelf;
   final bool isFollowed;
+  final bool isMutualFollow;
 
   factory CommunityMember.fromJson(Map<String, dynamic> json) {
     return CommunityMember(
@@ -288,6 +296,24 @@ class CommunityMember {
       recoveryDays: _intValue(json['recovery_days']),
       isSelf: _boolValue(json['is_self']),
       isFollowed: _boolValue(json['is_followed']),
+      isMutualFollow: _boolValue(json['is_mutual_follow']),
+    );
+  }
+}
+
+class CommunityFollowState {
+  const CommunityFollowState({
+    required this.isFollowed,
+    required this.isMutualFollow,
+  });
+
+  final bool isFollowed;
+  final bool isMutualFollow;
+
+  factory CommunityFollowState.fromJson(Map<String, dynamic> json) {
+    return CommunityFollowState(
+      isFollowed: _boolValue(json['is_followed']),
+      isMutualFollow: _boolValue(json['is_mutual_follow']),
     );
   }
 }

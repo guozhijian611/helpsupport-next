@@ -1807,7 +1807,10 @@ class HelpApiService
             $this->notifyCommunityFollow($memberId, $targetMemberId);
         }
 
-        return ['target_member_id' => $targetMemberId, 'is_followed' => $isActive];
+        return array_merge(
+            ['target_member_id' => $targetMemberId],
+            $this->communityFollowState($memberId, $targetMemberId)
+        );
     }
 
     public function reportCommunityTarget(int $memberId, array $data): array
@@ -4832,6 +4835,7 @@ class HelpApiService
         array $doctorProfile = []
     ): array {
         $targetMemberId = (int) ($member['id'] ?? 0);
+        $followState = $this->communityFollowState($viewerId, $targetMemberId);
         $displayName = trim((string) ($member['nickname'] ?? ''))
             ?: trim((string) ($member['username'] ?? ''))
             ?: 'Member #' . $targetMemberId;
@@ -4856,14 +4860,35 @@ class HelpApiService
             'doctor_title' => (string) ($doctorProfile['title'] ?? ''),
             'recovery_days' => $this->communityRecoveryDays($startedAt),
             'is_self' => $viewerId > 0 && $viewerId === $targetMemberId,
-            'is_followed' => $viewerId > 0
-                && $viewerId !== $targetMemberId
-                && $this->activeInteractionExists(
-                    'sa_community_follow_member',
-                    $viewerId,
-                    'target_member_id',
-                    $targetMemberId
-                ),
+            'is_followed' => $followState['is_followed'],
+            'is_mutual_follow' => $followState['is_mutual_follow'],
+        ];
+    }
+
+    private function communityFollowState(int $viewerId, int $targetMemberId): array
+    {
+        if ($viewerId <= 0 || $targetMemberId <= 0 || $viewerId === $targetMemberId) {
+            return ['is_followed' => false, 'is_mutual_follow' => false];
+        }
+
+        $isFollowed = $this->activeInteractionExists(
+            'sa_community_follow_member',
+            $viewerId,
+            'target_member_id',
+            $targetMemberId
+        );
+        if (!$isFollowed) {
+            return ['is_followed' => false, 'is_mutual_follow' => false];
+        }
+
+        return [
+            'is_followed' => true,
+            'is_mutual_follow' => $this->activeInteractionExists(
+                'sa_community_follow_member',
+                $targetMemberId,
+                'target_member_id',
+                $viewerId
+            ),
         ];
     }
 
@@ -5002,14 +5027,18 @@ class HelpApiService
         foreach ($rows as &$row) {
             $postId = (int) ($row['id'] ?? 0);
             $authorId = (int) ($row['member_id'] ?? 0);
+            $canTrackAuthor = $authorId > 0
+                && $authorId !== $memberId
+                && (int) ($row['is_anonymous'] ?? 2) !== 1;
+            $followState = $canTrackAuthor
+                ? $this->communityFollowState($memberId, $authorId)
+                : ['is_followed' => false, 'is_mutual_follow' => false];
             $row['images'] = $this->decodeJsonArray($row['images'] ?? null);
             $row['tags'] = $this->decodeJsonArray($row['tags'] ?? null);
             $row['is_liked'] = $this->activeCommunityLikeExists($memberId, 1, $postId);
             $row['is_collected'] = $this->activeInteractionExists('sa_community_collect', $memberId, 'post_id', $postId);
-            $row['is_followed_author'] = $authorId > 0
-                && $authorId !== $memberId
-                && (int) ($row['is_anonymous'] ?? 2) !== 1
-                && $this->activeInteractionExists('sa_community_follow_member', $memberId, 'target_member_id', $authorId);
+            $row['is_followed_author'] = $followState['is_followed'];
+            $row['is_mutual_follow_author'] = $followState['is_mutual_follow'];
             $this->applyCommunityAuthor($row);
         }
         unset($row);

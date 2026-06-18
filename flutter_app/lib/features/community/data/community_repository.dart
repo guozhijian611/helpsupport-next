@@ -205,18 +205,22 @@ class CommunityRepository {
     return result.data ?? false;
   }
 
-  Future<bool> toggleFollowMember(int memberId) async {
-    final result = await _apiClient.postApi<bool>(
+  Future<CommunityFollowState> toggleFollowMember(int memberId) async {
+    final result = await _apiClient.postApi<CommunityFollowState>(
       '/app/help/community/follow-member',
       data: {'target_member_id': memberId},
       decode: (value) {
         if (value is Map<String, dynamic>) {
-          return value['is_followed'] == true;
+          return CommunityFollowState.fromJson(value);
         }
-        return false;
+        return const CommunityFollowState(
+          isFollowed: false,
+          isMutualFollow: false,
+        );
       },
     );
-    return result.data ?? false;
+    return result.data ??
+        const CommunityFollowState(isFollowed: false, isMutualFollow: false);
   }
 
   Future<void> reportTarget({

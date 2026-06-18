@@ -323,6 +323,7 @@ class CommunityPostCard extends ConsumerWidget {
                     if (canFollow)
                       _FollowButton(
                         followed: post.isFollowedAuthor,
+                        mutualFollowed: post.isMutualFollowAuthor,
                         onTap: () => _toggleFollowAuthor(context, ref, post),
                       ),
                   ],
@@ -501,7 +502,7 @@ class CommunityPostCard extends ConsumerWidget {
     CommunityPost post,
   ) async {
     try {
-      await ref
+      final state = await ref
           .read(communityRepositoryProvider)
           .toggleFollowMember(post.memberId);
       ref.invalidate(communityPostsProvider);
@@ -512,11 +513,7 @@ class CommunityPostCard extends ConsumerWidget {
       if (!context.mounted) {
         return;
       }
-      context.showCenteredNotice(
-        post.isFollowedAuthor
-            ? _t(context, '已取消关注', 'Unfollowed')
-            : _t(context, '已关注', 'Followed'),
-      );
+      context.showCenteredNotice(_followNoticeText(context, state));
     } on Object catch (error) {
       if (!context.mounted) {
         return;
@@ -942,9 +939,14 @@ class _AuthorAvatar extends StatelessWidget {
 }
 
 class _FollowButton extends StatelessWidget {
-  const _FollowButton({required this.followed, required this.onTap});
+  const _FollowButton({
+    required this.followed,
+    required this.mutualFollowed,
+    required this.onTap,
+  });
 
   final bool followed;
+  final bool mutualFollowed;
   final VoidCallback onTap;
 
   @override
@@ -960,9 +962,11 @@ class _FollowButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       ),
       child: Text(
-        followed
-            ? _t(context, '已关注', 'Following')
-            : _t(context, '关注', 'Follow'),
+        _followButtonLabel(
+          context,
+          isFollowed: followed,
+          isMutualFollow: mutualFollowed,
+        ),
       ),
     );
   }
@@ -1318,6 +1322,30 @@ String _scopeLabel(BuildContext context, _CommunityFeedScope scope) {
     _CommunityFeedScope.following => _t(context, '关注', 'Following'),
     _CommunityFeedScope.topics => _t(context, '话题', 'Topics'),
   };
+}
+
+String _followButtonLabel(
+  BuildContext context, {
+  required bool isFollowed,
+  required bool isMutualFollow,
+}) {
+  if (isMutualFollow) {
+    return _t(context, '已互关', 'Mutual');
+  }
+  if (isFollowed) {
+    return _t(context, '已关注', 'Following');
+  }
+  return _t(context, '关注', 'Follow');
+}
+
+String _followNoticeText(BuildContext context, CommunityFollowState state) {
+  if (!state.isFollowed) {
+    return _t(context, '已取消关注', 'Unfollowed');
+  }
+  if (state.isMutualFollow) {
+    return _t(context, '已互关', 'Mutual');
+  }
+  return _t(context, '已关注', 'Followed');
 }
 
 String _firstText(List<Object?> values, {String fallback = ''}) {

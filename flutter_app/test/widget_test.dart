@@ -77,6 +77,7 @@ void main() {
                   isLiked: false,
                   isCollected: false,
                   isFollowedAuthor: false,
+                  isMutualFollowAuthor: false,
                 ),
               ],
               total: 1,

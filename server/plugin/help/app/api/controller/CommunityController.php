@@ -37,6 +37,8 @@ class CommunityController extends BaseController
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
     #[Apidoc\Returned('list', type: 'array', desc: '帖子列表')]
+    #[Apidoc\Returned('is_followed_author', type: 'boolean', desc: '当前是否已关注帖子作者')]
+    #[Apidoc\Returned('is_mutual_follow_author', type: 'boolean', desc: '当前是否与帖子作者互关')]
     #[Apidoc\Returned('total', type: 'int', desc: '总数')]
     public function posts(Request $request): Response
     {
@@ -49,6 +51,8 @@ class CommunityController extends BaseController
     #[Apidoc\Query('id', type: 'int', require: true, desc: '帖子ID')]
     #[Apidoc\Returned('id', type: 'int', desc: '帖子ID')]
     #[Apidoc\Returned('content', type: 'string', desc: '帖子内容')]
+    #[Apidoc\Returned('is_followed_author', type: 'boolean', desc: '当前是否已关注帖子作者')]
+    #[Apidoc\Returned('is_mutual_follow_author', type: 'boolean', desc: '当前是否与帖子作者互关')]
     public function post(Request $request): Response
     {
         return ok($this->service->communityPostDetail($this->memberId, (int) $request->get('id', 0)));
@@ -144,6 +148,7 @@ class CommunityController extends BaseController
     #[Apidoc\Param('target_member_id', type: 'int', require: true, desc: '被关注会员ID')]
     #[Apidoc\Returned('target_member_id', type: 'int', desc: '被关注会员ID')]
     #[Apidoc\Returned('is_followed', type: 'boolean', desc: '当前是否关注')]
+    #[Apidoc\Returned('is_mutual_follow', type: 'boolean', desc: '当前是否已互关')]
     public function toggleFollowMember(Request $request): Response
     {
         return ok($this->service->toggleCommunityFollowMember($this->memberId, (int) $request->post('target_member_id', 0)));
@@ -167,6 +172,8 @@ class CommunityController extends BaseController
     #[Apidoc\Method('GET')]
     #[Apidoc\Query('member_id', type: 'int', require: false, desc: '目标会员ID，默认当前登录会员')]
     #[Apidoc\Returned('member_id', type: 'int', desc: '会员ID')]
+    #[Apidoc\Returned('is_followed', type: 'boolean', desc: '当前是否关注该会员')]
+    #[Apidoc\Returned('is_mutual_follow', type: 'boolean', desc: '当前是否与该会员互关')]
     #[Apidoc\Returned('follow_count', type: 'int', desc: '关注数')]
     #[Apidoc\Returned('follower_count', type: 'int', desc: '粉丝数')]
     #[Apidoc\Returned('like_count', type: 'int', desc: '获赞数')]
@@ -185,6 +192,8 @@ class CommunityController extends BaseController
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
     #[Apidoc\Returned('list', type: 'array', desc: '帖子列表')]
+    #[Apidoc\Returned('is_followed_author', type: 'boolean', desc: '当前是否已关注帖子作者')]
+    #[Apidoc\Returned('is_mutual_follow_author', type: 'boolean', desc: '当前是否与帖子作者互关')]
     public function memberPosts(Request $request): Response
     {
         return ok($this->service->communityMemberPosts($this->memberId, $request->get()));
