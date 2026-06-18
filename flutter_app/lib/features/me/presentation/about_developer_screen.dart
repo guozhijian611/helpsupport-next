@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
 import 'package:file_picker/file_picker.dart';
@@ -7,7 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
 
 import '../../../core/config/build_info.dart';
 import '../../../core/diagnostics/diagnostic_log_service.dart';
@@ -24,18 +27,28 @@ class AboutDeveloperScreen extends ConsumerStatefulWidget {
 
 class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
   final _imagePicker = ImagePicker();
+  final _microphoneRecorder = AudioRecorder();
 
   bool _sendingNotification = false;
   bool _permissionRefreshing = true;
   bool _cameraInitializing = false;
+  bool _microphoneBusy = false;
+  bool _microphoneRecording = false;
   bool _flashEnabled = false;
   bool _usingFrontCamera = false;
+  double _microphoneAmplitude = -60;
+  double _microphonePeakAmplitude = -60;
   DateTime? _lastNotificationAt;
   DateTime? _lastPermissionCheckAt;
+  DateTime? _microphoneRecordingStartedAt;
+  Duration? _lastMicrophoneDuration;
   XFile? _pickedImage;
   PlatformFile? _pickedFile;
+  String? _pickedDirectoryPath;
+  String? _lastMicrophoneRecordingPath;
   String? _cameraError;
   CameraController? _cameraController;
+  StreamSubscription<Amplitude>? _microphoneAmplitudeSubscription;
   List<CameraDescription> _availableCameras = const [];
   Map<Permission, PermissionStatus> _permissionStatuses =
       const <Permission, PermissionStatus>{};
@@ -49,6 +62,7 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
 
   @override
   void dispose() {
+    unawaited(_disposeMicrophoneTest());
     unawaited(_disposeCamera());
     super.dispose();
   }
@@ -181,7 +195,11 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
       }
       setState(() => _lastNotificationAt = now);
       context.showCenteredNotice(
-        _t(context, '本地通知已发送', 'Local notification sent'),
+        _t(
+          context,
+          '本地通知已发送，请查看顶部横幅或通知中心',
+          'Local notification sent. Check the banner or Notification Center.',
+        ),
       );
       await _recordInfo(
         'developer.notification',
@@ -281,6 +299,33 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
     }
   }
 
+  Future<void> _pickDirectory() async {
+    try {
+      final directoryPath = await FilePicker.platform.getDirectoryPath();
+      if (directoryPath == null || !mounted) {
+        return;
+      }
+      setState(() => _pickedDirectoryPath = directoryPath);
+      context.showCenteredNotice(
+        _t(context, '已选择本地文件夹', 'Local folder picked'),
+      );
+      await _recordInfo(
+        'developer.directory_picker',
+        'Picked local directory for developer test',
+        details: {'directory': directoryPath},
+      );
+    } on Object catch (error) {
+      await _recordError(
+        'developer.directory_picker',
+        'Picking local directory failed',
+        error,
+      );
+      if (mounted) {
+        context.showCenteredNotice(_errorText(context, error));
+      }
+    }
+  }
+
   Future<void> _toggleCameraPreview() async {
     if (_cameraController != null) {
       await _stopCameraPreview();
@@ -331,6 +376,19 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
 
       final selected =
           _pickCamera(cameras, preferredDirection) ?? cameras.first;
+      final previousController = _cameraController;
+      _cameraController = null;
+      if (mounted) {
+        setState(() => _flashEnabled = false);
+      }
+      if (previousController != null) {
+        try {
+          await previousController.setFlashMode(FlashMode.off);
+        } on Object {
+          // Ignore teardown failures when replacing the active camera.
+        }
+        await previousController.dispose();
+      }
       final nextController = CameraController(
         selected,
         ResolutionPreset.medium,
@@ -338,7 +396,6 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
       );
       await nextController.initialize();
 
-      final previousController = _cameraController;
       _cameraController = nextController;
       _availableCameras = cameras;
 
@@ -351,7 +408,6 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
         });
       }
 
-      await previousController?.dispose();
       await _recordInfo(
         'developer.camera',
         'Started camera preview',
@@ -451,6 +507,184 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
     if (controller != null) {
       await controller.dispose();
     }
+  }
+
+  Future<void> _toggleMicrophoneTest() async {
+    if (_microphoneBusy) {
+      return;
+    }
+    if (_microphoneRecording) {
+      await _stopMicrophoneTest();
+      return;
+    }
+    await _startMicrophoneTest();
+  }
+
+  Future<void> _startMicrophoneTest() async {
+    final permissionService = ref.read(permissionServiceProvider);
+    setState(() => _microphoneBusy = true);
+    try {
+      final currentStatus = await permissionService.microphoneStatus();
+      final status = _isPermissionUsable(currentStatus)
+          ? currentStatus
+          : await permissionService.requestMicrophone();
+      await _loadPermissionStatuses();
+      if (!_isPermissionUsable(status)) {
+        if (mounted) {
+          context.showCenteredNotice(
+            _t(
+              context,
+              '需要开启麦克风权限后才能测试录音',
+              'Microphone permission is required before testing recording.',
+            ),
+          );
+        }
+        return;
+      }
+
+      final hasPermission = await _microphoneRecorder.hasPermission(
+        request: false,
+      );
+      if (!hasPermission) {
+        if (mounted) {
+          context.showCenteredNotice(
+            _t(
+              context,
+              '系统未授予麦克风访问权限，请在设置中确认',
+              'Microphone access is unavailable. Check system settings.',
+            ),
+          );
+        }
+        return;
+      }
+
+      await _microphoneAmplitudeSubscription?.cancel();
+      final tempDir = await getTemporaryDirectory();
+      final audioPath =
+          '${tempDir.path}/developer-mic-${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+      await _microphoneRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 128000,
+          sampleRate: 44100,
+          numChannels: 1,
+        ),
+        path: audioPath,
+      );
+      _microphoneAmplitudeSubscription = _microphoneRecorder
+          .onAmplitudeChanged(const Duration(milliseconds: 220))
+          .listen((amplitude) {
+            if (!mounted) {
+              return;
+            }
+            setState(() {
+              _microphoneAmplitude = amplitude.current;
+              _microphonePeakAmplitude = math.max(
+                _microphonePeakAmplitude,
+                amplitude.max,
+              );
+            });
+          });
+
+      final startedAt = DateTime.now();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _microphoneRecording = true;
+        _microphoneRecordingStartedAt = startedAt;
+        _microphoneAmplitude = -60;
+        _microphonePeakAmplitude = -60;
+      });
+      context.showCenteredNotice(
+        _t(
+          context,
+          '麦克风录音测试已开始，请对着设备说话',
+          'Microphone recording test started. Speak into the device.',
+        ),
+      );
+      await _recordInfo(
+        'developer.microphone',
+        'Started microphone recording test',
+        details: {'path': audioPath},
+      );
+    } on Object catch (error) {
+      await _recordError(
+        'developer.microphone',
+        'Starting microphone recording failed',
+        error,
+      );
+      if (mounted) {
+        context.showCenteredNotice(_errorText(context, error));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _microphoneBusy = false);
+      }
+    }
+  }
+
+  Future<void> _stopMicrophoneTest() async {
+    if (_microphoneBusy) {
+      return;
+    }
+    setState(() => _microphoneBusy = true);
+    try {
+      final startedAt = _microphoneRecordingStartedAt;
+      final recordingPath = await _microphoneRecorder.stop();
+      await _microphoneAmplitudeSubscription?.cancel();
+      _microphoneAmplitudeSubscription = null;
+      final duration = startedAt == null
+          ? Duration.zero
+          : DateTime.now().difference(startedAt);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _microphoneRecording = false;
+        _microphoneRecordingStartedAt = null;
+        _lastMicrophoneDuration = duration;
+        _lastMicrophoneRecordingPath = recordingPath;
+      });
+      context.showCenteredNotice(
+        _t(context, '麦克风录音测试已结束', 'Microphone recording test stopped.'),
+      );
+      await _recordInfo(
+        'developer.microphone',
+        'Stopped microphone recording test',
+        details: {
+          'path': recordingPath,
+          'duration_ms': duration.inMilliseconds,
+        },
+      );
+    } on Object catch (error) {
+      await _recordError(
+        'developer.microphone',
+        'Stopping microphone recording failed',
+        error,
+      );
+      if (mounted) {
+        context.showCenteredNotice(_errorText(context, error));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _microphoneBusy = false);
+      }
+    }
+  }
+
+  Future<void> _disposeMicrophoneTest() async {
+    await _microphoneAmplitudeSubscription?.cancel();
+    _microphoneAmplitudeSubscription = null;
+    try {
+      if (await _microphoneRecorder.isRecording()) {
+        await _microphoneRecorder.cancel();
+      }
+    } on Object {
+      // Ignore disposal-time recorder errors.
+    }
+    await _microphoneRecorder.dispose();
   }
 
   CameraDescription? _pickCamera(
@@ -630,7 +864,11 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
               const SizedBox(height: 18),
               _SectionLabel(
                 palette: palette,
-                title: _t(context, '通知与媒体测试', 'Notification and media tests'),
+                title: _t(
+                  context,
+                  '通知、麦克风与媒体测试',
+                  'Notifications, microphone, and media tests',
+                ),
               ),
               const SizedBox(height: 10),
               _SectionCard(
@@ -694,6 +932,153 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
                     Divider(color: palette.border),
                     const SizedBox(height: 18),
                     Text(
+                      _t(context, '麦克风测试', 'Microphone test'),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: palette.primaryText,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _t(
+                        context,
+                        '开始一段本地录音并实时显示输入电平，停止后保存测试音频，验证麦克风权限和采集链路。',
+                        'Record a short local clip with live input levels to verify microphone permission and capture.',
+                      ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: palette.secondaryText,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        FilledButton.icon(
+                          onPressed: _microphoneBusy
+                              ? null
+                              : _toggleMicrophoneTest,
+                          icon: Icon(
+                            _microphoneRecording
+                                ? Icons.stop_circle_outlined
+                                : Icons.mic_none_rounded,
+                          ),
+                          label: Text(
+                            _microphoneRecording
+                                ? _t(context, '停止录音测试', 'Stop recording')
+                                : _t(context, '开始录音测试', 'Start recording'),
+                          ),
+                        ),
+                        _MetaChip(
+                          palette: palette,
+                          icon: Icons.graphic_eq_rounded,
+                          label: _microphoneRecording
+                              ? _t(context, '录音中', 'Recording')
+                              : _t(context, '待开始', 'Idle'),
+                        ),
+                        if (_lastMicrophoneDuration != null)
+                          _MetaChip(
+                            palette: palette,
+                            icon: Icons.schedule_rounded,
+                            label:
+                                '${_t(context, '最近录音', 'Last clip')} ${_formatDuration(_lastMicrophoneDuration!)}',
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: palette.mutedBackground,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: palette.border),
+                      ),
+                      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _microphoneRecording
+                                      ? _t(
+                                          context,
+                                          '正在采集麦克风输入',
+                                          'Capturing microphone input',
+                                        )
+                                      : _t(
+                                          context,
+                                          '录音测试结果',
+                                          'Microphone test result',
+                                        ),
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: palette.primaryText,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                              ),
+                              Text(
+                                _microphoneRecording
+                                    ? _formatDuration(
+                                        _activeMicrophoneDuration(
+                                          _microphoneRecordingStartedAt,
+                                        ),
+                                      )
+                                    : _lastMicrophoneRecordingPath == null
+                                    ? _t(context, '未录音', 'No clip')
+                                    : _formatAmplitude(
+                                        _microphonePeakAmplitude,
+                                      ),
+                                style: Theme.of(context).textTheme.labelLarge
+                                    ?.copyWith(
+                                      color: palette.accent,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(999),
+                            child: LinearProgressIndicator(
+                              minHeight: 9,
+                              value: _normalizedAmplitude(_microphoneAmplitude),
+                              backgroundColor: palette.previewBackground,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                palette.accent,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            _microphoneRecording
+                                ? _t(
+                                    context,
+                                    '当前电平 ${_formatAmplitude(_microphoneAmplitude)}，峰值 ${_formatAmplitude(_microphonePeakAmplitude)}',
+                                    'Current level ${_formatAmplitude(_microphoneAmplitude)}, peak ${_formatAmplitude(_microphonePeakAmplitude)}',
+                                  )
+                                : _lastMicrophoneRecordingPath == null
+                                ? _t(
+                                    context,
+                                    '还没有录制测试音频，开始录音后这里会显示实时电平。',
+                                    'No test clip yet. Live levels will appear once recording starts.',
+                                  )
+                                : _lastMicrophoneRecordingPath!,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: palette.secondaryText,
+                                  height: 1.5,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Divider(color: palette.border),
+                    const SizedBox(height: 18),
+                    Text(
                       _t(context, '图片选择测试', 'Image picker test'),
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         color: palette.primaryText,
@@ -726,6 +1111,13 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
                           onPressed: _pickFile,
                           icon: const Icon(Icons.folder_open_rounded),
                           label: Text(_t(context, '选择本地文件', 'Pick local file')),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: _pickDirectory,
+                          icon: const Icon(Icons.folder_copy_outlined),
+                          label: Text(
+                            _t(context, '选择本地文件夹', 'Pick local folder'),
+                          ),
                         ),
                       ],
                     ),
@@ -768,6 +1160,15 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
                         title: _pickedFile!.name,
                         subtitle:
                             '${_t(context, '大小', 'Size')}: ${_formatFileSize(_pickedFile!.size)}',
+                      ),
+                    ],
+                    if (_pickedDirectoryPath != null) ...[
+                      const SizedBox(height: 14),
+                      _ResultBar(
+                        palette: palette,
+                        icon: Icons.folder_copy_outlined,
+                        title: _t(context, '已选择文件夹', 'Selected folder'),
+                        subtitle: _pickedDirectoryPath!,
                       ),
                     ],
                   ],
@@ -1040,8 +1441,8 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
                               child: Text(
                                 _t(
                                   context,
-                                  '本地文件上传通过系统文档选择器完成，iOS 不需要额外运行时权限；可直接使用上面的“选择本地文件”测试。',
-                                  'Local file import uses the system document picker. iOS does not require a separate runtime permission; use the local file test above.',
+                                  '本地文件和文件夹访问通过系统文档选择器完成，iOS 不存在单独的“文件夹权限”运行时授权；请直接使用上面的文件/文件夹测试确认系统选择器链路。',
+                                  'Local file and folder access uses the system document picker. iOS has no separate runtime folder permission; use the file and folder tests above.',
                                 ),
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
@@ -1596,6 +1997,32 @@ String _formatFileSize(int bytes) {
   }
   final text = index == 0 ? size.toStringAsFixed(0) : size.toStringAsFixed(1);
   return '$text ${units[index]}';
+}
+
+double _normalizedAmplitude(double value) {
+  const minDb = -60.0;
+  final clamped = value.clamp(minDb, 0.0);
+  return (clamped - minDb) / -minDb;
+}
+
+Duration _activeMicrophoneDuration(DateTime? startedAt) {
+  if (startedAt == null) {
+    return Duration.zero;
+  }
+  return DateTime.now().difference(startedAt);
+}
+
+String _formatDuration(Duration value) {
+  final minutes = value.inMinutes.toString().padLeft(2, '0');
+  final seconds = (value.inSeconds % 60).toString().padLeft(2, '0');
+  return '$minutes:$seconds';
+}
+
+String _formatAmplitude(double value) {
+  if (value <= -59.5) {
+    return '-60 dB';
+  }
+  return '${value.toStringAsFixed(1)} dB';
 }
 
 String _errorText(BuildContext context, Object error) {

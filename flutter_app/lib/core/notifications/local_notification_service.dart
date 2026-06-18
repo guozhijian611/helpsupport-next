@@ -66,13 +66,17 @@ class LocalNotificationService {
       ),
       iOS: DarwinNotificationDetails(
         presentAlert: true,
+        presentBanner: true,
         presentBadge: true,
+        presentList: true,
         presentSound: true,
         interruptionLevel: InterruptionLevel.active,
       ),
       macOS: DarwinNotificationDetails(
         presentAlert: true,
+        presentBanner: true,
         presentBadge: true,
+        presentList: true,
         presentSound: true,
         interruptionLevel: InterruptionLevel.active,
       ),
