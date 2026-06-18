@@ -39,6 +39,7 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
   double _microphoneAmplitude = -60;
   double _microphonePeakAmplitude = -60;
   DateTime? _lastNotificationAt;
+  String? _lastNotificationSnapshot;
   DateTime? _lastPermissionCheckAt;
   DateTime? _microphoneRecordingStartedAt;
   Duration? _lastMicrophoneDuration;
@@ -181,29 +182,42 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
         );
         return;
       }
-      final now = DateTime.now();
-      await notificationService.showDeveloperTestNotification(
+      final result = await notificationService.scheduleDeveloperTestNotification(
         title: _t(context, 'HelpSupport 开发者测试', 'HelpSupport developer test'),
         body: _t(
           context,
-          '本地通知测试已触发，时间 ${_formatDateTime(now)}',
-          'Local notification test fired at ${_formatDateTime(now)}',
+          '3 秒后投递本地通知，请切到桌面或锁屏查看横幅',
+          'A local notification will be delivered in 3 seconds. Switch to the Home Screen or lock the device to check the banner.',
         ),
       );
       if (!mounted) {
         return;
       }
-      setState(() => _lastNotificationAt = now);
+      final scheduledAt = result.scheduledAt ?? DateTime.now();
+      setState(() {
+        _lastNotificationAt = scheduledAt;
+        _lastNotificationSnapshot = _t(
+          context,
+          '待发送 ${result.pendingCount} 条，通知中心中 ${result.activeCount} 条',
+          'Pending ${result.pendingCount}, active ${result.activeCount}',
+        );
+      });
       context.showCenteredNotice(
         _t(
           context,
-          '本地通知已发送，请查看顶部横幅或通知中心',
-          'Local notification sent. Check the banner or Notification Center.',
+          '已安排 3 秒后发送，请立即返回桌面或锁屏查看，也可下拉通知中心确认',
+          'Scheduled for 3 seconds later. Return to the Home Screen or lock the device, or open Notification Center to verify it.',
         ),
       );
       await _recordInfo(
         'developer.notification',
-        'Sent developer local notification',
+        'Scheduled developer local notification',
+        details: <String, Object?>{
+          'notification_id': result.id,
+          'scheduled_at': scheduledAt.toIso8601String(),
+          'pending_count': result.pendingCount,
+          'active_count': result.activeCount,
+        },
       );
     } on Object catch (error) {
       await _recordError(
@@ -887,8 +901,8 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
                     Text(
                       _t(
                         context,
-                        '发送一条前台可见的测试通知，用来确认通知权限和系统投递链路。',
-                        'Send a visible foreground test notification to verify permission and delivery.',
+                        '安排一条 3 秒后的系统通知，用来确认通知权限、横幅与通知中心投递链路。点击后请先回桌面或锁屏观察。',
+                        'Schedule a system notification 3 seconds later to verify permissions, banners, and Notification Center delivery. Leave the app or lock the device after tapping.',
                       ),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: palette.secondaryText,
@@ -916,7 +930,11 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
                                 )
                               : const Icon(Icons.notifications_active_rounded),
                           label: Text(
-                            _t(context, '发送测试通知', 'Send test notification'),
+                            _t(
+                              context,
+                              '安排 3 秒后通知',
+                              'Schedule 3-second notification',
+                            ),
                           ),
                         ),
                         if (_lastNotificationAt != null)
@@ -924,7 +942,13 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
                             palette: palette,
                             icon: Icons.check_circle_outline_rounded,
                             label:
-                                '${_t(context, '上次发送', 'Last sent')} ${_formatDateTime(_lastNotificationAt!)}',
+                                '${_t(context, '上次计划', 'Last scheduled')} ${_formatDateTime(_lastNotificationAt!)}',
+                          ),
+                        if (_lastNotificationSnapshot != null)
+                          _MetaChip(
+                            palette: palette,
+                            icon: Icons.mark_email_unread_outlined,
+                            label: _lastNotificationSnapshot!,
                           ),
                       ],
                     ),

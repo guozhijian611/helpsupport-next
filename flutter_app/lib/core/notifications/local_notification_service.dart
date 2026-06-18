@@ -1,10 +1,26 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as timezone;
+
+class DeveloperNotificationDispatchResult {
+  const DeveloperNotificationDispatchResult({
+    required this.id,
+    required this.pendingCount,
+    required this.activeCount,
+    this.scheduledAt,
+  });
+
+  final int id;
+  final int pendingCount;
+  final int activeCount;
+  final DateTime? scheduledAt;
+}
 
 class LocalNotificationService {
   static const _developerChannelId = 'helpsupport_developer_tools';
   static const _developerChannelName = 'Developer tools';
   static const _developerChannelDescription =
       'Developer self-test notifications for HelpSupport.';
+  static const _developerNotificationDelay = Duration(seconds: 3);
 
   LocalNotificationService({FlutterLocalNotificationsPlugin? plugin})
     : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
@@ -15,7 +31,13 @@ class LocalNotificationService {
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
     );
-    const darwinSettings = DarwinInitializationSettings();
+    const darwinSettings = DarwinInitializationSettings(
+      defaultPresentAlert: true,
+      defaultPresentBadge: true,
+      defaultPresentSound: true,
+      defaultPresentBanner: true,
+      defaultPresentList: true,
+    );
     const settings = InitializationSettings(
       android: androidSettings,
       iOS: darwinSettings,
@@ -52,10 +74,12 @@ class LocalNotificationService {
         await android?.requestNotificationsPermission();
   }
 
-  Future<void> showDeveloperTestNotification({
+  Future<DeveloperNotificationDispatchResult>
+  scheduleDeveloperTestNotification({
     required String title,
     required String body,
-  }) {
+    Duration delay = _developerNotificationDelay,
+  }) async {
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
         _developerChannelId,
@@ -82,12 +106,25 @@ class LocalNotificationService {
       ),
     );
 
-    return _plugin.show(
-      id: 11009,
+    await _plugin.cancelAll();
+    final id = DateTime.now().millisecondsSinceEpoch.remainder(1 << 31);
+    final scheduledAt = timezone.TZDateTime.now(timezone.local).add(delay);
+    await _plugin.zonedSchedule(
+      id: id,
       title: title,
       body: body,
+      scheduledDate: scheduledAt,
       notificationDetails: details,
-      payload: 'developer-test',
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      payload: 'developer-test:$id',
+    );
+    final pendingRequests = await _plugin.pendingNotificationRequests();
+    final activeNotifications = await _plugin.getActiveNotifications();
+    return DeveloperNotificationDispatchResult(
+      id: id,
+      pendingCount: pendingRequests.length,
+      activeCount: activeNotifications.length,
+      scheduledAt: scheduledAt.toLocal(),
     );
   }
 }
