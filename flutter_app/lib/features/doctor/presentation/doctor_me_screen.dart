@@ -366,6 +366,7 @@ class _MetaText extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = _DoctorMePalette.of(context);
     return RichText(
+      textScaler: MediaQuery.textScalerOf(context),
       text: TextSpan(
         style: const TextStyle(fontSize: 17, height: 1.2),
         children: [

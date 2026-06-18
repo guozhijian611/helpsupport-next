@@ -424,6 +424,7 @@ class _MetaLine extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: RichText(
+        textScaler: MediaQuery.textScalerOf(context),
         text: TextSpan(
           style: TextStyle(color: palette.bodyText, fontSize: 14, height: 1.55),
           children: [

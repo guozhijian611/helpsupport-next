@@ -362,6 +362,7 @@ class _Meta extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = _DoctorPatientsPalette.of(context);
     return RichText(
+      textScaler: MediaQuery.textScalerOf(context),
       text: TextSpan(
         style: const TextStyle(fontSize: 15, height: 1.2),
         children: [

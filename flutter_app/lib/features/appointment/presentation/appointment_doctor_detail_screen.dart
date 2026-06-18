@@ -136,6 +136,7 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
                               Padding(
                                 padding: const EdgeInsets.only(top: 6),
                                 child: RichText(
+                                  textScaler: MediaQuery.textScalerOf(context),
                                   text: TextSpan(
                                     style: TextStyle(
                                       color: palette.secondaryText,

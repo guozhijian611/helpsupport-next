@@ -464,6 +464,7 @@ class _MetaText extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = _MePalette.of(context);
     return RichText(
+      textScaler: MediaQuery.textScalerOf(context),
       text: TextSpan(
         style: const TextStyle(fontSize: 15, height: 1.15),
         children: [
@@ -637,7 +638,7 @@ class _SummaryCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: palette.primaryText,
-              fontSize: 19,
+              fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -700,7 +701,7 @@ class _HonorPreview extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 23,
+                            fontSize: AppTabShellMetrics.sectionTitleFontSize,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
@@ -1014,6 +1015,7 @@ class _QuickActionsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _MePalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
     final actions = [
       _QuickActionData(
         title: context.l10n.meFollowing,
@@ -1066,11 +1068,11 @@ class _QuickActionsPanel extends StatelessWidget {
             context.l10n.meCommonFunctions,
             style: TextStyle(
               color: palette.primaryText,
-              fontSize: 25,
+              fontSize: AppTabShellMetrics.sectionTitleFontSize,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 34),
+          SizedBox(height: metrics.size(30)),
           GridView.builder(
             padding: EdgeInsets.zero,
             shrinkWrap: true,
@@ -1135,7 +1137,7 @@ class _QuickActionTile extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: palette.primaryText,
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w700,
               height: 1.1,
             ),
