@@ -1,18 +1,23 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/services.dart';
 import 'package:timezone/timezone.dart' as timezone;
 
 class DeveloperNotificationDispatchResult {
   const DeveloperNotificationDispatchResult({
     required this.id,
     required this.pendingCount,
-    required this.activeCount,
+    required this.deliveredCount,
     this.scheduledAt,
+    this.timeZoneIdentifier,
+    this.diagnostics,
   });
 
   final int id;
   final int pendingCount;
-  final int activeCount;
+  final int deliveredCount;
   final DateTime? scheduledAt;
+  final String? timeZoneIdentifier;
+  final Map<String, Object?>? diagnostics;
 }
 
 class LocalNotificationService {
@@ -21,6 +26,9 @@ class LocalNotificationService {
   static const _developerChannelDescription =
       'Developer self-test notifications for HelpSupport.';
   static const _developerNotificationDelay = Duration(seconds: 3);
+  static const _developerToolsChannel = MethodChannel(
+    'helpsupport/developer_tools',
+  );
 
   LocalNotificationService({FlutterLocalNotificationsPlugin? plugin})
     : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
@@ -28,6 +36,7 @@ class LocalNotificationService {
   final FlutterLocalNotificationsPlugin _plugin;
 
   Future<void> initialize() async {
+    await _configureLocalTimeZone();
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
     );
@@ -45,6 +54,32 @@ class LocalNotificationService {
     );
 
     await _plugin.initialize(settings: settings);
+  }
+
+  Future<String?> _configureLocalTimeZone() async {
+    try {
+      final identifier = await _developerToolsChannel.invokeMethod<String>(
+        'getTimeZone',
+      );
+      if (identifier == null || identifier.isEmpty) {
+        return null;
+      }
+      timezone.setLocalLocation(timezone.getLocation(identifier));
+      return identifier;
+    } on Object {
+      return null;
+    }
+  }
+
+  Future<Map<String, Object?>?> readDeveloperNotificationDiagnostics() async {
+    try {
+      final map = await _developerToolsChannel.invokeMapMethod<String, Object?>(
+        'getNotificationDiagnostics',
+      );
+      return map == null ? null : Map<String, Object?>.from(map);
+    } on Object {
+      return null;
+    }
   }
 
   Future<bool?> requestPermissions() async {
@@ -80,6 +115,7 @@ class LocalNotificationService {
     required String body,
     Duration delay = _developerNotificationDelay,
   }) async {
+    final timeZoneIdentifier = await _configureLocalTimeZone();
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
         _developerChannelId,
@@ -119,12 +155,15 @@ class LocalNotificationService {
       payload: 'developer-test:$id',
     );
     final pendingRequests = await _plugin.pendingNotificationRequests();
-    final activeNotifications = await _plugin.getActiveNotifications();
+    final deliveredNotifications = await _plugin.getActiveNotifications();
+    final diagnostics = await readDeveloperNotificationDiagnostics();
     return DeveloperNotificationDispatchResult(
       id: id,
       pendingCount: pendingRequests.length,
-      activeCount: activeNotifications.length,
+      deliveredCount: deliveredNotifications.length,
       scheduledAt: scheduledAt.toLocal(),
+      timeZoneIdentifier: timeZoneIdentifier,
+      diagnostics: diagnostics,
     );
   }
 }

@@ -40,6 +40,7 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
   double _microphonePeakAmplitude = -60;
   DateTime? _lastNotificationAt;
   String? _lastNotificationSnapshot;
+  String? _notificationDiagnosticsText;
   DateTime? _lastPermissionCheckAt;
   DateTime? _microphoneRecordingStartedAt;
   Duration? _lastMicrophoneDuration;
@@ -66,6 +67,44 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
     unawaited(_disposeMicrophoneTest());
     unawaited(_disposeCamera());
     super.dispose();
+  }
+
+  Future<void> _refreshNotificationDiagnostics() async {
+    final notificationService = ref.read(localNotificationServiceProvider);
+    final diagnostics = await notificationService
+        .readDeveloperNotificationDiagnostics();
+    if (!mounted || diagnostics == null) {
+      return;
+    }
+    final pendingCount = (diagnostics['pendingCount'] as num?)?.toInt() ?? 0;
+    final deliveredCount =
+        (diagnostics['deliveredCount'] as num?)?.toInt() ?? 0;
+    final authorizationStatus =
+        (diagnostics['authorizationStatus'] as String?) ?? '-';
+    final alertSetting = (diagnostics['alertSetting'] as String?) ?? '-';
+    final lockScreenSetting =
+        (diagnostics['lockScreenSetting'] as String?) ?? '-';
+    final centerSetting =
+        (diagnostics['notificationCenterSetting'] as String?) ?? '-';
+    final alertStyle = (diagnostics['alertStyle'] as String?) ?? '-';
+    final timeZoneIdentifier =
+        (diagnostics['timeZoneIdentifier'] as String?) ?? '-';
+    final pendingRequests =
+        (diagnostics['pendingRequests'] as List<dynamic>? ?? const [])
+            .cast<Map<dynamic, dynamic>>();
+    final nextTriggerDate = pendingRequests.isEmpty
+        ? null
+        : pendingRequests.first['nextTriggerDate']?.toString();
+
+    setState(() {
+      _lastNotificationSnapshot = _t(
+        context,
+        '待发送 $pendingCount 条，通知中心中 $deliveredCount 条',
+        'Pending $pendingCount, delivered $deliveredCount',
+      );
+      _notificationDiagnosticsText =
+          'iOS: auth=$authorizationStatus, alert=$alertSetting, lock=$lockScreenSetting, center=$centerSetting, style=$alertStyle, tz=$timeZoneIdentifier${nextTriggerDate == null ? '' : '\nnext=$nextTriggerDate'}';
+    });
   }
 
   Future<void> _loadPermissionStatuses() async {
@@ -198,9 +237,12 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
         _lastNotificationAt = scheduledAt;
         _lastNotificationSnapshot = _t(
           context,
-          '待发送 ${result.pendingCount} 条，通知中心中 ${result.activeCount} 条',
-          'Pending ${result.pendingCount}, active ${result.activeCount}',
+          '待发送 ${result.pendingCount} 条，通知中心中 ${result.deliveredCount} 条',
+          'Pending ${result.pendingCount}, delivered ${result.deliveredCount}',
         );
+        _notificationDiagnosticsText = result.diagnostics == null
+            ? null
+            : 'iOS: auth=${result.diagnostics!['authorizationStatus'] ?? '-'}, alert=${result.diagnostics!['alertSetting'] ?? '-'}, lock=${result.diagnostics!['lockScreenSetting'] ?? '-'}, center=${result.diagnostics!['notificationCenterSetting'] ?? '-'}, style=${result.diagnostics!['alertStyle'] ?? '-'}, tz=${result.timeZoneIdentifier ?? result.diagnostics!['timeZoneIdentifier'] ?? '-'}';
       });
       context.showCenteredNotice(
         _t(
@@ -216,8 +258,15 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
           'notification_id': result.id,
           'scheduled_at': scheduledAt.toIso8601String(),
           'pending_count': result.pendingCount,
-          'active_count': result.activeCount,
+          'delivered_count': result.deliveredCount,
+          'time_zone_identifier': result.timeZoneIdentifier,
+          'diagnostics': result.diagnostics,
         },
+      );
+      unawaited(
+        Future<void>.delayed(const Duration(seconds: 4), () async {
+          await _refreshNotificationDiagnostics();
+        }),
       );
     } on Object catch (error) {
       await _recordError(
@@ -937,6 +986,13 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
                             ),
                           ),
                         ),
+                        OutlinedButton.icon(
+                          onPressed: _refreshNotificationDiagnostics,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: Text(
+                            _t(context, '刷新通知状态', 'Refresh notification state'),
+                          ),
+                        ),
                         if (_lastNotificationAt != null)
                           _MetaChip(
                             palette: palette,
@@ -952,6 +1008,26 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
                           ),
                       ],
                     ),
+                    if (_notificationDiagnosticsText != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: palette.mutedBackground,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: palette.border),
+                        ),
+                        child: Text(
+                          _notificationDiagnosticsText!,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: palette.secondaryText,
+                                height: 1.5,
+                              ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 18),
                     Divider(color: palette.border),
                     const SizedBox(height: 18),
