@@ -22,6 +22,11 @@ class FirebasePushService {
     try {
       await Firebase.initializeApp();
       _messaging ??= FirebaseMessaging.instance;
+      await _messaging?.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
       _available = true;
     } on Object {
       _available = false;
