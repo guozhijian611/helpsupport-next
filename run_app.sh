@@ -14,6 +14,19 @@ require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "$1 not found"
 }
 
+print_flutter_run_help() {
+  cat <<'HELP'
+
+Flutter 运行快捷键（应用启动成功后直接输入）：
+  r  热重载，只刷新 Dart 代码
+  R  热重启，重建 Dart 运行状态
+  h  查看所有交互命令
+  d  断开 flutter run，App 继续留在设备上运行
+  c  清屏
+  q  退出并结束设备上的 App
+HELP
+}
+
 manual_device_input() {
   printf '无法自动生成设备序号，下面是 flutter devices 原始输出：\n' >&2
   flutter devices >&2
@@ -129,6 +142,7 @@ main() {
     printf 'API Base URL: %s\n' "${api_base_url}"
   fi
   printf '如需修改 API 地址，请编辑 %s。\n' "${API_CONFIG_FILE}"
+  print_flutter_run_help
 
   exec flutter run -d "${device_id}" "$@"
 }
