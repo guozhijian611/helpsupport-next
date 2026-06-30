@@ -625,144 +625,152 @@ class _JournalEditorSheetState extends ConsumerState<_JournalEditorSheet> {
   @override
   Widget build(BuildContext context) {
     final palette = _JournalPalette.of(context);
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        0,
-        16,
-        16 + MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: palette.cardBackground,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(34)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 52,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: palette.outline,
-                    borderRadius: BorderRadius.circular(999),
+    final media = MediaQuery.of(context);
+    final keyboardInset = media.viewInsets.bottom;
+    final maxSheetHeight =
+        (media.size.height - media.padding.top - keyboardInset - 16)
+            .clamp(220.0, media.size.height)
+            .toDouble();
+
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + keyboardInset),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxSheetHeight),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: palette.cardBackground,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(34)),
+          ),
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 52,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: palette.outline,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              Center(
-                child: Text(
-                  _t(context, '记录', 'Record'),
+                const SizedBox(height: 18),
+                Center(
+                  child: Text(
+                    _t(context, '记录', 'Record'),
+                    style: TextStyle(
+                      color: palette.primaryText,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  _t(context, '标题', 'Title'),
                   style: TextStyle(
                     color: palette.primaryText,
-                    fontSize: 22,
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                _t(context, '标题', 'Title'),
-                style: TextStyle(
-                  color: palette.primaryText,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                const SizedBox(height: 10),
+                _EditorField(
+                  controller: _titleController,
+                  minLines: 2,
+                  maxLines: 3,
                 ),
-              ),
-              const SizedBox(height: 10),
-              _EditorField(
-                controller: _titleController,
-                minLines: 2,
-                maxLines: 3,
-              ),
-              const SizedBox(height: 18),
-              Text(
-                _t(context, '内容', 'Content'),
-                style: TextStyle(
-                  color: palette.primaryText,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 10),
-              _EditorField(
-                controller: _contentController,
-                minLines: 7,
-                maxLines: 8,
-              ),
-              const SizedBox(height: 18),
-              Text(
-                _t(context, '记录日期', 'Entry date'),
-                style: TextStyle(
-                  color: palette.primaryText,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 10),
-              InkWell(
-                borderRadius: BorderRadius.circular(18),
-                onTap: _pickDate,
-                child: Ink(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
+                const SizedBox(height: 18),
+                Text(
+                  _t(context, '内容', 'Content'),
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
                   ),
-                  decoration: BoxDecoration(
-                    color: palette.softBackground,
-                    borderRadius: BorderRadius.circular(18),
+                ),
+                const SizedBox(height: 10),
+                _EditorField(
+                  controller: _contentController,
+                  minLines: 7,
+                  maxLines: 8,
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  _t(context, '记录日期', 'Entry date'),
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
                   ),
-                  child: Row(
-                    children: [
-                      Text(
-                        _dateKey(_date),
-                        style: TextStyle(
-                          color: palette.primaryText,
-                          fontWeight: FontWeight.w700,
+                ),
+                const SizedBox(height: 10),
+                InkWell(
+                  borderRadius: BorderRadius.circular(18),
+                  onTap: _pickDate,
+                  child: Ink(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      color: palette.softBackground,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          _dateKey(_date),
+                          style: TextStyle(
+                            color: palette.primaryText,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      const Spacer(),
-                      const Icon(Icons.calendar_today_outlined, size: 18),
-                    ],
+                        const Spacer(),
+                        const Icon(Icons.calendar_today_outlined, size: 18),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.tonal(
-                      onPressed: _saving
-                          ? null
-                          : () => Navigator.of(context).pop(false),
-                      child: Text(_t(context, '取消', 'Cancel')),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF5A81DA),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.tonal(
+                        onPressed: _saving
+                            ? null
+                            : () => Navigator.of(context).pop(false),
+                        child: Text(_t(context, '取消', 'Cancel')),
                       ),
-                      onPressed: _saving ? null : _save,
-                      child: _saving
-                          ? const SizedBox.square(
-                              dimension: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(_t(context, '记录', 'Save')),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF5A81DA),
+                        ),
+                        onPressed: _saving ? null : _save,
+                        child: _saving
+                            ? const SizedBox.square(
+                                dimension: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(_t(context, '记录', 'Save')),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
