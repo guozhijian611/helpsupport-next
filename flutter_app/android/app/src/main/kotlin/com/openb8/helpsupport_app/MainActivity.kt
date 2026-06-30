@@ -8,6 +8,7 @@ import android.os.Build
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
 import java.util.TimeZone
 
 class MainActivity : FlutterActivity() {
@@ -86,6 +87,10 @@ class MainActivity : FlutterActivity() {
         val device = Build.DEVICE.lowercase()
         val product = Build.PRODUCT.lowercase()
         val hardware = Build.HARDWARE.lowercase()
+        val kernelQemu = systemProperty("ro.kernel.qemu") == "1"
+        val bootQemu = systemProperty("ro.boot.qemu") == "1"
+        val egl = systemProperty("ro.hardware.egl").lowercase()
+        val vulkan = systemProperty("ro.hardware.vulkan").lowercase()
 
         return fingerprint.startsWith("generic") ||
             fingerprint.contains("vbox") ||
@@ -99,7 +104,24 @@ class MainActivity : FlutterActivity() {
             product.contains("sdk") ||
             hardware.contains("goldfish") ||
             hardware.contains("ranchu") ||
-            hardware.contains("vbox")
+            hardware.contains("vbox") ||
+            kernelQemu ||
+            bootQemu ||
+            egl.contains("emulation") ||
+            vulkan.contains("pastel") ||
+            File("/dev/qemu_pipe").exists() ||
+            File("/dev/socket/qemud").exists() ||
+            File("/dev/bstpgaipc").exists()
+    }
+
+    private fun systemProperty(name: String): String {
+        return try {
+            val systemProperties = Class.forName("android.os.SystemProperties")
+            val get = systemProperties.getMethod("get", String::class.java)
+            get.invoke(null, name) as? String ?: ""
+        } catch (_: Throwable) {
+            ""
+        }
     }
 
     private companion object {

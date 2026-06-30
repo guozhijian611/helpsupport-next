@@ -68,16 +68,52 @@ class LlamaEngine {
     required List<LocalChatMessage> history,
     required String userMessage,
   }) async {
-    final prompt = _buildPrompt(systemPrompt, history, userMessage);
-    final parent = LlamaParent(await _loadCommand(model, modelPath));
-    final buffer = StringBuffer();
-    StreamSubscription<String>? subscription;
     final runtime = await inspectRuntime();
     if (!runtime.isAvailable) {
       throw StateError('本地推理库不可用：${runtime.errorMessage}');
     }
 
     Llama.libraryPath = runtime.libraryPath;
+    final gpuLayers = await _resolvedGpuLayers();
+    try {
+      return await _generateWithLayers(
+        model: model,
+        modelPath: modelPath,
+        systemPrompt: systemPrompt,
+        history: history,
+        userMessage: userMessage,
+        gpuLayers: gpuLayers,
+      );
+    } on Object {
+      if (!_isAutoBackend() || gpuLayers == 0) {
+        rethrow;
+      }
+    }
+
+    return _generateWithLayers(
+      model: model,
+      modelPath: modelPath,
+      systemPrompt: systemPrompt,
+      history: history,
+      userMessage: userMessage,
+      gpuLayers: 0,
+    );
+  }
+
+  Future<String> _generateWithLayers({
+    required LocalModelItem model,
+    required String modelPath,
+    required String systemPrompt,
+    required List<LocalChatMessage> history,
+    required String userMessage,
+    required int gpuLayers,
+  }) async {
+    final prompt = _buildPrompt(systemPrompt, history, userMessage);
+    final parent = LlamaParent(
+      _loadCommand(model, modelPath, gpuLayers: gpuLayers),
+    );
+    final buffer = StringBuffer();
+    StreamSubscription<String>? subscription;
 
     try {
       await parent.init();
@@ -100,7 +136,11 @@ class LlamaEngine {
     }
   }
 
-  Future<LlamaLoad> _loadCommand(LocalModelItem model, String modelPath) async {
+  LlamaLoad _loadCommand(
+    LocalModelItem model,
+    String modelPath, {
+    required int gpuLayers,
+  }) {
     final contextParams = ContextParams()
       ..nCtx = model.contextSize > 0 ? model.contextSize : 2048
       ..nPredict = 512
@@ -112,7 +152,6 @@ class LlamaEngine {
       ..penaltyRepeat = 1.1;
 
     final modelParams = ModelParams();
-    final gpuLayers = await _resolvedGpuLayers();
     modelParams.nGpuLayers = gpuLayers;
     if (gpuLayers == 0) {
       contextParams
@@ -184,6 +223,8 @@ class LlamaEngine {
     }
     return 0;
   }
+
+  bool _isAutoBackend() => _backend.trim().toLowerCase() == 'auto';
 
   Future<bool> _supportsGpuOffload() async {
     if (Platform.isIOS || Platform.isMacOS) {
