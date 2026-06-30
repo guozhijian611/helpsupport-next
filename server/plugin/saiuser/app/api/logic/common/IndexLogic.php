@@ -153,23 +153,33 @@ class IndexLogic extends BaseLogic
             'expire_minutes' => (string) self::EMAIL_CODE_EXPIRE_MINUTES,
         ];
         try {
-            $result = EmailService::sendByTemplateCode($email, $this->emailTemplateCode($type), $template);
-            if (!empty($result)) {
-                $model->status = 'failure';
-                $model->response = $result;
-                $model->save();
-                throw new ApiException('发送失败，请查看日志');
+            $result = trim(EmailService::sendByTemplateCode($email, $this->emailTemplateCode($type), $template));
+            if ($result !== '') {
+                $this->markMailFailure($model, $result);
+                throw new ApiException('验证码发送失败，请稍后重试');
             } else {
                 $model->status = 'success';
+                $model->response = null;
                 $model->save();
                 return true;
             }
+        } catch (ApiException $e) {
+            if ((string) $model->status !== 'failure') {
+                $this->markMailFailure($model, $e->getMessage());
+            }
+            throw $e;
         } catch (\Exception $e) {
-            $model->status = 'failure';
-            $model->response = $e->getMessage();
-            $model->save();
-            throw new SystemException($e->getMessage());
+            $this->markMailFailure($model, $e->getMessage());
+            throw new SystemException('验证码发送失败，请稍后重试');
         }
+    }
+
+    private function markMailFailure(SystemMail $model, string $response): void
+    {
+        $response = trim($response) !== '' ? trim($response) : '邮件服务返回未知错误';
+        $model->status = 'failure';
+        $model->response = mb_substr($response, 0, 500);
+        $model->save();
     }
 
     private function emailTemplateCode($type): string

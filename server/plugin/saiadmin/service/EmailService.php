@@ -72,8 +72,11 @@ class EmailService
         $mailer->Subject = $subject;
         $mailer->isHTML(true);
         $mailer->Body = $content;
-        $mailer->send();
-        return $mailer->ErrorInfo;
+        if (!$mailer->send()) {
+            return $mailer->ErrorInfo ?: '邮件发送失败';
+        }
+
+        return '';
     }
 
     /**
