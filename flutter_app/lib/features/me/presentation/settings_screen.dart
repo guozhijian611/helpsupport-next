@@ -1711,8 +1711,19 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       title: hadMobile
           ? _t(context, '更换手机号', 'Change phone number')
           : _t(context, '绑定手机号', 'Bind phone number'),
-      initialValue: initialMobile,
-      hintText: _t(context, '请输入手机号', 'Enter phone number'),
+      initialValue: '',
+      hintText: hadMobile
+          ? _t(context, '请输入新手机号', 'Enter the new phone number')
+          : _t(context, '请输入要绑定的手机号', 'Enter the phone number to link'),
+      helperText: hadMobile
+          ? _t(context, '当前手机号：', 'Current phone: ') +
+                _maskMobile(initialMobile)
+          : _t(
+              context,
+              '手机号将用于登录验证和账号安全通知。',
+              'Your phone number will be used for sign-in verification and account security notices.',
+            ),
+      confirmLabel: _t(context, '发送验证码', 'Send code'),
       keyboardType: TextInputType.phone,
     );
     if (!mounted) {
@@ -1723,6 +1734,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     }
     final normalizedMobile = mobile.trim();
     if (normalizedMobile == initialMobile.trim()) {
+      context.showCenteredNotice(
+        _t(context, '请输入新的手机号', 'Enter a new phone number'),
+      );
       return;
     }
 
@@ -1741,6 +1755,10 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         title: _t(context, '输入验证码', 'Enter verification code'),
         initialValue: '',
         hintText: _t(context, '请输入短信验证码', 'Enter SMS verification code'),
+        helperText: _t(context, '验证码已发送至：', 'Code sent to: ') + delivery.target,
+        confirmLabel: hadMobile
+            ? _t(context, '完成更换', 'Finish change')
+            : _t(context, '完成绑定', 'Finish linking'),
         keyboardType: TextInputType.number,
       );
       if (!mounted) {
@@ -1778,8 +1796,18 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       title: hadEmail
           ? _t(context, '更换邮箱', 'Change email')
           : _t(context, '绑定邮箱', 'Bind email'),
-      initialValue: initialEmail,
-      hintText: _t(context, '请输入邮箱', 'Enter email'),
+      initialValue: '',
+      hintText: hadEmail
+          ? _t(context, '请输入新邮箱', 'Enter the new email')
+          : _t(context, '请输入要绑定的邮箱', 'Enter the email to link'),
+      helperText: hadEmail
+          ? _t(context, '当前邮箱：', 'Current email: ') + _maskEmail(initialEmail)
+          : _t(
+              context,
+              '邮箱将用于登录验证、找回密码和账号安全通知。',
+              'Your email will be used for sign-in verification, password recovery, and account security notices.',
+            ),
+      confirmLabel: _t(context, '发送验证码', 'Send code'),
       keyboardType: TextInputType.emailAddress,
     );
     if (!mounted) {
@@ -1790,6 +1818,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     }
     final normalizedEmail = email.trim();
     if (normalizedEmail.toLowerCase() == initialEmail.trim().toLowerCase()) {
+      context.showCenteredNotice(_t(context, '请输入新的邮箱', 'Enter a new email'));
       return;
     }
 
@@ -1808,6 +1837,10 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         title: _t(context, '输入验证码', 'Enter verification code'),
         initialValue: '',
         hintText: _t(context, '请输入邮箱验证码', 'Enter email verification code'),
+        helperText: _t(context, '验证码已发送至：', 'Code sent to: ') + delivery.target,
+        confirmLabel: hadEmail
+            ? _t(context, '完成更换', 'Finish change')
+            : _t(context, '完成绑定', 'Finish linking'),
         keyboardType: TextInputType.number,
       );
       if (!mounted) {
@@ -2990,6 +3023,8 @@ Future<String?> _showTextInputDialog({
   required String title,
   required String initialValue,
   required String hintText,
+  String? helperText,
+  String? confirmLabel,
   int maxLines = 1,
   bool obscureText = false,
   TextInputType? keyboardType,
@@ -3008,6 +3043,8 @@ Future<String?> _showTextInputDialog({
       title: title,
       initialValue: initialValue,
       hintText: hintText,
+      helperText: helperText,
+      confirmLabel: confirmLabel,
       maxLines: maxLines,
       obscureText: obscureText,
       keyboardType: keyboardType,
@@ -3020,6 +3057,8 @@ class _SettingsTextInputSheet extends StatefulWidget {
     required this.title,
     required this.initialValue,
     required this.hintText,
+    required this.helperText,
+    required this.confirmLabel,
     required this.maxLines,
     required this.obscureText,
     this.keyboardType,
@@ -3028,6 +3067,8 @@ class _SettingsTextInputSheet extends StatefulWidget {
   final String title;
   final String initialValue;
   final String hintText;
+  final String? helperText;
+  final String? confirmLabel;
   final int maxLines;
   final bool obscureText;
   final TextInputType? keyboardType;
@@ -3099,6 +3140,20 @@ class _SettingsTextInputSheetState extends State<_SettingsTextInputSheet> {
               ),
             ),
           ),
+          if (widget.helperText != null) ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                widget.helperText!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: palette.secondaryText,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           Row(
             children: [
@@ -3112,7 +3167,9 @@ class _SettingsTextInputSheetState extends State<_SettingsTextInputSheet> {
               Expanded(
                 child: FilledButton(
                   onPressed: () => _close(_controller.text),
-                  child: Text(_t(context, '确定', 'Confirm')),
+                  child: Text(
+                    widget.confirmLabel ?? _t(context, '确定', 'Confirm'),
+                  ),
                 ),
               ),
             ],
