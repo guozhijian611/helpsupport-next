@@ -24,6 +24,7 @@
     { label: 'MP4 电影', value: 'mp4' },
     { label: 'MOV 电影', value: 'mov' },
     { label: 'MP3 音乐', value: 'mp3' },
+    { label: '图片', value: 'image' },
     { label: '游戏外链', value: 'link' }
   ]
 
@@ -104,6 +105,7 @@
     {
       prop: 'content_url',
       label: '文件地址/游戏外链',
+      type: 'materialPreview',
       form: true,
       placeholder: '服务器文件地址或 https 外链',
       minWidth: 220
@@ -163,7 +165,7 @@
       table: false
     },
     {
-      prop: 'audit_by',
+      prop: 'audit_by_display',
       label: '审核人',
       form: false,
       width: 100
@@ -225,7 +227,12 @@
       method: 'audit',
       type: 'warning',
       permission: 'help:material:privateMaterial:audit',
-      prompt: { field: 'audit_remark', label: '请输入拒绝原因', inputType: 'textarea', required: true },
+      prompt: {
+        field: 'audit_remark',
+        label: '请输入拒绝原因',
+        inputType: 'textarea',
+        required: true
+      },
       visible: (row: Record<string, any>) => Number(row.audit_status) !== 3,
       payload: (row: Record<string, any>, value?: string) => ({
         id: row.id,

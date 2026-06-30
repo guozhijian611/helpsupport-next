@@ -12,7 +12,7 @@ class SaContentMaterialValidate extends BaseValidate
     protected $rule = [
         'member_id' => 'integer',
         'category_id' => 'integer',
-        'media_type' => 'require|in:article,video,audio,pdf,epub,link,txt,mp4,mov,mp3',
+        'media_type' => 'require|in:article,video,audio,pdf,epub,link,txt,mp4,mov,mp3,image',
         'material_type' => 'require|in:education,entertainment,private',
         'title' => 'require|max:160',
         'artist' => 'max:120',

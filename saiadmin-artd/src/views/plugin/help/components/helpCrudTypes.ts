@@ -18,6 +18,7 @@ export interface HelpCrudField {
     | 'json'
     | 'file'
     | 'image'
+    | 'materialPreview'
   table?: boolean
   form?: boolean
   search?: boolean

@@ -99,6 +99,11 @@
           <ElTag v-if="shouldUseTag(field)" :type="tagType(field, row[field.prop])">
             {{ formatValue(field, row[field.prop]) }}
           </ElTag>
+          <MaterialPreview
+            v-else-if="field.type === 'materialPreview'"
+            :row="row"
+            :url="row[field.prop]"
+          />
           <ElTooltip
             v-else-if="isLongValue(field, row[field.prop])"
             :content="formatValue(field, row[field.prop])"
@@ -257,6 +262,12 @@
           <pre v-if="field.type === 'json' || field.type === 'textarea'" class="help-detail-pre">{{
             formatValue(field, detailData[field.prop])
           }}</pre>
+          <MaterialPreview
+            v-else-if="field.type === 'materialPreview'"
+            :row="detailData"
+            :url="detailData[field.prop]"
+            detail
+          />
           <span v-else>{{ formatValue(field, detailData[field.prop]) }}</span>
         </ElDescriptionsItem>
       </ElDescriptions>
@@ -265,7 +276,8 @@
 </template>
 
 <script setup lang="ts">
-  import { ElMessage, ElMessageBox } from 'element-plus'
+  import { h } from 'vue'
+  import { ElImage, ElLink, ElMessage, ElMessageBox } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
   import { useTable } from '@/hooks/core/useTable'
   import { useSaiAdmin } from '@/composables/useSaiAdmin'
@@ -551,6 +563,79 @@
   const tagType = (field: HelpCrudField, value: unknown) => {
     return optionOf(field, value)?.tagType || 'info'
   }
+
+  const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'bmp']
+  const videoTypes = ['video', 'mp4', 'mov']
+  const audioTypes = ['audio', 'mp3']
+
+  const fileExtension = (url: string) => {
+    const cleanUrl = url.split('?')[0].split('#')[0]
+    const match = cleanUrl.match(/\.([a-z0-9]+)$/i)
+    return match ? match[1].toLowerCase() : ''
+  }
+
+  const isImageMaterial = (row: Record<string, any>, url: string) => {
+    return row.media_type === 'image' || imageExtensions.includes(fileExtension(url))
+  }
+
+  const isVideoMaterial = (row: Record<string, any>, url: string) => {
+    return (
+      videoTypes.includes(String(row.media_type || '')) ||
+      ['mp4', 'mov'].includes(fileExtension(url))
+    )
+  }
+
+  const isAudioMaterial = (row: Record<string, any>, url: string) => {
+    return audioTypes.includes(String(row.media_type || '')) || ['mp3'].includes(fileExtension(url))
+  }
+
+  const MaterialPreview = (props: { row: Record<string, any>; url: unknown; detail?: boolean }) => {
+    const url = String(props.url || '').trim()
+    if (!url) {
+      return h('span', '-')
+    }
+
+    if (isImageMaterial(props.row, url)) {
+      return h(ElImage, {
+        src: url,
+        previewSrcList: [url],
+        previewTeleported: true,
+        fit: 'cover',
+        class: props.detail ? 'help-material-image is-detail' : 'help-material-image'
+      })
+    }
+
+    if (isVideoMaterial(props.row, url)) {
+      return h('video', {
+        src: url,
+        controls: true,
+        class: props.detail ? 'help-material-video is-detail' : 'help-material-video'
+      })
+    }
+
+    if (isAudioMaterial(props.row, url)) {
+      return h('audio', {
+        src: url,
+        controls: true,
+        class: 'help-material-audio'
+      })
+    }
+
+    return h(
+      ElLink,
+      {
+        href: url,
+        target: '_blank',
+        type: props.row.media_type === 'link' ? 'primary' : 'default',
+        underline: false
+      },
+      () => (props.row.media_type === 'link' ? '打开外链' : shortUrl(url))
+    )
+  }
+
+  const shortUrl = (url: string) => {
+    return url.length > 48 ? url.slice(0, 45) + '...' : url
+  }
 </script>
 
 <style scoped>
@@ -585,5 +670,35 @@
     white-space: pre-wrap;
     word-break: break-word;
     font-family: inherit;
+  }
+
+  .help-material-image {
+    width: 64px;
+    height: 64px;
+    border-radius: 6px;
+    border: 1px solid var(--el-border-color-lighter);
+    background: var(--el-fill-color-light);
+  }
+
+  .help-material-image.is-detail {
+    width: 220px;
+    height: 160px;
+  }
+
+  .help-material-video {
+    width: 140px;
+    height: 78px;
+    border-radius: 6px;
+    background: #111;
+  }
+
+  .help-material-video.is-detail {
+    width: min(100%, 520px);
+    height: 292px;
+  }
+
+  .help-material-audio {
+    width: 220px;
+    max-width: 100%;
   }
 </style>

@@ -30,6 +30,29 @@ class SaContentMaterialLogic extends BaseLogic
         return parent::edit($id, $this->normalizeFields($data));
     }
 
+    public function read($id): mixed
+    {
+        $model = parent::read($id);
+        $data = is_array($model) ? $model : $model->toArray();
+        $rows = $this->enrichRows([$data]);
+
+        return $rows[0] ?? $data;
+    }
+
+    public function getList($query): mixed
+    {
+        $data = parent::getList($query);
+        if (isset($data['data']) && is_array($data['data'])) {
+            $data['data'] = $this->enrichRows($data['data']);
+            return $data;
+        }
+        if (is_array($data)) {
+            return $this->enrichRows($data);
+        }
+
+        return $data;
+    }
+
     public function audit(int $id, int $auditStatus, string $remark, int $adminId): bool
     {
         if (!in_array($auditStatus, [1, 2, 3], true)) {
@@ -123,5 +146,45 @@ class SaContentMaterialLogic extends BaseLogic
         }
 
         return json_encode($decoded, JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    public function enrichRows(array $rows): array
+    {
+        $auditorIds = [];
+        foreach ($rows as $row) {
+            $auditorId = (int) ($row['audit_by'] ?? 0);
+            if ($auditorId > 0) {
+                $auditorIds[] = $auditorId;
+            }
+        }
+
+        $auditors = [];
+        if ($auditorIds !== []) {
+            $users = Db::table('sa_system_user')
+                ->whereIn('id', array_values(array_unique($auditorIds)))
+                ->field('id, username, realname')
+                ->select()
+                ->toArray();
+            foreach ($users as $user) {
+                $name = trim((string) ($user['realname'] ?? ''));
+                if ($name === '') {
+                    $name = trim((string) ($user['username'] ?? ''));
+                }
+                $auditors[(int) $user['id']] = $name !== '' ? $name : '管理员 #' . (int) $user['id'];
+            }
+        }
+
+        foreach ($rows as &$row) {
+            $auditorId = (int) ($row['audit_by'] ?? 0);
+            $row['audit_by_name'] = $auditorId > 0 ? ($auditors[$auditorId] ?? '管理员 #' . $auditorId) : '';
+            $row['audit_by_display'] = $row['audit_by_name'] !== '' ? $row['audit_by_name'] : '-';
+        }
+        unset($row);
+
+        return $rows;
     }
 }

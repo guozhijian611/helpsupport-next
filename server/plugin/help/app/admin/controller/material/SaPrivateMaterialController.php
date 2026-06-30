@@ -48,6 +48,7 @@ class SaPrivateMaterialController extends BaseController
         if ($data === []) {
             return $this->fail('未查找到私人素材');
         }
+        $data = $this->logic->enrichRows([$data])[0] ?? $data;
         $data['audit_logs'] = (new HelpAuditLogService())->list('content_material', $id);
 
         return $this->success($data);
