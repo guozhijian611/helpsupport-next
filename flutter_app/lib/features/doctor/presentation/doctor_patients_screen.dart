@@ -222,7 +222,7 @@ class _AddPatientDialogState extends ConsumerState<_AddPatientDialog> {
   Widget build(BuildContext context) {
     final palette = _DoctorPatientsPalette.of(context);
     final contentHeight = (MediaQuery.sizeOf(context).height * 0.56)
-        .clamp(320.0, 460.0)
+        .clamp(360.0, 500.0)
         .toDouble();
     final query = DoctorPatientCandidatesQuery(
       keyword: _keyword,
@@ -230,8 +230,19 @@ class _AddPatientDialogState extends ConsumerState<_AddPatientDialog> {
       pageSize: _pageSize,
     );
     final candidates = ref.watch(doctorPatientCandidatesProvider(query));
+    final page = candidates.maybeWhen<DoctorPage<DoctorPatient>?>(
+      data: (page) => page,
+      orElse: () => null,
+    );
 
     return AlertDialog(
+      backgroundColor: palette.cardBackground,
+      surfaceTintColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
+      titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 14),
+      contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+      actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 22),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       title: Text(_t(context, '添加患者', 'Add patient')),
       content: SizedBox(
         width: 360,
@@ -248,67 +259,72 @@ class _AddPatientDialogState extends ConsumerState<_AddPatientDialog> {
                   '搜索患者ID、昵称或用户名',
                   'Search patient ID, nickname, or username',
                 ),
-                prefixIcon: const Icon(Icons.search_rounded),
+                filled: true,
+                fillColor: palette.inputBackground,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: BorderSide(color: palette.outline),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: BorderSide(color: palette.outline),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFFF9585),
+                    width: 1.2,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 15,
+                ),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: Color(0xFFFF9585),
+                ),
                 suffixIcon: IconButton(
                   onPressed: _search,
-                  icon: const Icon(Icons.arrow_forward_rounded),
+                  icon: const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Color(0xFFFF9585),
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-            Flexible(
+            const SizedBox(height: 14),
+            Expanded(
               child: candidates.when(
                 data: (page) {
                   if (page.list.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      child: Text(
-                        _t(context, '没有找到患者', 'No patients found'),
-                        style: TextStyle(color: palette.mutedText),
+                    return Center(
+                      child: _DialogMessage(
+                        icon: Icons.search_off_rounded,
+                        text: _t(context, '没有找到患者', 'No patients found'),
                       ),
                     );
                   }
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          itemCount: page.list.length,
-                          separatorBuilder: (_, _) =>
-                              Divider(color: palette.outline, height: 1),
-                          itemBuilder: (context, index) {
-                            final patient = page.list[index];
-                            return _CandidatePatientTile(
-                              patient: patient,
-                              onAdd: patient.isBound
-                                  ? null
-                                  : () => Navigator.of(
-                                      context,
-                                    ).pop(patient.memberId),
-                            );
-                          },
-                        ),
-                      ),
-                      _PatientPager(
-                        page: page.page,
-                        pageSize: page.pageSize,
-                        total: page.total,
-                        onPrev: page.page > 1
-                            ? () => setState(() => _page -= 1)
-                            : null,
-                        onNext: page.page * page.pageSize < page.total
-                            ? () => setState(() => _page += 1)
-                            : null,
-                      ),
-                    ],
+                  return ListView.separated(
+                    padding: EdgeInsets.zero,
+                    itemCount: page.list.length,
+                    separatorBuilder: (_, _) =>
+                        Divider(color: palette.outline, height: 1),
+                    itemBuilder: (context, index) {
+                      final patient = page.list[index];
+                      return _CandidatePatientTile(
+                        patient: patient,
+                        onAdd: patient.isBound
+                            ? null
+                            : () => Navigator.of(context).pop(patient.memberId),
+                      );
+                    },
                   );
                 },
-                error: (error, _) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: Text(
-                    error.toString(),
-                    style: TextStyle(color: palette.mutedText),
+                error: (error, _) => Center(
+                  child: _DialogMessage(
+                    icon: Icons.error_outline_rounded,
+                    text: error.toString(),
                   ),
                 ),
                 loading: () => const Padding(
@@ -316,6 +332,18 @@ class _AddPatientDialogState extends ConsumerState<_AddPatientDialog> {
                   child: CircularProgressIndicator(),
                 ),
               ),
+            ),
+            _PatientPager(
+              page: page?.page ?? _page,
+              pageSize: page?.pageSize ?? _pageSize,
+              total: page?.total ?? 0,
+              compact: true,
+              onPrev: page != null && page.page > 1
+                  ? () => setState(() => _page -= 1)
+                  : null,
+              onNext: page != null && page.page * page.pageSize < page.total
+                  ? () => setState(() => _page += 1)
+                  : null,
             ),
           ],
         ),
@@ -478,49 +506,115 @@ class _CandidatePatientTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = _DoctorPatientsPalette.of(context);
     final avatarUrl = ref.watch(apiClientProvider).resolveUrl(patient.avatar);
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: ClipOval(
-        child: avatarUrl.isNotEmpty
-            ? Image.network(
-                avatarUrl,
-                width: 44,
-                height: 44,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const _SmallPatientAvatar(),
-              )
-            : const _SmallPatientAvatar(),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          ClipOval(
+            child: avatarUrl.isNotEmpty
+                ? Image.network(
+                    avatarUrl,
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const _SmallPatientAvatar(),
+                  )
+                : const _SmallPatientAvatar(),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  patient.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    height: 1.15,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    _CandidateInfoChip(label: 'ID ${patient.memberId}'),
+                    _CandidateInfoChip(label: patient.genderLabel),
+                    _CandidateInfoChip(
+                      label: patient.ageLabel == '--'
+                          ? _t(context, '年龄未知', 'Age unknown')
+                          : _t(
+                              context,
+                              '${patient.ageLabel}岁',
+                              'Age ${patient.ageLabel}',
+                            ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 66,
+            height: 44,
+            child: FilledButton(
+              onPressed: onAdd,
+              style: FilledButton.styleFrom(
+                padding: EdgeInsets.zero,
+                backgroundColor: const Color(0xFFFF9585),
+                disabledBackgroundColor: palette.avatarBackground,
+                disabledForegroundColor: palette.secondaryText,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  patient.isBound
+                      ? _t(context, '已添加', 'Added')
+                      : _t(context, '添加', 'Add'),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
-      title: Text(
-        patient.displayName,
+    );
+  }
+}
+
+class _CandidateInfoChip extends StatelessWidget {
+  const _CandidateInfoChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPatientsPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: palette.inputBackground,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          color: palette.primaryText,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      subtitle: Text(
-        _t(
-          context,
-          'ID ${patient.memberId} · ${patient.genderLabel} · ${patient.ageLabel}岁',
-          'ID ${patient.memberId} · ${patient.genderLabel} · age ${patient.ageLabel}',
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: palette.secondaryText),
-      ),
-      trailing: FilledButton(
-        onPressed: onAdd,
-        style: FilledButton.styleFrom(
-          backgroundColor: const Color(0xFFFF9585),
-          disabledBackgroundColor: palette.avatarBackground,
-          disabledForegroundColor: palette.secondaryText,
-        ),
-        child: Text(
-          patient.isBound
-              ? _t(context, '已添加', 'Added')
-              : _t(context, '添加', 'Add'),
+          color: palette.secondaryText,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          height: 1.15,
         ),
       ),
     );
@@ -534,8 +628,8 @@ class _SmallPatientAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = _DoctorPatientsPalette.of(context);
     return Container(
-      width: 44,
-      height: 44,
+      width: 48,
+      height: 48,
       color: palette.avatarBackground,
       alignment: Alignment.center,
       child: Icon(Icons.person_rounded, color: palette.secondaryText),
@@ -566,6 +660,7 @@ class _PatientPager extends StatelessWidget {
     required this.total,
     required this.onPrev,
     required this.onNext,
+    this.compact = false,
   });
 
   final int page;
@@ -573,6 +668,7 @@ class _PatientPager extends StatelessWidget {
   final int total;
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -583,11 +679,11 @@ class _PatientPager extends StatelessWidget {
     final palette = _DoctorPatientsPalette.of(context);
     final pageCount = (total / pageSize).ceil();
     return Padding(
-      padding: const EdgeInsets.only(top: 4),
+      padding: EdgeInsets.only(top: compact ? 12 : 4, bottom: compact ? 4 : 0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          IconButton(
+          _PagerButton(
             onPressed: onPrev,
             icon: const Icon(Icons.chevron_left_rounded),
             tooltip: _t(context, '上一页', 'Previous page'),
@@ -599,13 +695,70 @@ class _PatientPager extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          IconButton(
+          _PagerButton(
             onPressed: onNext,
             icon: const Icon(Icons.chevron_right_rounded),
             tooltip: _t(context, '下一页', 'Next page'),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PagerButton extends StatelessWidget {
+  const _PagerButton({
+    required this.onPressed,
+    required this.icon,
+    required this.tooltip,
+  });
+
+  final VoidCallback? onPressed;
+  final Icon icon;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPatientsPalette.of(context);
+    return IconButton.filledTonal(
+      onPressed: onPressed,
+      icon: icon,
+      tooltip: tooltip,
+      color: const Color(0xFFFF9585),
+      disabledColor: palette.secondaryText.withValues(alpha: 0.36),
+      style: IconButton.styleFrom(
+        fixedSize: const Size(38, 38),
+        backgroundColor: const Color(0xFFFF9585).withValues(alpha: 0.08),
+        disabledBackgroundColor: palette.inputBackground,
+      ),
+    );
+  }
+}
+
+class _DialogMessage extends StatelessWidget {
+  const _DialogMessage({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPatientsPalette.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 34, color: palette.secondaryText),
+        const SizedBox(height: 10),
+        Text(
+          text,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: palette.mutedText,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -744,6 +897,7 @@ class _DoctorPatientsPalette {
     required this.secondaryText,
     required this.mutedText,
     required this.outline,
+    required this.inputBackground,
   });
 
   factory _DoctorPatientsPalette.of(BuildContext context) {
@@ -761,6 +915,9 @@ class _DoctorPatientsPalette {
           ? scheme.onSurfaceVariant.withValues(alpha: 0.8)
           : const Color(0xFF8C919A),
       outline: scheme.outlineVariant,
+      inputBackground: isDark
+          ? scheme.surfaceContainerHigh
+          : const Color(0xFFF6F7FB),
     );
   }
 
@@ -771,4 +928,5 @@ class _DoctorPatientsPalette {
   final Color secondaryText;
   final Color mutedText;
   final Color outline;
+  final Color inputBackground;
 }
