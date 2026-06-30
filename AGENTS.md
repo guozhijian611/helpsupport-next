@@ -18,7 +18,7 @@
 - `server/`：Webman/SaiAdmin 后端，Composer 命令和 PHP 校验默认在此目录执行。
 - `saiadmin-artd/`：SaiAdmin 管理端前端，pnpm 命令默认在此目录执行。
 - `uniapp/`：uni-app/unibest 移动端，pnpm 命令默认在此目录执行。
-- `flutter_app/`：Flutter 客户端，Flutter 相关命令默认在此目录执行；日常开发联调优先连接 iOS 真机并使用 `flutter run -d <device id>` 获取热重载，提交前或需要补充模拟器链路验证时再使用 iOS 模拟器；允许在真机 `flutter run` 挂载期间并行执行 `./tool/build_ios_simulator.sh` 做模拟器验证，但模拟器链路不得清理或覆盖 `build/ios/iphoneos`、`build/ios/Debug-iphoneos` 等真机产物；热重启后如出现代码、路由、资源、生成缓存或启动状态异常，应停止当前运行会话并重新完整构建，不允许用兼容方法、旧分支、fallback、别名或临时适配绕过；完整构建、安装和启动验证使用 `./tool/build_ios_simulator.sh`。
+- `flutter_app/`：Flutter 客户端，Flutter 相关命令默认在此目录执行；Flutter 运行、联调、安装和测试命令默认由用户在本机启动，Codex 只提供准确命令、设备选择建议和失败排查，不主动执行 `./run_app.sh`、`flutter run`、`./tool/build_ios_simulator.sh` 等会启动设备或模拟器的命令；只有用户明确要求 Codex 代为启动时，才优先连接 iOS 真机并使用 `flutter run -d <device id>` 获取热重载，提交前或需要补充模拟器链路验证时再使用 iOS 模拟器；允许在真机 `flutter run` 挂载期间并行执行 `./tool/build_ios_simulator.sh` 做模拟器验证，但模拟器链路不得清理或覆盖 `build/ios/iphoneos`、`build/ios/Debug-iphoneos` 等真机产物；热重启后如出现代码、路由、资源、生成缓存或启动状态异常，应停止当前运行会话并重新完整构建，不允许用兼容方法、旧分支、fallback、别名或临时适配绕过；完整构建、安装和启动验证使用 `./tool/build_ios_simulator.sh`。
 - `packages/`：本仓库维护的扩展包或插件源码，修改后需确认是否通过 `server/vendor` 软链或 Composer 安装进入运行时。
 - `.codex/skills/`：本项目沉淀的开发技能和参考手册；涉及对应技术时优先读取相关 `SKILL.md`。
 - `Doc/`、`OpenAPI/`、`Database/`：项目文档、接口文档和数据库资料，更新时以实际路由、控制器、数据库结构、安装 SQL 或 Phinx 迁移为准。
@@ -49,13 +49,13 @@
 - 生产部署中自动执行数据库迁移必须通过显式开关启用，默认关闭；执行前需确认数据库备份、目标环境和回滚窗口。
 - Webman 是常驻进程，修改 PHP、路由、插件配置后，验证前需要考虑 reload/restart。
 - 日志、调试页和请求记录默认要脱敏 Bearer、Cookie、token、secret 等敏感信息；如需放开，只能做成显式调试开关。
-- Flutter 客户端文件变更后，日常开发联调优先在项目根目录执行 `./run_app.sh` 或在 `flutter_app/` 目录连接 iOS 真机并执行 `flutter run -d <device id>` 保持热重载，必要时先用 `flutter devices` 确认真机设备 ID；API 基础地址写在 `flutter_app/lib/core/api/api_client.dart` 的 `ApiClient.apiBaseUrl` 常量里，不通过环境变量或 `--dart-define` 传入；如果暂无真机、需要补充平板/刘海屏等模拟器适配验证、或需要完整构建安装链路，再切到 iOS 模拟器；允许真机 `flutter run` 与 `./tool/build_ios_simulator.sh` 并行运行，但模拟器脚本和相关清理动作不得影响真机构建产物与调试会话；如果热重启后出现代码问题、状态不一致、资源未更新、生成代码未生效或启动链路异常，直接停止会话并重新构建安装，不为了绕过问题新增兼容方法、旧分支、fallback、别名或临时适配；需要完整构建、安装、启动链路验证时再执行 `./tool/build_ios_simulator.sh`，并可按需通过 `IOS_SIMULATOR_NAME`、`IOS_SIMULATOR_UDID` 指定目标。
+- Flutter 客户端文件变更后，默认由用户启动运行联调或测试；Codex 应给出建议命令，例如在项目根目录执行 `./run_app.sh`，或在 `flutter_app/` 目录先执行 `flutter devices` 确认 iOS 真机设备 ID 后再执行 `flutter run -d <device id>`，但不得主动启动这些命令，除非用户明确要求 Codex 代为运行；API 基础地址写在 `flutter_app/lib/core/api/api_client.dart` 的 `ApiClient.apiBaseUrl` 常量里，不通过环境变量或 `--dart-define` 传入；如果用户需要补充平板/刘海屏等模拟器适配验证、或需要完整构建安装链路，再提示用户使用 iOS 模拟器或执行 `./tool/build_ios_simulator.sh`；用户明确要求 Codex 代跑时，允许真机 `flutter run` 与 `./tool/build_ios_simulator.sh` 并行运行，但模拟器脚本和相关清理动作不得影响真机构建产物与调试会话；如果热重启后出现代码问题、状态不一致、资源未更新、生成代码未生效或启动链路异常，直接停止会话并重新构建安装，不为了绕过问题新增兼容方法、旧分支、fallback、别名或临时适配；需要完整构建、安装、启动链路验证时再执行 `./tool/build_ios_simulator.sh`，并可按需通过 `IOS_SIMULATOR_NAME`、`IOS_SIMULATOR_UDID` 指定目标。
 - Flutter 客户端变更不使用 `flutter analyze` 或所谓 `flutter analysis` 作为默认验证；如果 `flutter run` 或模拟器脚本失败，记录失败阶段和原因，不改用 analyze 代替运行验证。
 
 ## 验证要求
 - 后端 PHP 文件变更后，至少执行相关 `php -l`；路由或插件变更需结合 `php webman route:list`、相关命令帮助或运行时页面验证。SaiCode 生成 CRUD 后，如果依赖 Webman 插件默认路由，需用前端 API 中的 `/app/<插件名>/admin/...` 实际访问或运行时页面确认；如果改用显式路由，则必须在 `route:list` 中核对。
 - 管理端或移动端变更后，优先执行项目已有的类型检查、lint 或最小可行验证命令。
-- Flutter 客户端变更后的默认开发验证是从项目根目录执行 `./run_app.sh`，或从 `flutter_app/` 执行 `flutter run -d <iOS 真机 device id>`，确认 iOS 真机联调与热重载可用；如果暂无真机或需要补充模拟器适配、安装链路验证，再执行模拟器调试或 `./tool/build_ios_simulator.sh`；如果热重启后暴露代码或运行状态问题，以重新构建安装为准，不通过兼容逻辑掩盖；不要运行 `flutter analyze` 或 `flutter analysis`。
+- Flutter 客户端变更后的运行验证默认由用户启动：Codex 在最终回复中给出 `./run_app.sh`、`flutter devices`、`flutter run -d <iOS 真机 device id>` 或 `./tool/build_ios_simulator.sh` 等具体命令，并说明本轮未由 Codex 启动；只有用户明确要求 Codex 代为运行时，才执行真机或模拟器运行验证；如果热重启后暴露代码或运行状态问题，以重新构建安装为准，不通过兼容逻辑掩盖；不要运行 `flutter analyze` 或 `flutter analysis`。
 - OpenAPI、数据库文档、数据库迁移或生成文件变更后，要用实际源头复核：`route.php`、控制器、`information_schema`、`SHOW CREATE TABLE`、`php webman b8:migrate:status`、`php webman b8:migrate --dry-run` 或生成器输出。
 - 如果某项验证无法执行，要在最终回复里说明原因和剩余风险。
 
