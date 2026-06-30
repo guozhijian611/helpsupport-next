@@ -17,6 +17,8 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/settings/app_display_preferences.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/data/auth_protocol.dart';
+import '../../plan/application/plan_controller.dart';
+import '../../plan/data/plan_models.dart';
 import '../data/settings_models.dart';
 import '../data/settings_repository.dart';
 
@@ -186,6 +188,11 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   static const _developerTapTarget = 9;
   static const _privacyPrefix = 'settings.privacy.';
   static const _notificationPrefix = 'settings.notification.';
+  static const _scheduledTaskNotificationIdsKey =
+      '${_notificationPrefix}scheduled_task_notification_ids';
+  static const _taskNotificationIdBase = 220000000;
+  static const _journalReminderHour = 21;
+  static const _journalReminderMinute = 0;
   final _dateFormat = DateFormat('yyyy-MM-dd');
   final _imagePicker = ImagePicker();
   final _localCacheManager = const LocalCacheManager();
@@ -566,6 +573,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
           return;
         }
         _applyPushPreference(preference, syncLocalStorage: true);
+        unawaited(
+          _syncLocalNotificationSchedule(preference).catchError((_) {}),
+        );
       }
     } on Object catch (error) {
       if (!mounted) {
@@ -1505,8 +1515,23 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         return;
       }
       _applyPushPreference(preference, syncLocalStorage: true);
+      var localScheduleSynced = true;
+      try {
+        await _syncLocalNotificationSchedule(preference);
+      } on Object {
+        localScheduleSynced = false;
+      }
+      if (!mounted) {
+        return;
+      }
       context.showCenteredNotice(
-        _t(context, '通知设置已同步', 'Notification settings synced'),
+        localScheduleSynced
+            ? _t(context, '通知设置已同步', 'Notification settings synced')
+            : _t(
+                context,
+                '通知设置已保存，本地提醒同步失败',
+                'Notification settings saved. Local reminder sync failed.',
+              ),
       );
     } on Object catch (error) {
       if (!mounted) {
@@ -1589,6 +1614,110 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         preference.isLocalCompanionEnabled,
       ),
     ]);
+  }
+
+  Future<void> _syncLocalNotificationSchedule(
+    PushPreferenceSettings preference,
+  ) async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    final service = ref.read(localNotificationServiceProvider);
+    final storedTaskIds =
+        prefs
+            .getStringList(_scheduledTaskNotificationIdsKey)
+            ?.map((value) => int.tryParse(value))
+            .whereType<int>()
+            .toList(growable: false) ??
+        const <int>[];
+
+    if (!preference.isTaskReminderEnabled) {
+      await service.cancelNotifications(storedTaskIds);
+      await prefs.remove(_scheduledTaskNotificationIdsKey);
+    } else {
+      await service.requestPermissions();
+      await service.cancelNotifications(storedTaskIds);
+      final tasks = await ref
+          .read(planRepositoryProvider)
+          .fetchTasks(date: _dateFormat.format(DateTime.now()));
+      final scheduledIds = <int>[];
+      for (final task in tasks.list) {
+        if (task.isDone || task.isSkipped) {
+          continue;
+        }
+        final scheduledAt = _taskReminderTime(task);
+        if (scheduledAt == null || !scheduledAt.isAfter(DateTime.now())) {
+          continue;
+        }
+        final id = _taskNotificationId(task.id);
+        final scheduled = await service.scheduleTreatmentTaskReminder(
+          id: id,
+          title: _t(context, '治疗任务提醒', 'Treatment task reminder'),
+          body: task.title.isEmpty
+              ? _t(context, '有一项治疗任务即将开始', 'A treatment task is starting soon')
+              : task.title,
+          scheduledDate: scheduledAt,
+          payload: 'task-reminder:${task.id}',
+        );
+        if (scheduled) {
+          scheduledIds.add(id);
+        }
+      }
+      await prefs.setStringList(
+        _scheduledTaskNotificationIdsKey,
+        scheduledIds.map((id) => id.toString()).toList(growable: false),
+      );
+    }
+
+    if (!preference.isLocalCompanionEnabled) {
+      await service.cancelDailyJournalReminder();
+      return;
+    }
+
+    await service.requestPermissions();
+    await service.scheduleDailyJournalReminder(
+      hour: _journalReminderHour,
+      minute: _journalReminderMinute,
+      title: _t(context, '日记提醒', 'Journal reminder'),
+      body: _t(context, '记录一下今天的状态和感受', "Record today's status and mood."),
+    );
+  }
+
+  DateTime? _taskReminderTime(DailyTask task) {
+    final taskDate = DateTime.tryParse(task.taskDate);
+    if (taskDate == null) {
+      return null;
+    }
+
+    final reminderTime = _firstClockText(task.reminders);
+    final clock = reminderTime ?? _clockText(task.startTime);
+    if (clock == null) {
+      return null;
+    }
+
+    final hour = int.tryParse(clock.group(1)!);
+    final minute = int.tryParse(clock.group(2)!);
+    if (hour == null || minute == null || hour > 23 || minute > 59) {
+      return null;
+    }
+
+    return DateTime(taskDate.year, taskDate.month, taskDate.day, hour, minute);
+  }
+
+  RegExpMatch? _firstClockText(List<String> values) {
+    for (final value in values) {
+      final match = _clockText(value);
+      if (match != null) {
+        return match;
+      }
+    }
+    return null;
+  }
+
+  RegExpMatch? _clockText(String value) {
+    return RegExp(r'(\d{1,2}):(\d{2})').firstMatch(value.trim());
+  }
+
+  int _taskNotificationId(int taskId) {
+    return _taskNotificationIdBase + taskId.remainder(100000);
   }
 
   Future<void> _requestNotifications() async {

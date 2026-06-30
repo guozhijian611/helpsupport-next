@@ -25,6 +25,11 @@ class LocalNotificationService {
   static const _developerChannelName = 'Developer tools';
   static const _developerChannelDescription =
       'Developer self-test notifications for HelpSupport.';
+  static const _businessChannelId = 'helpsupport_reminders';
+  static const _businessChannelName = 'HelpSupport reminders';
+  static const _businessChannelDescription =
+      'Treatment plan and journal reminders for HelpSupport.';
+  static const journalReminderNotificationId = 210000001;
   static const _developerNotificationDelay = Duration(seconds: 3);
   static const _developerToolsChannel = MethodChannel(
     'helpsupport/developer_tools',
@@ -42,6 +47,33 @@ class LocalNotificationService {
           _developerChannelName,
           channelDescription: _developerChannelDescription,
           importance: Importance.max,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBanner: true,
+          presentBadge: true,
+          presentList: true,
+          presentSound: true,
+          interruptionLevel: InterruptionLevel.active,
+        ),
+        macOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBanner: true,
+          presentBadge: true,
+          presentList: true,
+          presentSound: true,
+          interruptionLevel: InterruptionLevel.active,
+        ),
+      );
+
+  static const NotificationDetails _businessNotificationDetails =
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _businessChannelId,
+          _businessChannelName,
+          channelDescription: _businessChannelDescription,
+          importance: Importance.high,
           priority: Priority.high,
         ),
         iOS: DarwinNotificationDetails(
@@ -195,5 +227,70 @@ class LocalNotificationService {
       timeZoneIdentifier: timeZoneIdentifier,
       diagnostics: diagnostics,
     );
+  }
+
+  Future<void> cancelNotifications(Iterable<int> ids) async {
+    for (final id in ids.toSet()) {
+      await _plugin.cancel(id: id);
+    }
+  }
+
+  Future<bool> scheduleTreatmentTaskReminder({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+    String? payload,
+  }) async {
+    if (!scheduledDate.isAfter(DateTime.now())) {
+      return false;
+    }
+    await _configureLocalTimeZone();
+    await _plugin.zonedSchedule(
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: timezone.TZDateTime.from(scheduledDate, timezone.local),
+      notificationDetails: _businessNotificationDetails,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      payload: payload,
+    );
+    return true;
+  }
+
+  Future<void> scheduleDailyJournalReminder({
+    required int hour,
+    required int minute,
+    required String title,
+    required String body,
+  }) async {
+    await _configureLocalTimeZone();
+    await _plugin.cancel(id: journalReminderNotificationId);
+    final now = timezone.TZDateTime.now(timezone.local);
+    var scheduledDate = timezone.TZDateTime(
+      timezone.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
+    if (!scheduledDate.isAfter(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    await _plugin.zonedSchedule(
+      id: journalReminderNotificationId,
+      title: title,
+      body: body,
+      scheduledDate: scheduledDate,
+      notificationDetails: _businessNotificationDetails,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
+      payload: 'journal-reminder',
+    );
+  }
+
+  Future<void> cancelDailyJournalReminder() {
+    return _plugin.cancel(id: journalReminderNotificationId);
   }
 }
