@@ -313,7 +313,7 @@ class _MaterialResourceScreenState
   Future<void> _configureResource(MaterialItem item) async {
     final resourceUrl = _apiClient.resolveUrl(item.contentUrl);
     final cacheKey =
-        '${item.id}:${item.mediaType}:$resourceUrl:${item.lyricUrl.hashCode}:${item.contentText.hashCode}';
+        '${item.id}:${item.mediaType}:$resourceUrl:${item.imageUrls.hashCode}:${item.lyricUrl.hashCode}:${item.contentText.hashCode}';
     if (_activeCacheKey == cacheKey) {
       return;
     }
@@ -1167,6 +1167,9 @@ class _MaterialResourceScreenState
 
     if (_isImageUrl(resourceUrl) || _isImageResource(item)) {
       addUrl(resourceUrl);
+    }
+    for (final imageUrl in item.imageUrls) {
+      addUrl(imageUrl);
     }
     final coverUrl = _apiClient.resolveUrl(item.coverUrl);
     if (_isImageResource(item) && coverUrl.isNotEmpty) {
