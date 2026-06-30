@@ -2,8 +2,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/notifications/centered_notice.dart';
+import '../../../core/providers/app_providers.dart';
 import '../application/material_controller.dart';
 import '../data/material_models.dart';
 
@@ -21,6 +24,7 @@ class _MaterialPrivateUploadScreenState
   final _summaryController = TextEditingController();
   final _contentController = TextEditingController();
   final _linkController = TextEditingController();
+  final _imagePicker = ImagePicker();
 
   String _mediaType = 'txt';
   int _selectedCategoryId = 0;
@@ -117,6 +121,11 @@ class _MaterialPrivateUploadScreenState
 
   Future<void> _pickFile() async {
     final option = _currentOption;
+    if (option.value == 'image') {
+      await _pickImage();
+      return;
+    }
+
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: false,
       allowedExtensions: option.extensions,
@@ -127,6 +136,48 @@ class _MaterialPrivateUploadScreenState
       return;
     }
     setState(() => _selectedFile = result.files.single);
+  }
+
+  Future<void> _pickImage() async {
+    final permission = await ref
+        .read(permissionServiceProvider)
+        .requestMediaLibrary();
+    final granted =
+        permission == PermissionStatus.granted ||
+        permission == PermissionStatus.limited;
+    if (!granted) {
+      if (mounted) {
+        context.showCenteredNotice(
+          _t(
+            context,
+            '需要开启相册权限后才能选择图片',
+            'Photo permission is required to choose an image',
+          ),
+        );
+      }
+      return;
+    }
+
+    final image = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 90,
+      maxWidth: 2000,
+    );
+    if (image == null) {
+      return;
+    }
+
+    final fileName = image.name.trim().isNotEmpty
+        ? image.name
+        : Uri.file(image.path).pathSegments.last;
+    final fileSize = await image.length();
+    setState(
+      () => _selectedFile = PlatformFile(
+        name: fileName,
+        path: image.path,
+        size: fileSize,
+      ),
+    );
   }
 
   Future<void> _submit() async {
@@ -149,7 +200,9 @@ class _MaterialPrivateUploadScreenState
       final file = _selectedFile;
       if (file == null) {
         context.showCenteredNotice(
-          _t(context, '请选择要上传的文件', 'Choose a file first'),
+          option.value == 'image'
+              ? _t(context, '请选择要上传的图片', 'Choose an image first')
+              : _t(context, '请选择要上传的文件', 'Choose a file first'),
         );
         return;
       }
@@ -528,7 +581,10 @@ class _FilePickerTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    file?.name ?? _t(context, '选择文件', 'Choose file'),
+                    file?.name ??
+                        (option.value == 'image'
+                            ? _t(context, '选择图片', 'Choose image')
+                            : _t(context, '选择文件', 'Choose file')),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
