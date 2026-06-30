@@ -134,11 +134,76 @@ wait_for_android_device() {
   return 1
 }
 
+adb_device_ids() {
+  command -v adb >/dev/null 2>&1 || return 0
+  adb devices | awk 'NR > 1 && $2 == "device" { print $1 }'
+}
+
+first_android_emulator_serial() {
+  adb_device_ids | awk '/^emulator-/ { print; exit }'
+}
+
+new_android_emulator_serial() {
+  local before_file="$1"
+  adb_device_ids | awk -v before_file="${before_file}" '
+    BEGIN {
+      while ((getline line < before_file) > 0) {
+        before[line] = 1
+      }
+    }
+    /^emulator-/ && !($1 in before) {
+      print
+      exit
+    }
+  '
+}
+
+launch_selected_android_emulator() {
+  local emulator_id="$1"
+  local before_file deadline serial
+
+  command -v flutter >/dev/null 2>&1 || fail "flutter not found"
+  command -v adb >/dev/null 2>&1 || fail "adb not found"
+
+  before_file="$(mktemp -t helpsupport-adb-before.XXXXXX)"
+  adb_device_ids >"${before_file}"
+
+  printf '正在启动安卓模拟器：%s\n' "${emulator_id}" >&2
+  if ! flutter emulators --launch "${emulator_id}" >/dev/null 2>&1; then
+    rm -f "${before_file}"
+    fail "安卓模拟器启动失败，请手动执行：flutter emulators --launch ${emulator_id}"
+  fi
+
+  deadline=$((SECONDS + ANDROID_EMULATOR_BOOT_TIMEOUT_SECONDS))
+  while ((SECONDS < deadline)); do
+    serial="$(new_android_emulator_serial "${before_file}")"
+    if [[ -n "${serial}" ]]; then
+      rm -f "${before_file}"
+      printf '安卓模拟器已连接：%s\n' "${serial}" >&2
+      printf '%s\n' "${serial}"
+      return
+    fi
+
+    serial="$(first_android_emulator_serial)"
+    if [[ -n "${serial}" ]]; then
+      rm -f "${before_file}"
+      printf '安卓模拟器已连接：%s\n' "${serial}" >&2
+      printf '%s\n' "${serial}"
+      return
+    fi
+
+    sleep 5
+  done
+
+  rm -f "${before_file}"
+  fail "安卓模拟器启动超时，稍后可重新执行 ./run_app.sh"
+}
+
 launch_android_emulator_if_needed() {
-  [[ "${AUTO_LAUNCH_ANDROID_EMULATOR}" == "1" ]] || return
-  command -v flutter >/dev/null 2>&1 || return
-  command -v adb >/dev/null 2>&1 || return
-  android_device_connected && return
+  [[ "${AUTO_LAUNCH_ANDROID_EMULATOR}" == "1" ]] || return 0
+  command -v flutter >/dev/null 2>&1 || return 0
+  command -v adb >/dev/null 2>&1 || return 0
+  android_device_connected && return 0
 
   if ! android_emulator_available; then
     printf '未找到安卓模拟器 %s，跳过自动启动。\n' "${ANDROID_EMULATOR_ID}" >&2
@@ -180,7 +245,7 @@ select_device() {
     return
   fi
 
-  local devices_json json_file devices_file
+  local devices_json json_file adb_file emulators_file devices_file
   if ! devices_json="$(flutter devices --machine 2>/dev/null)"; then
     if [[ -n "${preferred_index}" ]]; then
       printf '无法读取 Flutter 设备列表，将改为手动输入设备 ID。\n' >&2
@@ -190,15 +255,53 @@ select_device() {
   fi
 
   json_file="$(mktemp -t helpsupport-flutter-devices-json.XXXXXX)"
+  adb_file="$(mktemp -t helpsupport-adb-devices.XXXXXX)"
+  emulators_file="$(mktemp -t helpsupport-flutter-emulators.XXXXXX)"
   devices_file="$(mktemp -t helpsupport-flutter-devices.XXXXXX)"
   printf '%s' "${devices_json}" >"${json_file}"
+  if command -v adb >/dev/null 2>&1; then
+    adb devices -l >"${adb_file}" 2>/dev/null || true
+  fi
+  flutter emulators >"${emulators_file}" 2>/dev/null || true
 
-  if ! python3 - "${json_file}" >"${devices_file}" <<'PY'
+  if ! python3 - "${json_file}" "${adb_file}" "${emulators_file}" >"${devices_file}" <<'PY'
 import json
 import sys
 
 with open(sys.argv[1], "r", encoding="utf-8") as handle:
     devices = json.load(handle)
+
+with open(sys.argv[2], "r", encoding="utf-8") as handle:
+    adb_devices = handle.read().splitlines()
+
+with open(sys.argv[3], "r", encoding="utf-8") as handle:
+    emulators = handle.read().splitlines()
+
+rows = []
+row_by_id = {}
+
+def add_row(device_id, name, platform, kind, source, launch_id=""):
+    if not device_id:
+        return
+
+    current = row_by_id.get(device_id)
+    if current:
+        if source not in current["source"].split("+"):
+            current["source"] = f'{current["source"]}+{source}'
+        if not current["launch_id"] and launch_id:
+            current["launch_id"] = launch_id
+        return
+
+    row = {
+        "id": device_id,
+        "name": name or device_id,
+        "platform": platform or "",
+        "kind": kind or "device",
+        "source": source,
+        "launch_id": launch_id,
+    }
+    rows.append(row)
+    row_by_id[device_id] = row
 
 for device in devices:
     if device.get("isSupported") is False:
@@ -206,41 +309,82 @@ for device in devices:
     device_id = device.get("id") or ""
     name = device.get("name") or device.get("displayName") or device_id
     platform = device.get("targetPlatform") or device.get("platform") or ""
-    simulator = "simulator" if device.get("emulator") else "device"
-    if device_id:
-        print(f"{device_id}\t{name}\t{platform}\t{simulator}")
+    kind = "emulator" if device.get("emulator") or device_id.startswith("emulator-") else "device"
+    add_row(device_id, name, platform, kind, "flutter")
+
+for line in adb_devices:
+    stripped = line.strip()
+    if not stripped or stripped.startswith("List of devices"):
+        continue
+    parts = stripped.split()
+    if len(parts) < 2 or parts[1] != "device":
+        continue
+
+    device_id = parts[0]
+    attrs = dict(part.split(":", 1) for part in parts[2:] if ":" in part)
+    model = attrs.get("model") or attrs.get("product") or device_id
+    kind = "adb-emulator" if device_id.startswith("emulator-") else "adb-device"
+    add_row(device_id, model, "android", kind, "adb")
+
+for line in emulators:
+    if "•" not in line:
+        continue
+    parts = [part.strip() for part in line.split("•")]
+    if len(parts) < 4:
+        continue
+    emulator_id, name, _manufacturer, platform = parts[:4]
+    if not emulator_id or emulator_id == "Id" or platform != "android":
+        continue
+    add_row(emulator_id, name, platform, "launchable-emulator", "emulator", emulator_id)
+
+for row in rows:
+    print(
+        "\t".join(
+            [
+                row["id"],
+                row["name"],
+                row["platform"],
+                row["kind"],
+                row["source"],
+                row["launch_id"],
+            ]
+        )
+    )
 PY
   then
-    rm -f "${json_file}" "${devices_file}"
+    rm -f "${json_file}" "${adb_file}" "${emulators_file}" "${devices_file}"
     manual_device_input
     return
   fi
 
-  local count=0 line id name platform simulator
-  local ids=() names=() platforms=() simulators=()
-  while IFS=$'\t' read -r id name platform simulator; do
+  local count=0 line id name platform kind source launch_id
+  local ids=() names=() platforms=() kinds=() sources=() launch_ids=()
+  while IFS=$'\t' read -r id name platform kind source launch_id; do
     [[ -n "${id}" ]] || continue
     ids[count]="${id}"
     names[count]="${name}"
     platforms[count]="${platform}"
-    simulators[count]="${simulator}"
+    kinds[count]="${kind}"
+    sources[count]="${source}"
+    launch_ids[count]="${launch_id}"
     count=$((count + 1))
   done <"${devices_file}"
 
-  rm -f "${json_file}" "${devices_file}"
+  rm -f "${json_file}" "${adb_file}" "${emulators_file}" "${devices_file}"
 
   if [[ "${count}" -eq 0 ]]; then
-    fail "未发现可运行的 Flutter 设备，请先连接真机或启动模拟器"
+    fail "未发现可运行的 Flutter 设备、ADB 设备或可启动安卓模拟器"
   fi
 
-  printf '当前可用 Flutter 设备：\n' >&2
+  printf '当前可用设备和模拟器：\n' >&2
   local index
   for ((index = 0; index < count; index++)); do
-    printf '  %d) %s [%s, %s] id=%s\n' \
+    printf '  %d) %s [%s, %s, source=%s] id=%s\n' \
       "$((index + 1))" \
       "${names[index]}" \
       "${platforms[index]}" \
-      "${simulators[index]}" \
+      "${kinds[index]}" \
+      "${sources[index]}" \
       "${ids[index]}" >&2
   done
 
@@ -248,6 +392,10 @@ PY
     local preferred_number=$((10#${preferred_index}))
     if [[ "${preferred_number}" -ge 1 ]] && [[ "${preferred_number}" -le "${count}" ]]; then
       local selected_index=$((preferred_number - 1))
+      if [[ -n "${launch_ids[selected_index]}" ]]; then
+        launch_selected_android_emulator "${launch_ids[selected_index]}"
+        return
+      fi
       printf '%s\n' "${ids[selected_index]}"
       return
     fi
@@ -269,6 +417,10 @@ PY
       [[ "${choice}" -ge 1 ]] &&
       [[ "${choice}" -le "${count}" ]]; then
       local selected_index=$((choice - 1))
+      if [[ -n "${launch_ids[selected_index]}" ]]; then
+        launch_selected_android_emulator "${launch_ids[selected_index]}"
+        return
+      fi
       printf '%s\n' "${ids[selected_index]}"
       return
     fi

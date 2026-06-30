@@ -105,7 +105,7 @@ pnpm lint
 ./run_app.sh
 ```
 
-脚本会显示当前 Flutter 设备并让用户选择，然后进入 `flutter_app/` 执行 `flutter run -d <device id>`。API 基础地址写在 `flutter_app/lib/core/api/api_client.dart` 的 `ApiClient.apiBaseUrl` 常量中。
+脚本会合并显示 `flutter devices`、`adb devices` 和可启动 Android AVD，让用户选择后进入 `flutter_app/` 执行 `flutter run -d <device id>`。API 基础地址写在 `flutter_app/lib/core/api/api_client.dart` 的 `ApiClient.apiBaseUrl` 常量中。
 
 完整 iOS 模拟器构建脚本：
 
