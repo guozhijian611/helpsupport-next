@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../../core/api/api_client.dart';
@@ -149,6 +150,63 @@ class AuthRepository {
       if (memberRole != null && memberRole.trim().isNotEmpty)
         'member_role': memberRole.trim(),
     });
+  }
+
+  Future<String> uploadDoctorCertificationImage({required XFile file}) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(file.path, filename: file.name),
+    });
+    final result = await _apiClient.postApi<String>(
+      '/app/help/me/doctor-certification/upload-image',
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return (value['url'] ?? '').toString();
+        }
+        throw const FormatException(
+          'Unexpected doctor certification upload response',
+        );
+      },
+    );
+    final url = result.data?.trim() ?? '';
+    if (url.isEmpty) {
+      throw const FormatException('医生资质图片上传失败');
+    }
+    return url;
+  }
+
+  Future<Map<String, dynamic>> saveDoctorCertification({
+    required String realName,
+    required String licenseNo,
+    String? title,
+    String? hospital,
+    String? department,
+    String? specialty,
+    List<String> certificationImages = const [],
+  }) async {
+    final result = await _apiClient.postApi<Map<String, dynamic>>(
+      '/app/help/me/doctor-certification',
+      data: {
+        'real_name': realName.trim(),
+        'license_no': licenseNo.trim(),
+        if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
+        if (hospital != null && hospital.trim().isNotEmpty)
+          'hospital': hospital.trim(),
+        if (department != null && department.trim().isNotEmpty)
+          'department': department.trim(),
+        if (specialty != null && specialty.trim().isNotEmpty)
+          'specialty': specialty.trim(),
+        'certification_images': certificationImages,
+      },
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return value;
+        }
+        throw const FormatException('Unexpected doctor certification response');
+      },
+    );
+    return result.data ?? const <String, dynamic>{};
   }
 
   Future<AuthSession> googleLogin() async {

@@ -185,6 +185,19 @@ class MeController extends BaseController
         return ok($this->service->markOnboardingSeen($this->memberId, (string) $request->post('version', '')));
     }
 
+    #[Apidoc\Title('上传医生资质图片')]
+    #[Apidoc\Url('/app/help/me/doctor-certification/upload-image')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('file', type: 'file', require: true, desc: '医生资质图片文件')]
+    #[Apidoc\Returned('url', type: 'string', desc: '图片URL')]
+    #[Apidoc\Returned('origin_name', type: 'string', desc: '原始文件名')]
+    #[Apidoc\Returned('mime_type', type: 'string', desc: '文件 MIME 类型')]
+    #[Apidoc\Returned('size_byte', type: 'int', desc: '文件大小')]
+    public function uploadDoctorCertificationImage(Request $request): Response
+    {
+        return ok($this->service->uploadDoctorCertificationImage($request));
+    }
+
     #[Apidoc\Title('提交医生资质')]
     #[Apidoc\Url('/app/help/me/doctor-certification')]
     #[Apidoc\Method('POST')]

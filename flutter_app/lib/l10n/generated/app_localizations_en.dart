@@ -225,6 +225,71 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enterAppAction => 'Enter';
 
   @override
+  String get doctorCertificationTitle => 'Doctor verification';
+
+  @override
+  String get doctorCertificationSubtitle =>
+      'Submit your professional details. Doctor access is enabled after approval.';
+
+  @override
+  String get doctorCertificationRealName => 'Legal name';
+
+  @override
+  String get doctorCertificationJobTitle => 'Professional title';
+
+  @override
+  String get doctorCertificationHospital => 'Hospital or organization';
+
+  @override
+  String get doctorCertificationDepartment => 'Department';
+
+  @override
+  String get doctorCertificationSpecialty => 'Specialty';
+
+  @override
+  String get doctorCertificationLicenseNo => 'License number';
+
+  @override
+  String get doctorCertificationImages => 'Verification materials';
+
+  @override
+  String get doctorCertificationImageHint =>
+      'Upload photos of your license, staff ID, or organization proof';
+
+  @override
+  String get doctorCertificationAddImage => 'Upload materials';
+
+  @override
+  String get doctorCertificationPhotoPermission =>
+      'Photo permission is required to upload doctor verification materials';
+
+  @override
+  String get doctorCertificationUploadLimit =>
+      'You can upload up to 4 verification images';
+
+  @override
+  String get doctorCertificationRequiredImages =>
+      'Upload at least one doctor verification image';
+
+  @override
+  String get doctorCertificationSubmit => 'Submit for review';
+
+  @override
+  String get doctorCertificationSubmitting => 'Submitting...';
+
+  @override
+  String get doctorCertificationUploading =>
+      'Images are still uploading. Please wait.';
+
+  @override
+  String get doctorCertificationSubmitted =>
+      'Doctor verification submitted. Doctor access will be enabled after approval.';
+
+  @override
+  String get doctorCertificationPending =>
+      'Your materials will be manually reviewed. Until approval, you will keep using the app as a patient.';
+
+  @override
   String get logout => 'Sign out';
 
   @override

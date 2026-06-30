@@ -119,6 +119,8 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
               disabledBackgroundColor: const Color(0xFFFFD4CF),
               label: _isSubmitting
                   ? context.l10n.profileSaving
+                  : _memberRole == 'doctor'
+                  ? context.l10n.continueLabel
                   : context.l10n.enterAppAction,
             ),
             const SizedBox(height: 30),
@@ -252,10 +254,14 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
             birthday: _birthdayController.text.trim().isEmpty
                 ? null
                 : _birthdayController.text.trim(),
-            memberRole: _memberRole,
+            memberRole: _memberRole == 'doctor' ? null : _memberRole,
           );
       await ref.read(authControllerProvider.notifier).refreshCurrentSession();
       if (!mounted) {
+        return;
+      }
+      if (_memberRole == 'doctor') {
+        context.go('/register/doctor-certification');
         return;
       }
       context.go('/home');

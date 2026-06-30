@@ -604,12 +604,33 @@ class HelpApiService
 
         Db::transaction(function () use ($memberId, $payload) {
             $this->upsertByMember('sa_help_member_profile', $memberId, [
+                'member_role' => 'doctor',
                 'status' => 1,
             ]);
             $this->upsertByMember('sa_help_doctor_profile', $memberId, $payload);
         });
 
         return $this->rowByMember('sa_help_doctor_profile', $memberId);
+    }
+
+    public function uploadDoctorCertificationImage(Request $request): array
+    {
+        if ($request->file() === []) {
+            throw new ApiException('医生资质图片必须上传', 400);
+        }
+
+        $upload = (new SystemAttachmentLogic())->uploadBase('image');
+        $url = trim((string) ($upload['url'] ?? ''));
+        if ($url === '') {
+            throw new ApiException('医生资质图片上传失败，请稍后重试', 500);
+        }
+
+        return [
+            'url' => $url,
+            'origin_name' => (string) ($upload['origin_name'] ?? ''),
+            'mime_type' => (string) ($upload['mime_type'] ?? ''),
+            'size_byte' => (int) ($upload['size_byte'] ?? 0),
+        ];
     }
 
     private function queryProtocol(int $type, string $locale): array

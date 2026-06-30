@@ -219,6 +219,63 @@ class AppLocalizationsZh extends AppLocalizations {
   String get enterAppAction => '进入';
 
   @override
+  String get doctorCertificationTitle => '医生资质认证';
+
+  @override
+  String get doctorCertificationSubtitle => '提交执业资料后，审核通过即可启用医生身份。';
+
+  @override
+  String get doctorCertificationRealName => '真实姓名';
+
+  @override
+  String get doctorCertificationJobTitle => '职称';
+
+  @override
+  String get doctorCertificationHospital => '医院/机构';
+
+  @override
+  String get doctorCertificationDepartment => '科室';
+
+  @override
+  String get doctorCertificationSpecialty => '专业方向';
+
+  @override
+  String get doctorCertificationLicenseNo => '执业证书编号';
+
+  @override
+  String get doctorCertificationImages => '资质资料';
+
+  @override
+  String get doctorCertificationImageHint => '上传执业证书、工作证或机构证明照片';
+
+  @override
+  String get doctorCertificationAddImage => '上传资料';
+
+  @override
+  String get doctorCertificationPhotoPermission => '需要开启相册权限后才能上传医生资质资料';
+
+  @override
+  String get doctorCertificationUploadLimit => '最多上传 4 张资质图片';
+
+  @override
+  String get doctorCertificationRequiredImages => '请至少上传 1 张医生资质资料照片';
+
+  @override
+  String get doctorCertificationSubmit => '提交审核';
+
+  @override
+  String get doctorCertificationSubmitting => '提交中...';
+
+  @override
+  String get doctorCertificationUploading => '图片上传中，请稍候';
+
+  @override
+  String get doctorCertificationSubmitted => '医生资质已提交，审核通过后将启用医生身份';
+
+  @override
+  String get doctorCertificationPending => '资料将进入人工审核，未通过前仍以患者身份使用应用。';
+
+  @override
   String get logout => '退出登录';
 
   @override

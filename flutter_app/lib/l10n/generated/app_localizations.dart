@@ -518,6 +518,120 @@ abstract class AppLocalizations {
   /// **'Enter'**
   String get enterAppAction;
 
+  /// No description provided for @doctorCertificationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Doctor verification'**
+  String get doctorCertificationTitle;
+
+  /// No description provided for @doctorCertificationSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit your professional details. Doctor access is enabled after approval.'**
+  String get doctorCertificationSubtitle;
+
+  /// No description provided for @doctorCertificationRealName.
+  ///
+  /// In en, this message translates to:
+  /// **'Legal name'**
+  String get doctorCertificationRealName;
+
+  /// No description provided for @doctorCertificationJobTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Professional title'**
+  String get doctorCertificationJobTitle;
+
+  /// No description provided for @doctorCertificationHospital.
+  ///
+  /// In en, this message translates to:
+  /// **'Hospital or organization'**
+  String get doctorCertificationHospital;
+
+  /// No description provided for @doctorCertificationDepartment.
+  ///
+  /// In en, this message translates to:
+  /// **'Department'**
+  String get doctorCertificationDepartment;
+
+  /// No description provided for @doctorCertificationSpecialty.
+  ///
+  /// In en, this message translates to:
+  /// **'Specialty'**
+  String get doctorCertificationSpecialty;
+
+  /// No description provided for @doctorCertificationLicenseNo.
+  ///
+  /// In en, this message translates to:
+  /// **'License number'**
+  String get doctorCertificationLicenseNo;
+
+  /// No description provided for @doctorCertificationImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification materials'**
+  String get doctorCertificationImages;
+
+  /// No description provided for @doctorCertificationImageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload photos of your license, staff ID, or organization proof'**
+  String get doctorCertificationImageHint;
+
+  /// No description provided for @doctorCertificationAddImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload materials'**
+  String get doctorCertificationAddImage;
+
+  /// No description provided for @doctorCertificationPhotoPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo permission is required to upload doctor verification materials'**
+  String get doctorCertificationPhotoPermission;
+
+  /// No description provided for @doctorCertificationUploadLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'You can upload up to 4 verification images'**
+  String get doctorCertificationUploadLimit;
+
+  /// No description provided for @doctorCertificationRequiredImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload at least one doctor verification image'**
+  String get doctorCertificationRequiredImages;
+
+  /// No description provided for @doctorCertificationSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit for review'**
+  String get doctorCertificationSubmit;
+
+  /// No description provided for @doctorCertificationSubmitting.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitting...'**
+  String get doctorCertificationSubmitting;
+
+  /// No description provided for @doctorCertificationUploading.
+  ///
+  /// In en, this message translates to:
+  /// **'Images are still uploading. Please wait.'**
+  String get doctorCertificationUploading;
+
+  /// No description provided for @doctorCertificationSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Doctor verification submitted. Doctor access will be enabled after approval.'**
+  String get doctorCertificationSubmitted;
+
+  /// No description provided for @doctorCertificationPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Your materials will be manually reviewed. Until approval, you will keep using the app as a patient.'**
+  String get doctorCertificationPending;
+
   /// No description provided for @logout.
   ///
   /// In en, this message translates to:

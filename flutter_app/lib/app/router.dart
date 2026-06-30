@@ -7,6 +7,7 @@ import '../features/auth/data/auth_protocol.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/auth_protocol_screen.dart';
 import '../features/auth/presentation/complete_profile_screen.dart';
+import '../features/auth/presentation/doctor_certification_screen.dart';
 import '../features/auth/presentation/forgot_password_screen.dart';
 import '../features/auth/presentation/register_screen.dart';
 import '../features/appointment/presentation/appointment_doctor_detail_screen.dart';
@@ -79,6 +80,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/register/profile',
             name: 'register-profile',
             builder: (context, state) => const CompleteProfileScreen(),
+          ),
+          GoRoute(
+            path: '/register/doctor-certification',
+            name: 'register-doctor-certification',
+            builder: (context, state) => const DoctorCertificationScreen(),
           ),
           GoRoute(
             path: '/forgot-password',
