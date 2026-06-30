@@ -2249,7 +2249,7 @@ class HelpApiService
             'duration_seconds' => max(0, (int) ($data['duration_seconds'] ?? 0)),
             'is_public' => 2,
             'is_recommended' => 2,
-            'audit_status' => 1,
+            'audit_status' => $reviewRequired ? 3 : 1,
             'audit_remark' => $reviewRequired ? self::RISK_REVIEW_REMARK : '',
             'status' => 1,
             'sort' => max(0, (int) ($data['sort'] ?? 100)),
