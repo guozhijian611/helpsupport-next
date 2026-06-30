@@ -751,44 +751,108 @@ class _CommunityReportDialog extends StatefulWidget {
 }
 
 class _CommunityReportDialogState extends State<_CommunityReportDialog> {
-  final _reasonController = TextEditingController();
+  final _customReasonController = TextEditingController();
   final _descriptionController = TextEditingController();
+  _CommunityReportReason? _selectedReason;
   String? _errorText;
 
   @override
   void dispose() {
-    _reasonController.dispose();
+    _customReasonController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).colorScheme.brightness == Brightness.dark;
+    final selectedChipColor = isDark
+        ? const Color(0xFFFFB4A8)
+        : const Color(0xFFFF9585);
+    final selectedLabelColor = isDark ? const Color(0xFF3B2420) : Colors.white;
+    final showCustomReason = _selectedReason?.requiresCustomText ?? false;
+
     return AlertDialog(
       title: Text(widget.title),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _reasonController,
-            autofocus: true,
-            maxLength: 100,
-            decoration: InputDecoration(
-              labelText: _t(context, '举报原因', 'Reason'),
-              errorText: _errorText,
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _t(context, '请选择举报原因', 'Select a reason'),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _descriptionController,
-            minLines: 3,
-            maxLines: 4,
-            maxLength: 500,
-            decoration: InputDecoration(
-              labelText: _t(context, '补充描述（可选）', 'Details (optional)'),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final reason in _communityReportReasons)
+                  ChoiceChip(
+                    label: Text(reason.label(context)),
+                    selected: _selectedReason == reason,
+                    selectedColor: selectedChipColor,
+                    labelStyle: TextStyle(
+                      color: _selectedReason == reason
+                          ? selectedLabelColor
+                          : Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    onSelected: (_) {
+                      setState(() {
+                        _selectedReason = reason;
+                        _errorText = null;
+                        if (!reason.requiresCustomText) {
+                          _customReasonController.clear();
+                        }
+                      });
+                    },
+                  ),
+              ],
             ),
-          ),
-        ],
+            if (_errorText != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _errorText!,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+            if (showCustomReason) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: _customReasonController,
+                maxLength: 100,
+                decoration: InputDecoration(
+                  labelText: _t(context, '其他原因', 'Other reason'),
+                ),
+                onChanged: (_) {
+                  if (_errorText != null) {
+                    setState(() => _errorText = null);
+                  }
+                },
+              ),
+            ],
+            const SizedBox(height: 8),
+            TextField(
+              controller: _descriptionController,
+              minLines: 3,
+              maxLines: 4,
+              maxLength: 500,
+              decoration: InputDecoration(
+                labelText: _t(context, '补充描述（可选）', 'Details (optional)'),
+              ),
+            ),
+          ],
+        ),
       ),
       actions: [
         TextButton(
@@ -804,21 +868,55 @@ class _CommunityReportDialogState extends State<_CommunityReportDialog> {
   }
 
   void _submit() {
-    final reason = _reasonController.text.trim();
-    if (reason.isEmpty) {
+    final selectedReason = _selectedReason;
+    if (selectedReason == null) {
       setState(() {
-        _errorText = _t(context, '请填写举报原因', 'Please enter a reason');
+        _errorText = _t(context, '请选择举报原因', 'Please select a reason');
       });
       return;
     }
+
+    final customReason = _customReasonController.text.trim();
+    if (selectedReason.requiresCustomText && customReason.isEmpty) {
+      setState(() {
+        _errorText = _t(context, '请填写其他举报原因', 'Please enter the other reason');
+      });
+      return;
+    }
+
     Navigator.of(context).pop(
       CommunityReportDraft(
-        reason: reason,
+        reason: selectedReason.requiresCustomText
+            ? customReason
+            : selectedReason.label(context),
         description: _descriptionController.text.trim(),
       ),
     );
   }
 }
+
+class _CommunityReportReason {
+  const _CommunityReportReason(
+    this.zh,
+    this.en, {
+    this.requiresCustomText = false,
+  });
+
+  final String zh;
+  final String en;
+  final bool requiresCustomText;
+
+  String label(BuildContext context) => _t(context, zh, en);
+}
+
+const _communityReportReasons = [
+  _CommunityReportReason('垃圾广告', 'Spam or advertising'),
+  _CommunityReportReason('违法或违规内容', 'Illegal or prohibited content'),
+  _CommunityReportReason('人身攻击或骚扰', 'Harassment or abuse'),
+  _CommunityReportReason('虚假或误导信息', 'False or misleading information'),
+  _CommunityReportReason('侵犯隐私', 'Privacy violation'),
+  _CommunityReportReason('其他', 'Other', requiresCustomText: true),
+];
 
 class _TopicFollowStrip extends StatelessWidget {
   const _TopicFollowStrip({required this.tags, required this.onTap});
