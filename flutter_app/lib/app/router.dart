@@ -199,6 +199,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 initialMemberId:
                     int.tryParse(state.uri.queryParameters['memberId'] ?? '') ??
                     0,
+                detailMode: true,
               );
             },
           ),

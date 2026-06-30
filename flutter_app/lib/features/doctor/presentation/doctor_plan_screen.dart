@@ -13,9 +13,14 @@ import '../application/doctor_controller.dart';
 import '../data/doctor_models.dart';
 
 class DoctorPlanScreen extends ConsumerStatefulWidget {
-  const DoctorPlanScreen({super.key, this.initialMemberId = 0});
+  const DoctorPlanScreen({
+    super.key,
+    this.initialMemberId = 0,
+    this.detailMode = false,
+  });
 
   final int initialMemberId;
+  final bool detailMode;
 
   @override
   ConsumerState<DoctorPlanScreen> createState() => _DoctorPlanScreenState();
@@ -95,7 +100,7 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
             },
             child: ListView(
               padding: metrics
-                  .edgeInsets(22, 18, 22, 0)
+                  .edgeInsets(22, widget.detailMode ? 12 : 18, 22, 0)
                   .copyWith(
                     bottom: metrics.floatingTabBarInset(
                       context,
@@ -103,7 +108,9 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
                     ),
                   ),
               children: [
-                _DoctorPlanHeader(name: nickname),
+                widget.detailMode
+                    ? _DoctorPlanDetailHeader(onBack: _handleBack)
+                    : _DoctorPlanHeader(name: nickname),
                 SizedBox(height: metrics.size(20)),
                 patients.when(
                   data: (page) {
@@ -311,6 +318,14 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
       ref.invalidate(doctorDailyTasksProvider);
     }
   }
+
+  void _handleBack() {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.go('/doctor/patients');
+  }
 }
 
 class _DoctorPlanHeader extends StatelessWidget {
@@ -362,6 +377,85 @@ class _DoctorPlanHeader extends StatelessWidget {
           icon: const Icon(Icons.notifications_none_rounded),
         ),
       ],
+    );
+  }
+}
+
+class _DoctorPlanDetailHeader extends StatelessWidget {
+  const _DoctorPlanDetailHeader({required this.onBack});
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    return SizedBox(
+      height: 52,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: _DoctorPlanHeaderButton(
+              tooltip: _t(context, '返回', 'Back'),
+              icon: Icons.arrow_back_ios_new_rounded,
+              onTap: onBack,
+            ),
+          ),
+          Text(
+            _t(context, '患者详情', 'Patient detail'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: palette.primaryText,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: _DoctorPlanHeaderButton(
+              tooltip: _t(context, '消息', 'Messages'),
+              icon: Icons.notifications_none_rounded,
+              onTap: () => context.push('/me/messages'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DoctorPlanHeaderButton extends StatelessWidget {
+  const _DoctorPlanHeaderButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: palette.cardBackground,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(icon, color: palette.primaryText, size: 22),
+          ),
+        ),
+      ),
     );
   }
 }
