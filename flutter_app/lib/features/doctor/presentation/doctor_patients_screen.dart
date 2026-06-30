@@ -109,31 +109,31 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
   Future<void> _unbindPatient(DoctorPatient patient) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(_t(context, '解绑患者', 'Remove patient')),
+      builder: (dialogContext) => AlertDialog(
+        title: Text(_t(dialogContext, '解绑患者', 'Remove patient')),
         content: Text(
           _t(
-            context,
+            dialogContext,
             '确认将 ${patient.displayName} 从你的患者列表中移除吗？',
             'Remove ${patient.displayName} from your patient list?',
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(_t(context, '取消', 'Cancel')),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(_t(dialogContext, '取消', 'Cancel')),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFFFF9585),
             ),
-            child: Text(_t(context, '确认', 'Confirm')),
+            child: Text(_t(dialogContext, '确认', 'Confirm')),
           ),
         ],
       ),
     );
-    if (confirmed != true) {
+    if (confirmed != true || !mounted) {
       return;
     }
     try {
@@ -150,45 +150,17 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
   }
 
   Future<void> _openAddPatientDialog() async {
-    final controller = TextEditingController();
-    final added = await showDialog<bool>(
+    final memberId = await showDialog<int>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(_t(context, '添加患者', 'Add patient')),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            hintText: _t(context, '输入患者ID', 'Enter patient ID'),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(_t(context, '取消', 'Cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFFF9585),
-            ),
-            child: Text(_t(context, '确认', 'Confirm')),
-          ),
-        ],
-      ),
+      builder: (_) => const _AddPatientDialog(),
     );
-    if (added != true) {
-      controller.dispose();
+    if (memberId == null || !mounted) {
       return;
     }
-    final memberId = int.tryParse(controller.text.trim()) ?? 0;
-    controller.dispose();
     if (memberId <= 0) {
-      if (mounted) {
-        context.showCenteredNotice(
-          _t(context, '请输入有效患者ID', 'Enter a valid patient ID'),
-        );
-      }
+      context.showCenteredNotice(
+        _t(context, '请输入有效患者ID', 'Enter a valid patient ID'),
+      );
       return;
     }
     try {
@@ -202,6 +174,53 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
         context.showCenteredNotice(error.toString());
       }
     }
+  }
+}
+
+class _AddPatientDialog extends StatefulWidget {
+  const _AddPatientDialog();
+
+  @override
+  State<_AddPatientDialog> createState() => _AddPatientDialogState();
+}
+
+class _AddPatientDialogState extends State<_AddPatientDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(_t(context, '添加患者', 'Add patient')),
+      content: TextField(
+        controller: _controller,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(
+          hintText: _t(context, '输入患者ID', 'Enter patient ID'),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(_t(context, '取消', 'Cancel')),
+        ),
+        FilledButton(
+          onPressed: () {
+            final memberId = int.tryParse(_controller.text.trim()) ?? 0;
+            Navigator.of(context).pop(memberId);
+          },
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFFFF9585),
+          ),
+          child: Text(_t(context, '确认', 'Confirm')),
+        ),
+      ],
+    );
   }
 }
 
