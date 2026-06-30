@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 
 import '../../../core/i18n/member_text_localizer.dart';
 import '../../../core/notifications/centered_notice.dart';
+import '../../../core/providers/app_providers.dart';
+import '../../../core/ui/app_tab_shell_metrics.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../plan/data/plan_models.dart';
 import '../application/doctor_controller.dart';
@@ -42,6 +44,7 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = _DoctorPlanPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
     final authState = ref.watch(authControllerProvider);
     final session = switch (authState) {
       AsyncData(:final value) => value,
@@ -74,106 +77,121 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
             PlanPage(list: [], total: 0, page: 1, pageSize: 100),
           );
 
-    return ColoredBox(
-      color: palette.pageBackground,
-      child: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(doctorPatientsProvider(patientsQuery));
-          if (_selectedMemberId > 0) {
-            ref.invalidate(doctorDailyTasksProvider);
-          }
-          await ref.read(doctorPatientsProvider(patientsQuery).future);
-        },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 32),
-          children: [
-            _DoctorPlanHeader(name: nickname),
-            const SizedBox(height: 20),
-            patients.when(
-              data: (page) {
-                final patient = _resolveSelectedPatient(page.list);
-                if (patient == null) {
-                  return _DoctorPlanEmptyState(
-                    onOpenPatients: () => context.push('/doctor/patients'),
+    return DefaultTextStyle.merge(
+      style: const TextStyle(decoration: TextDecoration.none),
+      child: ColoredBox(
+        color: palette.pageBackground,
+        child: RefreshIndicator(
+          color: palette.brandPrimary,
+          onRefresh: () async {
+            ref.invalidate(doctorPatientsProvider(patientsQuery));
+            if (_selectedMemberId > 0) {
+              ref.invalidate(doctorDailyTasksProvider);
+            }
+            await ref.read(doctorPatientsProvider(patientsQuery).future);
+          },
+          child: ListView(
+            padding: metrics
+                .edgeInsets(22, 18, 22, 0)
+                .copyWith(
+                  bottom: metrics.floatingTabBarInset(
+                    context,
+                    extraSpacing: 32,
+                  ),
+                ),
+            children: [
+              _DoctorPlanHeader(name: nickname),
+              SizedBox(height: metrics.size(20)),
+              patients.when(
+                data: (page) {
+                  final patient = _resolveSelectedPatient(page.list);
+                  if (patient == null) {
+                    return _DoctorPlanEmptyState(
+                      onOpenPatients: () => context.push('/doctor/patients'),
+                    );
+                  }
+                  final month = DateTime(
+                    _selectedDate.year,
+                    _selectedDate.month,
                   );
-                }
-                final month = DateTime(_selectedDate.year, _selectedDate.month);
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _PatientSelectorCard(
-                      patient: patient,
-                      onTap: () => _selectPatient(page.list),
-                    ),
-                    const SizedBox(height: 18),
-                    plans.when(
-                      data: (items) {
-                        final taskItems = tasks.asData?.value.list ?? const [];
-                        final activePlan = _activePlan(items);
-                        if (activePlan == null) {
-                          return _PlanOverviewCard(
-                            title: _t(
-                              context,
-                              '还没有治疗计划',
-                              'No treatment plan yet',
-                            ),
-                            subtitle: _t(
-                              context,
-                              '先为当前患者配置计划、阶段和关键任务。',
-                              'Create a plan, stages, and key tasks for this patient.',
-                            ),
-                            actionLabel: _t(
-                              context,
-                              '配置治疗计划',
-                              'Configure plan',
-                            ),
-                            onTap: () => _openTreatmentPlan(patient.memberId),
-                          );
-                        }
-                        return _ActivePlanSchedule(
-                          activePlan: activePlan,
-                          currentStage: _currentStage(activePlan),
-                          taskItems: taskItems,
-                          tasks: tasks,
-                          month: month,
-                          selectedDate: _selectedDate,
-                          onPreviousMonth: () => setState(
-                            () => _selectedDate = DateTime(
-                              month.year,
-                              month.month - 1,
-                              _selectedDate.day.clamp(1, 28),
-                            ),
-                          ),
-                          onNextMonth: () => setState(
-                            () => _selectedDate = DateTime(
-                              month.year,
-                              month.month + 1,
-                              _selectedDate.day.clamp(1, 28),
-                            ),
-                          ),
-                          onSelectedDate: (date) =>
-                              setState(() => _selectedDate = date),
-                          onOpenTreatmentPlan: () => _openTreatmentPlan(
-                            patient.memberId,
-                            activePlan.id,
-                          ),
-                        );
-                      },
-                      error: (error, _) => _PlanOverviewCard(
-                        title: _t(context, '治疗计划读取失败', 'Plan load failed'),
-                        subtitle: error.toString(),
-                        actionLabel: _t(context, '重新配置', 'Configure again'),
-                        onTap: () => _openTreatmentPlan(patient.memberId),
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _PatientSelectorCard(
+                        patient: patient,
+                        onTap: () => _selectPatient(page.list),
                       ),
-                      loading: () => const _PlanOverviewSkeleton(),
-                    ),
-                  ],
-                );
-              },
-              error: (error, _) => _TaskEmptyCard(text: error.toString()),
-              loading: () => const _DoctorTaskSkeleton(),
-            ),
-          ],
+                      SizedBox(height: metrics.size(18)),
+                      plans.when(
+                        data: (items) {
+                          final taskItems =
+                              tasks.asData?.value.list ?? const [];
+                          final activePlan = _activePlan(items);
+                          if (activePlan == null) {
+                            return _PlanOverviewCard(
+                              title: _t(
+                                context,
+                                '还没有治疗计划',
+                                'No treatment plan yet',
+                              ),
+                              subtitle: _t(
+                                context,
+                                '先为当前患者配置计划、阶段和关键任务。',
+                                'Create a plan, stages, and key tasks for this patient.',
+                              ),
+                              actionLabel: _t(
+                                context,
+                                '配置治疗计划',
+                                'Configure plan',
+                              ),
+                              onTap: () => _openTreatmentPlan(patient.memberId),
+                            );
+                          }
+                          return _ActivePlanSchedule(
+                            activePlan: activePlan,
+                            currentStage: _currentStage(activePlan),
+                            taskItems: taskItems,
+                            tasks: tasks,
+                            month: month,
+                            selectedDate: _selectedDate,
+                            onPreviousMonth: () => setState(
+                              () => _selectedDate = DateTime(
+                                month.year,
+                                month.month - 1,
+                                _selectedDate.day.clamp(1, 28),
+                              ),
+                            ),
+                            onNextMonth: () => setState(
+                              () => _selectedDate = DateTime(
+                                month.year,
+                                month.month + 1,
+                                _selectedDate.day.clamp(1, 28),
+                              ),
+                            ),
+                            onSelectedDate: (date) =>
+                                setState(() => _selectedDate = date),
+                            onOpenTreatmentPlan: () => _openTreatmentPlan(
+                              patient.memberId,
+                              activePlan.id,
+                            ),
+                          );
+                        },
+                        error: (error, _) => _PlanOverviewCard(
+                          title: _t(context, '治疗计划读取失败', 'Plan load failed'),
+                          subtitle: error.toString(),
+                          actionLabel: _t(context, '重新配置', 'Configure again'),
+                          onTap: () => _openTreatmentPlan(patient.memberId),
+                        ),
+                        loading: () => const _PlanOverviewSkeleton(),
+                      ),
+                    ],
+                  );
+                },
+                error: (error, _) => _TaskEmptyCard(text: error.toString()),
+                loading: () => const _DoctorTaskSkeleton(),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -303,7 +321,7 @@ class _DoctorPlanHeader extends StatelessWidget {
         CircleAvatar(
           radius: 24,
           backgroundColor: palette.avatarBackground,
-          child: const Icon(Icons.person_rounded, color: Color(0xFF5A81DA)),
+          child: Icon(Icons.person_rounded, color: palette.brandPrimary),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -343,46 +361,355 @@ class _DoctorPlanHeader extends StatelessWidget {
   }
 }
 
-class _PatientSelectorCard extends StatelessWidget {
+class _PatientSelectorCard extends ConsumerWidget {
   const _PatientSelectorCard({required this.patient, required this.onTap});
 
   final DoctorPatient patient;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = _DoctorPlanPalette.of(context);
+    final avatarUrl = ref.watch(apiClientProvider).resolveUrl(patient.avatar);
+    final goal = patient.recoveryGoal.trim();
+    final bindTime = _formatDateTimeLabel(patient.bindTime);
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
         onTap: onTap,
         child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+          padding: const EdgeInsets.fromLTRB(18, 18, 16, 18),
           decoration: BoxDecoration(
             color: palette.cardBackground,
             borderRadius: BorderRadius.circular(24),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  patient.displayName,
-                  style: TextStyle(
-                    color: palette.primaryText,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipOval(
+                    child: avatarUrl.isNotEmpty
+                        ? Image.network(
+                            avatarUrl,
+                            width: 58,
+                            height: 58,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) =>
+                                const _DoctorPlanAvatarPlaceholder(),
+                          )
+                        : const _DoctorPlanAvatarPlaceholder(),
                   ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          patient.displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: palette.primaryText,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            height: 1.18,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _PatientInfoChip(label: 'ID ${patient.memberId}'),
+                            _PatientInfoChip(
+                              label: _patientAgeLabel(context, patient),
+                            ),
+                            _PatientInfoChip(label: patient.genderLabel),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: palette.outline,
+                    size: 28,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (goal.isNotEmpty)
+                _PatientDetailLine(
+                  icon: Icons.flag_rounded,
+                  text: goal,
+                  color: palette.brandPrimary,
                 ),
-              ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: palette.outline,
-                size: 28,
-              ),
+              if (goal.isNotEmpty && bindTime.isNotEmpty)
+                const SizedBox(height: 10),
+              if (bindTime.isNotEmpty)
+                _PatientDetailLine(
+                  icon: Icons.link_rounded,
+                  text: _t(context, '绑定于 $bindTime', 'Bound on $bindTime'),
+                  color: palette.infoColor,
+                ),
+              if (goal.isEmpty && bindTime.isEmpty)
+                _PatientDetailLine(
+                  icon: Icons.account_circle_rounded,
+                  text: _t(
+                    context,
+                    '患者基础信息已同步，可点击切换患者。',
+                    'Patient profile synced. Tap to switch patients.',
+                  ),
+                  color: palette.infoColor,
+                ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DoctorPlanAvatarPlaceholder extends StatelessWidget {
+  const _DoctorPlanAvatarPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    return Container(
+      width: 58,
+      height: 58,
+      color: palette.avatarBackground,
+      alignment: Alignment.center,
+      child: Icon(Icons.person_rounded, color: palette.brandPrimary),
+    );
+  }
+}
+
+class _PatientInfoChip extends StatelessWidget {
+  const _PatientInfoChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    return Container(
+      constraints: const BoxConstraints(minHeight: 28),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: palette.softBackground,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: palette.secondaryText,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          height: 1.2,
+        ),
+      ),
+    );
+  }
+}
+
+class _PatientDetailLine extends StatelessWidget {
+  const _PatientDetailLine({
+    required this.icon,
+    required this.text,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 17, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: palette.mutedText,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PlanActionLabel extends StatelessWidget {
+  const _PlanActionLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        label,
+        maxLines: 1,
+        style: const TextStyle(fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+}
+
+class _PlanActionIcon extends StatelessWidget {
+  const _PlanActionIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Icon(Icons.edit_note_rounded, size: 22);
+  }
+}
+
+class _PlanActionButton extends StatelessWidget {
+  const _PlanActionButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(50),
+        foregroundColor: palette.brandPrimary,
+        side: BorderSide(color: palette.brandPrimary),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const _PlanActionIcon(),
+          const SizedBox(width: 8),
+          Flexible(child: _PlanActionLabel(label: label)),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanSectionTitle extends StatelessWidget {
+  const _PlanSectionTitle({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    return Text(
+      title,
+      style: TextStyle(
+        color: palette.primaryText,
+        fontSize: 21,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+  }
+}
+
+class _PlanCardTitle extends StatelessWidget {
+  const _PlanCardTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    return Text(
+      text,
+      style: TextStyle(
+        color: palette.primaryText,
+        fontSize: 20,
+        fontWeight: FontWeight.w800,
+        height: 1.2,
+      ),
+    );
+  }
+}
+
+class _PlanCardBody extends StatelessWidget {
+  const _PlanCardBody(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    return Text(
+      text,
+      style: TextStyle(color: palette.mutedText, fontSize: 14, height: 1.65),
+    );
+  }
+}
+
+class _PlanCardContainer extends StatelessWidget {
+  const _PlanCardContainer({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
+        borderRadius: BorderRadius.circular(26),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _PlanOverviewContent extends StatelessWidget {
+  const _PlanOverviewContent({
+    required this.title,
+    required this.subtitle,
+    required this.actionLabel,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final String actionLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _PlanCardContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _PlanCardTitle(title),
+          const SizedBox(height: 10),
+          _PlanCardBody(subtitle),
+          const SizedBox(height: 16),
+          _PlanActionButton(label: actionLabel, onTap: onTap),
+        ],
       ),
     );
   }
@@ -403,49 +730,11 @@ class _PlanOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = _DoctorPlanPalette.of(context);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-      decoration: BoxDecoration(
-        color: palette.cardBackground,
-        borderRadius: BorderRadius.circular(26),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: palette.primaryText,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            subtitle,
-            style: TextStyle(
-              color: palette.mutedText,
-              fontSize: 14,
-              height: 1.65,
-            ),
-          ),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: onTap,
-            icon: const Icon(Icons.edit_note_rounded),
-            label: Text(actionLabel),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(50),
-              foregroundColor: const Color(0xFF5A81DA),
-              side: const BorderSide(color: Color(0xFF5A81DA)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return _PlanOverviewContent(
+      title: title,
+      subtitle: subtitle,
+      actionLabel: actionLabel,
+      onTap: onTap,
     );
   }
 }
@@ -546,14 +835,7 @@ class _ActivePlanSchedule extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 18),
-        Text(
-          _t(context, '当日患者任务', 'Patient tasks'),
-          style: const TextStyle(
-            color: Color(0xFF303236),
-            fontSize: 21,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
+        _PlanSectionTitle(title: _t(context, '当日患者任务', 'Patient tasks')),
         const SizedBox(height: 12),
         tasks.when(
           data: (taskPage) => taskPage.list.isEmpty
@@ -1013,6 +1295,18 @@ String _formatDateLabel(String value) {
   return DateFormat('yyyy-MM-dd').format(parsed);
 }
 
+String _formatDateTimeLabel(String value) {
+  final text = value.trim();
+  if (text.isEmpty || text == '0' || text == 'null') {
+    return '';
+  }
+  final parsed = DateTime.tryParse(text);
+  if (parsed == null) {
+    return text;
+  }
+  return DateFormat('yyyy-MM-dd').format(parsed);
+}
+
 String _firstText(List<Object?> values, {String fallback = ''}) {
   for (final value in values) {
     final text = (value ?? '').toString().trim();
@@ -1021,6 +1315,13 @@ String _firstText(List<Object?> values, {String fallback = ''}) {
     }
   }
   return fallback;
+}
+
+String _patientAgeLabel(BuildContext context, DoctorPatient patient) {
+  if (patient.ageLabel == '--') {
+    return _t(context, '年龄未知', 'Age unknown');
+  }
+  return _t(context, '${patient.ageLabel}岁', 'Age ${patient.ageLabel}');
 }
 
 String _t(BuildContext context, String zh, String en) {
@@ -1040,6 +1341,8 @@ class _DoctorPlanPalette {
     required this.mutedText,
     required this.outline,
     required this.pillText,
+    required this.brandPrimary,
+    required this.infoColor,
   });
 
   factory _DoctorPlanPalette.of(BuildContext context) {
@@ -1063,6 +1366,8 @@ class _DoctorPlanPalette {
           : const Color(0xFF7D828A),
       outline: scheme.outlineVariant,
       pillText: isDark ? scheme.primary : const Color(0xFF5A81DA),
+      brandPrimary: scheme.primary,
+      infoColor: isDark ? scheme.secondary : const Color(0xFF5A81DA),
     );
   }
 
@@ -1077,4 +1382,6 @@ class _DoctorPlanPalette {
   final Color mutedText;
   final Color outline;
   final Color pillText;
+  final Color brandPrimary;
+  final Color infoColor;
 }
