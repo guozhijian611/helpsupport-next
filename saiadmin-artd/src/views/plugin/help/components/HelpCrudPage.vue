@@ -622,7 +622,7 @@
   }
 
   const MaterialImageGallery = (props: { urls: string[]; detail?: boolean }) => {
-    const visibleUrls = props.detail ? props.urls : props.urls.slice(0, 4)
+    const visibleUrls = props.detail ? props.urls : props.urls.slice(0, 3)
     return h(
       'div',
       {
@@ -640,12 +640,8 @@
             class: props.detail ? 'help-material-image is-gallery-detail' : 'help-material-image'
           })
         ),
-        !props.detail && props.urls.length > visibleUrls.length
-          ? h(
-              'span',
-              { class: 'help-material-gallery-more' },
-              '+' + (props.urls.length - visibleUrls.length)
-            )
+        !props.detail && props.urls.length > 1
+          ? h('span', { class: 'help-material-gallery-count' }, props.urls.length + '张')
           : null
       ]
     )
@@ -765,39 +761,53 @@
   }
 
   .help-material-gallery {
+    position: relative;
     display: flex;
-    max-width: 260px;
-    flex-wrap: wrap;
+    width: 146px;
+    height: 52px;
+    overflow: hidden;
+    flex-wrap: nowrap;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
   }
 
   .help-material-gallery.is-detail {
+    width: auto;
+    height: auto;
     max-width: 100%;
+    overflow: visible;
+    flex-wrap: wrap;
     gap: 10px;
   }
 
   .help-material-gallery .help-material-image {
-    width: 56px;
-    height: 56px;
+    width: 46px;
+    height: 46px;
+    flex: 0 0 46px;
+    border-radius: 6px;
   }
 
   .help-material-gallery .help-material-image.is-gallery-detail {
     width: 140px;
     height: 104px;
+    flex-basis: 140px;
   }
 
-  .help-material-gallery-more {
+  .help-material-gallery-count {
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
     display: inline-flex;
-    width: 36px;
-    height: 36px;
+    height: 20px;
+    padding: 0 7px;
     align-items: center;
     justify-content: center;
-    border-radius: 6px;
-    background: var(--el-fill-color-light);
-    color: var(--el-text-color-secondary);
-    font-size: 13px;
+    border-radius: 10px;
+    background: rgb(0 0 0 / 62%);
+    color: #fff;
+    font-size: 12px;
     font-weight: 600;
+    line-height: 20px;
   }
 
   .help-material-video {

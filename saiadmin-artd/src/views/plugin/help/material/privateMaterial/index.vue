@@ -115,7 +115,7 @@
       label: '批量图片',
       type: 'materialPreview',
       form: false,
-      minWidth: 240
+      minWidth: 170
     },
     {
       prop: 'content_text',
