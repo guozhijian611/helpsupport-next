@@ -111,6 +111,13 @@
       minWidth: 220
     },
     {
+      prop: 'image_urls',
+      label: '批量图片',
+      type: 'materialPreview',
+      form: false,
+      minWidth: 240
+    },
+    {
       prop: 'content_text',
       label: '富文本内容',
       type: 'textarea',

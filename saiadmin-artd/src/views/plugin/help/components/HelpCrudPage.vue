@@ -103,6 +103,7 @@
             v-else-if="field.type === 'materialPreview'"
             :row="row"
             :url="row[field.prop]"
+            :field-prop="field.prop"
           />
           <ElTooltip
             v-else-if="isLongValue(field, row[field.prop])"
@@ -266,6 +267,7 @@
             v-else-if="field.type === 'materialPreview'"
             :row="detailData"
             :url="detailData[field.prop]"
+            :field-prop="field.prop"
             detail
           />
           <span v-else>{{ formatValue(field, detailData[field.prop]) }}</span>
@@ -589,7 +591,69 @@
     return audioTypes.includes(String(row.media_type || '')) || ['mp3'].includes(fileExtension(url))
   }
 
-  const MaterialPreview = (props: { row: Record<string, any>; url: unknown; detail?: boolean }) => {
+  const parseUrlList = (value: unknown) => {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item || '').trim()).filter(Boolean)
+    }
+    if (typeof value !== 'string') {
+      return []
+    }
+    const text = value.trim()
+    if (!text) {
+      return []
+    }
+    try {
+      const parsed = JSON.parse(text)
+      return parseUrlList(parsed)
+    } catch {
+      return [text]
+    }
+  }
+
+  const MaterialImageGallery = (props: { urls: string[]; detail?: boolean }) => {
+    const visibleUrls = props.detail ? props.urls : props.urls.slice(0, 4)
+    return h(
+      'div',
+      {
+        class: props.detail ? 'help-material-gallery is-detail' : 'help-material-gallery'
+      },
+      [
+        ...visibleUrls.map((url, index) =>
+          h(ElImage, {
+            key: url + index,
+            src: url,
+            previewSrcList: props.urls,
+            initialIndex: index,
+            previewTeleported: true,
+            fit: 'cover',
+            class: props.detail ? 'help-material-image is-gallery-detail' : 'help-material-image'
+          })
+        ),
+        !props.detail && props.urls.length > visibleUrls.length
+          ? h(
+              'span',
+              { class: 'help-material-gallery-more' },
+              '+' + (props.urls.length - visibleUrls.length)
+            )
+          : null
+      ]
+    )
+  }
+
+  const MaterialPreview = (props: {
+    row: Record<string, any>
+    url: unknown
+    fieldProp?: string
+    detail?: boolean
+  }) => {
+    if (props.fieldProp === 'image_urls') {
+      const urls = parseUrlList(props.url).filter((url) => isImageMaterial(props.row, url))
+      if (urls.length === 0) {
+        return h('span', '-')
+      }
+      return h(MaterialImageGallery, { urls, detail: props.detail })
+    }
+
     const url = String(props.url || '').trim()
     if (!url) {
       return h('span', '-')
@@ -683,6 +747,42 @@
   .help-material-image.is-detail {
     width: 220px;
     height: 160px;
+  }
+
+  .help-material-gallery {
+    display: flex;
+    max-width: 260px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .help-material-gallery.is-detail {
+    max-width: 100%;
+    gap: 10px;
+  }
+
+  .help-material-gallery .help-material-image {
+    width: 56px;
+    height: 56px;
+  }
+
+  .help-material-gallery .help-material-image.is-gallery-detail {
+    width: 140px;
+    height: 104px;
+  }
+
+  .help-material-gallery-more {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: var(--el-fill-color-light);
+    color: var(--el-text-color-secondary);
+    font-size: 13px;
+    font-weight: 600;
   }
 
   .help-material-video {
