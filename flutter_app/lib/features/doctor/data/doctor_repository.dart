@@ -409,11 +409,12 @@ class DoctorRepository {
     Object? value,
     T Function(Map<String, dynamic> json) decode,
   ) {
-    if (value is! List) {
+    final listValue = value is Map<String, dynamic> ? value['list'] : value;
+    if (listValue is! List) {
       return const [];
     }
 
-    return value
+    return listValue
         .whereType<Map<String, dynamic>>()
         .map(decode)
         .toList(growable: false);
