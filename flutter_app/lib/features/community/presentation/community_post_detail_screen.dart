@@ -202,7 +202,7 @@ class _CommunityPostDetailScreenState
       context,
       title: _t(context, '举报评论', 'Report comment'),
     );
-    if (draft == null) {
+    if (draft == null || !mounted) {
       return;
     }
     try {

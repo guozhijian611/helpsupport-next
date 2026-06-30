@@ -531,7 +531,7 @@ class CommunityPostCard extends ConsumerWidget {
       context,
       title: _t(context, '举报帖子', 'Report post'),
     );
-    if (draft == null) {
+    if (draft == null || !context.mounted) {
       return;
     }
     try {
@@ -731,12 +731,12 @@ Future<CommunityReportDraft?> showCommunityReportSheet(
   final reasonController = TextEditingController();
   final descriptionController = TextEditingController();
   try {
-    return showDialog<CommunityReportDraft>(
+    return await showDialog<CommunityReportDraft>(
       context: context,
       builder: (dialogContext) {
         String? errorText;
         return StatefulBuilder(
-          builder: (context, setState) {
+          builder: (sheetContext, setState) {
             return AlertDialog(
               title: Text(title),
               content: Column(
@@ -747,7 +747,7 @@ Future<CommunityReportDraft?> showCommunityReportSheet(
                     autofocus: true,
                     maxLength: 100,
                     decoration: InputDecoration(
-                      labelText: _t(context, '举报原因', 'Reason'),
+                      labelText: _t(sheetContext, '举报原因', 'Reason'),
                       errorText: errorText,
                     ),
                   ),
@@ -758,7 +758,11 @@ Future<CommunityReportDraft?> showCommunityReportSheet(
                     maxLines: 4,
                     maxLength: 500,
                     decoration: InputDecoration(
-                      labelText: _t(context, '补充描述（可选）', 'Details (optional)'),
+                      labelText: _t(
+                        sheetContext,
+                        '补充描述（可选）',
+                        'Details (optional)',
+                      ),
                     ),
                   ),
                 ],
@@ -766,7 +770,7 @@ Future<CommunityReportDraft?> showCommunityReportSheet(
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text(_t(context, '取消', 'Cancel')),
+                  child: Text(_t(sheetContext, '取消', 'Cancel')),
                 ),
                 FilledButton(
                   onPressed: () {
@@ -774,7 +778,7 @@ Future<CommunityReportDraft?> showCommunityReportSheet(
                     if (reason.isEmpty) {
                       setState(() {
                         errorText = _t(
-                          context,
+                          sheetContext,
                           '请填写举报原因',
                           'Please enter a reason',
                         );
@@ -788,7 +792,7 @@ Future<CommunityReportDraft?> showCommunityReportSheet(
                       ),
                     );
                   },
-                  child: Text(_t(context, '提交', 'Submit')),
+                  child: Text(_t(sheetContext, '提交', 'Submit')),
                 ),
               ],
             );
