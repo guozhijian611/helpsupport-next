@@ -2315,11 +2315,15 @@ class HelpApiService
 
     public function materialHistory(int $memberId, array $params): array
     {
-        return $this->paginate(fn () => Db::table('sa_member_content_history')
+        $page = $this->paginate(fn () => Db::table('sa_member_content_history')
             ->where('member_id', $memberId)
             ->whereNull('delete_time')
             ->order('viewed_at', 'desc')
             ->order('id', 'desc'), $params);
+
+        $page['list'] = $this->appendMaterialHistoryAuthors($page['list'] ?? []);
+
+        return $page;
     }
 
     public function materialCollections(int $memberId, array $params): array
@@ -4792,6 +4796,48 @@ class HelpApiService
             $materialId = (int) ($row['id'] ?? 0);
             $row['is_liked'] = isset($likedLookup[$materialId]);
             $row['is_collected'] = isset($collectedLookup[$materialId]);
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    private function appendMaterialHistoryAuthors(array $rows): array
+    {
+        $materialIds = [];
+        foreach ($rows as $row) {
+            if (
+                trim((string) ($row['author_name'] ?? '')) === ''
+                && (string) ($row['content_type'] ?? '') === 'material'
+                && (int) ($row['content_id'] ?? 0) > 0
+            ) {
+                $materialIds[] = (int) $row['content_id'];
+            }
+        }
+
+        if ($materialIds === []) {
+            return $rows;
+        }
+
+        $materials = Db::table('sa_content_material')
+            ->whereIn('id', array_values(array_unique($materialIds)))
+            ->whereNull('delete_time')
+            ->field('id, artist')
+            ->select()
+            ->toArray();
+        $artistLookup = [];
+        foreach ($materials as $material) {
+            $artistLookup[(int) ($material['id'] ?? 0)] = trim((string) ($material['artist'] ?? ''));
+        }
+
+        foreach ($rows as &$row) {
+            if (trim((string) ($row['author_name'] ?? '')) !== '') {
+                continue;
+            }
+            $materialId = (int) ($row['content_id'] ?? 0);
+            if ($materialId > 0 && ($artistLookup[$materialId] ?? '') !== '') {
+                $row['author_name'] = $artistLookup[$materialId];
+            }
         }
         unset($row);
 

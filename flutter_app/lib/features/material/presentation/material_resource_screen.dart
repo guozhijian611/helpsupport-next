@@ -958,6 +958,7 @@ class _MaterialResourceScreenState
       materialId: item.id,
       title: item.title,
       route: '/materials/resource/${item.id}',
+      authorName: item.artist,
       progress: _readingProgress,
       durationSeconds: elapsedSeconds,
     );

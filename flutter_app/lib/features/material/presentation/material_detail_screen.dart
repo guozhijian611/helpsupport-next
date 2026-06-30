@@ -243,6 +243,7 @@ class _MaterialDetailScreenState extends ConsumerState<MaterialDetailScreen> {
             materialId: item.id,
             title: item.title,
             route: '/materials/detail/${item.id}',
+            authorName: item.artist,
             durationSeconds: item.durationSeconds,
           ),
     );
