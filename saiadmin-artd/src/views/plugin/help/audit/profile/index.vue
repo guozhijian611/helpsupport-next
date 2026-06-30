@@ -43,6 +43,34 @@
         @pagination:current-change="handleCurrentChange"
       >
         <!-- 操作列 -->
+        <template #member_display="{ row }">
+          <div class="profile-member">
+            <ElAvatar
+              v-if="normalizeImageUrl(row.member_avatar)"
+              :size="28"
+              :src="normalizeImageUrl(row.member_avatar)"
+            />
+            <div>
+              <div>{{ row.member_name || `会员 #${row.member_id}` }}</div>
+              <div class="profile-member__meta">#{{ row.member_id }}</div>
+            </div>
+          </div>
+        </template>
+        <template #certification_image_urls="{ row }">
+          <ElSpace v-if="imageUrls(row).length" :size="6">
+            <ElImage
+              v-for="image in imageUrls(row).slice(0, 3)"
+              :key="image"
+              :src="image"
+              :preview-src-list="imageUrls(row)"
+              :initial-index="imageUrls(row).indexOf(image)"
+              :preview-teleported="true"
+              fit="cover"
+              class="profile-cert-image"
+            />
+          </ElSpace>
+          <span v-else class="profile-empty">暂无</span>
+        </template>
         <template #audit_status="{ row }">
           <ElTag :type="auditStatusType(row.audit_status)">
             {{ auditStatusText(row.audit_status) }}
@@ -116,7 +144,7 @@
     real_name: undefined,
     title: undefined,
     audit_status: undefined,
-    status: undefined,
+    status: undefined
   })
 
   // 搜索处理
@@ -144,17 +172,18 @@
       apiFn: api.list,
       columnsFactory: () => [
         { type: 'selection' },
+        { prop: 'member_display', label: '关联会员', width: 150, useSlot: true },
         { prop: 'real_name', label: '真实姓名' },
         { prop: 'title', label: '职称' },
         { prop: 'hospital', label: '医院/机构' },
         { prop: 'department', label: '科室' },
         { prop: 'specialty', label: '专业方向' },
         { prop: 'license_no', label: '执业证书编号' },
-        { prop: 'certification_images', label: '证书图片数组', saiType: 'image' },
+        { prop: 'certification_image_urls', label: '证书图片', width: 120, useSlot: true },
         { prop: 'audit_status', label: '审核', width: 110, useSlot: true },
         { prop: 'status', label: '状态', width: 90, useSlot: true },
         { prop: 'audit_remark', label: '审核备注' },
-        { prop: 'audit_by', label: '审核人' },
+        { prop: 'audit_by_display', label: '审核人' },
         { prop: 'audit_time', label: '审核时间' },
         { prop: 'approved_time', label: '通过时间' },
         { prop: 'operation', label: '操作', width: 260, fixed: 'right', useSlot: true }
@@ -230,4 +259,57 @@
   const profileStatusType = (status: number) => {
     return Number(status) === 1 ? 'success' : 'info'
   }
+
+  const imageUrls = (row: Record<string, any>) => {
+    return parseImageList(row.certification_image_urls || row.certification_images).map(
+      normalizeImageUrl
+    )
+  }
+
+  const parseImageList = (value: unknown): string[] => {
+    if (!value) return []
+    if (Array.isArray(value)) return value.map(String).filter(Boolean)
+    if (typeof value !== 'string') return []
+    try {
+      const parsed = JSON.parse(value)
+      if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean)
+      if (typeof parsed === 'string' && parsed) return [parsed]
+    } catch {
+      return value ? [value] : []
+    }
+    return value ? [value] : []
+  }
+
+  const normalizeImageUrl = (url: string) => {
+    if (!url) return ''
+    if (/^(https?:)?\/\//.test(url) || url.startsWith('data:') || url.startsWith('blob:')) {
+      return url
+    }
+    const base = import.meta.env.VITE_API_URL || ''
+    if (url.startsWith('/') && base && base !== '/') {
+      return `${base.replace(/\/$/, '')}${url}`
+    }
+    return url
+  }
 </script>
+
+<style scoped>
+  .profile-member {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    line-height: 1.25;
+  }
+
+  .profile-member__meta,
+  .profile-empty {
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+  }
+
+  .profile-cert-image {
+    width: 38px;
+    height: 38px;
+    border-radius: 6px;
+  }
+</style>

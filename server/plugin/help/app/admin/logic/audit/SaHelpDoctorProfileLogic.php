@@ -45,6 +45,25 @@ class SaHelpDoctorProfileLogic extends BaseLogic
         return parent::edit($id, $data);
     }
 
+    public function read($id): mixed
+    {
+        $model = parent::read($id);
+        $data = is_array($model) ? $model : $model->toArray();
+
+        return $this->enrichRows([$data])[0] ?? $data;
+    }
+
+    public function getList($query): mixed
+    {
+        $data = parent::getList($query);
+        if (isset($data['data']) && is_array($data['data'])) {
+            $data['data'] = $this->enrichRows($data['data']);
+            return $data;
+        }
+
+        return is_array($data) ? $this->enrichRows($data) : $data;
+    }
+
     public function audit(int $id, int $auditStatus, string $remark, int $adminId): bool
     {
         if ($id <= 0) {
@@ -156,6 +175,105 @@ class SaHelpDoctorProfileLogic extends BaseLogic
         }
 
         return json_encode([$text], JSON_UNESCAPED_UNICODE);
+    }
+
+    private function enrichRows(array $rows): array
+    {
+        $auditorIds = [];
+        $memberIds = [];
+        foreach ($rows as $row) {
+            $auditorId = (int) ($row['audit_by'] ?? 0);
+            if ($auditorId > 0) {
+                $auditorIds[] = $auditorId;
+            }
+            $memberId = (int) ($row['member_id'] ?? 0);
+            if ($memberId > 0) {
+                $memberIds[] = $memberId;
+            }
+        }
+
+        $auditors = [];
+        if ($auditorIds !== []) {
+            $users = Db::table('sa_system_user')
+                ->whereIn('id', array_values(array_unique($auditorIds)))
+                ->field('id, username, realname')
+                ->select()
+                ->toArray();
+            foreach ($users as $user) {
+                $name = trim((string) ($user['realname'] ?? ''));
+                if ($name === '') {
+                    $name = trim((string) ($user['username'] ?? ''));
+                }
+                $auditors[(int) $user['id']] = $name !== '' ? $name : '管理员 #' . (int) $user['id'];
+            }
+        }
+
+        $members = [];
+        if ($memberIds !== []) {
+            $memberRows = Db::table('sa_member')
+                ->whereIn('id', array_values(array_unique($memberIds)))
+                ->field('id, username, nickname, avatar')
+                ->select()
+                ->toArray();
+            foreach ($memberRows as $member) {
+                $name = trim((string) ($member['nickname'] ?? ''));
+                if ($name === '') {
+                    $name = trim((string) ($member['username'] ?? ''));
+                }
+                $members[(int) $member['id']] = [
+                    'name' => $name !== '' ? $name : '会员 #' . (int) $member['id'],
+                    'username' => trim((string) ($member['username'] ?? '')),
+                    'avatar' => trim((string) ($member['avatar'] ?? '')),
+                ];
+            }
+        }
+
+        foreach ($rows as &$row) {
+            $images = $this->parseImageList($row['certification_images'] ?? null);
+            $auditorId = (int) ($row['audit_by'] ?? 0);
+            $memberId = (int) ($row['member_id'] ?? 0);
+            $member = $members[$memberId] ?? null;
+            $row['certification_image_urls'] = $images;
+            $row['member_name'] = $member['name'] ?? ($memberId > 0 ? '会员 #' . $memberId : '');
+            $row['member_username'] = $member['username'] ?? '';
+            $row['member_avatar'] = $member['avatar'] ?? '';
+            $row['member_display'] = $memberId > 0
+                ? '#' . $memberId . ' ' . $row['member_name']
+                : '';
+            $row['audit_by_name'] = $auditorId > 0 ? ($auditors[$auditorId] ?? '管理员 #' . $auditorId) : '';
+            $row['audit_by_display'] = $row['audit_by_name'] !== '' ? $row['audit_by_name'] : '';
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    private function parseImageList(mixed $value): array
+    {
+        if ($value === '' || $value === null) {
+            return [];
+        }
+
+        if (is_array($value)) {
+            return array_values(array_filter(array_map('strval', $value)));
+        }
+
+        $text = trim((string) $value);
+        if ($text === '') {
+            return [];
+        }
+
+        $decoded = json_decode($text, true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            if (is_array($decoded)) {
+                return array_values(array_filter(array_map('strval', $decoded)));
+            }
+            if (is_string($decoded) && trim($decoded) !== '') {
+                return [trim($decoded)];
+            }
+        }
+
+        return [$text];
     }
 
     private function assertUnique(array $data, ?int $id = null): void

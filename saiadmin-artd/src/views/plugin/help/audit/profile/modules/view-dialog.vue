@@ -3,8 +3,8 @@
     <!-- 详情 start -->
     <div>
       <el-descriptions :column="1" label-width="100px" border>
-        <el-descriptions-item label="医生会员ID">
-          <div v-text="formData?.member_id"></div>
+        <el-descriptions-item label="关联会员">
+          <div>{{ formData.member_display || emptyMemberText }}</div>
         </el-descriptions-item>
         <el-descriptions-item label="真实姓名">
           <div v-text="formData?.real_name"></div>
@@ -51,7 +51,7 @@
           <div v-text="formData?.audit_remark"></div>
         </el-descriptions-item>
         <el-descriptions-item label="审核人">
-          <div v-text="formData?.audit_by"></div>
+          <div>{{ formData.audit_by_display || '无' }}</div>
         </el-descriptions-item>
         <el-descriptions-item label="审核时间">
           <div v-text="formData?.audit_time"></div>
@@ -105,6 +105,10 @@
   const initialFormData = {
     id: null,
     member_id: null,
+    member_name: '',
+    member_username: '',
+    member_avatar: '',
+    member_display: '',
     real_name: '',
     title: '',
     hospital: '',
@@ -112,10 +116,13 @@
     specialty: '',
     license_no: '',
     certification_images: '',
+    certification_image_urls: [] as string[],
     audit_status: 0,
     status: 1,
     audit_remark: '',
     audit_by: null,
+    audit_by_name: '',
+    audit_by_display: '',
     audit_time: '',
     approved_time: '',
     audit_logs: []
@@ -125,7 +132,14 @@
    * 表单数据
    */
   const formData = reactive({ ...initialFormData })
-  const certificationImages = computed(() => parseImageList(formData.certification_images))
+  const certificationImages = computed(() =>
+    parseImageList(formData.certification_image_urls || formData.certification_images).map(
+      normalizeImageUrl
+    )
+  )
+  const emptyMemberText = computed(() =>
+    formData.member_id ? `#${formData.member_id} 会员已删除或未找到` : '无'
+  )
 
   /**
    * 监听弹窗打开，初始化表单数据
@@ -196,6 +210,18 @@
       return value ? [value] : []
     }
     return value ? [value] : []
+  }
+
+  const normalizeImageUrl = (url: string) => {
+    if (!url) return ''
+    if (/^(https?:)?\/\//.test(url) || url.startsWith('data:') || url.startsWith('blob:')) {
+      return url
+    }
+    const base = import.meta.env.VITE_API_URL || ''
+    if (url.startsWith('/') && base && base !== '/') {
+      return `${base.replace(/\/$/, '')}${url}`
+    }
+    return url
   }
 </script>
 

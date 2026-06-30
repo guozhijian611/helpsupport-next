@@ -18,6 +18,9 @@
               placeholder="请输入医生会员ID"
               class="w-full"
             />
+            <div class="relation-hint">
+              关联会员：{{ formData.member_display || memberFallbackText }}
+            </div>
           </el-form-item>
         </el-col>
         <el-col :span="24">
@@ -71,6 +74,11 @@
               :rows="3"
               placeholder="可留空；审核通过/拒绝请使用列表操作按钮"
             />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="审核人">
+            <el-input :model-value="formData.audit_by_display || '无'" disabled />
           </el-form-item>
         </el-col>
       </el-row>
@@ -127,7 +135,7 @@
     department: [{ required: true, message: '科室必需填写', trigger: 'blur' }],
     specialty: [{ required: true, message: '专业方向必需填写', trigger: 'blur' }],
     license_no: [{ required: true, message: '执业证书编号必需填写', trigger: 'blur' }],
-    status: [{ required: true, message: '状态 1正常 2禁用必需填写', trigger: 'blur' }],
+    status: [{ required: true, message: '状态 1正常 2禁用必需填写', trigger: 'blur' }]
   })
 
   /**
@@ -136,6 +144,10 @@
   const initialFormData = {
     id: null,
     member_id: null as number | null,
+    member_name: '',
+    member_username: '',
+    member_avatar: '',
+    member_display: '',
     real_name: '',
     title: '',
     hospital: '',
@@ -145,12 +157,18 @@
     certification_images: '',
     status: 1,
     audit_remark: '',
+    audit_by: null as number | null,
+    audit_by_name: '',
+    audit_by_display: ''
   }
 
   /**
    * 表单数据
    */
   const formData = reactive({ ...initialFormData })
+  const memberFallbackText = computed(() =>
+    formData.member_id ? `#${formData.member_id} 会员已删除或未找到` : '请先填写医生会员ID'
+  )
 
   /**
    * 监听弹窗打开，初始化表单数据
@@ -173,22 +191,25 @@
     // 如果有数据，则填充数据
     if (props.data) {
       await nextTick()
-      initForm()
+      await initForm()
     }
   }
 
   /**
    * 初始化表单数据
    */
-  const initForm = () => {
+  const initForm = async () => {
     if (props.data) {
+      const source = props.data.id ? await api.read(props.data.id) : props.data
       for (const key in formData) {
-        if (props.data[key] != null && props.data[key] != undefined) {
+        if (source[key] != null && source[key] != undefined) {
           if (key === 'certification_images') {
-            ;(formData as any)[key] = firstImageUrl(props.data[key])
+            ;(formData as any)[key] = firstImageUrl(
+              source.certification_image_urls || source.certification_images
+            )
             continue
           }
-          ;(formData as any)[key] = props.data[key]
+          ;(formData as any)[key] = source[key]
         }
       }
     }
@@ -237,3 +258,12 @@
     }
   }
 </script>
+
+<style scoped>
+  .relation-hint {
+    margin-top: 6px;
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+</style>
