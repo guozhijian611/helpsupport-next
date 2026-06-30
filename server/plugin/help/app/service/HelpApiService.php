@@ -4722,10 +4722,9 @@ class HelpApiService
     private function visibleMaterialQuery(int $memberId)
     {
         return Db::table('sa_content_material')
-            ->where('status', 1)
             ->whereNull('delete_time')
             ->whereRaw(sprintf(
-                "((`material_type` = 'private' AND `member_id` = %d) OR (`material_type` <> 'private' AND (`is_public` = 1 OR `member_id` = %d)))",
+                "((`material_type` = 'private' AND `member_id` = %d) OR (`material_type` <> 'private' AND `status` = 1 AND (`is_public` = 1 OR `member_id` = %d)))",
                 $memberId,
                 $memberId
             ))
