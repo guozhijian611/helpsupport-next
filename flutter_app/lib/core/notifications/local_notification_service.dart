@@ -29,6 +29,7 @@ class LocalNotificationService {
   static const _businessChannelName = 'HelpSupport reminders';
   static const _businessChannelDescription =
       'Treatment plan and journal reminders for HelpSupport.';
+  static const _androidSmallIcon = 'ic_stat_helpsupport_notification';
   static const journalReminderNotificationId = 210000001;
   static const _developerNotificationDelay = Duration(seconds: 3);
   static const _developerToolsChannel = MethodChannel(
@@ -46,6 +47,7 @@ class LocalNotificationService {
           _developerChannelId,
           _developerChannelName,
           channelDescription: _developerChannelDescription,
+          icon: _androidSmallIcon,
           importance: Importance.max,
           priority: Priority.high,
         ),
@@ -73,6 +75,7 @@ class LocalNotificationService {
           _businessChannelId,
           _businessChannelName,
           channelDescription: _businessChannelDescription,
+          icon: _androidSmallIcon,
           importance: Importance.high,
           priority: Priority.high,
         ),
@@ -96,9 +99,7 @@ class LocalNotificationService {
 
   Future<void> initialize() async {
     await _configureLocalTimeZone();
-    const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
-    );
+    const androidSettings = AndroidInitializationSettings(_androidSmallIcon);
     const darwinSettings = DarwinInitializationSettings(
       defaultPresentAlert: true,
       defaultPresentBadge: true,
