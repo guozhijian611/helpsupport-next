@@ -735,81 +735,88 @@ Future<CommunityReportDraft?> showCommunityReportSheet(
   BuildContext context, {
   required String title,
 }) async {
-  final reasonController = TextEditingController();
-  final descriptionController = TextEditingController();
-  try {
-    return await showDialog<CommunityReportDraft>(
-      context: context,
-      builder: (dialogContext) {
-        String? errorText;
-        return StatefulBuilder(
-          builder: (sheetContext, setState) {
-            return AlertDialog(
-              title: Text(title),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: reasonController,
-                    autofocus: true,
-                    maxLength: 100,
-                    decoration: InputDecoration(
-                      labelText: _t(sheetContext, '举报原因', 'Reason'),
-                      errorText: errorText,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: descriptionController,
-                    minLines: 3,
-                    maxLines: 4,
-                    maxLength: 500,
-                    decoration: InputDecoration(
-                      labelText: _t(
-                        sheetContext,
-                        '补充描述（可选）',
-                        'Details (optional)',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text(_t(sheetContext, '取消', 'Cancel')),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    final reason = reasonController.text.trim();
-                    if (reason.isEmpty) {
-                      setState(() {
-                        errorText = _t(
-                          sheetContext,
-                          '请填写举报原因',
-                          'Please enter a reason',
-                        );
-                      });
-                      return;
-                    }
-                    Navigator.of(dialogContext).pop(
-                      CommunityReportDraft(
-                        reason: reason,
-                        description: descriptionController.text.trim(),
-                      ),
-                    );
-                  },
-                  child: Text(_t(sheetContext, '提交', 'Submit')),
-                ),
-              ],
-            );
-          },
-        );
-      },
+  return showDialog<CommunityReportDraft>(
+    context: context,
+    builder: (dialogContext) => _CommunityReportDialog(title: title),
+  );
+}
+
+class _CommunityReportDialog extends StatefulWidget {
+  const _CommunityReportDialog({required this.title});
+
+  final String title;
+
+  @override
+  State<_CommunityReportDialog> createState() => _CommunityReportDialogState();
+}
+
+class _CommunityReportDialogState extends State<_CommunityReportDialog> {
+  final _reasonController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  String? _errorText;
+
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _reasonController,
+            autofocus: true,
+            maxLength: 100,
+            decoration: InputDecoration(
+              labelText: _t(context, '举报原因', 'Reason'),
+              errorText: _errorText,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _descriptionController,
+            minLines: 3,
+            maxLines: 4,
+            maxLength: 500,
+            decoration: InputDecoration(
+              labelText: _t(context, '补充描述（可选）', 'Details (optional)'),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(_t(context, '取消', 'Cancel')),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: Text(_t(context, '提交', 'Submit')),
+        ),
+      ],
     );
-  } finally {
-    reasonController.dispose();
-    descriptionController.dispose();
+  }
+
+  void _submit() {
+    final reason = _reasonController.text.trim();
+    if (reason.isEmpty) {
+      setState(() {
+        _errorText = _t(context, '请填写举报原因', 'Please enter a reason');
+      });
+      return;
+    }
+    Navigator.of(context).pop(
+      CommunityReportDraft(
+        reason: reason,
+        description: _descriptionController.text.trim(),
+      ),
+    );
   }
 }
 
