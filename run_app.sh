@@ -51,6 +51,58 @@ Flutter 运行快捷键（应用启动成功后直接输入）：
 HELP
 }
 
+print_script_usage() {
+  cat <<'HELP'
+用法：
+  ./run_app.sh [设备序号] [flutter run 参数...]
+  ./run_app.sh -d <设备序号> [flutter run 参数...]
+  ./run_app.sh --device <设备序号> [flutter run 参数...]
+  ./run_app.sh --device-index <设备序号> [flutter run 参数...]
+
+示例：
+  ./run_app.sh 1
+  ./run_app.sh -d 1
+  ./run_app.sh 2 --flavor dev
+HELP
+}
+
+parse_args() {
+  SELECTED_DEVICE_INDEX=""
+  FLUTTER_RUN_ARGS=()
+
+  while (($# > 0)); do
+    case "$1" in
+      -h | --help)
+        print_script_usage
+        exit 0
+        ;;
+      -d | --device | --device-index)
+        local option="$1"
+        shift
+        [[ $# -gt 0 ]] || fail "${option} 需要传入设备序号"
+        [[ "$1" =~ ^[0-9]+$ ]] || fail "设备序号必须是数字"
+        SELECTED_DEVICE_INDEX="$1"
+        ;;
+      --device=*)
+        SELECTED_DEVICE_INDEX="${1#--device=}"
+        [[ "${SELECTED_DEVICE_INDEX}" =~ ^[0-9]+$ ]] || fail "设备序号必须是数字"
+        ;;
+      --device-index=*)
+        SELECTED_DEVICE_INDEX="${1#--device-index=}"
+        [[ "${SELECTED_DEVICE_INDEX}" =~ ^[0-9]+$ ]] || fail "设备序号必须是数字"
+        ;;
+      *)
+        if [[ -z "${SELECTED_DEVICE_INDEX}" && "$1" =~ ^[0-9]+$ ]]; then
+          SELECTED_DEVICE_INDEX="$1"
+        else
+          FLUTTER_RUN_ARGS+=("$1")
+        fi
+        ;;
+    esac
+    shift
+  done
+}
+
 android_device_connected() {
   command -v adb >/dev/null 2>&1 || return 1
   adb devices | awk '
@@ -114,13 +166,21 @@ manual_device_input() {
 }
 
 select_device() {
+  local preferred_index="${1:-}"
+
   if ! command -v python3 >/dev/null 2>&1; then
+    if [[ -n "${preferred_index}" ]]; then
+      printf '当前环境无法自动解析设备序号，将改为手动输入设备 ID。\n' >&2
+    fi
     manual_device_input
     return
   fi
 
   local devices_json json_file devices_file
   if ! devices_json="$(flutter devices --machine 2>/dev/null)"; then
+    if [[ -n "${preferred_index}" ]]; then
+      printf '无法读取 Flutter 设备列表，将改为手动输入设备 ID。\n' >&2
+    fi
     manual_device_input
     return
   fi
@@ -180,6 +240,17 @@ PY
       "${ids[index]}" >&2
   done
 
+  if [[ -n "${preferred_index}" ]]; then
+    local preferred_number=$((10#${preferred_index}))
+    if [[ "${preferred_number}" -ge 1 ]] && [[ "${preferred_number}" -le "${count}" ]]; then
+      local selected_index=$((preferred_number - 1))
+      printf '%s\n' "${ids[selected_index]}"
+      return
+    fi
+
+    fail "设备序号 ${preferred_index} 不在可选范围 1-${count} 内"
+  fi
+
   local choice
   while true; do
     if [[ "${count}" -eq 1 ]]; then
@@ -203,6 +274,8 @@ PY
 }
 
 main() {
+  parse_args "$@"
+
   setup_android_sdk_path
   require_command flutter
   [[ -d "${FLUTTER_APP_DIR}" ]] || fail "flutter_app directory not found"
@@ -211,7 +284,7 @@ main() {
   launch_android_emulator_if_needed
 
   local device_id api_base_url
-  device_id="$(select_device)"
+  device_id="$(select_device "${SELECTED_DEVICE_INDEX}")"
   api_base_url="$(sed -n "s/.*apiBaseUrl = '\\([^']*\\)'.*/\\1/p" "${API_CONFIG_FILE}" | head -n 1)"
 
   printf '使用设备: %s\n' "${device_id}"
@@ -221,7 +294,7 @@ main() {
   printf '如需修改 API 地址，请编辑 %s。\n' "${API_CONFIG_FILE}"
   print_flutter_run_help
 
-  exec flutter run -d "${device_id}" "$@"
+  exec flutter run -d "${device_id}" "${FLUTTER_RUN_ARGS[@]}"
 }
 
 main "$@"
