@@ -2931,7 +2931,7 @@ class HelpApiService
     {
         $this->assertApprovedDoctor($doctorId);
 
-        return $this->paginate(function () use ($doctorId, $params) {
+        $page = $this->paginate(function () use ($doctorId, $params) {
             $query = Db::table('sa_doctor_patient')
                 ->alias('dp')
                 ->leftJoin('sa_member m', 'm.id = dp.member_id AND m.delete_time IS NULL')
@@ -2955,6 +2955,9 @@ class HelpApiService
                 ->order('dp.bind_time', 'desc')
                 ->order('dp.id', 'desc');
         }, $params);
+        $page['list'] = $this->appendDoctorPatientPlanSummary($doctorId, $page['list']);
+
+        return $page;
     }
 
     public function doctorPatientCandidates(int $doctorId, array $params): array
@@ -4555,6 +4558,93 @@ class HelpApiService
             ->whereIn('plan_id', $planIds)
             ->whereNull('delete_time')
             ->column('id'));
+    }
+
+    private function appendDoctorPatientPlanSummary(int $doctorId, array $patients): array
+    {
+        $memberIds = array_values(array_unique(array_filter(array_map(
+            static fn ($patient) => (int) ($patient['member_id'] ?? 0),
+            $patients
+        ))));
+        if ($memberIds === []) {
+            return $patients;
+        }
+
+        $plans = Db::table('sa_treatment_plan')
+            ->where('doctor_id', $doctorId)
+            ->whereIn('member_id', $memberIds)
+            ->whereNull('delete_time')
+            ->orderRaw('status = 1 DESC')
+            ->order('id', 'desc')
+            ->select()
+            ->toArray();
+        $planMap = [];
+        foreach ($plans as $plan) {
+            $memberId = (int) ($plan['member_id'] ?? 0);
+            if ($memberId > 0 && !isset($planMap[$memberId])) {
+                $planMap[$memberId] = $plan;
+            }
+        }
+
+        $planIds = array_values(array_unique(array_filter(array_map(
+            static fn ($plan) => (int) ($plan['id'] ?? 0),
+            $planMap
+        ))));
+        $stageMap = [];
+        if ($planIds !== []) {
+            $stages = Db::table('sa_treatment_stage')
+                ->whereIn('plan_id', $planIds)
+                ->whereNull('delete_time')
+                ->orderRaw('status = 1 DESC')
+                ->order('sort', 'asc')
+                ->order('id', 'asc')
+                ->select()
+                ->toArray();
+            foreach ($stages as $stage) {
+                $planId = (int) ($stage['plan_id'] ?? 0);
+                if ($planId > 0 && !isset($stageMap[$planId])) {
+                    $stageMap[$planId] = $stage;
+                }
+            }
+        }
+
+        $stageIds = array_values(array_unique(array_filter(array_map(
+            static fn ($stage) => (int) ($stage['id'] ?? 0),
+            $stageMap
+        ))));
+        $taskTotalMap = [];
+        $taskDoneMap = [];
+        if ($stageIds !== []) {
+            $taskRows = Db::table('sa_daily_task')
+                ->whereIn('stage_id', $stageIds)
+                ->whereNull('delete_time')
+                ->group('stage_id')
+                ->field('stage_id, COUNT(*) AS total, SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS done')
+                ->select()
+                ->toArray();
+            foreach ($taskRows as $row) {
+                $stageId = (int) ($row['stage_id'] ?? 0);
+                $taskTotalMap[$stageId] = (int) ($row['total'] ?? 0);
+                $taskDoneMap[$stageId] = (int) ($row['done'] ?? 0);
+            }
+        }
+
+        foreach ($patients as &$patient) {
+            $memberId = (int) ($patient['member_id'] ?? 0);
+            $plan = $planMap[$memberId] ?? null;
+            $stage = $plan ? ($stageMap[(int) ($plan['id'] ?? 0)] ?? null) : null;
+            $stageId = (int) ($stage['id'] ?? 0);
+            $patient['current_plan_id'] = (int) ($plan['id'] ?? 0);
+            $patient['current_plan_title'] = (string) ($plan['title'] ?? '');
+            $patient['current_stage_id'] = $stageId;
+            $patient['current_stage_name'] = (string) ($stage['stage_name'] ?? '');
+            $patient['current_stage_status'] = (int) ($stage['status'] ?? 0);
+            $patient['current_stage_task_count'] = $taskTotalMap[$stageId] ?? 0;
+            $patient['current_stage_done_count'] = $taskDoneMap[$stageId] ?? 0;
+        }
+        unset($patient);
+
+        return $patients;
     }
 
     private function assertVisibleTemplateFolder(int $doctorId, string $folderId): array

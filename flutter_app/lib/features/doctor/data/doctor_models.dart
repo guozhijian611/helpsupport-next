@@ -50,6 +50,13 @@ class DoctorPatient {
     required this.locale,
     required this.timezone,
     required this.isBound,
+    required this.currentPlanId,
+    required this.currentPlanTitle,
+    required this.currentStageId,
+    required this.currentStageName,
+    required this.currentStageStatus,
+    required this.currentStageTaskCount,
+    required this.currentStageDoneCount,
   });
 
   factory DoctorPatient.fromJson(Map<String, dynamic> json) {
@@ -70,6 +77,13 @@ class DoctorPatient {
       locale: _stringValue(json['locale']),
       timezone: _stringValue(json['timezone']),
       isBound: _intValue(json['is_bound']) == 1,
+      currentPlanId: _intValue(json['current_plan_id']),
+      currentPlanTitle: _stringValue(json['current_plan_title']),
+      currentStageId: _intValue(json['current_stage_id']),
+      currentStageName: _stringValue(json['current_stage_name']),
+      currentStageStatus: _intValue(json['current_stage_status']),
+      currentStageTaskCount: _intValue(json['current_stage_task_count']),
+      currentStageDoneCount: _intValue(json['current_stage_done_count']),
     );
   }
 
@@ -89,6 +103,13 @@ class DoctorPatient {
   final String locale;
   final String timezone;
   final bool isBound;
+  final int currentPlanId;
+  final String currentPlanTitle;
+  final int currentStageId;
+  final String currentStageName;
+  final int currentStageStatus;
+  final int currentStageTaskCount;
+  final int currentStageDoneCount;
 
   String get displayName => nickname.trim().isEmpty ? '患者' : nickname.trim();
 
@@ -135,6 +156,13 @@ class DoctorPatient {
       locale: locale,
       timezone: timezone,
       isBound: isBound,
+      currentPlanId: currentPlanId,
+      currentPlanTitle: currentPlanTitle,
+      currentStageId: currentStageId,
+      currentStageName: currentStageName,
+      currentStageStatus: currentStageStatus,
+      currentStageTaskCount: currentStageTaskCount,
+      currentStageDoneCount: currentStageDoneCount,
     );
   }
 }

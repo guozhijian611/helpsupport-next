@@ -418,8 +418,22 @@ class _DoctorTreatmentPlanScreenState
                           ? palette.selectedSoftBackground
                           : palette.softBackground,
                       title: Text(patient.displayName),
-                      subtitle: Text(
-                        '${_t(context, '年龄', 'Age')} ${patient.ageLabel} · ${_t(context, '性别', 'Gender')} ${patient.genderLabel}',
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${_t(context, '年龄', 'Age')} ${patient.ageLabel} · ${_t(context, '性别', 'Gender')} ${patient.genderLabel}',
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _patientPlanSummary(context, patient),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
                       ),
                       onTap: () => Navigator.of(context).pop(patient.memberId),
                     ),
@@ -1901,6 +1915,20 @@ class _DoctorTreatmentPlanPalette {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+String _patientPlanSummary(BuildContext context, DoctorPatient patient) {
+  if (patient.currentPlanId <= 0) {
+    return _t(context, '暂无治疗计划', 'No treatment plan');
+  }
+  final stageName = patient.currentStageName.trim().isEmpty
+      ? _t(context, '未配置阶段', 'No stage')
+      : patient.currentStageName.trim();
+  return _t(
+    context,
+    '当前阶段 $stageName · 任务 ${patient.currentStageDoneCount}/${patient.currentStageTaskCount}',
+    'Stage $stageName · Tasks ${patient.currentStageDoneCount}/${patient.currentStageTaskCount}',
+  );
 }
 
 String _planStatusLabel(BuildContext context, int value) {
