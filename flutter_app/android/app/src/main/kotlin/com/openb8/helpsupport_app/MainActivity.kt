@@ -56,14 +56,16 @@ class MainActivity : FlutterActivity() {
         val vulkanPatch = vulkanVersion and 0xfff
         val supportsVulkan11 = vulkanMajor > 1 || (vulkanMajor == 1 && vulkanMinor >= 1)
         val minSdkSatisfied = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+        val isEmulator = isProbablyEmulator()
 
         return mapOf(
             "platform" to "android",
             "sdkInt" to Build.VERSION.SDK_INT,
+            "isEmulator" to isEmulator,
             "vulkanHardwareVersion" to vulkanVersion,
             "vulkanVersionName" to "$vulkanMajor.$vulkanMinor.$vulkanPatch",
             "supportsVulkan11" to supportsVulkan11,
-            "supportsGpuOffload" to (minSdkSatisfied && supportsVulkan11),
+            "supportsGpuOffload" to (minSdkSatisfied && supportsVulkan11 && !isEmulator),
         )
     }
 
@@ -74,6 +76,30 @@ class MainActivity : FlutterActivity() {
         return packageManager.systemAvailableFeatures
             .firstOrNull { it.name == PackageManager.FEATURE_VULKAN_HARDWARE_VERSION }
             ?.version ?: 0
+    }
+
+    private fun isProbablyEmulator(): Boolean {
+        val fingerprint = Build.FINGERPRINT.lowercase()
+        val model = Build.MODEL.lowercase()
+        val manufacturer = Build.MANUFACTURER.lowercase()
+        val brand = Build.BRAND.lowercase()
+        val device = Build.DEVICE.lowercase()
+        val product = Build.PRODUCT.lowercase()
+        val hardware = Build.HARDWARE.lowercase()
+
+        return fingerprint.startsWith("generic") ||
+            fingerprint.contains("vbox") ||
+            fingerprint.contains("test-keys") ||
+            model.contains("emulator") ||
+            model.contains("android sdk built for") ||
+            model.contains("sdk_gphone") ||
+            manufacturer.contains("genymotion") ||
+            brand.startsWith("generic") ||
+            device.startsWith("generic") ||
+            product.contains("sdk") ||
+            hardware.contains("goldfish") ||
+            hardware.contains("ranchu") ||
+            hardware.contains("vbox")
     }
 
     private companion object {

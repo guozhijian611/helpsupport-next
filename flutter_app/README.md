@@ -68,7 +68,7 @@ GET /app/help/common/onboarding?scene=first_launch&version=&locale={locale}
 - iOS 真机：默认同样会尝试复制 `llama_cpp_dart` 的 `OS64` CPU 和 Metal 产物；发布前仍需确认签名、嵌入方式和 App Store 分发要求。
 - 桌面或本机调试：可用 `--dart-define=HELP_SUPPORT_LLAMA_LIBRARY_PATH=/absolute/path/libllama.dylib` 指定动态库路径。
 
-默认使用 `auto` 加载本地模型。Android 会先检测系统 API 与 Vulkan 1.1 能力，支持则启用 GPU offload，不支持则自动回落 CPU；iOS / macOS 默认允许 Metal GPU offload。CPU 模式会强制 `nGpuLayers=0` 并关闭 KQV / op offload。如需显式指定模式，可传入：
+默认使用 `auto` 加载本地模型。Android 会先检测系统 API、Vulkan 1.1 能力和是否为模拟器，真实设备支持才启用 GPU offload，不支持或运行在模拟器时自动回落 CPU；iOS / macOS 默认允许 Metal GPU offload。CPU 模式会强制 `nGpuLayers=0` 并关闭 KQV / op offload。如需显式指定模式，可传入：
 
 ```bash
 flutter run -d <device id> \
