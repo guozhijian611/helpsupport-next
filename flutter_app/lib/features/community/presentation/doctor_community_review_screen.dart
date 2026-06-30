@@ -533,58 +533,142 @@ class _ReviewPostCard extends StatelessWidget {
               ],
             )
           else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  approved
-                      ? _t(context, '已通过', 'Approved')
-                      : rejected
-                      ? _t(context, '已拒绝', 'Rejected')
-                      : _t(context, '已审核', 'Reviewed'),
-                  style: TextStyle(
-                    color: approved
-                        ? palette.secondaryText
-                        : const Color(0xFFFF9E8F),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                if (rejected && post.auditRemark.trim().isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    post.auditRemark,
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                      color: palette.mutedText,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ],
+            _ReviewedPostMeta(
+              approved: approved,
+              rejected: rejected,
+              auditRemark: post.auditRemark,
+              createTime: post.createTime,
             ),
-          if (reviewedMode &&
-              post.auditStatus == 2 &&
-              post.createTime.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                _t(
-                  context,
-                  '发布时间：${post.createTime}',
-                  'Published at ${post.createTime}',
-                ),
-                style: TextStyle(
-                  color: palette.secondaryText,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewedPostMeta extends StatelessWidget {
+  const _ReviewedPostMeta({
+    required this.approved,
+    required this.rejected,
+    required this.auditRemark,
+    required this.createTime,
+  });
+
+  final bool approved;
+  final bool rejected;
+  final String auditRemark;
+  final String createTime;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorCommunityReviewPalette.of(context);
+    final statusText = approved
+        ? _t(context, '已通过', 'Approved')
+        : rejected
+        ? _t(context, '已拒绝', 'Rejected')
+        : _t(context, '已审核', 'Reviewed');
+    final statusColor = approved
+        ? const Color(0xFF5A81DA)
+        : rejected
+        ? const Color(0xFFFF9585)
+        : palette.secondaryText;
+    final remark = auditRemark.trim();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _ReviewedMetaRow(
+          label: _t(context, '审核结果', 'Review result'),
+          child: _ReviewStatusPill(label: statusText, color: statusColor),
+        ),
+        if (rejected && remark.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _ReviewedMetaRow(
+            label: _t(context, '拒绝原因', 'Reject reason'),
+            child: Text(
+              remark,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: palette.primaryText,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
               ),
             ),
-          ],
+          ),
         ],
+        if (createTime.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _ReviewedMetaRow(
+            label: _t(context, '发布时间', 'Published at'),
+            child: Text(
+              createTime,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: palette.secondaryText,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ReviewedMetaRow extends StatelessWidget {
+  const _ReviewedMetaRow({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorCommunityReviewPalette.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: palette.mutedText,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Align(alignment: Alignment.centerRight, child: child),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReviewStatusPill extends StatelessWidget {
+  const _ReviewStatusPill({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.36)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
     );
   }
