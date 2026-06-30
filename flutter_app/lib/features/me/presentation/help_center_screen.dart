@@ -183,7 +183,10 @@ class _HelpArticleWebViewState extends ConsumerState<HelpArticleWebView> {
         NavigationDelegate(
           onNavigationRequest: (request) {
             final url = request.url;
-            if (url.startsWith('http://') || url.startsWith('https://')) {
+            if (url == 'about:blank' ||
+                url.startsWith('data:') ||
+                url.startsWith('http://') ||
+                url.startsWith('https://')) {
               return NavigationDecision.navigate;
             }
             return NavigationDecision.prevent;
@@ -215,7 +218,9 @@ class _HelpArticleWebViewState extends ConsumerState<HelpArticleWebView> {
       baseUrl: apiClient.dio.options.baseUrl,
       resolveUrl: apiClient.resolveUrl,
     );
-    await _controller.loadHtmlString(html);
+    await _controller.loadRequest(
+      Uri.dataFromString(html, mimeType: 'text/html', encoding: utf8),
+    );
   }
 
   @override
