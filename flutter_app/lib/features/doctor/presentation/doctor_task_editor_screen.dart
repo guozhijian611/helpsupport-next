@@ -329,9 +329,7 @@ class _DoctorTaskEditorScreenState
       if (template.rewardScore > 0) {
         _rewardController.text = '${template.rewardScore}';
       }
-      if (_taskType != 'assessment') {
-        _selectedAssessmentScale = null;
-      }
+      _selectedAssessmentScale = null;
     });
   }
 
@@ -470,6 +468,7 @@ class _DoctorTaskEditorScreenState
     if (selected != null && mounted) {
       setState(() {
         _selectedAssessmentScale = selected;
+        _selectedTaskTemplate = null;
         _taskType = 'assessment';
         if (_titleController.text.trim().isEmpty) {
           _titleController.text = selected.title;
@@ -489,7 +488,9 @@ class _DoctorTaskEditorScreenState
       );
       return;
     }
-    if (_taskType == 'assessment' && _selectedAssessmentScale == null) {
+    if (_taskType == 'assessment' &&
+        _selectedAssessmentScale == null &&
+        _selectedTaskTemplate == null) {
       context.showCenteredNotice(
         _t(context, '请先选择评估量表', 'Please choose an assessment scale'),
       );

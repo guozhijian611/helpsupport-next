@@ -59,6 +59,7 @@ class _DoctorTreatmentPlanScreenState
     final palette = _DoctorTreatmentPlanPalette.of(context);
     final patientsQuery = const DoctorPatientsQuery(status: 1, pageSize: 100);
     final patients = ref.watch(doctorPatientsProvider(patientsQuery));
+    _selectDefaultPatientWhenReady(patients.asData?.value.list);
     final plansQuery = _selectedMemberId > 0
         ? DoctorPatientPlansQuery(memberId: _selectedMemberId)
         : null;
@@ -272,12 +273,27 @@ class _DoctorTreatmentPlanScreenState
     );
   }
 
+  void _selectDefaultPatientWhenReady(List<DoctorPatient>? patients) {
+    if (_selectedMemberId > 0 || patients == null || patients.isEmpty) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _selectedMemberId > 0) {
+        return;
+      }
+      setState(() {
+        _selectedMemberId = patients.first.memberId;
+        _hydratedMemberId = -1;
+        _hydratedPlanId = -1;
+      });
+    });
+  }
+
   DoctorPatient? _selectedPatient(List<DoctorPatient> patients) {
     if (patients.isEmpty) {
       return null;
     }
     if (_selectedMemberId <= 0) {
-      _selectedMemberId = patients.first.memberId;
       return patients.first;
     }
     return patients.cast<DoctorPatient?>().firstWhere(

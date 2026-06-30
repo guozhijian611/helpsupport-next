@@ -48,6 +48,18 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
     }
   }
 
+  void _selectDefaultPatientWhenReady(List<DoctorPatient>? patients) {
+    if (_selectedMemberId > 0 || patients == null || patients.isEmpty) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _selectedMemberId > 0) {
+        return;
+      }
+      setState(() => _selectedMemberId = patients.first.memberId);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = _DoctorPlanPalette.of(context);
@@ -69,6 +81,7 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
         );
     final patientsQuery = const DoctorPatientsQuery(status: 1, pageSize: 100);
     final patients = ref.watch(doctorPatientsProvider(patientsQuery));
+    _selectDefaultPatientWhenReady(patients.asData?.value.list);
     final plans = _selectedMemberId > 0
         ? ref.watch(
             doctorPatientPlansProvider(
@@ -283,7 +296,6 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
       return null;
     }
     if (_selectedMemberId <= 0) {
-      _selectedMemberId = patients.first.memberId;
       return _patientOverrides[patients.first.memberId] ?? patients.first;
     }
     final patient =
