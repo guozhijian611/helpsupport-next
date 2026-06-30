@@ -189,18 +189,20 @@ class _MaterialResourceScreenState
       final content = _textContent.trim().isNotEmpty
           ? _textContent
           : item.contentText;
-      final plainContent = _richTextToPlainText(content);
       if (content.trim().isEmpty) {
         return _CenteredResourceMessage(
           text: _t(context, '暂无可阅读内容', 'No readable content'),
         );
       }
+      if (_hasHtmlMarkup(content) || _resourceImageUrls.isNotEmpty) {
+        return _HtmlResourceView(html: _buildReadableHtml(content));
+      }
       return SingleChildScrollView(
         controller: _scrollController,
         padding: const EdgeInsets.fromLTRB(22, 18, 22, 36),
         child: _ReadableContentView(
-          text: plainContent,
-          imageUrls: _resourceImageUrls,
+          text: content,
+          imageUrls: const [],
           emptyText: _t(context, '暂无可阅读内容', 'No readable content'),
         ),
       );
@@ -285,16 +287,7 @@ class _MaterialResourceScreenState
     }
 
     if (_shouldRenderInlineContent(item)) {
-      final text = _richTextToPlainText(item.contentText);
-      return SingleChildScrollView(
-        controller: _scrollController,
-        padding: const EdgeInsets.fromLTRB(22, 18, 22, 36),
-        child: _ReadableContentView(
-          text: text,
-          imageUrls: _resourceImageUrls,
-          emptyText: _t(context, '暂无可阅读内容', 'No readable content'),
-        ),
-      );
+      return _HtmlResourceView(html: _buildReadableHtml(item.contentText));
     }
 
     if (_resourceImageUrls.isNotEmpty) {
@@ -1058,6 +1051,107 @@ class _MaterialResourceScreenState
         .replaceAll('&apos;', "'");
   }
 
+  String _buildReadableHtml(String source) {
+    final body = _hasHtmlMarkup(source)
+        ? _normalizeHtmlImageSources(source)
+        : '<p>${_escapeHtml(source).replaceAll('\n', '<br>')}</p>';
+    final inlineImageSources = _extractInlineImageSources(source)
+        .map((url) => _apiClient.resolveUrl(_decodeHtmlEntities(url).trim()))
+        .where((url) => url.isNotEmpty)
+        .toSet();
+    final extraImages = _resourceImageUrls
+        .where((url) => !inlineImageSources.contains(url))
+        .map((url) => '<img src="${_escapeHtmlAttribute(url)}" alt="">')
+        .join();
+    final scheme = Theme.of(context).colorScheme;
+    final background = _cssColor(scheme.surface);
+    final text = _cssColor(scheme.onSurface);
+    final secondary = _cssColor(scheme.onSurfaceVariant);
+    return '''
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=4">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: $background;
+      color: $text;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      font-size: 17px;
+      line-height: 1.8;
+      overflow-wrap: anywhere;
+    }
+    body { padding: 18px 22px 36px; box-sizing: border-box; }
+    p { margin: 0 0 14px; }
+    h1, h2, h3, h4, h5, h6 { line-height: 1.35; margin: 18px 0 10px; }
+    img {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+      object-fit: contain;
+      margin: 0 0 16px;
+      border-radius: 18px;
+      background: rgba(150, 153, 159, 0.12);
+    }
+    ul, ol { padding-left: 22px; }
+    a { color: #FF9585; text-decoration: none; }
+    blockquote {
+      margin: 16px 0;
+      padding: 10px 14px;
+      border-left: 4px solid #FF9585;
+      color: $secondary;
+      background: rgba(255, 149, 133, 0.10);
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>$body$extraImages</body>
+</html>
+''';
+  }
+
+  String _normalizeHtmlImageSources(String source) {
+    return source.replaceAllMapped(
+      RegExp(
+        r'''<img\b([^>]*?)\bsrc\s*=\s*(["'])(.*?)\2([^>]*)>''',
+        caseSensitive: false,
+      ),
+      (match) {
+        final before = match.group(1) ?? '';
+        final quote = match.group(2) ?? '"';
+        final rawUrl = match.group(3) ?? '';
+        final after = match.group(4) ?? '';
+        final resolved = _apiClient.resolveUrl(_decodeHtmlEntities(rawUrl));
+        return '<img$before src=$quote${_escapeHtmlAttribute(resolved)}$quote$after>';
+      },
+    );
+  }
+
+  bool _hasHtmlMarkup(String source) {
+    return RegExp(r'<[a-z][\s\S]*>', caseSensitive: false).hasMatch(source);
+  }
+
+  String _escapeHtml(String source) {
+    return source
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+  }
+
+  String _escapeHtmlAttribute(String source) {
+    return _escapeHtml(source).replaceAll('\n', '');
+  }
+
+  String _cssColor(Color color) {
+    final value = color.toARGB32() & 0xFFFFFF;
+    return '#${value.toRadixString(16).padLeft(6, '0')}';
+  }
+
   List<String> _resolveMaterialImageUrls(
     MaterialItem item,
     String resourceUrl,
@@ -1157,6 +1251,56 @@ class _MaterialResourceScreenState
         path.endsWith('.png') ||
         path.endsWith('.gif') ||
         path.endsWith('.webp');
+  }
+}
+
+class _HtmlResourceView extends StatefulWidget {
+  const _HtmlResourceView({required this.html});
+
+  final String html;
+
+  @override
+  State<_HtmlResourceView> createState() => _HtmlResourceViewState();
+}
+
+class _HtmlResourceViewState extends State<_HtmlResourceView> {
+  late final WebViewController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.disabled)
+      ..setBackgroundColor(Colors.transparent)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onNavigationRequest: (request) {
+            final url = request.url;
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+              return NavigationDecision.navigate;
+            }
+            return NavigationDecision.prevent;
+          },
+        ),
+      );
+    _loadHtml();
+  }
+
+  @override
+  void didUpdateWidget(covariant _HtmlResourceView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.html != widget.html) {
+      _loadHtml();
+    }
+  }
+
+  void _loadHtml() {
+    _controller.loadHtmlString(widget.html);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WebViewWidget(controller: _controller);
   }
 }
 
