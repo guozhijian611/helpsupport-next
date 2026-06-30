@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/notifications/centered_notice.dart';
@@ -152,6 +151,16 @@ class _DoctorTreatmentPlanScreenState
                                   ),
                                 ),
                               ),
+                              TextButton.icon(
+                                onPressed: activePlan == null || _saving
+                                    ? null
+                                    : () => _deletePlan(activePlan),
+                                icon: const Icon(Icons.delete_outline_rounded),
+                                label: Text(_t(context, '删除', 'Delete')),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: const Color(0xFFFF8D7F),
+                                ),
+                              ),
                               TextButton(
                                 onPressed: _createBlankPlan,
                                 child: Text(_t(context, '新建', 'New')),
@@ -160,24 +169,16 @@ class _DoctorTreatmentPlanScreenState
                           ),
                           const SizedBox(height: 10),
                           SizedBox(
-                            height: 40,
+                            height: 72,
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemBuilder: (context, index) {
                                 final plan = items[index];
                                 final selected = plan.id == _selectedPlanId;
-                                return ChoiceChip(
-                                  label: Text(plan.title),
+                                return _PlanSummaryPill(
+                                  plan: plan,
                                   selected: selected,
-                                  onSelected: (_) => _selectPlan(plan),
-                                  selectedColor: palette.selectedChipBackground,
-                                  backgroundColor: palette.cardBackground,
-                                  labelStyle: TextStyle(
-                                    color: selected
-                                        ? palette.selectedChipText
-                                        : palette.secondaryText,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                  onTap: () => _selectPlan(plan),
                                 );
                               },
                               separatorBuilder: (_, __) =>
@@ -197,6 +198,26 @@ class _DoctorTreatmentPlanScreenState
                           onTaskTap: _showTaskSummary,
                         ),
                         const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _t(context, '阶段配置', 'Stages'),
+                                style: TextStyle(
+                                  color: palette.primaryText,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: _saving ? null : _addStage,
+                              icon: const Icon(Icons.add_rounded),
+                              label: Text(_t(context, '阶段', 'Stage')),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
                         if (activePlan != null)
                           Column(
                             children: [
@@ -223,27 +244,6 @@ class _DoctorTreatmentPlanScreenState
                               ],
                             ],
                           ),
-                        OutlinedButton(
-                          onPressed: _saving ? null : _addStage,
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(62),
-                            side: const BorderSide(
-                              color: Color(0xFF5A81DA),
-                              width: 1.5,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
-                          child: Text(
-                            _t(context, '+ 添加阶段', '+ Add stage'),
-                            style: const TextStyle(
-                              color: Color(0xFF5A81DA),
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
                       ],
                     );
                   },
@@ -583,6 +583,69 @@ class _DoctorTreatmentPlanScreenState
     }
   }
 
+  Future<void> _deletePlan(TreatmentPlan plan) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_t(context, '删除治疗计划', 'Delete treatment plan')),
+        content: Text(
+          _t(
+            context,
+            '删除后该计划下的阶段和任务也会移除，确定继续吗？',
+            'Stages and tasks under this plan will also be removed. Continue?',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(_t(context, '取消', 'Cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFFF8D7F),
+            ),
+            child: Text(_t(context, '删除', 'Delete')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(doctorRepositoryProvider)
+          .deleteTreatmentPlan(memberId: _selectedMemberId, id: plan.id);
+      if (!mounted) {
+        return;
+      }
+      _selectedPlanId = 0;
+      _hydratedPlanId = -1;
+      _hydratedMemberId = -1;
+      final query = DoctorPatientPlansQuery(memberId: _selectedMemberId);
+      ref.invalidate(doctorPatientPlansProvider(query));
+      ref.invalidate(doctorDailyTasksProvider);
+      await ref.read(doctorPatientPlansProvider(query).future);
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(
+        _t(context, '治疗计划已删除', 'Treatment plan deleted'),
+      );
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(error.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+
   Future<void> _addStage() async {
     try {
       final planId = await _ensurePlanSaved();
@@ -896,6 +959,103 @@ class _KeyTaskPanel extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _PlanSummaryPill extends StatelessWidget {
+  const _PlanSummaryPill({
+    required this.plan,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final TreatmentPlan plan;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
+    final stageSummary = _stageSummary(context);
+    return SizedBox(
+      width: 184,
+      child: Material(
+        color: selected
+            ? palette.selectedChipBackground
+            : palette.cardBackground,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+            child: Row(
+              children: [
+                Icon(
+                  selected
+                      ? Icons.check_circle_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                  color: selected
+                      ? const Color(0xFFFF8D7F)
+                      : palette.secondaryText,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        plan.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: selected
+                              ? palette.selectedChipText
+                              : palette.primaryText,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        stageSummary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: selected
+                              ? palette.selectedChipText.withValues(alpha: 0.78)
+                              : palette.secondaryText,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _stageSummary(BuildContext context) {
+    if (plan.stages.isEmpty) {
+      return _t(context, '未配置阶段', 'No stages');
+    }
+    final names = plan.stages
+        .take(2)
+        .map((stage) => stage.stageName.trim())
+        .where((name) => name.isNotEmpty)
+        .join(' / ');
+    final count = plan.stages.length;
+    if (names.isEmpty) {
+      return _t(context, '$count 个阶段', '$count stages');
+    }
+    return _t(context, '$count 个阶段 · $names', '$count stages · $names');
   }
 }
 

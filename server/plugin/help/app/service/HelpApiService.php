@@ -3141,6 +3141,41 @@ class HelpApiService
         return Db::table('sa_treatment_plan')->where('id', $id)->find() ?: [];
     }
 
+    public function deleteDoctorTreatmentPlan(int $doctorId, array $data): array
+    {
+        $memberId = (int) ($data['member_id'] ?? 0);
+        $planId = (int) ($data['id'] ?? 0);
+        $this->assertDoctorPatient($doctorId, $memberId);
+        $this->assertDoctorPlan($doctorId, $memberId, $planId);
+
+        $now = date('Y-m-d H:i:s');
+        Db::transaction(function () use ($doctorId, $memberId, $planId, $now) {
+            $payload = [
+                'delete_time' => $now,
+                'updated_by' => $doctorId,
+                'update_time' => $now,
+            ];
+            Db::table('sa_treatment_plan')
+                ->where('id', $planId)
+                ->where('doctor_id', $doctorId)
+                ->where('member_id', $memberId)
+                ->whereNull('delete_time')
+                ->update($payload);
+            Db::table('sa_treatment_stage')
+                ->where('plan_id', $planId)
+                ->where('member_id', $memberId)
+                ->whereNull('delete_time')
+                ->update($payload);
+            Db::table('sa_daily_task')
+                ->where('plan_id', $planId)
+                ->where('member_id', $memberId)
+                ->whereNull('delete_time')
+                ->update($payload);
+        });
+
+        return ['id' => $planId];
+    }
+
     public function saveDoctorTreatmentStage(int $doctorId, array $data): array
     {
         $memberId = (int) ($data['member_id'] ?? 0);

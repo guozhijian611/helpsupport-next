@@ -107,6 +107,17 @@ class DoctorController extends BaseController
         return ok($this->service->saveDoctorTreatmentPlan($this->memberId, $request->post()));
     }
 
+    #[Apidoc\Title('删除患者治疗计划')]
+    #[Apidoc\Url('/app/help/doctor/treatment-plan/delete')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('member_id', type: 'int', require: true, desc: '患者会员ID')]
+    #[Apidoc\Param('id', type: 'int', require: true, desc: '治疗计划ID')]
+    #[Apidoc\Returned('id', type: 'int', desc: '已删除计划ID')]
+    public function deleteTreatmentPlan(Request $request): Response
+    {
+        return ok($this->service->deleteDoctorTreatmentPlan($this->memberId, $request->post()));
+    }
+
     #[Apidoc\Title('保存治疗阶段')]
     #[Apidoc\Url('/app/help/doctor/treatment-stage')]
     #[Apidoc\Method('POST')]

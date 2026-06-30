@@ -36,6 +36,7 @@ class _DoctorTaskEditorScreenState
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
   String _taskType = 'daily';
+  DoctorTaskTemplate? _selectedTaskTemplate;
   DoctorAssessmentScale? _selectedAssessmentScale;
   List<String> _selectedAttachments = const [];
   bool _saving = false;
@@ -99,20 +100,26 @@ class _DoctorTaskEditorScreenState
                   ),
                   _editorDivider(context),
                   _EditorActionRow(
+                    label: _t(context, '任务模板', 'Template'),
+                    value:
+                        _selectedTaskTemplate?.title ??
+                        _t(context, '请选择', 'Select'),
+                    onTap: _pickTaskTemplate,
+                  ),
+                  _editorDivider(context),
+                  _EditorActionRow(
+                    label: _t(context, '引用量表', 'Scale'),
+                    value:
+                        _selectedAssessmentScale?.title ??
+                        _t(context, '请选择', 'Select'),
+                    onTap: _pickAssessmentScale,
+                  ),
+                  _editorDivider(context),
+                  _EditorActionRow(
                     label: _t(context, '任务类型', 'Task type'),
                     value: _taskTypeLabel(context, _taskType),
                     onTap: _pickTaskType,
                   ),
-                  if (_taskType == 'assessment') ...[
-                    _editorDivider(context),
-                    _EditorActionRow(
-                      label: _t(context, '量表选择', 'Assessment scale'),
-                      value:
-                          _selectedAssessmentScale?.title ??
-                          _t(context, '请选择', 'Select'),
-                      onTap: _pickAssessmentScale,
-                    ),
-                  ],
                   _editorDivider(context),
                   _EditorActionRow(
                     label: _t(context, '日期选择', 'Task date'),
@@ -218,6 +225,114 @@ class _DoctorTaskEditorScreenState
         context.showCenteredNotice(error.toString());
       }
     }
+  }
+
+  Future<void> _pickTaskTemplate() async {
+    try {
+      final templates = await ref
+          .read(doctorRepositoryProvider)
+          .fetchTaskTemplates(status: 1);
+      if (!mounted) {
+        return;
+      }
+      if (templates.isEmpty) {
+        context.showCenteredNotice(
+          _t(
+            context,
+            '还没有可用任务模板，请先去模板页创建',
+            'No task templates available yet. Please create one first.',
+          ),
+        );
+        return;
+      }
+      final selected = await showModalBottomSheet<DoctorTaskTemplate>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (context) {
+          final palette = _DoctorTaskEditorPalette.of(context);
+          return Container(
+            decoration: BoxDecoration(
+              color: palette.sheetBackground,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+                children: [
+                  Text(
+                    _t(context, '任务模板', 'Task template'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: palette.primaryText,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  for (final template in templates)
+                    Material(
+                      color: Colors.transparent,
+                      child: ListTile(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        tileColor: _selectedTaskTemplate?.id == template.id
+                            ? palette.selectedChipBackground
+                            : palette.softBackground,
+                        title: Text(template.title),
+                        subtitle: Text(
+                          [
+                            _taskTypeLabel(context, template.taskType),
+                            if (template.stage.trim().isNotEmpty)
+                              template.stage,
+                            if (template.rewardScore > 0)
+                              _t(
+                                context,
+                                '${template.rewardScore} 分',
+                                '${template.rewardScore} pts',
+                              ),
+                          ].join(' · '),
+                        ),
+                        onTap: () => Navigator.of(context).pop(template),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+      if (selected != null && mounted) {
+        _applyTaskTemplate(selected);
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(error.toString());
+      }
+    }
+  }
+
+  void _applyTaskTemplate(DoctorTaskTemplate template) {
+    setState(() {
+      _selectedTaskTemplate = template;
+      _titleController.text = template.title;
+      _descriptionController.text = template.description;
+      _taskType = template.taskType.trim().isEmpty
+          ? 'daily'
+          : template.taskType.trim();
+      _startTime = _parseClockTime(template.startTime);
+      _endTime = _parseClockTime(template.endTime);
+      if (template.rewardScore > 0) {
+        _rewardController.text = '${template.rewardScore}';
+      }
+      if (_taskType != 'assessment') {
+        _selectedAssessmentScale = null;
+      }
+    });
   }
 
   Future<void> _pickTaskType() async {
@@ -355,6 +470,7 @@ class _DoctorTaskEditorScreenState
     if (selected != null && mounted) {
       setState(() {
         _selectedAssessmentScale = selected;
+        _taskType = 'assessment';
         if (_titleController.text.trim().isEmpty) {
           _titleController.text = selected.title;
         }
@@ -382,6 +498,11 @@ class _DoctorTaskEditorScreenState
 
     setState(() => _saving = true);
     try {
+      final source = _selectedAssessmentScale != null
+          ? 'assessment'
+          : (_selectedTaskTemplate != null ? 'template' : 'manual');
+      final sourceId =
+          _selectedAssessmentScale?.id ?? _selectedTaskTemplate?.id ?? '';
       await ref
           .read(doctorRepositoryProvider)
           .saveDailyTask(
@@ -394,10 +515,8 @@ class _DoctorTaskEditorScreenState
             title: _titleController.text,
             description: _descriptionController.text,
             taskType: _taskType,
-            source: _taskType == 'assessment' ? 'assessment' : 'manual',
-            sourceId: _taskType == 'assessment'
-                ? (_selectedAssessmentScale?.id ?? '')
-                : '',
+            source: source,
+            sourceId: sourceId,
             attachments: _selectedAttachments,
             pointsReward: int.tryParse(_rewardController.text.trim()) ?? 20,
           );
@@ -738,6 +857,24 @@ String _timeValue(TimeOfDay? value) {
 DateTime? _parseDate(String value) {
   final parsed = DateTime.tryParse(value.trim());
   return parsed;
+}
+
+TimeOfDay? _parseClockTime(String value) {
+  final parts = value.trim().split(':');
+  if (parts.length < 2) {
+    return null;
+  }
+  final hour = int.tryParse(parts[0]);
+  final minute = int.tryParse(parts[1]);
+  if (hour == null ||
+      minute == null ||
+      hour < 0 ||
+      hour > 23 ||
+      minute < 0 ||
+      minute > 59) {
+    return null;
+  }
+  return TimeOfDay(hour: hour, minute: minute);
 }
 
 String _attachmentSummary(BuildContext context, List<String> attachments) {

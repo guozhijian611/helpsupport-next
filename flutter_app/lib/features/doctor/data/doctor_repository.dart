@@ -163,6 +163,22 @@ class DoctorRepository {
     return plan;
   }
 
+  Future<void> deleteTreatmentPlan({
+    required int memberId,
+    required int id,
+  }) async {
+    await _apiClient.postApi<Map<String, dynamic>>(
+      '/app/help/doctor/treatment-plan/delete',
+      data: {'member_id': memberId, 'id': id},
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return value;
+        }
+        return const {};
+      },
+    );
+  }
+
   Future<TreatmentStage> saveTreatmentStage({
     required int memberId,
     required int planId,
