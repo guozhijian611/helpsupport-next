@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart' hide MaterialPage;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:xml/xml.dart';
 
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
@@ -772,8 +773,12 @@ class _MusicDetailOverviewCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = _MaterialDetailPalette.of(context);
-    final overviewText = item.contentText.trim().isNotEmpty
-        ? item.contentText.trim()
+    final overviewText = _materialRichTextToPlainText(item.contentText);
+    final summaryText = _materialRichTextToPlainText(item.summary);
+    final displayText = overviewText.isNotEmpty
+        ? overviewText
+        : summaryText.isNotEmpty
+        ? summaryText
         : item.summary.trim().isNotEmpty
         ? item.summary.trim()
         : _t(
@@ -801,7 +806,7 @@ class _MusicDetailOverviewCard extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           SelectableText(
-            overviewText,
+            displayText,
             style: TextStyle(
               color: palette.bodyText,
               fontSize: 15,
@@ -1099,13 +1104,18 @@ class _MaterialHero extends ConsumerWidget {
                   size: 20,
                 ),
               ),
-              const Spacer(),
-              Text(
-                item.createTime,
-                style: TextStyle(
-                  color: palette.secondaryText,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  item.createTime,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: palette.secondaryText,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -1199,6 +1209,8 @@ class _MaterialContentSection extends ConsumerWidget {
     final palette = _MaterialDetailPalette.of(context);
     final apiClient = ref.watch(apiClientProvider);
     final contentUrl = apiClient.resolveUrl(item.contentUrl);
+    final overviewText = _materialRichTextToPlainText(item.contentText);
+    final summaryText = _materialRichTextToPlainText(item.summary);
     final isGame =
         item.materialType == 'entertainment' && item.mediaType == 'link';
     return Container(
@@ -1221,9 +1233,9 @@ class _MaterialContentSection extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          if (item.contentText.isNotEmpty)
+          if (overviewText.isNotEmpty)
             SelectableText(
-              item.contentText,
+              overviewText,
               style: TextStyle(
                 color: palette.bodyText,
                 fontSize: 15,
@@ -1232,7 +1244,9 @@ class _MaterialContentSection extends ConsumerWidget {
             )
           else
             Text(
-              item.summary.isNotEmpty
+              summaryText.isNotEmpty
+                  ? summaryText
+                  : item.summary.isNotEmpty
                   ? item.summary
                   : _t(
                       context,
@@ -1782,6 +1796,66 @@ class _CommentEmptyState extends StatelessWidget {
       ),
     );
   }
+}
+
+String _materialRichTextToPlainText(String source) {
+  final normalized = source
+      .trim()
+      .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+      .replaceAll(RegExp(r'&nbsp;', caseSensitive: false), ' ');
+  if (normalized.isEmpty) {
+    return '';
+  }
+  try {
+    final document = XmlDocument.parse('<root>$normalized</root>');
+    final text = document.rootElement.descendants
+        .whereType<XmlText>()
+        .map((node) => node.value)
+        .join('\n');
+    return _compactMaterialText(text);
+  } on Object {
+    return _compactMaterialText(
+      _decodeMaterialHtmlEntities(
+        normalized
+            .replaceAll(
+              RegExp(r'<script[\s\S]*?</script>', caseSensitive: false),
+              '',
+            )
+            .replaceAll(
+              RegExp(r'<style[\s\S]*?</style>', caseSensitive: false),
+              '',
+            )
+            .replaceAll(
+              RegExp(
+                r'</?(p|div|section|article|li|ul|ol|h[1-6])\b[^>]*>',
+                caseSensitive: false,
+              ),
+              '\n',
+            )
+            .replaceAll(RegExp(r'<[^>]+>'), ''),
+      ),
+    );
+  }
+}
+
+String _compactMaterialText(String source) {
+  return source
+      .replaceAll('\r', '\n')
+      .replaceAll(RegExp(r'[ \t\f\v]+'), ' ')
+      .replaceAll(RegExp(r' *\n *'), '\n')
+      .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+      .trim();
+}
+
+String _decodeMaterialHtmlEntities(String source) {
+  return source
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&apos;', "'");
 }
 
 String _mediaTitle(BuildContext context, String mediaType) {
