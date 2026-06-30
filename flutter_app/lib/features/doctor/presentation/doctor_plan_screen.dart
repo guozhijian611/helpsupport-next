@@ -587,18 +587,21 @@ class _CalendarButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _DoctorPlanPalette.of(context);
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Ink(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: palette.cardBackground,
-          border: Border.all(color: palette.outline),
-          borderRadius: BorderRadius.circular(12),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Ink(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: palette.cardBackground,
+            border: Border.all(color: palette.outline),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: palette.secondaryText),
         ),
-        child: Icon(icon, color: palette.secondaryText),
       ),
     );
   }
