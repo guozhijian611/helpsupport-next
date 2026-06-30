@@ -56,6 +56,7 @@ class _MaterialResourceScreenState
   String _cachePath = '';
   String _activeResourceUrl = '';
   String _resourceError = '';
+  List<String> _resourceImageUrls = const [];
   double _cacheProgress = 0;
   double _readingProgress = 0;
   bool _isCaching = false;
@@ -188,6 +189,7 @@ class _MaterialResourceScreenState
       final content = _textContent.trim().isNotEmpty
           ? _textContent
           : item.contentText;
+      final plainContent = _richTextToPlainText(content);
       if (content.trim().isEmpty) {
         return _CenteredResourceMessage(
           text: _t(context, '暂无可阅读内容', 'No readable content'),
@@ -196,14 +198,29 @@ class _MaterialResourceScreenState
       return SingleChildScrollView(
         controller: _scrollController,
         padding: const EdgeInsets.fromLTRB(22, 18, 22, 36),
-        child: SelectableText(
-          content,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface,
-            fontSize: 17,
-            height: 1.8,
-            fontWeight: FontWeight.w500,
-          ),
+        child: _ReadableContentView(
+          text: plainContent,
+          imageUrls: _resourceImageUrls,
+          emptyText: _t(context, '暂无可阅读内容', 'No readable content'),
+        ),
+      );
+    }
+
+    if (_isImageResource(item)) {
+      final urls = _resourceImageUrls;
+      if (urls.isEmpty) {
+        return _CenteredResourceMessage(
+          text: _t(context, '暂无图片资源', 'No image resource'),
+        );
+      }
+      return SingleChildScrollView(
+        controller: _scrollController,
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
+        child: _ReadableContentView(
+          text: _richTextToPlainText(item.contentText),
+          imageUrls: urls,
+          emptyText: _t(context, '暂无图片资源', 'No image resource'),
+          imageOnly: true,
         ),
       );
     }
@@ -267,6 +284,32 @@ class _MaterialResourceScreenState
       );
     }
 
+    if (_shouldRenderInlineContent(item)) {
+      final text = _richTextToPlainText(item.contentText);
+      return SingleChildScrollView(
+        controller: _scrollController,
+        padding: const EdgeInsets.fromLTRB(22, 18, 22, 36),
+        child: _ReadableContentView(
+          text: text,
+          imageUrls: _resourceImageUrls,
+          emptyText: _t(context, '暂无可阅读内容', 'No readable content'),
+        ),
+      );
+    }
+
+    if (_resourceImageUrls.isNotEmpty) {
+      return SingleChildScrollView(
+        controller: _scrollController,
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
+        child: _ReadableContentView(
+          text: _richTextToPlainText(item.contentText),
+          imageUrls: _resourceImageUrls,
+          emptyText: _t(context, '暂无图片资源', 'No image resource'),
+          imageOnly: true,
+        ),
+      );
+    }
+
     final webController = _webViewController;
     if (webController == null) {
       return _ResourceLoading(text: _t(context, '正在打开游戏', 'Opening game'));
@@ -295,6 +338,7 @@ class _MaterialResourceScreenState
     _cachePath = '';
     _pdfUri = null;
     _resourceError = '';
+    _resourceImageUrls = _resolveMaterialImageUrls(item, resourceUrl);
     _cacheProgress = 0;
     _isCaching = false;
     _isLoadingText = false;
@@ -314,6 +358,9 @@ class _MaterialResourceScreenState
         await _prepareVideoResource(item, resourceUrl);
       } else if (_isAudioResource(item)) {
         await _prepareAudioResource(item, resourceUrl);
+      } else if (_shouldRenderInlineContent(item) ||
+          _resourceImageUrls.isNotEmpty) {
+        _isPreparingResource = false;
       } else {
         await _prepareWebResource(resourceUrl);
       }
@@ -365,6 +412,7 @@ class _MaterialResourceScreenState
     }
     setState(() {
       _textContent = content;
+      _resourceImageUrls = _resolveMaterialImageUrls(item, resourceUrl);
       _isLoadingText = false;
       _isPreparingResource = false;
     });
@@ -958,6 +1006,112 @@ class _MaterialResourceScreenState
         .join('\n');
   }
 
+  String _richTextToPlainText(String source) {
+    final normalized = source
+        .trim()
+        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'&nbsp;', caseSensitive: false), ' ');
+    if (normalized.isEmpty) {
+      return '';
+    }
+    try {
+      final document = XmlDocument.parse('<root>$normalized</root>');
+      final text = document.rootElement.descendants
+          .whereType<XmlText>()
+          .map((node) => node.value)
+          .join('\n');
+      return _compactText(_decodeHtmlEntities(text));
+    } on Object {
+      return _compactText(
+        _decodeHtmlEntities(
+          normalized
+              .replaceAll(
+                RegExp(r'<script[\s\S]*?</script>', caseSensitive: false),
+                '',
+              )
+              .replaceAll(
+                RegExp(r'<style[\s\S]*?</style>', caseSensitive: false),
+                '',
+              )
+              .replaceAll(
+                RegExp(
+                  r'</?(p|div|section|article|li|ul|ol|h[1-6])\b[^>]*>',
+                  caseSensitive: false,
+                ),
+                '\n',
+              )
+              .replaceAll(RegExp(r'<img\b[^>]*>', caseSensitive: false), '\n')
+              .replaceAll(RegExp(r'<[^>]+>'), ''),
+        ),
+      );
+    }
+  }
+
+  String _decodeHtmlEntities(String source) {
+    return source
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+        .replaceAll('&apos;', "'");
+  }
+
+  List<String> _resolveMaterialImageUrls(
+    MaterialItem item,
+    String resourceUrl,
+  ) {
+    final urls = <String>[];
+    void addUrl(String value) {
+      final resolved = _apiClient.resolveUrl(_decodeHtmlEntities(value).trim());
+      if (resolved.isNotEmpty && !urls.contains(resolved)) {
+        urls.add(resolved);
+      }
+    }
+
+    if (_isImageUrl(resourceUrl) || _isImageResource(item)) {
+      addUrl(resourceUrl);
+    }
+    final coverUrl = _apiClient.resolveUrl(item.coverUrl);
+    if (_isImageResource(item) && coverUrl.isNotEmpty) {
+      addUrl(coverUrl);
+    }
+    for (final match in RegExp(
+      r'''<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>''',
+      caseSensitive: false,
+    ).allMatches(item.contentText)) {
+      addUrl(match.group(1) ?? '');
+    }
+    return urls;
+  }
+
+  bool _shouldRenderInlineContent(MaterialItem item) {
+    final type = item.mediaType.trim().toLowerCase();
+    if (type == 'link' || type == 'game') {
+      return false;
+    }
+    if (_isPdfResource(item) ||
+        _isVideoResource(item) ||
+        _isAudioResource(item)) {
+      return false;
+    }
+    final text = _richTextToPlainText(item.contentText);
+    return text.isNotEmpty ||
+        _extractInlineImageSources(item.contentText).isNotEmpty;
+  }
+
+  List<String> _extractInlineImageSources(String source) {
+    return RegExp(
+          r'''<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>''',
+          caseSensitive: false,
+        )
+        .allMatches(source)
+        .map((match) => match.group(1) ?? '')
+        .where((url) => url.trim().isNotEmpty)
+        .toList(growable: false);
+  }
+
   bool _isBookReader(MaterialItem? item) {
     if (item == null) {
       return false;
@@ -983,6 +1137,214 @@ class _MaterialResourceScreenState
     final type = item.mediaType.trim().toLowerCase();
     return type == 'audio' || type == 'mp3';
   }
+
+  bool _isImageResource(MaterialItem item) {
+    final type = item.mediaType.trim().toLowerCase();
+    return type == 'image' ||
+        type == 'photo' ||
+        type == 'picture' ||
+        type == 'jpg' ||
+        type == 'jpeg' ||
+        type == 'png' ||
+        type == 'gif' ||
+        type == 'webp';
+  }
+
+  bool _isImageUrl(String value) {
+    final path = Uri.tryParse(value)?.path.toLowerCase() ?? value.toLowerCase();
+    return path.endsWith('.jpg') ||
+        path.endsWith('.jpeg') ||
+        path.endsWith('.png') ||
+        path.endsWith('.gif') ||
+        path.endsWith('.webp');
+  }
+}
+
+class _ReadableContentView extends StatelessWidget {
+  const _ReadableContentView({
+    required this.text,
+    required this.imageUrls,
+    required this.emptyText,
+    this.imageOnly = false,
+  });
+
+  final String text;
+  final List<String> imageUrls;
+  final String emptyText;
+  final bool imageOnly;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final hasText = text.trim().isNotEmpty && !imageOnly;
+    if (imageUrls.isEmpty && !hasText) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 80),
+          child: Text(
+            emptyText,
+            style: TextStyle(
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < imageUrls.length; index++) ...[
+          _ReadableImage(
+            url: imageUrls[index],
+            index: index,
+            total: imageUrls.length,
+          ),
+          if (index != imageUrls.length - 1) const SizedBox(height: 14),
+        ],
+        if (hasText && imageUrls.isNotEmpty) const SizedBox(height: 22),
+        if (hasText)
+          SelectableText(
+            text,
+            style: TextStyle(
+              color: scheme.onSurface,
+              fontSize: 17,
+              height: 1.8,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ReadableImage extends StatelessWidget {
+  const _ReadableImage({
+    required this.url,
+    required this.index,
+    required this.total,
+  });
+
+  final String url;
+  final int index;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: () => _openResourceImagePreview(context, url),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(color: scheme.surfaceContainerHighest),
+              child: Image.network(
+                url,
+                width: double.infinity,
+                fit: BoxFit.contain,
+                loadingBuilder: (_, child, loadingProgress) =>
+                    loadingProgress == null
+                    ? child
+                    : SizedBox(
+                        height: 220,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                errorBuilder: (_, _, _) => SizedBox(
+                  height: 220,
+                  child: Center(
+                    child: Icon(
+                      Icons.broken_image_outlined,
+                      color: scheme.onSurfaceVariant,
+                      size: 42,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (total > 1)
+              Positioned(
+                right: 10,
+                top: 10,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.52),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    child: Text(
+                      '${index + 1}/$total',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void _openResourceImagePreview(BuildContext context, String imageUrl) {
+  showDialog<void>(
+    context: context,
+    barrierColor: Colors.black.withValues(alpha: 0.88),
+    builder: (dialogContext) {
+      return Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: SafeArea(
+          child: Stack(
+            children: [
+              Center(
+                child: InteractiveViewer(
+                  minScale: 1,
+                  maxScale: 4,
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const Icon(
+                      Icons.broken_image_outlined,
+                      color: Colors.white70,
+                      size: 56,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: IconButton.filled(
+                  tooltip: _t(context, '关闭', 'Close'),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white.withValues(alpha: 0.18),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }
 
 class _ResourceScaffold extends StatelessWidget {

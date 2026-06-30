@@ -1015,19 +1015,22 @@ class _MaterialHero extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (url.isNotEmpty)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: Image.network(
-                url,
-                height: 188,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                loadingBuilder: (_, child, loadingProgress) =>
-                    loadingProgress == null
-                    ? child
-                    : const _MaterialDetailImageLoadingShell(),
-                errorBuilder: (_, _, _) =>
-                    const _MaterialDetailImageLoadingShell(),
+            GestureDetector(
+              onTap: () => _openMaterialImagePreview(context, url),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Image.network(
+                  url,
+                  height: 188,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (_, child, loadingProgress) =>
+                      loadingProgress == null
+                      ? child
+                      : const _MaterialDetailImageLoadingShell(),
+                  errorBuilder: (_, _, _) =>
+                      const _MaterialDetailImageLoadingShell(),
+                ),
               ),
             ),
           if (url.isNotEmpty) const SizedBox(height: 16),
@@ -1067,50 +1070,55 @@ class _MaterialHero extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 16),
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _ActionStatButton(
-                icon: item.isLiked
-                    ? Icons.thumb_up_alt_rounded
-                    : Icons.thumb_up_alt_outlined,
-                label: '${item.likeCount}',
-                onTap: () => _toggleLike(context, ref),
-                active: item.isLiked,
+              Row(
+                children: [
+                  _ActionStatButton(
+                    icon: item.isLiked
+                        ? Icons.thumb_up_alt_rounded
+                        : Icons.thumb_up_alt_outlined,
+                    label: '${item.likeCount}',
+                    onTap: () => _toggleLike(context, ref),
+                    active: item.isLiked,
+                  ),
+                  const SizedBox(width: 10),
+                  _ActionStatButton(
+                    icon: item.isCollected
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_border_rounded,
+                    label: '${item.collectCount}',
+                    onTap: () => _toggleCollect(context, ref),
+                    active: item.isCollected,
+                  ),
+                  const SizedBox(width: 10),
+                  _ActionStatButton(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    label: '${item.commentCount}',
+                    onTap: null,
+                    active: false,
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: _t(context, '举报素材', 'Report material'),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => _reportMaterial(context, ref),
+                    icon: Icon(
+                      Icons.flag_outlined,
+                      color: palette.secondaryText,
+                      size: 20,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              _ActionStatButton(
-                icon: item.isCollected
-                    ? Icons.bookmark_rounded
-                    : Icons.bookmark_border_rounded,
-                label: '${item.collectCount}',
-                onTap: () => _toggleCollect(context, ref),
-                active: item.isCollected,
-              ),
-              const SizedBox(width: 10),
-              _ActionStatButton(
-                icon: Icons.chat_bubble_outline_rounded,
-                label: '${item.commentCount}',
-                onTap: null,
-                active: false,
-              ),
-              const SizedBox(width: 10),
-              IconButton(
-                tooltip: _t(context, '举报素材', 'Report material'),
-                visualDensity: VisualDensity.compact,
-                onPressed: () => _reportMaterial(context, ref),
-                icon: Icon(
-                  Icons.flag_outlined,
-                  color: palette.secondaryText,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
                 child: Text(
                   item.createTime,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
                   style: TextStyle(
                     color: palette.secondaryText,
                     fontSize: 12,
@@ -1197,6 +1205,52 @@ class _MaterialHero extends ConsumerWidget {
       context.showCenteredNotice(error.toString());
     }
   }
+}
+
+void _openMaterialImagePreview(BuildContext context, String imageUrl) {
+  showDialog<void>(
+    context: context,
+    barrierColor: Colors.black.withValues(alpha: 0.88),
+    builder: (dialogContext) {
+      return Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: SafeArea(
+          child: Stack(
+            children: [
+              Center(
+                child: InteractiveViewer(
+                  minScale: 1,
+                  maxScale: 4,
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const Icon(
+                      Icons.broken_image_outlined,
+                      color: Colors.white70,
+                      size: 56,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: IconButton.filled(
+                  tooltip: _t(context, '关闭', 'Close'),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white.withValues(alpha: 0.18),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }
 
 class _MaterialContentSection extends ConsumerWidget {
