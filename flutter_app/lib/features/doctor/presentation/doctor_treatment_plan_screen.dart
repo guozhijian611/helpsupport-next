@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/notifications/centered_notice.dart';
+import '../../../core/providers/app_providers.dart';
 import '../../plan/data/plan_models.dart';
 import '../application/doctor_controller.dart';
 import '../data/doctor_models.dart';
@@ -424,33 +426,11 @@ class _DoctorTreatmentPlanScreenState
                 ),
                 const SizedBox(height: 18),
                 for (final patient in patients)
-                  Material(
-                    color: Colors.transparent,
-                    child: ListTile(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      tileColor: patient.memberId == _selectedMemberId
-                          ? palette.selectedSoftBackground
-                          : palette.softBackground,
-                      title: Text(patient.displayName),
-                      subtitle: Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${_t(context, '年龄', 'Age')} ${patient.ageLabel} · ${_t(context, '性别', 'Gender')} ${patient.genderLabel}',
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _patientPlanSummary(context, patient),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: _PatientPickerTile(
+                      patient: patient,
+                      selected: patient.memberId == _selectedMemberId,
                       onTap: () => Navigator.of(context).pop(patient.memberId),
                     ),
                   ),
@@ -1875,6 +1855,214 @@ class _LoadingCard extends StatelessWidget {
   }
 }
 
+class _PatientPickerTile extends ConsumerWidget {
+  const _PatientPickerTile({
+    required this.patient,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final DoctorPatient patient;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
+    final avatarUrl = ref.watch(apiClientProvider).resolveUrl(patient.avatar);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Ink(
+          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+          decoration: BoxDecoration(
+            color: selected
+                ? palette.selectedSoftBackground
+                : palette.softBackground,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: selected
+                  ? palette.brandPrimary.withValues(alpha: 0.28)
+                  : Colors.transparent,
+            ),
+          ),
+          child: Row(
+            children: [
+              _PatientPickerAvatar(avatarUrl: avatarUrl, selected: selected),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      patient.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: selected
+                            ? palette.primaryText
+                            : palette.primaryText.withValues(alpha: 0.92),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      '${_t(context, '年龄', 'Age')} ${patient.ageLabel} · ${_t(context, '性别', 'Gender')} ${patient.genderLabel}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: selected
+                            ? palette.primaryText.withValues(alpha: 0.82)
+                            : palette.secondaryText,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              _PatientPlanSideInfo(patient: patient, selected: selected),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PatientPickerAvatar extends StatelessWidget {
+  const _PatientPickerAvatar({required this.avatarUrl, required this.selected});
+
+  final String avatarUrl;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
+    return Container(
+      width: 52,
+      height: 52,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: selected
+            ? palette.brandPrimary.withValues(alpha: 0.18)
+            : palette.avatarBackground,
+      ),
+      child: ClipOval(
+        child: avatarUrl.trim().isNotEmpty
+            ? CachedRemoteImage(
+                avatarUrl,
+                width: 48,
+                height: 48,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const _PatientAvatarFallback(),
+              )
+            : const _PatientAvatarFallback(),
+      ),
+    );
+  }
+}
+
+class _PatientAvatarFallback extends StatelessWidget {
+  const _PatientAvatarFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
+    return Container(
+      color: palette.avatarBackground,
+      alignment: Alignment.center,
+      child: Icon(Icons.person_rounded, color: palette.brandPrimary, size: 26),
+    );
+  }
+}
+
+class _PatientPlanSideInfo extends StatelessWidget {
+  const _PatientPlanSideInfo({required this.patient, required this.selected});
+
+  final DoctorPatient patient;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorTreatmentPlanPalette.of(context);
+    final hasPlan = patient.currentPlanId > 0;
+    return SizedBox(
+      width: 122,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: selected
+              ? palette.sheetBackground.withValues(alpha: 0.32)
+              : palette.sheetBackground.withValues(alpha: 0.58),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                hasPlan
+                    ? _patientCurrentStageLabel(context, patient)
+                    : _t(context, '暂无计划', 'No plan'),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: selected ? palette.primaryText : palette.secondaryText,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  height: 1.18,
+                ),
+              ),
+              if (hasPlan) ...[
+                const SizedBox(height: 7),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.check_circle_rounded,
+                      size: 14,
+                      color: palette.brandPrimary,
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        _patientTaskProgressLabel(context, patient),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          color: selected
+                              ? palette.primaryText.withValues(alpha: 0.82)
+                              : palette.mutedText,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          height: 1.15,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _DoctorTreatmentPlanPalette {
   const _DoctorTreatmentPlanPalette({
     required this.pageBackground,
@@ -1888,6 +2076,8 @@ class _DoctorTreatmentPlanPalette {
     required this.outline,
     required this.selectedChipBackground,
     required this.selectedChipText,
+    required this.avatarBackground,
+    required this.brandPrimary,
   });
 
   factory _DoctorTreatmentPlanPalette.of(BuildContext context) {
@@ -1913,6 +2103,10 @@ class _DoctorTreatmentPlanPalette {
       selectedChipText: isDark
           ? scheme.onPrimaryContainer
           : const Color(0xFF5A81DA),
+      avatarBackground: isDark
+          ? scheme.primaryContainer.withValues(alpha: 0.26)
+          : const Color(0xFFFFE6E1),
+      brandPrimary: isDark ? const Color(0xFFFFB4A8) : const Color(0xFFFF9585),
     );
   }
 
@@ -1927,6 +2121,8 @@ class _DoctorTreatmentPlanPalette {
   final Color outline;
   final Color selectedChipBackground;
   final Color selectedChipText;
+  final Color avatarBackground;
+  final Color brandPrimary;
 }
 
 String _t(BuildContext context, String zh, String en) {
@@ -1944,6 +2140,21 @@ String _patientPlanSummary(BuildContext context, DoctorPatient patient) {
     context,
     '当前阶段 $stageName · 任务 ${patient.currentStageDoneCount}/${patient.currentStageTaskCount}',
     'Stage $stageName · Tasks ${patient.currentStageDoneCount}/${patient.currentStageTaskCount}',
+  );
+}
+
+String _patientCurrentStageLabel(BuildContext context, DoctorPatient patient) {
+  final stageName = patient.currentStageName.trim().isEmpty
+      ? _t(context, '未配置阶段', 'No stage')
+      : patient.currentStageName.trim();
+  return _t(context, '当前阶段 $stageName', 'Stage $stageName');
+}
+
+String _patientTaskProgressLabel(BuildContext context, DoctorPatient patient) {
+  return _t(
+    context,
+    '任务 ${patient.currentStageDoneCount}/${patient.currentStageTaskCount}',
+    'Tasks ${patient.currentStageDoneCount}/${patient.currentStageTaskCount}',
   );
 }
 
