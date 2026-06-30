@@ -3242,7 +3242,14 @@ class HelpApiService
             $query->where('status', 1);
         }
 
-        return $query->order('doctor_id', 'asc')->order('sort', 'asc')->order('id', 'asc')->select()->toArray();
+        $items = $query->order('doctor_id', 'asc')->order('sort', 'asc')->order('id', 'asc')->select()->toArray();
+        foreach ($items as &$item) {
+            $item['reminder_rule'] = $this->decodeJsonArray($item['reminder_rule'] ?? null);
+            $item['attachments'] = $this->decodeJsonArray($item['attachments'] ?? null);
+        }
+        unset($item);
+
+        return $items;
     }
 
     public function saveDoctorTaskTemplateFolder(int $doctorId, array $data): array
@@ -3428,7 +3435,14 @@ class HelpApiService
             $query->where('status', (string) $params['status']);
         }
 
-        return $query->order('doctor_id', 'asc')->order('published_at', 'desc')->order('id', 'asc')->select()->toArray();
+        $items = $query->order('doctor_id', 'asc')->order('published_at', 'desc')->order('id', 'asc')->select()->toArray();
+        foreach ($items as &$item) {
+            $item['questions'] = $this->decodeJsonArray($item['questions'] ?? null);
+            $item['scoring_rule'] = $this->decodeJsonArray($item['scoring_rule'] ?? null);
+        }
+        unset($item);
+
+        return $items;
     }
 
     public function saveDoctorAssessmentScale(int $doctorId, array $data): array

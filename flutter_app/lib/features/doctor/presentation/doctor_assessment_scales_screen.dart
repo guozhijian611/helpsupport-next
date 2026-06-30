@@ -84,20 +84,27 @@ class _DoctorAssessmentScalesScreenState
                   }
                   return Column(
                     children: [
-                      for (final scale in items)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 14),
-                          child: _ScaleCard(
-                            scale: scale,
-                            draftMode: _status == 'draft',
-                            onTap: _status == 'draft' && scale.doctorId > 0
-                                ? () => _openEditor(scale)
-                                : null,
-                            onPublish: _status == 'draft' && scale.doctorId > 0
-                                ? () => _publishScale(scale)
-                                : null,
-                          ),
+                      for (final scale in items) ...[
+                        Builder(
+                          builder: (context) {
+                            final canEdit =
+                                _status == 'draft' && scale.doctorId > 0;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 14),
+                              child: _ScaleCard(
+                                scale: scale,
+                                draftMode: _status == 'draft',
+                                onTap: canEdit
+                                    ? () => _openEditor(scale)
+                                    : () => _openScaleDetail(scale),
+                                onPublish: canEdit
+                                    ? () => _publishScale(scale)
+                                    : null,
+                              ),
+                            );
+                          },
                         ),
+                      ],
                     ],
                   );
                 },
@@ -121,9 +128,22 @@ class _DoctorAssessmentScalesScreenState
       '/doctor/assessment-scales/editor',
       extra: scale,
     );
+    if (!mounted) {
+      return;
+    }
     if (changed == true) {
       ref.invalidate(doctorAssessmentScalesProvider);
     }
+  }
+
+  Future<void> _openScaleDetail(DoctorAssessmentScale scale) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _ScaleDetailSheet(scale: scale),
+    );
   }
 
   Future<void> _publishScale(DoctorAssessmentScale scale) async {
@@ -144,7 +164,7 @@ class _DoctorAssessmentScalesScreenState
         ],
       ),
     );
-    if (confirmed != true) {
+    if (confirmed != true || !mounted) {
       return;
     }
 
@@ -290,6 +310,300 @@ class _ScaleCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ScaleDetailSheet extends StatelessWidget {
+  const _ScaleDetailSheet({required this.scale});
+
+  final DoctorAssessmentScale scale;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorAssessmentScalesPalette.of(context);
+    return FractionallySizedBox(
+      heightFactor: 0.88,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: palette.pageBackground,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: palette.outline,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              scale.title,
+                              style: TextStyle(
+                                color: palette.primaryText,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              [
+                                _t(
+                                  context,
+                                  '${scale.questions.length} 题',
+                                  '${scale.questions.length} questions',
+                                ),
+                                _t(
+                                  context,
+                                  '总分 ${scale.totalScore}',
+                                  'Score ${scale.totalScore}',
+                                ),
+                                scale.stage,
+                              ].where((item) => item.isNotEmpty).join(' · '),
+                              style: TextStyle(
+                                color: palette.mutedText,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                  if (scale.description.trim().isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    Text(
+                      scale.description,
+                      style: TextStyle(
+                        color: palette.mutedText,
+                        fontSize: 15,
+                        height: 1.6,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  _DetailSectionTitle(
+                    title: _t(context, '题目', 'Questions'),
+                    count: scale.questions.length,
+                  ),
+                  const SizedBox(height: 10),
+                  if (scale.questions.isEmpty)
+                    _DetailEmptyText(
+                      text: _t(context, '暂无题目配置', 'No questions configured'),
+                    )
+                  else
+                    for (var index = 0; index < scale.questions.length; index++)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _QuestionDetailCard(
+                          index: index,
+                          question: scale.questions[index],
+                        ),
+                      ),
+                  const SizedBox(height: 8),
+                  _DetailSectionTitle(
+                    title: _t(context, '评分规则', 'Scoring rules'),
+                    count: scale.scoringRule.length,
+                  ),
+                  const SizedBox(height: 10),
+                  if (scale.scoringRule.isEmpty)
+                    _DetailEmptyText(
+                      text: _t(context, '暂无评分规则', 'No scoring rules'),
+                    )
+                  else
+                    for (final rule in scale.scoringRule)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _ScoreRuleCard(rule: rule),
+                      ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailSectionTitle extends StatelessWidget {
+  const _DetailSectionTitle({required this.title, required this.count});
+
+  final String title;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorAssessmentScalesPalette.of(context);
+    return Row(
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            color: palette.primaryText,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$count',
+          style: TextStyle(
+            color: palette.mutedText,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuestionDetailCard extends StatelessWidget {
+  const _QuestionDetailCard({required this.index, required this.question});
+
+  final int index;
+  final DoctorAssessmentQuestion question;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorAssessmentScalesPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${index + 1}. ${question.title}',
+            style: TextStyle(
+              color: palette.primaryText,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final option in question.options)
+                _OptionScoreChip(option: option),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OptionScoreChip extends StatelessWidget {
+  const _OptionScoreChip({required this.option});
+
+  final DoctorAssessmentOption option;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorAssessmentScalesPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: palette.cardBackground == Colors.white
+            ? const Color(0xFFF4F5F9)
+            : palette.outline.withValues(alpha: 0.28),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '${option.label} · ${option.score}',
+        style: const TextStyle(
+          color: Color(0xFF5A81DA),
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _ScoreRuleCard extends StatelessWidget {
+  const _ScoreRuleCard({required this.rule});
+
+  final DoctorAssessmentScoreRule rule;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorAssessmentScalesPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${rule.label} · ${rule.minScore}-${rule.maxScore}',
+            style: TextStyle(
+              color: palette.primaryText,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (rule.suggestion.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              rule.suggestion,
+              style: TextStyle(
+                color: palette.mutedText,
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailEmptyText extends StatelessWidget {
+  const _DetailEmptyText({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorAssessmentScalesPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Text(
+        text,
+        style: TextStyle(color: palette.mutedText, fontSize: 14),
       ),
     );
   }
