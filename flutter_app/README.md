@@ -10,7 +10,16 @@ cd ..
 ./run_app.sh
 ```
 
-`./run_app.sh` 会显示当前 Flutter 设备并让用户选择，然后在 `flutter_app/` 下执行 `flutter run -d <device id>`。API 基础地址写在 `flutter_app/lib/core/api/api_client.dart` 的 `ApiClient.apiBaseUrl` 常量里，默认值是 `http://10.0.0.6:8787`，后端 API 使用现有 `/app/help/...` 路由。
+`./run_app.sh` 会显示当前 Flutter 设备并让用户选择，然后在 `flutter_app/` 下执行 `flutter run -d <device id>`。脚本会在运行时把 Android SDK 的 `emulator`、`platform-tools` 和 `cmdline-tools/latest/bin` 加入 PATH；如果没有检测到 Android 设备，会自动执行 `flutter emulators --launch HelpSupport_API36` 并等待模拟器连接。
+
+API 基础地址写在 `flutter_app/lib/core/api/api_client.dart` 的 `ApiClient.apiBaseUrl` 常量里，默认值是 `http://10.0.0.6:8787`，后端 API 使用现有 `/app/help/...` 路由。
+
+如需切换默认 Android AVD 或关闭自动启动：
+
+```bash
+ANDROID_EMULATOR_ID=YourAvdName ./run_app.sh
+AUTO_LAUNCH_ANDROID_EMULATOR=0 ./run_app.sh
+```
 
 ## iOS 模拟器构建安装
 

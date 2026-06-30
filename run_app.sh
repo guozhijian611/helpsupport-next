@@ -4,6 +4,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FLUTTER_APP_DIR="${ROOT_DIR}/flutter_app"
 API_CONFIG_FILE="${FLUTTER_APP_DIR}/lib/core/api/api_client.dart"
+ANDROID_SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-${HOME}/Library/Android/sdk}}"
+ANDROID_EMULATOR_ID="${ANDROID_EMULATOR_ID:-HelpSupport_API36}"
+AUTO_LAUNCH_ANDROID_EMULATOR="${AUTO_LAUNCH_ANDROID_EMULATOR:-1}"
+ANDROID_EMULATOR_BOOT_TIMEOUT_SECONDS="${ANDROID_EMULATOR_BOOT_TIMEOUT_SECONDS:-180}"
 
 fail() {
   printf 'Error: %s\n' "$*" >&2
@@ -12,6 +16,26 @@ fail() {
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "$1 not found"
+}
+
+add_path_dir() {
+  local dir="$1"
+  [[ -d "${dir}" ]] || return
+  case ":${PATH}:" in
+    *":${dir}:"*) ;;
+    *) PATH="${dir}:${PATH}" ;;
+  esac
+}
+
+setup_android_sdk_path() {
+  [[ -d "${ANDROID_SDK_DIR}" ]] || return
+
+  export ANDROID_HOME="${ANDROID_SDK_DIR}"
+  export ANDROID_SDK_ROOT="${ANDROID_SDK_DIR}"
+  add_path_dir "${ANDROID_SDK_DIR}/emulator"
+  add_path_dir "${ANDROID_SDK_DIR}/platform-tools"
+  add_path_dir "${ANDROID_SDK_DIR}/cmdline-tools/latest/bin"
+  export PATH
 }
 
 print_flutter_run_help() {
@@ -25,6 +49,57 @@ Flutter 运行快捷键（应用启动成功后直接输入）：
   c  清屏
   q  退出并结束设备上的 App
 HELP
+}
+
+android_device_connected() {
+  command -v adb >/dev/null 2>&1 || return 1
+  adb devices | awk '
+    NR > 1 && $2 == "device" { found = 1 }
+    END { exit found ? 0 : 1 }
+  '
+}
+
+android_emulator_available() {
+  flutter emulators | awk -v id="${ANDROID_EMULATOR_ID}" '
+    $1 == id { found = 1 }
+    END { exit found ? 0 : 1 }
+  '
+}
+
+wait_for_android_device() {
+  local deadline=$((SECONDS + ANDROID_EMULATOR_BOOT_TIMEOUT_SECONDS))
+  while ((SECONDS < deadline)); do
+    if android_device_connected; then
+      return 0
+    fi
+    sleep 5
+  done
+
+  return 1
+}
+
+launch_android_emulator_if_needed() {
+  [[ "${AUTO_LAUNCH_ANDROID_EMULATOR}" == "1" ]] || return
+  command -v flutter >/dev/null 2>&1 || return
+  command -v adb >/dev/null 2>&1 || return
+  android_device_connected && return
+
+  if ! android_emulator_available; then
+    printf '未找到安卓模拟器 %s，跳过自动启动。\n' "${ANDROID_EMULATOR_ID}" >&2
+    return
+  fi
+
+  printf '未检测到已连接安卓设备，正在启动安卓模拟器：%s\n' "${ANDROID_EMULATOR_ID}" >&2
+  flutter emulators --launch "${ANDROID_EMULATOR_ID}" >/dev/null 2>&1 || {
+    printf '安卓模拟器启动命令失败，请手动执行：flutter emulators --launch %s\n' "${ANDROID_EMULATOR_ID}" >&2
+    return
+  }
+
+  if wait_for_android_device; then
+    printf '安卓模拟器已连接。\n' >&2
+  else
+    printf '安卓模拟器启动超时，稍后可重新执行 ./run_app.sh。\n' >&2
+  fi
 }
 
 manual_device_input() {
@@ -128,10 +203,12 @@ PY
 }
 
 main() {
+  setup_android_sdk_path
   require_command flutter
   [[ -d "${FLUTTER_APP_DIR}" ]] || fail "flutter_app directory not found"
 
   cd "${FLUTTER_APP_DIR}"
+  launch_android_emulator_if_needed
 
   local device_id api_base_url
   device_id="$(select_device)"
