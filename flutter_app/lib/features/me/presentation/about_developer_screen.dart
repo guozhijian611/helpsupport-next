@@ -434,7 +434,7 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
 
   Future<void> _pickFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         allowMultiple: false,
         withData: false,
       );
@@ -462,7 +462,7 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
 
   Future<void> _pickDirectory() async {
     try {
-      final directoryPath = await FilePicker.platform.getDirectoryPath();
+      final directoryPath = await FilePicker.getDirectoryPath();
       if (directoryPath == null || !mounted) {
         return;
       }

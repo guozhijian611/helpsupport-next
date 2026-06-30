@@ -263,7 +263,7 @@ SPEC CHECKSUMS:
   camera_avfoundation: 968a9a5323c79a99c166ad9d7866bfd2047b5a9b
   DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
   DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60
-  file_picker: 63fd4aa4f1d59f2ef7acb1e026c41a22a3170fdc
+  file_picker: a0560bc09d61de87f12d246fc47d2119e6ef37be
   Firebase: 7cc10425300768ec86292688af5cb228f0604bde
   firebase_core: 383e19b49a08df5d7a6cf5017616de6a357ed7af
   firebase_messaging: ab03d6090864c0fb8136521231df6a66cb13be49

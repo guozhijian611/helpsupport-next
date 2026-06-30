@@ -117,7 +117,7 @@ class _MaterialPrivateUploadScreenState
 
   Future<void> _pickFile() async {
     final option = _currentOption;
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       allowMultiple: false,
       allowedExtensions: option.extensions,
       type: FileType.custom,
