@@ -166,6 +166,7 @@ Route::group('/app/help', function () {
     Route::post('/appointment/cancel', [AppointmentController::class, 'cancel']);
 
     Route::get('/doctor/patients', [DoctorController::class, 'patients']);
+    Route::get('/doctor/patient/candidates', [DoctorController::class, 'patientCandidates']);
     Route::post('/doctor/patient/bind', [DoctorController::class, 'bindPatient']);
     Route::post('/doctor/patient/unbind', [DoctorController::class, 'unbindPatient']);
     Route::get('/doctor/patient/plans', [DoctorController::class, 'patientPlans']);

@@ -21,6 +21,20 @@ final doctorPatientsProvider = FutureProvider.autoDispose
           );
     });
 
+final doctorPatientCandidatesProvider = FutureProvider.autoDispose
+    .family<DoctorPage<DoctorPatient>, DoctorPatientCandidatesQuery>((
+      ref,
+      query,
+    ) {
+      return ref
+          .watch(doctorRepositoryProvider)
+          .searchPatientCandidates(
+            keyword: query.keyword,
+            page: query.page,
+            pageSize: query.pageSize,
+          );
+    });
+
 final doctorDailyTasksProvider = FutureProvider.autoDispose
     .family<PlanPage<DailyTask>, DoctorDailyTasksQuery>((ref, query) {
       return ref

@@ -612,38 +612,39 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
           ),
         ],
       ),
-      _SettingsGroup(
-        title: _t(context, '康复信息', 'Recovery'),
-        children: [
-          _SettingsNavRow(
-            title: _t(context, '康复目标', 'Recovery goal'),
-            value: _summaryOrFallback(
-              bundle.recoveryGoal,
-              context,
-              emptyZh: '待补充',
-              emptyEn: 'To complete',
+      if (!bundle.isDoctor)
+        _SettingsGroup(
+          title: _t(context, '康复信息', 'Recovery'),
+          children: [
+            _SettingsNavRow(
+              title: _t(context, '康复目标', 'Recovery goal'),
+              value: _summaryOrFallback(
+                bundle.recoveryGoal,
+                context,
+                emptyZh: '待补充',
+                emptyEn: 'To complete',
+              ),
+              onTap: () => _editRecoveryGoal(bundle),
             ),
-            onTap: () => _editRecoveryGoal(bundle),
-          ),
-          _SettingsNavRow(
-            title: _t(context, '重点触发', 'Key triggers'),
-            value: bundle.triggerTags.isEmpty
-                ? _t(context, '待补充', 'To complete')
-                : bundle.triggerTags.join(' / '),
-            onTap: () => _editTriggerTags(bundle),
-          ),
-          _SettingsNavRow(
-            title: _t(context, '专属回忆录资料', 'Memory profile'),
-            value: _summaryOrFallback(
-              bundle.bio,
-              context,
-              emptyZh: '待补充',
-              emptyEn: 'To complete',
+            _SettingsNavRow(
+              title: _t(context, '重点触发', 'Key triggers'),
+              value: bundle.triggerTags.isEmpty
+                  ? _t(context, '待补充', 'To complete')
+                  : bundle.triggerTags.join(' / '),
+              onTap: () => _editTriggerTags(bundle),
             ),
-            onTap: () => _editBio(bundle),
-          ),
-        ],
-      ),
+            _SettingsNavRow(
+              title: _t(context, '专属回忆录资料', 'Memory profile'),
+              value: _summaryOrFallback(
+                bundle.bio,
+                context,
+                emptyZh: '待补充',
+                emptyEn: 'To complete',
+              ),
+              onTap: () => _editBio(bundle),
+            ),
+          ],
+        ),
     ];
   }
 

@@ -46,6 +46,8 @@ class MeProfileBundle {
 
   String get birthday => _firstText([profile['birthday']]);
 
+  bool get isDoctor => currentRole == 'doctor';
+
   String get recoveryGoal => _firstText([profile['recovery_goal']]);
 
   String get bio => _firstText([profile['bio']]);

@@ -2867,6 +2867,58 @@ class HelpApiService
         }, $params);
     }
 
+    public function doctorPatientCandidates(int $doctorId, array $params): array
+    {
+        $this->assertApprovedDoctor($doctorId);
+
+        return $this->paginate(function () use ($doctorId, $params) {
+            $query = Db::table('sa_member')
+                ->alias('m')
+                ->leftJoin('sa_help_member_profile hp', 'hp.member_id = m.id AND hp.delete_time IS NULL')
+                ->leftJoin(
+                    'sa_doctor_patient dp',
+                    'dp.member_id = m.id AND dp.doctor_id = ' . $doctorId . ' AND dp.delete_time IS NULL'
+                )
+                ->where('m.id', '<>', $doctorId)
+                ->where('m.status', 1)
+                ->whereNull('m.delete_time')
+                ->where('hp.member_role', 'patient')
+                ->where('hp.status', 1)
+                ->field(
+                    'COALESCE(dp.id, 0) AS id, '
+                    . $doctorId . ' AS doctor_id, '
+                    . 'm.id AS member_id, COALESCE(dp.status, 0) AS status, '
+                    . 'COALESCE(dp.bind_source, \'\') AS bind_source, '
+                    . 'COALESCE(dp.bind_time, \'\') AS bind_time, '
+                    . 'COALESCE(dp.unbind_time, \'\') AS unbind_time, '
+                    . 'm.nickname, m.avatar, hp.gender, hp.birthday, hp.recovery_goal, hp.locale, hp.timezone, '
+                    . 'CASE WHEN dp.id IS NOT NULL AND dp.status = 1 THEN 1 ELSE 0 END AS is_bound'
+                );
+
+            $keyword = trim((string) ($params['keyword'] ?? ''));
+            if ($keyword !== '') {
+                $like = '%' . $keyword . '%';
+                $query->where(function ($query) use ($keyword, $like) {
+                    if (ctype_digit($keyword)) {
+                        $query->where('m.id', (int) $keyword)
+                            ->whereOr('m.mobile', 'like', $like)
+                            ->whereOr('m.nickname', 'like', $like)
+                            ->whereOr('m.username', 'like', $like)
+                            ->whereOr('hp.recovery_goal', 'like', $like);
+
+                        return;
+                    }
+                    $query->where('m.nickname', 'like', $like)
+                        ->whereOr('m.username', 'like', $like)
+                        ->whereOr('hp.recovery_goal', 'like', $like);
+                });
+            }
+
+            return $query->orderRaw('CASE WHEN dp.id IS NOT NULL AND dp.status = 1 THEN 0 ELSE 1 END ASC')
+                ->order('m.id', 'desc');
+        }, $params);
+    }
+
     public function bindDoctorPatient(int $doctorId, array $data): array
     {
         $this->assertApprovedDoctor($doctorId);

@@ -53,6 +53,24 @@ class DoctorRepository {
     return patient;
   }
 
+  Future<DoctorPage<DoctorPatient>> searchPatientCandidates({
+    String keyword = '',
+    int page = 1,
+    int pageSize = 10,
+  }) async {
+    final result = await _apiClient.getApi<DoctorPage<DoctorPatient>>(
+      '/app/help/doctor/patient/candidates',
+      queryParameters: {
+        if (keyword.trim().isNotEmpty) 'keyword': keyword.trim(),
+        'page': page,
+        'page_size': pageSize,
+      },
+      decode: (value) => DoctorPage.fromJson(value, DoctorPatient.fromJson),
+    );
+    return result.data ??
+        const DoctorPage(list: [], total: 0, page: 1, pageSize: 10);
+  }
+
   Future<void> unbindPatient(int memberId) async {
     await _apiClient.postApi<Map<String, dynamic>>(
       '/app/help/doctor/patient/unbind',

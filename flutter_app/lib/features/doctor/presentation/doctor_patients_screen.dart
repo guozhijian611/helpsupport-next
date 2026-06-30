@@ -16,8 +16,11 @@ class DoctorPatientsScreen extends ConsumerStatefulWidget {
 }
 
 class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
+  static const _pageSize = 10;
+
   final _searchController = TextEditingController();
   String _keyword = '';
+  int _page = 1;
 
   @override
   void dispose() {
@@ -28,7 +31,11 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = _DoctorPatientsPalette.of(context);
-    final query = DoctorPatientsQuery(keyword: _keyword);
+    final query = DoctorPatientsQuery(
+      keyword: _keyword,
+      page: _page,
+      pageSize: _pageSize,
+    );
     final patients = ref.watch(doctorPatientsProvider(query));
 
     return Scaffold(
@@ -57,8 +64,10 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
             children: [
               _SearchBar(
                 controller: _searchController,
-                onSearch: () =>
-                    setState(() => _keyword = _searchController.text.trim()),
+                onSearch: () => setState(() {
+                  _keyword = _searchController.text.trim();
+                  _page = 1;
+                }),
               ),
               const SizedBox(height: 18),
               patients.when(
@@ -88,6 +97,17 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
                             onDelete: () => _unbindPatient(patient),
                           ),
                         ),
+                      _PatientPager(
+                        page: page.page,
+                        pageSize: page.pageSize,
+                        total: page.total,
+                        onPrev: page.page > 1
+                            ? () => setState(() => _page -= 1)
+                            : null,
+                        onNext: page.page * page.pageSize < page.total
+                            ? () => setState(() => _page += 1)
+                            : null,
+                      ),
                     ],
                   );
                 },
@@ -166,6 +186,7 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
     try {
       await ref.read(doctorRepositoryProvider).bindPatient(memberId);
       ref.invalidate(doctorPatientsProvider);
+      ref.invalidate(doctorPatientCandidatesProvider);
       if (mounted) {
         context.showCenteredNotice(_t(context, '患者已添加', 'Patient added'));
       }
@@ -177,15 +198,19 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
   }
 }
 
-class _AddPatientDialog extends StatefulWidget {
+class _AddPatientDialog extends ConsumerStatefulWidget {
   const _AddPatientDialog();
 
   @override
-  State<_AddPatientDialog> createState() => _AddPatientDialogState();
+  ConsumerState<_AddPatientDialog> createState() => _AddPatientDialogState();
 }
 
-class _AddPatientDialogState extends State<_AddPatientDialog> {
+class _AddPatientDialogState extends ConsumerState<_AddPatientDialog> {
+  static const _pageSize = 6;
+
   final _controller = TextEditingController();
+  String _keyword = '';
+  int _page = 1;
 
   @override
   void dispose() {
@@ -195,13 +220,104 @@ class _AddPatientDialogState extends State<_AddPatientDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = _DoctorPatientsPalette.of(context);
+    final contentHeight = (MediaQuery.sizeOf(context).height * 0.56)
+        .clamp(320.0, 460.0)
+        .toDouble();
+    final query = DoctorPatientCandidatesQuery(
+      keyword: _keyword,
+      page: _page,
+      pageSize: _pageSize,
+    );
+    final candidates = ref.watch(doctorPatientCandidatesProvider(query));
+
     return AlertDialog(
       title: Text(_t(context, '添加患者', 'Add patient')),
-      content: TextField(
-        controller: _controller,
-        keyboardType: TextInputType.number,
-        decoration: InputDecoration(
-          hintText: _t(context, '输入患者ID', 'Enter patient ID'),
+      content: SizedBox(
+        width: 360,
+        height: contentHeight,
+        child: Column(
+          children: [
+            TextField(
+              controller: _controller,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _search(),
+              decoration: InputDecoration(
+                hintText: _t(
+                  context,
+                  '搜索患者ID、昵称或用户名',
+                  'Search patient ID, nickname, or username',
+                ),
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: IconButton(
+                  onPressed: _search,
+                  icon: const Icon(Icons.arrow_forward_rounded),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Flexible(
+              child: candidates.when(
+                data: (page) {
+                  if (page.list.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Text(
+                        _t(context, '没有找到患者', 'No patients found'),
+                        style: TextStyle(color: palette.mutedText),
+                      ),
+                    );
+                  }
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: page.list.length,
+                          separatorBuilder: (_, _) =>
+                              Divider(color: palette.outline, height: 1),
+                          itemBuilder: (context, index) {
+                            final patient = page.list[index];
+                            return _CandidatePatientTile(
+                              patient: patient,
+                              onAdd: patient.isBound
+                                  ? null
+                                  : () => Navigator.of(
+                                      context,
+                                    ).pop(patient.memberId),
+                            );
+                          },
+                        ),
+                      ),
+                      _PatientPager(
+                        page: page.page,
+                        pageSize: page.pageSize,
+                        total: page.total,
+                        onPrev: page.page > 1
+                            ? () => setState(() => _page -= 1)
+                            : null,
+                        onNext: page.page * page.pageSize < page.total
+                            ? () => setState(() => _page += 1)
+                            : null,
+                      ),
+                    ],
+                  );
+                },
+                error: (error, _) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Text(
+                    error.toString(),
+                    style: TextStyle(color: palette.mutedText),
+                  ),
+                ),
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
       actions: [
@@ -209,18 +325,15 @@ class _AddPatientDialogState extends State<_AddPatientDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: Text(_t(context, '取消', 'Cancel')),
         ),
-        FilledButton(
-          onPressed: () {
-            final memberId = int.tryParse(_controller.text.trim()) ?? 0;
-            Navigator.of(context).pop(memberId);
-          },
-          style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFFFF9585),
-          ),
-          child: Text(_t(context, '确认', 'Confirm')),
-        ),
       ],
     );
+  }
+
+  void _search() {
+    setState(() {
+      _keyword = _controller.text.trim();
+      _page = 1;
+    });
   }
 }
 
@@ -355,6 +468,81 @@ class _PatientCard extends ConsumerWidget {
   }
 }
 
+class _CandidatePatientTile extends ConsumerWidget {
+  const _CandidatePatientTile({required this.patient, required this.onAdd});
+
+  final DoctorPatient patient;
+  final VoidCallback? onAdd;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _DoctorPatientsPalette.of(context);
+    final avatarUrl = ref.watch(apiClientProvider).resolveUrl(patient.avatar);
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: ClipOval(
+        child: avatarUrl.isNotEmpty
+            ? Image.network(
+                avatarUrl,
+                width: 44,
+                height: 44,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const _SmallPatientAvatar(),
+              )
+            : const _SmallPatientAvatar(),
+      ),
+      title: Text(
+        patient.displayName,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: palette.primaryText,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      subtitle: Text(
+        _t(
+          context,
+          'ID ${patient.memberId} · ${patient.genderLabel} · ${patient.ageLabel}岁',
+          'ID ${patient.memberId} · ${patient.genderLabel} · age ${patient.ageLabel}',
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: palette.secondaryText),
+      ),
+      trailing: FilledButton(
+        onPressed: onAdd,
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFFFF9585),
+          disabledBackgroundColor: palette.avatarBackground,
+          disabledForegroundColor: palette.secondaryText,
+        ),
+        child: Text(
+          patient.isBound
+              ? _t(context, '已添加', 'Added')
+              : _t(context, '添加', 'Add'),
+        ),
+      ),
+    );
+  }
+}
+
+class _SmallPatientAvatar extends StatelessWidget {
+  const _SmallPatientAvatar();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPatientsPalette.of(context);
+    return Container(
+      width: 44,
+      height: 44,
+      color: palette.avatarBackground,
+      alignment: Alignment.center,
+      child: Icon(Icons.person_rounded, color: palette.secondaryText),
+    );
+  }
+}
+
 class _PatientAvatarPlaceholder extends StatelessWidget {
   const _PatientAvatarPlaceholder();
 
@@ -367,6 +555,57 @@ class _PatientAvatarPlaceholder extends StatelessWidget {
       color: palette.avatarBackground,
       alignment: Alignment.center,
       child: Icon(Icons.person_rounded, color: palette.secondaryText),
+    );
+  }
+}
+
+class _PatientPager extends StatelessWidget {
+  const _PatientPager({
+    required this.page,
+    required this.pageSize,
+    required this.total,
+    required this.onPrev,
+    required this.onNext,
+  });
+
+  final int page;
+  final int pageSize;
+  final int total;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    if (total <= pageSize) {
+      return const SizedBox.shrink();
+    }
+
+    final palette = _DoctorPatientsPalette.of(context);
+    final pageCount = (total / pageSize).ceil();
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            onPressed: onPrev,
+            icon: const Icon(Icons.chevron_left_rounded),
+            tooltip: _t(context, '上一页', 'Previous page'),
+          ),
+          Text(
+            _t(context, '第 $page / $pageCount 页', 'Page $page / $pageCount'),
+            style: TextStyle(
+              color: palette.secondaryText,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          IconButton(
+            onPressed: onNext,
+            icon: const Icon(Icons.chevron_right_rounded),
+            tooltip: _t(context, '下一页', 'Next page'),
+          ),
+        ],
+      ),
     );
   }
 }

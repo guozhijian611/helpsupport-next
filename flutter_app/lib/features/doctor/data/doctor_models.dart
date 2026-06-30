@@ -46,6 +46,7 @@ class DoctorPatient {
     required this.recoveryGoal,
     required this.locale,
     required this.timezone,
+    required this.isBound,
   });
 
   factory DoctorPatient.fromJson(Map<String, dynamic> json) {
@@ -64,6 +65,7 @@ class DoctorPatient {
       recoveryGoal: _stringValue(json['recovery_goal']),
       locale: _stringValue(json['locale']),
       timezone: _stringValue(json['timezone']),
+      isBound: _intValue(json['is_bound']) == 1,
     );
   }
 
@@ -81,6 +83,7 @@ class DoctorPatient {
   final String recoveryGoal;
   final String locale;
   final String timezone;
+  final bool isBound;
 
   String get displayName => nickname.trim().isEmpty ? '患者' : nickname.trim();
 
@@ -372,6 +375,29 @@ class DoctorPatientsQuery {
 
   @override
   int get hashCode => Object.hash(status, keyword, page, pageSize);
+}
+
+class DoctorPatientCandidatesQuery {
+  const DoctorPatientCandidatesQuery({
+    this.keyword = '',
+    this.page = 1,
+    this.pageSize = 10,
+  });
+
+  final String keyword;
+  final int page;
+  final int pageSize;
+
+  @override
+  bool operator ==(Object other) {
+    return other is DoctorPatientCandidatesQuery &&
+        other.keyword == keyword &&
+        other.page == page &&
+        other.pageSize == pageSize;
+  }
+
+  @override
+  int get hashCode => Object.hash(keyword, page, pageSize);
 }
 
 class DoctorDailyTasksQuery {

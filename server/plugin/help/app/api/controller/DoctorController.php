@@ -32,6 +32,18 @@ class DoctorController extends BaseController
         return ok($this->service->doctorPatients($this->memberId, $request->get()));
     }
 
+    #[Apidoc\Title('可添加患者搜索')]
+    #[Apidoc\Url('/app/help/doctor/patient/candidates')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('keyword', type: 'string', require: false, desc: '患者ID、昵称或用户名关键词')]
+    #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
+    #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
+    #[Apidoc\Returned('list', type: 'array', desc: '患者候选列表，包含 is_bound 标识')]
+    public function patientCandidates(Request $request): Response
+    {
+        return ok($this->service->doctorPatientCandidates($this->memberId, $request->get()));
+    }
+
     #[Apidoc\Title('绑定患者')]
     #[Apidoc\Url('/app/help/doctor/patient/bind')]
     #[Apidoc\Method('POST')]
