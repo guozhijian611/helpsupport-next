@@ -898,7 +898,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
 
   String _compactCommunityVisibilityLabel(BuildContext context) {
     return switch (_communityVisibility) {
-      CommunityVisibility.private => _t(context, '匿名', 'Anonymous'),
+      CommunityVisibility.private => _t(context, '仅自己可见', 'Private'),
       CommunityVisibility.mutual => _t(context, '互相关注', 'Mutual'),
       CommunityVisibility.public => _t(context, '公开', 'Public'),
     };
@@ -918,7 +918,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       items: [
         _ChoiceSheetItem(
           CommunityVisibility.private,
-          _t(context, '匿名', 'Anonymous'),
+          _t(context, '仅自己可见', 'Private'),
         ),
         _ChoiceSheetItem(
           CommunityVisibility.mutual,
@@ -1285,7 +1285,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       items: [
         _ChoiceSheetItem(
           CommunityVisibility.private,
-          _t(context, '仅自己', 'Private'),
+          _t(context, '仅自己可见', 'Private'),
         ),
         _ChoiceSheetItem(
           CommunityVisibility.mutual,

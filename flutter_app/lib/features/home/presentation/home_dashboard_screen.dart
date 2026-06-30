@@ -1311,7 +1311,7 @@ String _communityEmptySubtitle(
   return switch (privacy.communityVisibility) {
     CommunityVisibility.private => _t(
       context,
-      '你已将社区可见范围设为匿名，首页不会展示具体社区动态。',
+      '你已将社区可见范围设为仅自己可见，首页不会展示具体社区动态。',
       'Community visibility is private, so concrete activity is hidden here.',
     ),
     CommunityVisibility.mutual => _t(

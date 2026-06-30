@@ -27,7 +27,7 @@ enum CommunityVisibility {
 
   String label(BuildContext context) {
     return switch (this) {
-      private => _t(context, '仅自己', 'Private'),
+      private => _t(context, '仅自己可见', 'Private'),
       mutual => _t(context, '互相关注', 'Mutual'),
       public => _t(context, '公开', 'Public'),
     };

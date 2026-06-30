@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:helpsupport_app/app/theme.dart';
+import 'package:helpsupport_app/core/providers/app_providers.dart';
 import 'package:helpsupport_app/features/auth/application/auth_controller.dart';
 import 'package:helpsupport_app/features/auth/data/auth_models.dart';
 import 'package:helpsupport_app/features/chat/application/chat_controller.dart';
@@ -13,12 +14,17 @@ import 'package:helpsupport_app/features/plan/application/plan_controller.dart';
 import 'package:helpsupport_app/features/plan/data/plan_models.dart';
 import 'package:helpsupport_app/features/plan/presentation/plan_screen.dart';
 import 'package:helpsupport_app/l10n/generated/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   testWidgets('home shell renders bottom navigation', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final sharedPreferences = await SharedPreferences.getInstance();
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
           authControllerProvider.overrideWith(_TestAuthController.new),
           chatOverviewProvider.overrideWith(
             (ref) async => const ChatOverview(
