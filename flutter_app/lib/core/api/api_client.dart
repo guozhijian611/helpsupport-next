@@ -84,6 +84,7 @@ class ApiClient {
     String path, {
     Object? data,
     Options? options,
+    ProgressCallback? onSendProgress,
     required T Function(Object? value) decode,
   }) async {
     try {
@@ -91,6 +92,7 @@ class ApiClient {
         path,
         data: data,
         options: options,
+        onSendProgress: onSendProgress,
       );
       return _decode(response.data, decode, path: path);
     } on DioException catch (error) {

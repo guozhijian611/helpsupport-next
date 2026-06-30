@@ -59,6 +59,7 @@ class MaterialItem {
     required this.album,
     required this.coverUrl,
     required this.contentUrl,
+    required this.imageUrls,
     required this.lyricUrl,
     required this.contentText,
     required this.tags,
@@ -88,6 +89,7 @@ class MaterialItem {
   final String album;
   final String coverUrl;
   final String contentUrl;
+  final List<String> imageUrls;
   final String lyricUrl;
   final String contentText;
   final List<String> tags;
@@ -117,6 +119,7 @@ class MaterialItem {
     String? album,
     String? coverUrl,
     String? contentUrl,
+    List<String>? imageUrls,
     String? lyricUrl,
     String? contentText,
     List<String>? tags,
@@ -146,6 +149,7 @@ class MaterialItem {
       album: album ?? this.album,
       coverUrl: coverUrl ?? this.coverUrl,
       contentUrl: contentUrl ?? this.contentUrl,
+      imageUrls: imageUrls ?? this.imageUrls,
       lyricUrl: lyricUrl ?? this.lyricUrl,
       contentText: contentText ?? this.contentText,
       tags: tags ?? this.tags,
@@ -179,6 +183,7 @@ class MaterialItem {
       album: _stringValue(json['album']),
       coverUrl: _stringValue(json['cover_url']),
       contentUrl: _stringValue(json['content_url']),
+      imageUrls: _stringList(json['image_urls']),
       lyricUrl: _stringValue(json['lyric_url']),
       contentText: _stringValue(json['content_text']),
       tags: _stringList(json['tags']),

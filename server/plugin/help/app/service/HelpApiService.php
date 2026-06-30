@@ -2004,7 +2004,7 @@ class HelpApiService
         $locale = (string) ($params['locale'] ?? '');
         $page = $this->paginate(function () use ($memberId, $params) {
             $query = $this->visibleMaterialQuery($memberId)
-                ->field('id, member_id, category_id, media_type, material_type, title, title_i18n, summary, summary_i18n, artist, album, cover_url, content_url, lyric_url, duration_seconds, is_public, is_recommended, view_count, like_count, collect_count, comment_count, sort, create_time');
+                ->field('id, member_id, category_id, media_type, material_type, title, title_i18n, summary, summary_i18n, artist, album, cover_url, content_url, image_urls, lyric_url, duration_seconds, is_public, is_recommended, view_count, like_count, collect_count, comment_count, sort, create_time');
 
             if (!empty($params['material_type'])) {
                 $query->where('material_type', (string) $params['material_type']);
@@ -2130,6 +2130,14 @@ class HelpApiService
             || (bool) ($summaryRisk['review_required'] ?? false)
             || (bool) ($contentRisk['review_required'] ?? false);
 
+        $imageUrls = $this->normalizeImageUrls($data['image_urls'] ?? null);
+        $coverUrl = (string) ($data['cover_url'] ?? '');
+        $contentUrl = (string) ($data['content_url'] ?? '');
+        if ($mediaType === 'image' && $imageUrls !== []) {
+            $coverUrl = $coverUrl !== '' ? $coverUrl : $imageUrls[0];
+            $contentUrl = $contentUrl !== '' ? $contentUrl : $imageUrls[0];
+        }
+
         $payload = [
             'member_id' => $memberId,
             'category_id' => $categoryId,
@@ -2141,8 +2149,9 @@ class HelpApiService
             'summary_i18n' => $this->jsonValue($data['summary_i18n'] ?? null),
             'artist' => mb_substr(trim((string) ($data['artist'] ?? '')), 0, 120),
             'album' => mb_substr(trim((string) ($data['album'] ?? '')), 0, 120),
-            'cover_url' => (string) ($data['cover_url'] ?? ''),
-            'content_url' => (string) ($data['content_url'] ?? ''),
+            'cover_url' => $coverUrl,
+            'content_url' => $contentUrl,
+            'image_urls' => $imageUrls === [] ? null : $this->jsonValue($imageUrls),
             'lyric_url' => (string) ($data['lyric_url'] ?? ''),
             'content_text' => $contentText,
             'content_text_i18n' => $this->jsonValue($data['content_text_i18n'] ?? null),
@@ -2158,7 +2167,7 @@ class HelpApiService
 
         $id = $this->saveRow('sa_content_material', $payload, $memberId, $materialId);
 
-        return Db::table('sa_content_material')->where('id', $id)->find() ?: [];
+        return $this->localizeMaterialRow(Db::table('sa_content_material')->where('id', $id)->find() ?: [], '');
     }
 
     public function deletePrivateMaterialCategory(int $memberId, int $categoryId): array
@@ -4776,6 +4785,9 @@ class HelpApiService
                 $locale
             );
         }
+        if (array_key_exists('image_urls', $row)) {
+            $row['image_urls'] = $this->normalizeImageUrls($row['image_urls'] ?? null);
+        }
 
         return $row;
     }
@@ -5175,6 +5187,23 @@ class HelpApiService
 
         $decoded = json_decode($value, true);
         return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function normalizeImageUrls(mixed $value): array
+    {
+        $items = $this->decodeJsonArray($value);
+        $urls = [];
+        foreach ($items as $item) {
+            $url = trim((string) $item);
+            if ($url !== '') {
+                $urls[] = mb_substr($url, 0, 500);
+            }
+        }
+
+        return array_values(array_unique($urls));
     }
 
     private function assertVisibleMaterial(int $memberId, int $materialId): void

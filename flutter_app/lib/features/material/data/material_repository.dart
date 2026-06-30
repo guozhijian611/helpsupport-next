@@ -218,6 +218,7 @@ class MaterialRepository {
 
   Future<MaterialUploadResult> uploadPrivateMaterialFile({
     required PlatformFile file,
+    ProgressCallback? onSendProgress,
   }) async {
     final path = file.path;
     if (path == null || path.trim().isEmpty) {
@@ -230,6 +231,7 @@ class MaterialRepository {
       '/app/help/material/private/upload',
       data: formData,
       options: Options(contentType: 'multipart/form-data'),
+      onSendProgress: onSendProgress,
       decode: (value) {
         if (value is Map<String, dynamic>) {
           return MaterialUploadResult.fromJson(value);

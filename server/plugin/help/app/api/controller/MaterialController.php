@@ -116,6 +116,7 @@ class MaterialController extends BaseController
     #[Apidoc\Param('album', type: 'string', require: false, desc: '音乐专辑')]
     #[Apidoc\Param('cover_url', type: 'string', require: false, desc: '封面图')]
     #[Apidoc\Param('content_url', type: 'string', require: false, desc: '内容地址')]
+    #[Apidoc\Param('image_urls', type: 'array', require: false, desc: '图片素材多图地址')]
     #[Apidoc\Param('lyric_url', type: 'string', require: false, desc: 'LRC 歌词文件地址')]
     #[Apidoc\Param('content_text', type: 'string', require: false, desc: '富文本内容或歌词')]
     #[Apidoc\Param('content_text_i18n', type: 'object', require: false, desc: '多语言富文本内容或歌词，例如 {"zh":"<p>正文</p>","en":"<p>Body</p>"}')]

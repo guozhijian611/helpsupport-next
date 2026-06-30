@@ -31,6 +31,7 @@ class _MaterialPrivateUploadScreenState
   String _mediaType = 'txt';
   int _selectedCategoryId = 0;
   List<PlatformFile> _selectedFiles = const [];
+  List<double> _uploadProgress = const [];
   bool _submitting = false;
 
   _PrivateMediaOption get _currentOption {
@@ -81,6 +82,8 @@ class _MaterialPrivateUploadScreenState
               contentController: _contentController,
               linkController: _linkController,
               selectedFiles: _selectedFiles,
+              uploadProgress: _uploadProgress,
+              submitting: _submitting,
               mediaType: _mediaType,
               selectedCategoryId: _selectedCategoryId,
               categories: categories.asData?.value ?? const [],
@@ -95,15 +98,23 @@ class _MaterialPrivateUploadScreenState
                 setState(() {
                   _mediaType = value;
                   _selectedFiles = const [];
+                  _uploadProgress = const [];
                 });
               },
               onPickFile: _pickFile,
-              onClearFile: () => setState(() => _selectedFiles = const []),
+              onClearFile: () => setState(() {
+                _selectedFiles = const [];
+                _uploadProgress = const [];
+              }),
               onRemoveFile: (index) {
                 setState(() {
                   _selectedFiles = [
                     for (var i = 0; i < _selectedFiles.length; i++)
                       if (i != index) _selectedFiles[i],
+                  ];
+                  _uploadProgress = [
+                    for (var i = 0; i < _uploadProgress.length; i++)
+                      if (i != index) _uploadProgress[i],
                   ];
                 });
               },
@@ -145,7 +156,10 @@ class _MaterialPrivateUploadScreenState
     if (result == null || result.files.isEmpty) {
       return;
     }
-    setState(() => _selectedFiles = [result.files.single]);
+    setState(() {
+      _selectedFiles = [result.files.single];
+      _uploadProgress = const [];
+    });
   }
 
   Future<void> _pickImage() async {
@@ -189,7 +203,13 @@ class _MaterialPrivateUploadScreenState
         ),
       );
     }
-    setState(() => _selectedFiles = [..._selectedFiles, ...files]);
+    setState(() {
+      _selectedFiles = [..._selectedFiles, ...files];
+      _uploadProgress = [
+        ..._uploadProgress,
+        ...List<double>.filled(files.length, -1),
+      ];
+    });
   }
 
   Future<void> _submit() async {
@@ -267,13 +287,49 @@ class _MaterialPrivateUploadScreenState
   ) async {
     final repository = ref.read(materialRepositoryProvider);
     try {
-      for (final file in files) {
+      if (option.value == 'image') {
+        if (mounted) {
+          setState(
+            () => _uploadProgress = List<double>.filled(files.length, 0),
+          );
+        }
+        final imageUrls = <String>[];
+        for (var index = 0; index < files.length; index++) {
+          final upload = await repository.uploadPrivateMaterialFile(
+            file: files[index],
+            onSendProgress: (sent, total) {
+              if (!mounted || total <= 0) {
+                return;
+              }
+              final progress = (sent / total).clamp(0, 1).toDouble();
+              setState(() {
+                _uploadProgress = [
+                  for (var i = 0; i < _uploadProgress.length; i++)
+                    i == index ? progress : _uploadProgress[i],
+                ];
+              });
+            },
+          );
+          imageUrls.add(upload.url);
+          if (mounted) {
+            setState(() {
+              _uploadProgress = [
+                for (var i = 0; i < _uploadProgress.length; i++)
+                  i == index ? 1 : _uploadProgress[i],
+              ];
+            });
+          }
+        }
+        final payload = Map<String, dynamic>.of(basePayload);
+        payload['image_urls'] = imageUrls;
+        payload['content_url'] = imageUrls.first;
+        payload['cover_url'] = imageUrls.first;
+        await repository.savePrivateMaterial(payload);
+      } else {
+        final file = files.first;
         final upload = await repository.uploadPrivateMaterialFile(file: file);
         final payload = Map<String, dynamic>.of(basePayload);
         payload['content_url'] = upload.url;
-        if (option.value == 'image') {
-          payload['cover_url'] = upload.url;
-        }
         if ((payload['summary'] as String).isEmpty &&
             upload.originName.trim().isNotEmpty) {
           payload['summary'] = upload.originName.trim();
@@ -285,12 +341,8 @@ class _MaterialPrivateUploadScreenState
         return;
       }
       context.showCenteredNotice(
-        files.length > 1
-            ? _t(
-                context,
-                '已保存 ${files.length} 个素材',
-                'Saved ${files.length} materials',
-              )
+        option.value == 'image' && files.length > 1
+            ? _t(context, '已保存 1 个多图素材', 'Saved one multi-image material')
             : _t(context, '已保存', 'Saved'),
       );
       context.pop();
@@ -417,6 +469,8 @@ class _PrivateUploadPanel extends StatelessWidget {
     required this.contentController,
     required this.linkController,
     required this.selectedFiles,
+    required this.uploadProgress,
+    required this.submitting,
     required this.mediaType,
     required this.selectedCategoryId,
     required this.categories,
@@ -435,6 +489,8 @@ class _PrivateUploadPanel extends StatelessWidget {
   final TextEditingController contentController;
   final TextEditingController linkController;
   final List<PlatformFile> selectedFiles;
+  final List<double> uploadProgress;
+  final bool submitting;
   final String mediaType;
   final int selectedCategoryId;
   final List<MaterialCategory> categories;
@@ -529,6 +585,8 @@ class _PrivateUploadPanel extends StatelessWidget {
               palette: palette,
               option: option,
               files: selectedFiles,
+              uploadProgress: uploadProgress,
+              submitting: submitting,
               onPickFile: onPickFile,
               onClearFile: onClearFile,
               onRemoveFile: onRemoveFile,
@@ -600,6 +658,8 @@ class _FilePickerTile extends StatelessWidget {
     required this.palette,
     required this.option,
     required this.files,
+    required this.uploadProgress,
+    required this.submitting,
     required this.onPickFile,
     required this.onClearFile,
     required this.onRemoveFile,
@@ -608,6 +668,8 @@ class _FilePickerTile extends StatelessWidget {
   final _PrivateUploadPalette palette;
   final _PrivateMediaOption option;
   final List<PlatformFile> files;
+  final List<double> uploadProgress;
+  final bool submitting;
   final VoidCallback onPickFile;
   final VoidCallback onClearFile;
   final ValueChanged<int> onRemoveFile;
@@ -619,6 +681,8 @@ class _FilePickerTile extends StatelessWidget {
       return _ImagePickerTile(
         palette: palette,
         files: files,
+        uploadProgress: uploadProgress,
+        submitting: submitting,
         onPickFile: onPickFile,
         onRemoveFile: onRemoveFile,
         onClearFile: onClearFile,
@@ -713,6 +777,8 @@ class _ImagePickerTile extends StatelessWidget {
   const _ImagePickerTile({
     required this.palette,
     required this.files,
+    required this.uploadProgress,
+    required this.submitting,
     required this.onPickFile,
     required this.onRemoveFile,
     required this.onClearFile,
@@ -720,6 +786,8 @@ class _ImagePickerTile extends StatelessWidget {
 
   final _PrivateUploadPalette palette;
   final List<PlatformFile> files;
+  final List<double> uploadProgress;
+  final bool submitting;
   final VoidCallback onPickFile;
   final ValueChanged<int> onRemoveFile;
   final VoidCallback onClearFile;
@@ -771,14 +839,14 @@ class _ImagePickerTile extends StatelessWidget {
               ),
               IconButton.filledTonal(
                 tooltip: _t(context, '添加图片', 'Add images'),
-                onPressed: onPickFile,
+                onPressed: submitting ? null : onPickFile,
                 icon: const Icon(Icons.add_photo_alternate_outlined),
               ),
               if (files.isNotEmpty) ...[
                 const SizedBox(width: 4),
                 IconButton(
                   tooltip: _t(context, '清空图片', 'Clear images'),
-                  onPressed: onClearFile,
+                  onPressed: submitting ? null : onClearFile,
                   icon: const Icon(Icons.close_rounded),
                 ),
               ],
@@ -802,7 +870,10 @@ class _ImagePickerTile extends StatelessWidget {
                   palette: palette,
                   fileName: file.name,
                   imagePath: path,
-                  onRemove: () => onRemoveFile(index),
+                  progress: index < uploadProgress.length
+                      ? uploadProgress[index]
+                      : -1,
+                  onRemove: submitting ? null : () => onRemoveFile(index),
                 );
               },
             ),
@@ -811,7 +882,7 @@ class _ImagePickerTile extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: onPickFile,
+                onPressed: submitting ? null : onPickFile,
                 icon: const Icon(Icons.photo_library_outlined),
                 label: Text(_t(context, '从相册选择', 'Choose from library')),
               ),
@@ -828,13 +899,15 @@ class _SelectedImagePreview extends StatelessWidget {
     required this.palette,
     required this.fileName,
     required this.imagePath,
+    required this.progress,
     required this.onRemove,
   });
 
   final _PrivateUploadPalette palette;
   final String fileName;
   final String imagePath;
-  final VoidCallback onRemove;
+  final double progress;
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -865,42 +938,63 @@ class _SelectedImagePreview extends StatelessWidget {
           left: 6,
           right: 6,
           bottom: 6,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.52),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              child: Text(
-                fileName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.52),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 4,
+                  ),
+                  child: Text(
+                    fileName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
-            ),
+              if (progress >= 0) ...[
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    minHeight: 4,
+                    value: progress >= 1 ? 1 : progress,
+                    backgroundColor: Colors.white.withValues(alpha: 0.36),
+                    color: palette.accent,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
-        Positioned(
-          top: -8,
-          right: -8,
-          child: IconButton.filled(
-            tooltip: _t(context, '删除图片', 'Remove image'),
-            style: IconButton.styleFrom(
-              backgroundColor: palette.accent,
-              foregroundColor: Colors.white,
-              minimumSize: const Size.square(28),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              padding: EdgeInsets.zero,
+        if (onRemove != null)
+          Positioned(
+            top: -8,
+            right: -8,
+            child: IconButton.filled(
+              tooltip: _t(context, '删除图片', 'Remove image'),
+              style: IconButton.styleFrom(
+                backgroundColor: palette.accent,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.square(28),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: EdgeInsets.zero,
+              ),
+              onPressed: onRemove,
+              icon: const Icon(Icons.close_rounded, size: 18),
             ),
-            onPressed: onRemove,
-            icon: const Icon(Icons.close_rounded, size: 18),
           ),
-        ),
       ],
     );
   }
