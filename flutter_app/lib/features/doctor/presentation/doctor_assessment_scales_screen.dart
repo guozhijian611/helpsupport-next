@@ -277,7 +277,9 @@ class _ScaleCard extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 9),
+                    _ScaleSourceBadge(isSystem: scale.doctorId == 0),
+                    const SizedBox(height: 9),
                     Text(
                       [
                         _t(
@@ -360,7 +362,9 @@ class _ScaleDetailSheet extends StatelessWidget {
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 10),
+                            _ScaleSourceBadge(isSystem: scale.doctorId == 0),
+                            const SizedBox(height: 10),
                             Text(
                               [
                                 _t(
@@ -440,6 +444,38 @@ class _ScaleDetailSheet extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScaleSourceBadge extends StatelessWidget {
+  const _ScaleSourceBadge({required this.isSystem});
+
+  final bool isSystem;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = isSystem
+        ? _t(context, '系统预设', 'System')
+        : _t(context, '我的创建', 'Mine');
+    final color = isSystem ? const Color(0xFF5A81DA) : const Color(0xFFFF9585);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ),
     );
