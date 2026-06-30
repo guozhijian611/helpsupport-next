@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/cache/cached_remote_image.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../application/community_controller.dart';
@@ -223,16 +224,19 @@ class _ProfileHero extends StatelessWidget {
                   child: CircleAvatar(
                     radius: 46,
                     backgroundColor: palette.avatarBackground,
-                    backgroundImage: avatarUrl.isEmpty
-                        ? null
-                        : NetworkImage(avatarUrl),
-                    child: avatarUrl.isEmpty
-                        ? const Icon(
-                            Icons.person_rounded,
-                            color: Color(0xFF8EA8F8),
-                            size: 46,
-                          )
-                        : null,
+                    child: ClipOval(
+                      child: SizedBox(
+                        width: 92,
+                        height: 92,
+                        child: avatarUrl.isEmpty
+                            ? const Icon(
+                                Icons.person_rounded,
+                                color: Color(0xFF8EA8F8),
+                                size: 46,
+                              )
+                            : CachedRemoteImage(avatarUrl, fit: BoxFit.cover),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 18),

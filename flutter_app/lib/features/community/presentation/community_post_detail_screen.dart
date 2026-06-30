@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -725,7 +726,13 @@ class _CommentAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = _CommunityPostDetailPalette.of(context);
     if (!isAnonymous && avatarUrl.trim().isNotEmpty) {
-      return CircleAvatar(radius: 28, backgroundImage: NetworkImage(avatarUrl));
+      return ClipOval(
+        child: SizedBox(
+          width: 56,
+          height: 56,
+          child: CachedRemoteImage(avatarUrl, fit: BoxFit.cover),
+        ),
+      );
     }
 
     return CircleAvatar(
@@ -753,7 +760,7 @@ class _CommentAttachmentGrid extends StatelessWidget {
         for (final url in urls.take(3))
           ClipRRect(
             borderRadius: BorderRadius.circular(18),
-            child: Image.network(
+            child: CachedRemoteImage(
               url,
               width: 106,
               height: 106,

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
+import '../../../core/cache/cached_remote_image.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../auth/application/auth_controller.dart';
@@ -832,7 +833,6 @@ class _RecordList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = _ChatSessionPalette.of(context);
     if (records.isEmpty) {
       return Center(child: Text(context.l10n.noMessages));
     }
@@ -1154,10 +1154,20 @@ class _BubbleAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = _ChatSessionPalette.of(context);
     if (imageUrl.trim().isNotEmpty) {
-      return CircleAvatar(
-        radius: 22,
-        backgroundColor: backgroundColor,
-        foregroundImage: NetworkImage(imageUrl),
+      return ClipOval(
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: CachedRemoteImage(
+            imageUrl,
+            fit: BoxFit.cover,
+            placeholder: ColoredBox(color: backgroundColor),
+            errorWidget: ColoredBox(
+              color: backgroundColor,
+              child: Icon(icon, color: palette.avatarIcon),
+            ),
+          ),
+        ),
       );
     }
     return CircleAvatar(

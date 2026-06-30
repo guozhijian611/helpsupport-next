@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -527,7 +528,7 @@ class _CertificationImageTile extends StatelessWidget {
             height: size,
             fit: BoxFit.cover,
           )
-        : Image.network(
+        : CachedRemoteImage(
             attachment.remoteUrl,
             width: size,
             height: size,

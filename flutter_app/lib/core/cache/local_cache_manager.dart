@@ -2,18 +2,117 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
-class LocalCacheSnapshot {
-  const LocalCacheSnapshot({
+enum LocalCacheCategory { remoteImages, materialFiles, temporaryMedia }
+
+class LocalCacheCategorySnapshot {
+  const LocalCacheCategorySnapshot({
+    required this.category,
     required this.fileCount,
     required this.totalBytes,
     this.oldestModifiedAt,
   });
 
+  final LocalCacheCategory category;
   final int fileCount;
   final int totalBytes;
   final DateTime? oldestModifiedAt;
 
   bool get isEmpty => fileCount == 0 || totalBytes <= 0;
+}
+
+class LocalCacheSnapshot {
+  const LocalCacheSnapshot({required this.categories});
+
+  final List<LocalCacheCategorySnapshot> categories;
+
+  int get fileCount =>
+      categories.fold(0, (total, category) => total + category.fileCount);
+
+  int get totalBytes =>
+      categories.fold(0, (total, category) => total + category.totalBytes);
+
+  DateTime? get oldestModifiedAt {
+    DateTime? oldest;
+    for (final category in categories) {
+      final modifiedAt = category.oldestModifiedAt;
+      if (modifiedAt == null) {
+        continue;
+      }
+      if (oldest == null || modifiedAt.isBefore(oldest)) {
+        oldest = modifiedAt;
+      }
+    }
+    return oldest;
+  }
+
+  bool get isEmpty => fileCount == 0 || totalBytes <= 0;
+
+  LocalCacheCategorySnapshot category(LocalCacheCategory category) {
+    return categories.firstWhere(
+      (item) => item.category == category,
+      orElse: () => LocalCacheCategorySnapshot(
+        category: category,
+        fileCount: 0,
+        totalBytes: 0,
+      ),
+    );
+  }
+
+  bool hasAnySelectedCache(Set<LocalCacheCategory> selectedCategories) {
+    return selectedCategories.any(
+      (category) => !this.category(category).isEmpty,
+    );
+  }
+
+  factory LocalCacheSnapshot.empty() {
+    return LocalCacheSnapshot(
+      categories: [
+        for (final category in LocalCacheCategory.values)
+          LocalCacheCategorySnapshot(
+            category: category,
+            fileCount: 0,
+            totalBytes: 0,
+          ),
+      ],
+    );
+  }
+
+  factory LocalCacheSnapshot._fromEntries(List<_CacheFileEntry> entries) {
+    return LocalCacheSnapshot(
+      categories: [
+        for (final category in LocalCacheCategory.values)
+          _snapshotCategory(category, entries),
+      ],
+    );
+  }
+
+  static LocalCacheCategorySnapshot _snapshotCategory(
+    LocalCacheCategory category,
+    List<_CacheFileEntry> entries,
+  ) {
+    var fileCount = 0;
+    var totalBytes = 0;
+    DateTime? oldestModifiedAt;
+
+    for (final entry in entries) {
+      if (entry.category != category) {
+        continue;
+      }
+      fileCount += 1;
+      totalBytes += entry.bytes;
+      final currentOldest = oldestModifiedAt;
+      if (currentOldest == null || entry.modifiedAt.isBefore(currentOldest)) {
+        oldestModifiedAt = entry.modifiedAt;
+      }
+    }
+
+    return LocalCacheCategorySnapshot(
+      category: category,
+      fileCount: fileCount,
+      totalBytes: totalBytes,
+      oldestModifiedAt: oldestModifiedAt,
+    );
+  }
 }
 
 class LocalCacheClearResult {
@@ -34,13 +133,25 @@ class LocalCacheManager {
   static const autoClearAge = Duration(days: 7);
   static const autoClearInterval = Duration(hours: 24);
 
-  Future<LocalCacheSnapshot> inspect({Duration? olderThan}) async {
-    final entries = await _collectEntries(olderThan: olderThan);
-    return _snapshotFromEntries(entries);
+  Future<LocalCacheSnapshot> inspect({
+    Duration? olderThan,
+    Set<LocalCacheCategory>? categories,
+  }) async {
+    final entries = await _collectEntries(
+      olderThan: olderThan,
+      categories: categories,
+    );
+    return LocalCacheSnapshot._fromEntries(entries);
   }
 
-  Future<LocalCacheClearResult> clear({Duration? olderThan}) async {
-    final entries = await _collectEntries(olderThan: olderThan);
+  Future<LocalCacheClearResult> clear({
+    Duration? olderThan,
+    Set<LocalCacheCategory>? categories,
+  }) async {
+    final entries = await _collectEntries(
+      olderThan: olderThan,
+      categories: categories,
+    );
     var deletedFileCount = 0;
     var deletedBytes = 0;
 
@@ -50,8 +161,7 @@ class LocalCacheManager {
         deletedFileCount += 1;
         deletedBytes += entry.bytes;
       } on FileSystemException {
-        // Some temporary media files can disappear while the OS is reclaiming
-        // storage. They are ignored because the cache pass is best-effort.
+        // Cache files can disappear while iOS reclaims temporary storage.
       }
     }
 
@@ -64,7 +174,10 @@ class LocalCacheManager {
     );
   }
 
-  Future<List<_CacheFileEntry>> _collectEntries({Duration? olderThan}) async {
+  Future<List<_CacheFileEntry>> _collectEntries({
+    Duration? olderThan,
+    Set<LocalCacheCategory>? categories,
+  }) async {
     final roots = await _cacheRoots();
     final cutoff = olderThan == null
         ? null
@@ -72,6 +185,9 @@ class LocalCacheManager {
     final entries = <_CacheFileEntry>[];
 
     for (final root in roots) {
+      if (categories != null && !categories.contains(root.category)) {
+        continue;
+      }
       if (!await root.directory.exists()) {
         continue;
       }
@@ -95,6 +211,7 @@ class LocalCacheManager {
               file: entity,
               bytes: stat.size,
               modifiedAt: stat.modified,
+              category: root.category,
             ),
           );
         } on FileSystemException {
@@ -111,11 +228,19 @@ class LocalCacheManager {
     final temporary = await getTemporaryDirectory();
     return [
       _CacheRoot(
+        category: LocalCacheCategory.remoteImages,
+        directory: Directory('${documents.path}/http_image_cache'),
+        includes: (_) => true,
+        pruneEmptyDirectories: true,
+      ),
+      _CacheRoot(
+        category: LocalCacheCategory.materialFiles,
         directory: Directory('${documents.path}/material_cache'),
         includes: (_) => true,
         pruneEmptyDirectories: true,
       ),
       _CacheRoot(
+        category: LocalCacheCategory.temporaryMedia,
         directory: temporary,
         includes: _isPickedTemporaryMedia,
         pruneEmptyDirectories: false,
@@ -163,23 +288,6 @@ class LocalCacheManager {
     return false;
   }
 
-  LocalCacheSnapshot _snapshotFromEntries(List<_CacheFileEntry> entries) {
-    var totalBytes = 0;
-    DateTime? oldestModifiedAt;
-    for (final entry in entries) {
-      totalBytes += entry.bytes;
-      final currentOldest = oldestModifiedAt;
-      if (currentOldest == null || entry.modifiedAt.isBefore(currentOldest)) {
-        oldestModifiedAt = entry.modifiedAt;
-      }
-    }
-    return LocalCacheSnapshot(
-      fileCount: entries.length,
-      totalBytes: totalBytes,
-      oldestModifiedAt: oldestModifiedAt,
-    );
-  }
-
   bool _isPickedTemporaryMedia(File file) {
     final name = _basename(file.path).toLowerCase();
     return name.startsWith('image_picker_') ||
@@ -198,11 +306,13 @@ class LocalCacheManager {
 
 class _CacheRoot {
   const _CacheRoot({
+    required this.category,
     required this.directory,
     required this.includes,
     required this.pruneEmptyDirectories,
   });
 
+  final LocalCacheCategory category;
   final Directory directory;
   final bool Function(File file) includes;
   final bool pruneEmptyDirectories;
@@ -213,9 +323,11 @@ class _CacheFileEntry {
     required this.file,
     required this.bytes,
     required this.modifiedAt,
+    required this.category,
   });
 
   final File file;
   final int bytes;
   final DateTime modifiedAt;
+  final LocalCacheCategory category;
 }

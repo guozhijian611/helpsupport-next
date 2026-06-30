@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/app_config.dart';
@@ -483,7 +484,7 @@ class _AppLogo extends StatelessWidget {
         dimension: 110,
         child: logoUrl.isEmpty
             ? const _LogoFallback()
-            : Image.network(
+            : CachedRemoteImage(
                 logoUrl,
                 fit: BoxFit.contain,
                 loadingBuilder: (context, child, loadingProgress) {

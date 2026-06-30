@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -223,7 +224,7 @@ class _MemoirCard extends ConsumerWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: url.isNotEmpty
-                    ? Image.network(
+                    ? CachedRemoteImage(
                         url,
                         fit: BoxFit.cover,
                         errorBuilder: (_, _, _) =>
@@ -271,19 +272,15 @@ class _MemoirHeroCard extends ConsumerWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        image: url.isNotEmpty
-            ? DecorationImage(
-                image: NetworkImage(url),
-                fit: BoxFit.cover,
-                onError: (_, _) {},
-              )
-            : null,
       ),
-      child: item == null
-          ? const SizedBox.shrink()
-          : Container(
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (url.isNotEmpty) CachedRemoteImage(url, fit: BoxFit.cover),
+          if (item != null)
+            Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(28),
                 gradient: LinearGradient(
                   colors: [
                     Colors.black.withValues(alpha: 0.08),
@@ -306,6 +303,8 @@ class _MemoirHeroCard extends ConsumerWidget {
                 ),
               ),
             ),
+        ],
+      ),
     );
   }
 }

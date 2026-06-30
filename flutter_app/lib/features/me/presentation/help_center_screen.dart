@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -407,7 +408,7 @@ class _HelpThumb extends StatelessWidget {
                 color: palette.iconBackground,
                 child: Icon(icon, color: palette.accent),
               )
-            : Image.network(
+            : CachedRemoteImage(
                 imageUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => ColoredBox(

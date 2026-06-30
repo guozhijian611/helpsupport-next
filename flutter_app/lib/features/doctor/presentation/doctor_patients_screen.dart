@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -437,7 +438,7 @@ class _PatientCard extends ConsumerWidget {
             children: [
               ClipOval(
                 child: avatarUrl.isNotEmpty
-                    ? Image.network(
+                    ? CachedRemoteImage(
                         avatarUrl,
                         width: 66,
                         height: 66,
@@ -510,7 +511,7 @@ class _CandidatePatientTile extends ConsumerWidget {
         children: [
           ClipOval(
             child: avatarUrl.isNotEmpty
-                ? Image.network(
+                ? CachedRemoteImage(
                     avatarUrl,
                     width: 48,
                     height: 48,

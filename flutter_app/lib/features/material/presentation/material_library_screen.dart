@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -1028,7 +1029,7 @@ class _MaterialCard extends ConsumerWidget {
                         child: locked
                             ? const _LockedMaterialThumb()
                             : coverUrl.isNotEmpty
-                            ? Image.network(
+                            ? CachedRemoteImage(
                                 coverUrl,
                                 fit: BoxFit.cover,
                                 loadingBuilder: _materialImageLoadingBuilder,
@@ -1287,7 +1288,7 @@ class _EntertainmentMusicCard extends ConsumerWidget {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: coverUrl.isNotEmpty
-                            ? Image.network(
+                            ? CachedRemoteImage(
                                 coverUrl,
                                 fit: BoxFit.cover,
                                 loadingBuilder: _materialImageLoadingBuilder,
@@ -1480,7 +1481,7 @@ class _EntertainmentGridCard extends ConsumerWidget {
                   fit: StackFit.expand,
                   children: [
                     coverUrl.isNotEmpty
-                        ? Image.network(
+                        ? CachedRemoteImage(
                             coverUrl,
                             fit: BoxFit.cover,
                             loadingBuilder: _materialImageLoadingBuilder,

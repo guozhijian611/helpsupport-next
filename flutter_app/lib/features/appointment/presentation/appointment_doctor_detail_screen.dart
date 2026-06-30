@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -95,7 +96,7 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
               expandedHeight: 320,
               flexibleSpace: FlexibleSpaceBar(
                 background: avatarUrl.isNotEmpty
-                    ? Image.network(
+                    ? CachedRemoteImage(
                         avatarUrl,
                         fit: BoxFit.cover,
                         errorBuilder: (_, _, _) =>

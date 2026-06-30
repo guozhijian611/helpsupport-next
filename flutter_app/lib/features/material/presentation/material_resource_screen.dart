@@ -16,6 +16,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:xml/xml.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/cache/cached_remote_image.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../application/material_controller.dart';
@@ -1389,7 +1390,7 @@ class _ReadableImage extends StatelessWidget {
           children: [
             DecoratedBox(
               decoration: BoxDecoration(color: scheme.surfaceContainerHighest),
-              child: Image.network(
+              child: CachedRemoteImage(
                 url,
                 width: double.infinity,
                 fit: BoxFit.contain,
@@ -1463,7 +1464,7 @@ void _openResourceImagePreview(BuildContext context, String imageUrl) {
                 child: InteractiveViewer(
                   minScale: 1,
                   maxScale: 4,
-                  child: Image.network(
+                  child: CachedRemoteImage(
                     imageUrl,
                     fit: BoxFit.contain,
                     errorBuilder: (_, _, _) => const Icon(
@@ -1866,7 +1867,7 @@ class _AudioPlaybackPage extends StatelessWidget {
             ),
             clipBehavior: Clip.antiAlias,
             child: coverUrl.isNotEmpty
-                ? Image.network(
+                ? CachedRemoteImage(
                     coverUrl,
                     fit: BoxFit.cover,
                     loadingBuilder: (_, child, loadingProgress) =>

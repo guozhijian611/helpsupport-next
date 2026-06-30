@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:xml/xml.dart';
 
+import '../../../core/cache/cached_remote_image.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../application/material_controller.dart';
@@ -626,7 +627,7 @@ class _MusicDetailHero extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   coverUrl.isNotEmpty
-                      ? Image.network(
+                      ? CachedRemoteImage(
                           coverUrl,
                           fit: BoxFit.cover,
                           loadingBuilder: (_, child, loadingProgress) =>
@@ -853,7 +854,7 @@ class _EntertainmentHero extends ConsumerWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: coverUrl.isNotEmpty
-                  ? Image.network(
+                  ? CachedRemoteImage(
                       coverUrl,
                       fit: BoxFit.cover,
                       loadingBuilder: (_, child, loadingProgress) =>
@@ -1020,7 +1021,7 @@ class _MaterialHero extends ConsumerWidget {
               onTap: () => _openMaterialImagePreview(context, url),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
-                child: Image.network(
+                child: CachedRemoteImage(
                   url,
                   height: 188,
                   width: double.infinity,
@@ -1222,7 +1223,7 @@ void _openMaterialImagePreview(BuildContext context, String imageUrl) {
                 child: InteractiveViewer(
                   minScale: 1,
                   maxScale: 4,
-                  child: Image.network(
+                  child: CachedRemoteImage(
                     imageUrl,
                     fit: BoxFit.contain,
                     errorBuilder: (_, _, _) => const Icon(
@@ -1427,18 +1428,20 @@ class _MaterialCommentCard extends ConsumerWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: palette.avatarBackground,
-              backgroundImage: avatarUrl.isNotEmpty
-                  ? NetworkImage(avatarUrl)
-                  : null,
-              child: avatarUrl.isEmpty
-                  ? const Icon(
-                      Icons.person_outline_rounded,
-                      color: Color(0xFFFF9585),
-                    )
-                  : null,
+            ClipOval(
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: avatarUrl.isNotEmpty
+                    ? CachedRemoteImage(avatarUrl, fit: BoxFit.cover)
+                    : ColoredBox(
+                        color: palette.avatarBackground,
+                        child: const Icon(
+                          Icons.person_outline_rounded,
+                          color: Color(0xFFFF9585),
+                        ),
+                      ),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(

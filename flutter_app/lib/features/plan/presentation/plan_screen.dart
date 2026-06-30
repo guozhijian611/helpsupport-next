@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -329,7 +330,7 @@ class _PlanAvatar extends StatelessWidget {
     final size = metrics.size(AppTabShellMetrics.headerAvatarSize);
     final child = avatarUrl.isNotEmpty
         ? ClipOval(
-            child: Image.network(
+            child: CachedRemoteImage(
               avatarUrl,
               width: size,
               height: size,

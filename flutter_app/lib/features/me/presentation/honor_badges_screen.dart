@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/member_text_localizer.dart';
+import '../../../core/cache/cached_remote_image.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../auth/application/auth_controller.dart';
@@ -205,10 +206,20 @@ class _HonorAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = _HonorPalette.of(context);
     if (avatarUrl.trim().isNotEmpty) {
-      return CircleAvatar(
-        radius: 28,
-        backgroundColor: palette.cardBackground,
-        foregroundImage: NetworkImage(avatarUrl),
+      return ClipOval(
+        child: SizedBox(
+          width: 56,
+          height: 56,
+          child: CachedRemoteImage(
+            avatarUrl,
+            fit: BoxFit.cover,
+            placeholder: ColoredBox(color: palette.cardBackground),
+            errorWidget: ColoredBox(
+              color: palette.cardBackground,
+              child: Icon(Icons.person_rounded, color: palette.secondaryText),
+            ),
+          ),
+        ),
       );
     }
     return CircleAvatar(

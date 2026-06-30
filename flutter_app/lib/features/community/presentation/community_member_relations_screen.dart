@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/cache/cached_remote_image.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../application/community_controller.dart';
@@ -231,17 +232,21 @@ class _RelationMemberCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 36,
-            backgroundColor: palette.avatarBackground,
-            backgroundImage: avatarUrl.isEmpty ? null : NetworkImage(avatarUrl),
-            child: avatarUrl.isEmpty
-                ? Icon(
-                    Icons.person_rounded,
-                    color: palette.avatarIcon,
-                    size: 30,
-                  )
-                : null,
+          ClipOval(
+            child: SizedBox(
+              width: 72,
+              height: 72,
+              child: avatarUrl.isEmpty
+                  ? ColoredBox(
+                      color: palette.avatarBackground,
+                      child: Icon(
+                        Icons.person_rounded,
+                        color: palette.avatarIcon,
+                        size: 30,
+                      ),
+                    )
+                  : CachedRemoteImage(avatarUrl, fit: BoxFit.cover),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(

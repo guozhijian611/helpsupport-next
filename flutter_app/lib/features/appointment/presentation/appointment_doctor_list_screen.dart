@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -188,7 +189,7 @@ class _DoctorListCard extends ConsumerWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(22),
                 child: avatarUrl.isNotEmpty
-                    ? Image.network(
+                    ? CachedRemoteImage(
                         avatarUrl,
                         width: 114,
                         height: 114,

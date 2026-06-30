@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../../../core/cache/cached_remote_image.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../application/material_controller.dart';
@@ -500,7 +501,7 @@ class _QueueTrackArtwork extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             coverUrl.isNotEmpty
-                ? Image.network(
+                ? CachedRemoteImage(
                     coverUrl,
                     fit: BoxFit.cover,
                     loadingBuilder: (context, child, loadingProgress) {
@@ -912,7 +913,7 @@ class _MusicCoverCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   coverUrl.isNotEmpty
-                      ? Image.network(
+                      ? CachedRemoteImage(
                           coverUrl,
                           fit: BoxFit.cover,
                           loadingBuilder: (_, child, progress) =>

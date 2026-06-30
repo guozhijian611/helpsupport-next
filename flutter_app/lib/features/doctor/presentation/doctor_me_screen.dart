@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -332,7 +333,7 @@ class _DoctorAvatar extends StatelessWidget {
       child: SizedBox(
         width: 56,
         height: 56,
-        child: Image.network(
+        child: CachedRemoteImage(
           avatarUrl,
           fit: BoxFit.cover,
           errorBuilder: (_, _, _) => CircleAvatar(

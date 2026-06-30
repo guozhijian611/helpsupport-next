@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -891,10 +892,9 @@ class _AuthorAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = _CommunityFeedPalette.of(context);
     final avatar = avatarUrl.trim().isNotEmpty
         ? ClipOval(
-            child: Image.network(
+            child: CachedRemoteImage(
               avatarUrl,
               width: size,
               height: size,
@@ -992,7 +992,7 @@ class _PostImageGrid extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         child: AspectRatio(
           aspectRatio: 1.45,
-          child: Image.network(images.first, fit: BoxFit.cover),
+          child: CachedRemoteImage(images.first, fit: BoxFit.cover),
         ),
       );
     }
@@ -1010,7 +1010,7 @@ class _PostImageGrid extends StatelessWidget {
           childAspectRatio: 0.88,
         ),
         itemBuilder: (context, index) {
-          return Image.network(images[index], fit: BoxFit.cover);
+          return CachedRemoteImage(images[index], fit: BoxFit.cover);
         },
       ),
     );

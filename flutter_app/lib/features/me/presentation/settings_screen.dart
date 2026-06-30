@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -216,6 +217,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   bool _avatarUploading = false;
   bool _cacheInspecting = false;
   bool _cacheClearing = false;
+  Set<LocalCacheCategory> _selectedCacheCategories = {
+    for (final category in LocalCacheCategory.values) category,
+  };
   double? _avatarUploadProgress;
   String? _remoteError;
   int _developerTapCount = 0;
@@ -929,8 +933,8 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
             title: _t(context, '自动清理过期缓存', 'Auto-clear expired cache'),
             subtitle: _t(
               context,
-              '每天最多一次，清理 7 天前的临时媒体和素材缓存',
-              'At most daily, clears temporary media and material cache older than 7 days',
+              '每天最多一次，清理 7 天前未使用的远程图片、素材和临时媒体缓存',
+              'At most daily, clears remote image, material, and temporary media cache unused for 7 days',
             ),
             value: _autoClearAttachments,
             onChanged: _setAutoClearAttachments,
@@ -1375,6 +1379,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     try {
       final result = await _localCacheManager.clear(
         olderThan: LocalCacheManager.autoClearAge,
+        categories: LocalCacheCategory.values.toSet(),
       );
       await prefs.setString(
         '${_privacyPrefix}auto_clear_attachments_last_run_at',
@@ -1406,57 +1411,134 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     if (!mounted) {
       return;
     }
-    final snapshot =
-        _localCacheSnapshot ??
-        const LocalCacheSnapshot(fileCount: 0, totalBytes: 0);
+    final snapshot = _localCacheSnapshot ?? LocalCacheSnapshot.empty();
+    var selected = {
+      for (final category in _selectedCacheCategories)
+        if (!snapshot.category(category).isEmpty) category,
+    };
+    if (selected.isEmpty) {
+      selected = {
+        for (final category in LocalCacheCategory.values)
+          if (!snapshot.category(category).isEmpty) category,
+      };
+    }
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(_t(dialogContext, '本地数据与缓存', 'Local data and cache')),
-        content: Text(
-          [
-            _t(dialogContext, '可清理缓存：', 'Cleanable cache: ') +
-                _formatCacheSize(snapshot.totalBytes),
-            _t(dialogContext, '缓存文件：', 'Cache files: ') +
-                _formatCacheFileCount(dialogContext, snapshot.fileCount),
-            _t(
-              dialogContext,
-              '自动清理：开启后每天最多执行一次，清理 7 天前未修改的临时媒体和素材缓存。',
-              'Auto-clear: when enabled, runs at most once per day and clears temporary media and material cache not modified for 7 days.',
-            ),
-            _t(
-              dialogContext,
-              '不会删除登录态、账号资料、偏好设置或已提交的服务端数据。',
-              'Sign-in state, profile, preferences, and submitted server data are not deleted.',
-            ),
-          ].join('\n\n'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(_t(dialogContext, '取消', 'Cancel')),
-          ),
-          FilledButton(
-            onPressed: snapshot.isEmpty || _cacheClearing
-                ? null
-                : () => Navigator.of(dialogContext).pop(true),
-            child: Text(_t(dialogContext, '立即清理', 'Clear now')),
-          ),
-        ],
-      ),
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final selectedBytes = selected.fold<int>(
+              0,
+              (total, category) =>
+                  total + snapshot.category(category).totalBytes,
+            );
+            final selectedFiles = selected.fold<int>(
+              0,
+              (total, category) =>
+                  total + snapshot.category(category).fileCount,
+            );
+            return AlertDialog(
+              title: Text(_t(dialogContext, '本地数据与缓存', 'Local data and cache')),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _t(dialogContext, '可清理缓存：', 'Cleanable cache: ') +
+                          _formatCacheSize(snapshot.totalBytes),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _t(dialogContext, '缓存文件：', 'Cache files: ') +
+                          _formatCacheFileCount(
+                            dialogContext,
+                            snapshot.fileCount,
+                          ),
+                    ),
+                    const SizedBox(height: 16),
+                    for (final category in LocalCacheCategory.values) ...[
+                      _CacheCategoryCheckbox(
+                        title: _cacheCategoryTitle(dialogContext, category),
+                        subtitle: _cacheCategoryDescription(
+                          dialogContext,
+                          category,
+                        ),
+                        value: selected.contains(category),
+                        enabled: !snapshot.category(category).isEmpty,
+                        fileCount: snapshot.category(category).fileCount,
+                        sizeLabel: _formatCacheSize(
+                          snapshot.category(category).totalBytes,
+                        ),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            if (value == true) {
+                              selected.add(category);
+                            } else {
+                              selected.remove(category);
+                            }
+                          });
+                        },
+                      ),
+                      if (category != LocalCacheCategory.values.last)
+                        const SizedBox(height: 8),
+                    ],
+                    const SizedBox(height: 16),
+                    Text(
+                      _t(dialogContext, '本次将清理：', 'Selected to clear: ') +
+                          _formatCacheSize(selectedBytes),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      _t(
+                        dialogContext,
+                        '自动清理：开启后每天最多执行一次，清理 7 天前未修改的上述缓存。',
+                        'Auto-clear: when enabled, runs at most once per day and clears the cache above if it has not changed for 7 days.',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      _t(
+                        dialogContext,
+                        '不会删除登录态、账号资料、偏好设置或已提交的服务端数据。',
+                        'Sign-in state, profile, preferences, and submitted server data are not deleted.',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: Text(_t(dialogContext, '取消', 'Cancel')),
+                ),
+                FilledButton(
+                  onPressed: selectedFiles == 0 || _cacheClearing
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(true),
+                  child: Text(_t(dialogContext, '清理所选', 'Clear selected')),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
     if (confirmed == true && mounted) {
-      await _clearLocalCache();
+      setState(() => _selectedCacheCategories = selected);
+      await _clearLocalCache(categories: selected);
     }
   }
 
-  Future<void> _clearLocalCache() async {
+  Future<void> _clearLocalCache({
+    required Set<LocalCacheCategory> categories,
+  }) async {
     if (_cacheClearing) {
       return;
     }
     setState(() => _cacheClearing = true);
     try {
-      final result = await _localCacheManager.clear();
+      final result = await _localCacheManager.clear(categories: categories);
       if (!mounted) {
         return;
       }
@@ -2903,7 +2985,7 @@ class _AvatarPreview extends ConsumerWidget {
             children: [
               resolved.isEmpty
                   ? Icon(Icons.person_rounded, color: palette.accent, size: 22)
-                  : Image.network(
+                  : CachedRemoteImage(
                       resolved,
                       fit: BoxFit.cover,
                       errorBuilder: (_, _, _) => Icon(
@@ -2972,7 +3054,7 @@ class _AvatarPreviewSurface extends StatelessWidget {
                     ),
                   ],
                 )
-              : Image.network(
+              : CachedRemoteImage(
                   url,
                   fit: BoxFit.cover,
                   errorBuilder: (_, _, _) => Center(
@@ -3363,6 +3445,62 @@ class _SettingsSwitchRow extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CacheCategoryCheckbox extends StatelessWidget {
+  const _CacheCategoryCheckbox({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.enabled,
+    required this.fileCount,
+    required this.sizeLabel,
+    required this.onChanged,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool value;
+  final bool enabled;
+  final int fileCount;
+  final String sizeLabel;
+  final ValueChanged<bool?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = _SettingsPalette.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: palette.cardBorder),
+      ),
+      child: CheckboxListTile(
+        value: enabled && value,
+        onChanged: enabled ? onChanged : null,
+        activeColor: palette.accent,
+        contentPadding: const EdgeInsetsDirectional.only(start: 8, end: 10),
+        controlAffinity: ListTileControlAffinity.leading,
+        title: Text(
+          title,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: enabled ? palette.primaryText : palette.secondaryText,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        subtitle: Text(
+          [
+            subtitle,
+            '$sizeLabel / ${_formatCacheFileCount(context, fileCount)}',
+          ].join('\n'),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: palette.secondaryText,
+          ),
         ),
       ),
     );
@@ -3762,6 +3900,49 @@ String _formatCacheSize(int bytes) {
 
 String _formatCacheFileCount(BuildContext context, int count) {
   return _t(context, '$count 个', '$count files');
+}
+
+String _cacheCategoryTitle(BuildContext context, LocalCacheCategory category) {
+  return switch (category) {
+    LocalCacheCategory.remoteImages => _t(
+      context,
+      '远程图片缓存',
+      'Remote image cache',
+    ),
+    LocalCacheCategory.materialFiles => _t(
+      context,
+      '素材离线缓存',
+      'Material offline cache',
+    ),
+    LocalCacheCategory.temporaryMedia => _t(
+      context,
+      '临时媒体缓存',
+      'Temporary media cache',
+    ),
+  };
+}
+
+String _cacheCategoryDescription(
+  BuildContext context,
+  LocalCacheCategory category,
+) {
+  return switch (category) {
+    LocalCacheCategory.remoteImages => _t(
+      context,
+      '头像、封面、社区图片等 HTTP 图片',
+      'HTTP images such as avatars, covers, and community images',
+    ),
+    LocalCacheCategory.materialFiles => _t(
+      context,
+      '用户手动离线保存的音频、PDF、图片等素材',
+      'Audio, PDF, image, and other material files saved offline',
+    ),
+    LocalCacheCategory.temporaryMedia => _t(
+      context,
+      '图片选择器产生的临时图片、缩略图和压缩文件',
+      'Temporary images, thumbnails, and compressed files from media pickers',
+    ),
+  };
 }
 
 String _textScaleLabel(BuildContext context, double scale) {

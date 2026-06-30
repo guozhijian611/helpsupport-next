@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -347,7 +348,7 @@ class _MemberAvatar extends StatelessWidget {
       child: SizedBox(
         width: size,
         height: size,
-        child: Image.network(
+        child: CachedRemoteImage(
           avatarUrl,
           fit: BoxFit.cover,
           errorBuilder: (_, _, _) => _RobotAvatar(size: size),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -141,7 +142,7 @@ class _AppointmentRecordCard extends ConsumerWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: avatarUrl.isNotEmpty
-                    ? Image.network(
+                    ? CachedRemoteImage(
                         avatarUrl,
                         width: 86,
                         height: 86,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/notifications/centered_notice.dart';
@@ -385,7 +386,7 @@ class _ReviewPostCard extends StatelessWidget {
                           const SizedBox(width: 14),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(14),
-                            child: Image.network(
+                            child: CachedRemoteImage(
                               thumbnailUrl,
                               width: 126,
                               height: 88,

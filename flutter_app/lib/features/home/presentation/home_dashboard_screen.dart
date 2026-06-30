@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -1038,7 +1039,7 @@ class _ProfileAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final child = avatarUrl.isNotEmpty
         ? ClipOval(
-            child: Image.network(
+            child: CachedRemoteImage(
               avatarUrl,
               width: size,
               height: size,

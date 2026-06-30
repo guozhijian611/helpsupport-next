@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -379,7 +380,7 @@ class _OnboardingImage extends StatelessWidget {
         height: height,
         child: source.isEmpty
             ? placeholder
-            : Image.network(
+            : CachedRemoteImage(
                 source,
                 fit: BoxFit.contain,
                 loadingBuilder: (context, child, loadingProgress) {
