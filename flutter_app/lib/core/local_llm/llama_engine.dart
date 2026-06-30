@@ -218,6 +218,9 @@ class LlamaEngine {
       }
       return configuredGpuLayers ?? 99;
     }
+    if (Platform.isAndroid) {
+      return 0;
+    }
     if (mode == 'auto' && await _supportsGpuOffload()) {
       return configuredGpuLayers ?? 99;
     }

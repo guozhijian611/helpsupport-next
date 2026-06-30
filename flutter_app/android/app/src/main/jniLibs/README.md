@@ -1,6 +1,7 @@
 # Native llama runtime
 
-Run the project script to build CPU-only llama.cpp Android libraries:
+Run the project script to build llama.cpp Android CPU libraries and the optional
+Vulkan GPU backend:
 
 ```bash
 ./tool/build_android_llama.sh
