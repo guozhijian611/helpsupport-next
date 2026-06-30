@@ -323,18 +323,21 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
                 ),
                 const SizedBox(height: 18),
                 for (final patient in patients)
-                  ListTile(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
+                  Material(
+                    color: Colors.transparent,
+                    child: ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      tileColor: patient.memberId == _selectedMemberId
+                          ? palette.selectedSoftBackground
+                          : palette.softBackground,
+                      title: Text(patient.displayName),
+                      subtitle: Text(
+                        '${_t(context, '年龄', 'Age')} ${patient.ageLabel} · ${_t(context, '性别', 'Gender')} ${patient.genderLabel}',
+                      ),
+                      onTap: () => Navigator.of(context).pop(patient.memberId),
                     ),
-                    tileColor: patient.memberId == _selectedMemberId
-                        ? palette.selectedSoftBackground
-                        : palette.softBackground,
-                    title: Text(patient.displayName),
-                    subtitle: Text(
-                      '${_t(context, '年龄', 'Age')} ${patient.ageLabel} · ${_t(context, '性别', 'Gender')} ${patient.genderLabel}',
-                    ),
-                    onTap: () => Navigator.of(context).pop(patient.memberId),
                   ),
               ],
             ),

@@ -408,18 +408,21 @@ class _DoctorTreatmentPlanScreenState
                 ),
                 const SizedBox(height: 18),
                 for (final patient in patients)
-                  ListTile(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
+                  Material(
+                    color: Colors.transparent,
+                    child: ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      tileColor: patient.memberId == _selectedMemberId
+                          ? palette.selectedSoftBackground
+                          : palette.softBackground,
+                      title: Text(patient.displayName),
+                      subtitle: Text(
+                        '${_t(context, '年龄', 'Age')} ${patient.ageLabel} · ${_t(context, '性别', 'Gender')} ${patient.genderLabel}',
+                      ),
+                      onTap: () => Navigator.of(context).pop(patient.memberId),
                     ),
-                    tileColor: patient.memberId == _selectedMemberId
-                        ? palette.selectedSoftBackground
-                        : palette.softBackground,
-                    title: Text(patient.displayName),
-                    subtitle: Text(
-                      '${_t(context, '年龄', 'Age')} ${patient.ageLabel} · ${_t(context, '性别', 'Gender')} ${patient.genderLabel}',
-                    ),
-                    onTap: () => Navigator.of(context).pop(patient.memberId),
                   ),
               ],
             ),
@@ -489,15 +492,18 @@ class _DoctorTreatmentPlanScreenState
                 ),
                 const SizedBox(height: 16),
                 for (final item in const [1, 2, 3])
-                  ListTile(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
+                  Material(
+                    color: Colors.transparent,
+                    child: ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      tileColor: item == _status
+                          ? palette.selectedChipBackground
+                          : palette.softBackground,
+                      title: Text(_planStatusLabel(context, item)),
+                      onTap: () => Navigator.of(context).pop(item),
                     ),
-                    tileColor: item == _status
-                        ? palette.selectedChipBackground
-                        : palette.softBackground,
-                    title: Text(_planStatusLabel(context, item)),
-                    onTap: () => Navigator.of(context).pop(item),
                   ),
               ],
             ),
@@ -681,16 +687,19 @@ class _DoctorTreatmentPlanScreenState
                 ),
                 const SizedBox(height: 16),
                 for (final stage in plan.stages)
-                  ListTile(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
+                  Material(
+                    color: Colors.transparent,
+                    child: ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      tileColor: palette.softBackground,
+                      title: Text(stage.stageName),
+                      subtitle: Text(
+                        '${_formatDateString(stage.startDate)} - ${_formatDateString(stage.endDate)}',
+                      ),
+                      onTap: () => Navigator.of(context).pop(stage.id),
                     ),
-                    tileColor: palette.softBackground,
-                    title: Text(stage.stageName),
-                    subtitle: Text(
-                      '${_formatDateString(stage.startDate)} - ${_formatDateString(stage.endDate)}',
-                    ),
-                    onTap: () => Navigator.of(context).pop(stage.id),
                   ),
               ],
             ),

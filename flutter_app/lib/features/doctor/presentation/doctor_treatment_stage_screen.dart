@@ -197,15 +197,18 @@ class _DoctorTreatmentStageScreenState
                 ),
                 const SizedBox(height: 16),
                 for (final item in const [0, 1, 2])
-                  ListTile(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
+                  Material(
+                    color: Colors.transparent,
+                    child: ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      tileColor: item == _status
+                          ? palette.selectedChipBackground
+                          : palette.softBackground,
+                      title: Text(_stageStatusLabel(context, item)),
+                      onTap: () => Navigator.of(context).pop(item),
                     ),
-                    tileColor: item == _status
-                        ? palette.selectedChipBackground
-                        : palette.softBackground,
-                    title: Text(_stageStatusLabel(context, item)),
-                    onTap: () => Navigator.of(context).pop(item),
                   ),
               ],
             ),

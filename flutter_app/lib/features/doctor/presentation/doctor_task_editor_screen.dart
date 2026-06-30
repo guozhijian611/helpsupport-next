@@ -253,15 +253,18 @@ class _DoctorTaskEditorScreenState
                   'material',
                   'checkin',
                 ])
-                  ListTile(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
+                  Material(
+                    color: Colors.transparent,
+                    child: ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      tileColor: item == _taskType
+                          ? palette.selectedChipBackground
+                          : palette.softBackground,
+                      title: Text(_taskTypeLabel(context, item)),
+                      onTap: () => Navigator.of(context).pop(item),
                     ),
-                    tileColor: item == _taskType
-                        ? palette.selectedChipBackground
-                        : palette.softBackground,
-                    title: Text(_taskTypeLabel(context, item)),
-                    onTap: () => Navigator.of(context).pop(item),
                   ),
               ],
             ),
@@ -323,22 +326,25 @@ class _DoctorTaskEditorScreenState
                 ),
                 const SizedBox(height: 16),
                 for (final scale in scales)
-                  ListTile(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    tileColor: _selectedAssessmentScale?.id == scale.id
-                        ? palette.selectedChipBackground
-                        : palette.softBackground,
-                    title: Text(scale.title),
-                    subtitle: Text(
-                      _t(
-                        context,
-                        '${scale.questions.length} 题 · 总分 ${scale.totalScore}',
-                        '${scale.questions.length} questions · ${scale.totalScore} points',
+                  Material(
+                    color: Colors.transparent,
+                    child: ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
                       ),
+                      tileColor: _selectedAssessmentScale?.id == scale.id
+                          ? palette.selectedChipBackground
+                          : palette.softBackground,
+                      title: Text(scale.title),
+                      subtitle: Text(
+                        _t(
+                          context,
+                          '${scale.questions.length} 题 · 总分 ${scale.totalScore}',
+                          '${scale.questions.length} questions · ${scale.totalScore} points',
+                        ),
+                      ),
+                      onTap: () => Navigator.of(context).pop(scale),
                     ),
-                    onTap: () => Navigator.of(context).pop(scale),
                   ),
               ],
             ),
