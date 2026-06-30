@@ -327,10 +327,7 @@ class _AddPatientDialogState extends ConsumerState<_AddPatientDialog> {
                     text: error.toString(),
                   ),
                 ),
-                loading: () => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: CircularProgressIndicator(),
-                ),
+                loading: () => const _CandidateLoadingList(),
               ),
             ),
             _PatientPager(
@@ -617,6 +614,68 @@ class _CandidateInfoChip extends StatelessWidget {
           height: 1.15,
         ),
       ),
+    );
+  }
+}
+
+class _CandidateLoadingList extends StatelessWidget {
+  const _CandidateLoadingList();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPatientsPalette.of(context);
+    return ListView.separated(
+      padding: EdgeInsets.zero,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 4,
+      separatorBuilder: (_, _) => Divider(color: palette.outline, height: 1),
+      itemBuilder: (context, index) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            children: [
+              const _LoadingBlock(width: 48, height: 48, radius: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    _LoadingBlock(width: 120, height: 16, radius: 8),
+                    SizedBox(height: 10),
+                    _LoadingBlock(width: 180, height: 14, radius: 7),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              const _LoadingBlock(width: 66, height: 44, radius: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _LoadingBlock extends StatelessWidget {
+  const _LoadingBlock({
+    required this.width,
+    required this.height,
+    required this.radius,
+  });
+
+  final double width;
+  final double height;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPatientsPalette.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.inputBackground,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+      child: SizedBox(width: width, height: height),
     );
   }
 }
