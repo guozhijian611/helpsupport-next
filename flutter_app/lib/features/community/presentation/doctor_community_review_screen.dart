@@ -159,33 +159,99 @@ class _DoctorCommunityReviewScreenState
     CommunityPost post,
   ) async {
     final controller = TextEditingController();
+    final presetReasons = _rejectReasonOptions(context);
     final remark = await showDialog<String>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(_t(context, '填写拒绝原因', 'Reject reason')),
-          content: TextField(
-            controller: controller,
-            maxLines: 4,
-            decoration: InputDecoration(
-              hintText: _t(
-                context,
-                '例如：内容不符合社区规范',
-                'For example: this content does not meet the community rules.',
+        final palette = _DoctorCommunityReviewPalette.of(dialogContext);
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final selectedReason = controller.text.trim();
+            return AlertDialog(
+              title: Text(_t(context, '填写拒绝原因', 'Reject reason')),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _t(context, '常用原因', 'Common reasons'),
+                      style: TextStyle(
+                        color: palette.secondaryText,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: presetReasons.map((reason) {
+                        final selected = selectedReason == reason.label;
+                        return ChoiceChip(
+                          label: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 210),
+                            child: Text(
+                              reason.label,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          selected: selected,
+                          onSelected: (_) {
+                            controller.text = reason.label;
+                            controller.selection = TextSelection.collapsed(
+                              offset: controller.text.length,
+                            );
+                            setDialogState(() {});
+                          },
+                          labelStyle: TextStyle(
+                            color: selected
+                                ? Colors.white
+                                : palette.primaryText,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          selectedColor: const Color(0xFFFF9585),
+                          backgroundColor: palette.cardBackground,
+                          side: BorderSide(
+                            color: selected
+                                ? const Color(0xFFFF9585)
+                                : palette.outline,
+                          ),
+                          visualDensity: VisualDensity.compact,
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: controller,
+                      maxLines: 4,
+                      onChanged: (_) => setDialogState(() {}),
+                      decoration: InputDecoration(
+                        hintText: _t(
+                          context,
+                          '例如：内容不符合社区规范',
+                          'For example: this content does not meet the community rules.',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(_t(context, '取消', 'Cancel')),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(dialogContext).pop(controller.text.trim()),
-              child: Text(_t(context, '提交', 'Submit')),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: Text(_t(context, '取消', 'Cancel')),
+                ),
+                FilledButton(
+                  onPressed: () =>
+                      Navigator.of(dialogContext).pop(controller.text.trim()),
+                  child: Text(_t(context, '提交', 'Submit')),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -251,6 +317,30 @@ class _DoctorCommunityReviewScreenState
       }
     }
   }
+}
+
+List<_RejectReasonOption> _rejectReasonOptions(BuildContext context) {
+  return [
+    _RejectReasonOption(
+      _t(context, '内容不符合社区规范', 'Content does not meet community rules'),
+    ),
+    _RejectReasonOption(
+      _t(context, '含有攻击、辱骂或骚扰内容', 'Abuse, harassment, or insults'),
+    ),
+    _RejectReasonOption(
+      _t(context, '含有自伤、自杀或危险行为暗示', 'Self-harm or dangerous behavior'),
+    ),
+    _RejectReasonOption(_t(context, '含有广告、引流或无关推广', 'Ads, spam, or promotion')),
+    _RejectReasonOption(
+      _t(context, '涉及隐私信息或敏感个人信息', 'Private or sensitive information'),
+    ),
+  ];
+}
+
+class _RejectReasonOption {
+  const _RejectReasonOption(this.label);
+
+  final String label;
 }
 
 class _ScopeTab extends StatelessWidget {
