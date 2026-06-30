@@ -28,7 +28,7 @@ class _MaterialPrivateUploadScreenState
 
   String _mediaType = 'txt';
   int _selectedCategoryId = 0;
-  PlatformFile? _selectedFile;
+  List<PlatformFile> _selectedFiles = const [];
   bool _submitting = false;
 
   _PrivateMediaOption get _currentOption {
@@ -78,7 +78,7 @@ class _MaterialPrivateUploadScreenState
               summaryController: _summaryController,
               contentController: _contentController,
               linkController: _linkController,
-              selectedFile: _selectedFile,
+              selectedFiles: _selectedFiles,
               mediaType: _mediaType,
               selectedCategoryId: _selectedCategoryId,
               categories: categories.asData?.value ?? const [],
@@ -92,11 +92,11 @@ class _MaterialPrivateUploadScreenState
                 }
                 setState(() {
                   _mediaType = value;
-                  _selectedFile = null;
+                  _selectedFiles = const [];
                 });
               },
               onPickFile: _pickFile,
-              onClearFile: () => setState(() => _selectedFile = null),
+              onClearFile: () => setState(() => _selectedFiles = const []),
             ),
             const SizedBox(height: 18),
             FilledButton.icon(
@@ -135,7 +135,7 @@ class _MaterialPrivateUploadScreenState
     if (result == null || result.files.isEmpty) {
       return;
     }
-    setState(() => _selectedFile = result.files.single);
+    setState(() => _selectedFiles = [result.files.single]);
   }
 
   Future<void> _pickImage() async {
@@ -158,26 +158,28 @@ class _MaterialPrivateUploadScreenState
       return;
     }
 
-    final image = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
+    final images = await _imagePicker.pickMultiImage(
       imageQuality: 90,
       maxWidth: 2000,
     );
-    if (image == null) {
+    if (images.isEmpty) {
       return;
     }
 
-    final fileName = image.name.trim().isNotEmpty
-        ? image.name
-        : Uri.file(image.path).pathSegments.last;
-    final fileSize = await image.length();
-    setState(
-      () => _selectedFile = PlatformFile(
-        name: fileName,
-        path: image.path,
-        size: fileSize,
-      ),
-    );
+    final files = <PlatformFile>[];
+    for (final image in images) {
+      final fileName = image.name.trim().isNotEmpty
+          ? image.name
+          : Uri.file(image.path).pathSegments.last;
+      files.add(
+        PlatformFile(
+          name: fileName,
+          path: image.path,
+          size: await image.length(),
+        ),
+      );
+    }
+    setState(() => _selectedFiles = files);
   }
 
   Future<void> _submit() async {
@@ -197,8 +199,8 @@ class _MaterialPrivateUploadScreenState
     };
 
     if (option.requiresFile) {
-      final file = _selectedFile;
-      if (file == null) {
+      final files = _selectedFiles;
+      if (files.isEmpty) {
         context.showCenteredNotice(
           option.value == 'image'
               ? _t(context, '请选择要上传的图片', 'Choose an image first')
@@ -208,18 +210,7 @@ class _MaterialPrivateUploadScreenState
       }
       setState(() => _submitting = true);
       try {
-        final upload = await ref
-            .read(materialRepositoryProvider)
-            .uploadPrivateMaterialFile(file: file);
-        payload['content_url'] = upload.url;
-        if (option.value == 'image') {
-          payload['cover_url'] = upload.url;
-        }
-        if ((payload['summary'] as String).isEmpty &&
-            upload.originName.trim().isNotEmpty) {
-          payload['summary'] = upload.originName.trim();
-        }
-        await _save(payload);
+        await _uploadAndSaveFiles(payload, files, option);
       } finally {
         if (mounted) {
           setState(() => _submitting = false);
@@ -259,22 +250,52 @@ class _MaterialPrivateUploadScreenState
     }
   }
 
+  Future<void> _uploadAndSaveFiles(
+    Map<String, dynamic> basePayload,
+    List<PlatformFile> files,
+    _PrivateMediaOption option,
+  ) async {
+    final repository = ref.read(materialRepositoryProvider);
+    try {
+      for (final file in files) {
+        final upload = await repository.uploadPrivateMaterialFile(file: file);
+        final payload = Map<String, dynamic>.of(basePayload);
+        payload['content_url'] = upload.url;
+        if (option.value == 'image') {
+          payload['cover_url'] = upload.url;
+        }
+        if ((payload['summary'] as String).isEmpty &&
+            upload.originName.trim().isNotEmpty) {
+          payload['summary'] = upload.originName.trim();
+        }
+        await repository.savePrivateMaterial(payload);
+      }
+      _invalidateMaterialLists();
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(
+        files.length > 1
+            ? _t(
+                context,
+                '已保存 ${files.length} 个素材',
+                'Saved ${files.length} materials',
+              )
+            : _t(context, '已保存', 'Saved'),
+      );
+      context.pop();
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(error.toString());
+    }
+  }
+
   Future<void> _save(Map<String, dynamic> payload) async {
     try {
       await ref.read(materialRepositoryProvider).savePrivateMaterial(payload);
-      final locale = Localizations.localeOf(context).toLanguageTag();
-      for (final categoryId in {0, _selectedCategoryId}) {
-        ref.invalidate(
-          materialListProvider(
-            MaterialListQuery(
-              materialType: 'private',
-              categoryId: categoryId,
-              keyword: '',
-              locale: locale,
-            ),
-          ),
-        );
-      }
+      _invalidateMaterialLists();
       if (!mounted) {
         return;
       }
@@ -285,6 +306,22 @@ class _MaterialPrivateUploadScreenState
         return;
       }
       context.showCenteredNotice(error.toString());
+    }
+  }
+
+  void _invalidateMaterialLists() {
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    for (final categoryId in {0, _selectedCategoryId}) {
+      ref.invalidate(
+        materialListProvider(
+          MaterialListQuery(
+            materialType: 'private',
+            categoryId: categoryId,
+            keyword: '',
+            locale: locale,
+          ),
+        ),
+      );
     }
   }
 
@@ -369,7 +406,7 @@ class _PrivateUploadPanel extends StatelessWidget {
     required this.summaryController,
     required this.contentController,
     required this.linkController,
-    required this.selectedFile,
+    required this.selectedFiles,
     required this.mediaType,
     required this.selectedCategoryId,
     required this.categories,
@@ -386,7 +423,7 @@ class _PrivateUploadPanel extends StatelessWidget {
   final TextEditingController summaryController;
   final TextEditingController contentController;
   final TextEditingController linkController;
-  final PlatformFile? selectedFile;
+  final List<PlatformFile> selectedFiles;
   final String mediaType;
   final int selectedCategoryId;
   final List<MaterialCategory> categories;
@@ -479,7 +516,7 @@ class _PrivateUploadPanel extends StatelessWidget {
             _FilePickerTile(
               palette: palette,
               option: option,
-              file: selectedFile,
+              files: selectedFiles,
               onPickFile: onPickFile,
               onClearFile: onClearFile,
             )
@@ -549,19 +586,23 @@ class _FilePickerTile extends StatelessWidget {
   const _FilePickerTile({
     required this.palette,
     required this.option,
-    required this.file,
+    required this.files,
     required this.onPickFile,
     required this.onClearFile,
   });
 
   final _PrivateUploadPalette palette;
   final _PrivateMediaOption option;
-  final PlatformFile? file;
+  final List<PlatformFile> files;
   final VoidCallback onPickFile;
   final VoidCallback onClearFile;
 
   @override
   Widget build(BuildContext context) {
+    final hasFiles = files.isNotEmpty;
+    final title = _selectedFileTitle(context);
+    final subtitle = _selectedFileSubtitle(context);
+
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: onPickFile,
@@ -581,10 +622,7 @@ class _FilePickerTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    file?.name ??
-                        (option.value == 'image'
-                            ? _t(context, '选择图片', 'Choose image')
-                            : _t(context, '选择文件', 'Choose file')),
+                    title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -594,17 +632,13 @@ class _FilePickerTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    _t(
-                      context,
-                      '支持 ${option.extensions.join(' / ')}',
-                      'Supports ${option.extensions.join(' / ')}',
-                    ),
+                    subtitle,
                     style: TextStyle(color: palette.secondaryText),
                   ),
                 ],
               ),
             ),
-            if (file != null)
+            if (hasFiles)
               IconButton(
                 tooltip: _t(context, '移除文件', 'Remove file'),
                 onPressed: onClearFile,
@@ -615,6 +649,40 @@ class _FilePickerTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  String _selectedFileTitle(BuildContext context) {
+    if (files.isEmpty) {
+      return option.value == 'image'
+          ? _t(context, '选择图片', 'Choose images')
+          : _t(context, '选择文件', 'Choose file');
+    }
+    if (option.value == 'image' && files.length > 1) {
+      return _t(
+        context,
+        '已选择 ${files.length} 张图片',
+        '${files.length} images selected',
+      );
+    }
+    return files.first.name;
+  }
+
+  String _selectedFileSubtitle(BuildContext context) {
+    if (files.isNotEmpty) {
+      if (option.value == 'image' && files.length > 1) {
+        return files.take(3).map((file) => file.name).join(' / ');
+      }
+      return _t(
+        context,
+        '支持 ${option.extensions.join(' / ')}',
+        'Supports ${option.extensions.join(' / ')}',
+      );
+    }
+    return _t(
+      context,
+      '支持 ${option.extensions.join(' / ')}',
+      'Supports ${option.extensions.join(' / ')}',
     );
   }
 }
