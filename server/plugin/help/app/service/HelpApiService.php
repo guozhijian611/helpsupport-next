@@ -2288,6 +2288,9 @@ class HelpApiService
             'progress',
             'duration_seconds',
         ]);
+        if (trim((string) ($payload['author_name'] ?? '')) === '' && $contentType === 'material') {
+            $payload['author_name'] = $this->resolveMaterialAuthorName($contentId);
+        }
         $payload['progress'] = min(100, max(0, (float) ($payload['progress'] ?? 0)));
         $payload['duration_seconds'] = max(0, (int) ($payload['duration_seconds'] ?? 0));
         $payload['member_id'] = $memberId;
@@ -4822,12 +4825,23 @@ class HelpApiService
         $materials = Db::table('sa_content_material')
             ->whereIn('id', array_values(array_unique($materialIds)))
             ->whereNull('delete_time')
-            ->field('id, artist')
+            ->field('id, artist, member_id')
             ->select()
             ->toArray();
-        $artistLookup = [];
+        $authorLookup = [];
+        $memberIds = array_values(array_unique(array_filter(array_map(
+            static fn (array $material): int => (int) ($material['member_id'] ?? 0),
+            $materials
+        ))));
+        $memberLookup = $memberIds === []
+            ? []
+            : Db::table('sa_member')
+                ->whereIn('id', $memberIds)
+                ->whereNull('delete_time')
+                ->column('nickname', 'id');
+
         foreach ($materials as $material) {
-            $artistLookup[(int) ($material['id'] ?? 0)] = trim((string) ($material['artist'] ?? ''));
+            $authorLookup[(int) ($material['id'] ?? 0)] = $this->materialAuthorName($material, $memberLookup);
         }
 
         foreach ($rows as &$row) {
@@ -4835,13 +4849,55 @@ class HelpApiService
                 continue;
             }
             $materialId = (int) ($row['content_id'] ?? 0);
-            if ($materialId > 0 && ($artistLookup[$materialId] ?? '') !== '') {
-                $row['author_name'] = $artistLookup[$materialId];
+            if ($materialId > 0 && ($authorLookup[$materialId] ?? '') !== '') {
+                $row['author_name'] = $authorLookup[$materialId];
             }
         }
         unset($row);
 
         return $rows;
+    }
+
+    private function resolveMaterialAuthorName(int $materialId): string
+    {
+        if ($materialId <= 0) {
+            return '';
+        }
+
+        $material = Db::table('sa_content_material')
+            ->where('id', $materialId)
+            ->whereNull('delete_time')
+            ->field('id, artist, member_id')
+            ->find();
+        if (!$material) {
+            return '';
+        }
+
+        $memberId = (int) ($material['member_id'] ?? 0);
+        $memberLookup = [];
+        if ($memberId > 0) {
+            $memberLookup = Db::table('sa_member')
+                ->where('id', $memberId)
+                ->whereNull('delete_time')
+                ->column('nickname', 'id');
+        }
+
+        return $this->materialAuthorName($material, $memberLookup);
+    }
+
+    private function materialAuthorName(array $material, array $memberLookup): string
+    {
+        $artist = trim((string) ($material['artist'] ?? ''));
+        if ($artist !== '') {
+            return $artist;
+        }
+
+        $memberId = (int) ($material['member_id'] ?? 0);
+        if ($memberId <= 0) {
+            return '管理员上传';
+        }
+
+        return trim((string) ($memberLookup[$memberId] ?? '')) ?: '会员 #' . $memberId;
     }
 
     private function localizeMaterialRow(array $row, string $locale): array

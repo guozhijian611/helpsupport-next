@@ -1734,9 +1734,7 @@ class _HistoryRow extends StatelessWidget {
               Text(
                 entry.progress > 0
                     ? '${entry.progress.clamp(0, 100).toStringAsFixed(0)}%'
-                    : entry.authorName.trim().isEmpty
-                    ? _t(context, '作者名', 'Author')
-                    : entry.authorName,
+                    : entry.authorName.trim(),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
