@@ -62,6 +62,11 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
       session?.member['nickname'],
       session?.member['username'],
     ], fallback: 'Doctor');
+    final avatarUrl = ref
+        .watch(apiClientProvider)
+        .resolveUrl(
+          _firstText([session?.member['avatar'], session?.profile['avatar']]),
+        );
     final patientsQuery = const DoctorPatientsQuery(status: 1, pageSize: 100);
     final patients = ref.watch(doctorPatientsProvider(patientsQuery));
     final plans = _selectedMemberId > 0
@@ -121,7 +126,7 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
               children: [
                 widget.detailMode
                     ? _DoctorPlanDetailHeader(onBack: _handleBack)
-                    : _DoctorPlanHeader(name: nickname),
+                    : _DoctorPlanHeader(name: nickname, avatarUrl: avatarUrl),
                 SizedBox(height: metrics.size(20)),
                 patients.when(
                   data: (page) {
@@ -470,20 +475,17 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
 }
 
 class _DoctorPlanHeader extends StatelessWidget {
-  const _DoctorPlanHeader({required this.name});
+  const _DoctorPlanHeader({required this.name, required this.avatarUrl});
 
   final String name;
+  final String avatarUrl;
 
   @override
   Widget build(BuildContext context) {
     final palette = _DoctorPlanPalette.of(context);
     return Row(
       children: [
-        CircleAvatar(
-          radius: 24,
-          backgroundColor: palette.avatarBackground,
-          child: Icon(Icons.person_rounded, color: palette.brandPrimary),
-        ),
+        _DoctorPlanHeaderAvatar(avatarUrl: avatarUrl),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
@@ -518,6 +520,38 @@ class _DoctorPlanHeader extends StatelessWidget {
           icon: const Icon(Icons.notifications_none_rounded),
         ),
       ],
+    );
+  }
+}
+
+class _DoctorPlanHeaderAvatar extends StatelessWidget {
+  const _DoctorPlanHeaderAvatar({required this.avatarUrl});
+
+  final String avatarUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final avatar = avatarUrl.trim().isNotEmpty
+        ? ClipOval(
+            child: CachedRemoteImage(
+              avatarUrl,
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => _fallback(context),
+            ),
+          )
+        : _fallback(context);
+
+    return SizedBox(width: 48, height: 48, child: avatar);
+  }
+
+  Widget _fallback(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    return CircleAvatar(
+      radius: 24,
+      backgroundColor: palette.avatarBackground,
+      child: Icon(Icons.person_rounded, color: palette.brandPrimary),
     );
   }
 }
