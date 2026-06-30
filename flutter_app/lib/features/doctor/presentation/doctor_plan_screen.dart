@@ -12,6 +12,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../plan/data/plan_models.dart';
 import '../application/doctor_controller.dart';
 import '../data/doctor_models.dart';
+import 'doctor_task_editor_screen.dart';
 
 class DoctorPlanScreen extends ConsumerStatefulWidget {
   const DoctorPlanScreen({
@@ -265,6 +266,14 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
                                     patient.memberId,
                                     activePlan.id,
                                   ),
+                                  onQuickAddTask: () => _quickAddTask(
+                                    activePlan,
+                                    isAssessment: false,
+                                  ),
+                                  onQuickAddAssessment: () => _quickAddTask(
+                                    activePlan,
+                                    isAssessment: true,
+                                  ),
                                 ),
                               ],
                             );
@@ -413,6 +422,40 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
     if (changed == true) {
       ref.invalidate(doctorPatientPlansProvider);
       ref.invalidate(doctorDailyTasksProvider);
+    }
+  }
+
+  Future<void> _quickAddTask(
+    TreatmentPlan activePlan, {
+    required bool isAssessment,
+  }) async {
+    if (_selectedMemberId <= 0) {
+      context.showCenteredNotice(
+        _t(context, '请先选择患者', 'Please select patient'),
+      );
+      return;
+    }
+    final stage = _currentStage(activePlan);
+    if (stage == null) {
+      context.showCenteredNotice(
+        _t(context, '请先添加阶段', 'Please add a stage first'),
+      );
+      return;
+    }
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => DoctorTaskEditorScreen(
+          memberId: _selectedMemberId,
+          planId: activePlan.id,
+          stageId: stage.id,
+          initialDate: _dateKey(_selectedDate),
+          initialTaskType: isAssessment ? 'assessment' : 'daily',
+        ),
+      ),
+    );
+    if (changed == true && mounted) {
+      ref.invalidate(doctorDailyTasksProvider);
+      ref.invalidate(doctorPatientPlansProvider);
     }
   }
 
@@ -1210,6 +1253,8 @@ class _ActivePlanSchedule extends StatelessWidget {
     required this.onNextMonth,
     required this.onSelectedDate,
     required this.onOpenTreatmentPlan,
+    required this.onQuickAddTask,
+    required this.onQuickAddAssessment,
   });
 
   final TreatmentPlan activePlan;
@@ -1222,6 +1267,8 @@ class _ActivePlanSchedule extends StatelessWidget {
   final VoidCallback onNextMonth;
   final ValueChanged<DateTime> onSelectedDate;
   final VoidCallback onOpenTreatmentPlan;
+  final VoidCallback onQuickAddTask;
+  final VoidCallback onQuickAddAssessment;
 
   @override
   Widget build(BuildContext context) {
@@ -1288,6 +1335,12 @@ class _ActivePlanSchedule extends StatelessWidget {
                     '当前日期没有任务安排，可切换日期查看其它任务。',
                     'No tasks are scheduled on this date.',
                   ),
+                  primaryActionLabel: _t(context, '快速添加任务', 'Add task'),
+                  primaryActionIcon: Icons.add_task_rounded,
+                  onPrimaryAction: onQuickAddTask,
+                  secondaryActionLabel: _t(context, '添加评估量表', 'Add assessment'),
+                  secondaryActionIcon: Icons.fact_check_rounded,
+                  onSecondaryAction: onQuickAddAssessment,
                 )
               : Column(
                   children: [
@@ -1678,22 +1731,150 @@ class _DoctorPlanEmptyState extends StatelessWidget {
 }
 
 class _TaskEmptyCard extends StatelessWidget {
-  const _TaskEmptyCard({required this.text});
+  const _TaskEmptyCard({
+    required this.text,
+    this.primaryActionLabel,
+    this.primaryActionIcon,
+    this.onPrimaryAction,
+    this.secondaryActionLabel,
+    this.secondaryActionIcon,
+    this.onSecondaryAction,
+  });
 
   final String text;
+  final String? primaryActionLabel;
+  final IconData? primaryActionIcon;
+  final VoidCallback? onPrimaryAction;
+  final String? secondaryActionLabel;
+  final IconData? secondaryActionIcon;
+  final VoidCallback? onSecondaryAction;
 
   @override
   Widget build(BuildContext context) {
     final palette = _DoctorPlanPalette.of(context);
+    final actions = <Widget>[
+      if (primaryActionLabel != null && onPrimaryAction != null)
+        _TaskEmptyActionButton(
+          label: primaryActionLabel!,
+          icon: primaryActionIcon ?? Icons.add_rounded,
+          onTap: onPrimaryAction!,
+          filled: false,
+        ),
+      if (secondaryActionLabel != null && onSecondaryAction != null)
+        _TaskEmptyActionButton(
+          label: secondaryActionLabel!,
+          icon: secondaryActionIcon ?? Icons.fact_check_rounded,
+          onTap: onSecondaryAction!,
+          filled: true,
+        ),
+    ];
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
       decoration: BoxDecoration(
         color: palette.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
-      child: Text(
-        text,
-        style: TextStyle(color: palette.mutedText, fontSize: 14, height: 1.6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            text,
+            style: TextStyle(
+              color: palette.mutedText,
+              fontSize: 14,
+              height: 1.6,
+            ),
+          ),
+          if (actions.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 320) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var i = 0; i < actions.length; i++) ...[
+                        if (i > 0) const SizedBox(height: 10),
+                        actions[i],
+                      ],
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    for (var i = 0; i < actions.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 10),
+                      Expanded(child: actions[i]),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TaskEmptyActionButton extends StatelessWidget {
+  const _TaskEmptyActionButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    required this.filled,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    final backgroundColor = filled
+        ? palette.brandPrimary
+        : palette.softBackground;
+    final foregroundColor = filled
+        ? Theme.of(context).colorScheme.onPrimary
+        : palette.primaryText;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Ink(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: filled ? palette.brandPrimary : palette.outline,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 19, color: foregroundColor),
+              const SizedBox(width: 7),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: foregroundColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

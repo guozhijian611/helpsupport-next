@@ -15,12 +15,14 @@ class DoctorTaskEditorScreen extends ConsumerStatefulWidget {
     required this.planId,
     required this.stageId,
     this.initialDate = '',
+    this.initialTaskType = 'daily',
   });
 
   final int memberId;
   final int planId;
   final int stageId;
   final String initialDate;
+  final String initialTaskType;
 
   @override
   ConsumerState<DoctorTaskEditorScreen> createState() =>
@@ -48,6 +50,10 @@ class _DoctorTaskEditorScreenState
     _descriptionController = TextEditingController();
     _rewardController = TextEditingController(text: '20');
     _taskDate = _parseDate(widget.initialDate) ?? DateTime.now();
+    final normalizedTaskType = widget.initialTaskType.trim();
+    if (normalizedTaskType.isNotEmpty) {
+      _taskType = normalizedTaskType;
+    }
   }
 
   @override
