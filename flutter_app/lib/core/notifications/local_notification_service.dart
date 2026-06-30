@@ -258,7 +258,12 @@ class LocalNotificationService {
       return AndroidScheduleMode.exactAllowWhileIdle;
     }
     try {
-      final canScheduleExact = await android.canScheduleExactNotifications();
+      var canScheduleExact = await android.canScheduleExactNotifications();
+      if (canScheduleExact == false) {
+        final requestResult = await android.requestExactAlarmsPermission();
+        canScheduleExact =
+            requestResult ?? await android.canScheduleExactNotifications();
+      }
       return canScheduleExact == false
           ? AndroidScheduleMode.inexactAllowWhileIdle
           : AndroidScheduleMode.exactAllowWhileIdle;
