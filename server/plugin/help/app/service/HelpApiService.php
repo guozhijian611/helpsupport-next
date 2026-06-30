@@ -1775,7 +1775,7 @@ class HelpApiService
                 '匿名参数错误'
             ),
             'is_doctor_post' => 2,
-            'audit_status' => $reviewRequired ? 3 : 0,
+            'audit_status' => $reviewRequired ? 3 : 1,
             'audit_remark' => $reviewRequired ? self::RISK_REVIEW_REMARK : '',
             'status' => 1,
         ];
@@ -1854,7 +1854,7 @@ class HelpApiService
                 [1, 2],
                 '匿名参数错误'
             ),
-            'audit_status' => $reviewRequired ? 3 : 0,
+            'audit_status' => $reviewRequired ? 3 : 1,
             'audit_remark' => $reviewRequired ? self::RISK_REVIEW_REMARK : '',
             'status' => 1,
         ], $memberId);
