@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../core/cache/local_cache_manager.dart';
 import '../../../core/config/build_info.dart';
 import '../../../core/i18n/app_locale_controller.dart';
 import '../../../core/i18n/l10n_extensions.dart';
@@ -187,6 +188,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   static const _notificationPrefix = 'settings.notification.';
   final _dateFormat = DateFormat('yyyy-MM-dd');
   final _imagePicker = ImagePicker();
+  final _localCacheManager = const LocalCacheManager();
 
   _PrivacyVisibility _communityVisibility = _PrivacyVisibility.mutual;
   bool _anonymousPosting = true;
@@ -205,6 +207,8 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   bool _permissionRefreshing = false;
   bool _remoteLoading = false;
   bool _avatarUploading = false;
+  bool _cacheInspecting = false;
+  bool _cacheClearing = false;
   double? _avatarUploadProgress;
   String? _remoteError;
   int _developerTapCount = 0;
@@ -213,6 +217,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   MeProfileBundle? _profileBundle;
   SecurityOverview? _securityOverview;
   PushPreferenceSettings? _pushPreference;
+  LocalCacheSnapshot? _localCacheSnapshot;
   Permission? _permissionRequesting;
   final Map<Permission, PermissionStatus> _permissionStatuses = {};
 
@@ -249,6 +254,12 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     }
     if (widget.section == SettingsSectionType.permissions) {
       unawaited(_refreshPermissionStatuses());
+    }
+    if (widget.section == SettingsSectionType.system) {
+      unawaited(_refreshLocalCacheSnapshot());
+      if (_autoClearAttachments) {
+        unawaited(_runAutoAttachmentCleanup());
+      }
     }
   }
 
@@ -905,29 +916,45 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
             onTap: _selectTextScale,
           ),
           _SettingsSwitchRow(
-            title: _t(context, '自动清理附件缓存', 'Auto-clear attachment cache'),
+            title: _t(context, '自动清理过期缓存', 'Auto-clear expired cache'),
             subtitle: _t(
               context,
-              '定期删除未使用的临时图片和视频缩略图',
-              'Delete unused temporary media thumbnails',
+              '每天最多一次，清理 7 天前的临时媒体和素材缓存',
+              'At most daily, clears temporary media and material cache older than 7 days',
             ),
             value: _autoClearAttachments,
-            onChanged: (value) => _setPrivacyBool(
-              'auto_clear_attachments',
-              value,
-              (next) => _autoClearAttachments = next,
-            ),
+            onChanged: _setAutoClearAttachments,
           ),
           _SettingsNavRow(
             title: _t(context, '本地数据与缓存', 'Local data and cache'),
-            value: _t(context, '检查', 'Check'),
-            onTap: () => context.showCenteredNotice(
-              _t(context, '已检查本地缓存', 'Local cache checked'),
+            subtitle: _t(
+              context,
+              '仅清理可重新生成或重新下载的缓存',
+              'Only clears cache that can be regenerated or downloaded again',
             ),
+            value: _localCacheValueLabel(context),
+            onTap: _showLocalCacheSheet,
           ),
         ],
       ),
     ];
+  }
+
+  String _localCacheValueLabel(BuildContext context) {
+    if (_cacheInspecting) {
+      return _t(context, '计算中', 'Checking');
+    }
+    if (_cacheClearing) {
+      return _t(context, '清理中', 'Clearing');
+    }
+    final snapshot = _localCacheSnapshot;
+    if (snapshot == null) {
+      return _t(context, '查看', 'View');
+    }
+    if (snapshot.isEmpty) {
+      return _t(context, '无缓存', 'No cache');
+    }
+    return _formatCacheSize(snapshot.totalBytes);
   }
 
   List<Widget> _notificationChildren(BuildContext context) {
@@ -1281,6 +1308,166 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     unawaited(
       ref.read(sharedPreferencesProvider).setBool('$_privacyPrefix$key', value),
     );
+  }
+
+  void _setAutoClearAttachments(bool value) {
+    setState(() => _autoClearAttachments = value);
+    unawaited(() async {
+      await ref
+          .read(sharedPreferencesProvider)
+          .setBool('${_privacyPrefix}auto_clear_attachments', value);
+      if (value) {
+        await _runAutoAttachmentCleanup(force: true, showNotice: true);
+      }
+    }());
+  }
+
+  Future<void> _refreshLocalCacheSnapshot() async {
+    if (_cacheInspecting) {
+      return;
+    }
+    setState(() => _cacheInspecting = true);
+    try {
+      final snapshot = await _localCacheManager.inspect();
+      if (!mounted) {
+        return;
+      }
+      setState(() => _localCacheSnapshot = snapshot);
+    } on Object {
+      if (mounted) {
+        context.showCenteredNotice(
+          _t(context, '本地缓存检查失败', 'Local cache check failed'),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _cacheInspecting = false);
+      }
+    }
+  }
+
+  Future<void> _runAutoAttachmentCleanup({
+    bool force = false,
+    bool showNotice = false,
+  }) async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    final lastRunAt = DateTime.tryParse(
+      prefs.getString('${_privacyPrefix}auto_clear_attachments_last_run_at') ??
+          '',
+    );
+    if (!force &&
+        lastRunAt != null &&
+        DateTime.now().difference(lastRunAt) <
+            LocalCacheManager.autoClearInterval) {
+      return;
+    }
+
+    try {
+      final result = await _localCacheManager.clear(
+        olderThan: LocalCacheManager.autoClearAge,
+      );
+      await prefs.setString(
+        '${_privacyPrefix}auto_clear_attachments_last_run_at',
+        DateTime.now().toIso8601String(),
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() => _localCacheSnapshot = result.remaining);
+      if (showNotice) {
+        context.showCenteredNotice(
+          result.deletedFileCount == 0
+              ? _t(context, '已开启，暂无过期缓存', 'Enabled. No expired cache found')
+              : _t(context, '已清理过期缓存 ', 'Expired cache cleared ') +
+                    _formatCacheSize(result.deletedBytes),
+        );
+      }
+    } on Object {
+      if (showNotice && mounted) {
+        context.showCenteredNotice(
+          _t(context, '自动清理执行失败', 'Auto-clear failed'),
+        );
+      }
+    }
+  }
+
+  Future<void> _showLocalCacheSheet() async {
+    await _refreshLocalCacheSnapshot();
+    if (!mounted) {
+      return;
+    }
+    final snapshot =
+        _localCacheSnapshot ??
+        const LocalCacheSnapshot(fileCount: 0, totalBytes: 0);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(_t(dialogContext, '本地数据与缓存', 'Local data and cache')),
+        content: Text(
+          [
+            _t(dialogContext, '可清理缓存：', 'Cleanable cache: ') +
+                _formatCacheSize(snapshot.totalBytes),
+            _t(dialogContext, '缓存文件：', 'Cache files: ') +
+                _formatCacheFileCount(dialogContext, snapshot.fileCount),
+            _t(
+              dialogContext,
+              '自动清理：开启后每天最多执行一次，清理 7 天前未修改的临时媒体和素材缓存。',
+              'Auto-clear: when enabled, runs at most once per day and clears temporary media and material cache not modified for 7 days.',
+            ),
+            _t(
+              dialogContext,
+              '不会删除登录态、账号资料、偏好设置或已提交的服务端数据。',
+              'Sign-in state, profile, preferences, and submitted server data are not deleted.',
+            ),
+          ].join('\n\n'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(_t(dialogContext, '取消', 'Cancel')),
+          ),
+          FilledButton(
+            onPressed: snapshot.isEmpty || _cacheClearing
+                ? null
+                : () => Navigator.of(dialogContext).pop(true),
+            child: Text(_t(dialogContext, '立即清理', 'Clear now')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await _clearLocalCache();
+    }
+  }
+
+  Future<void> _clearLocalCache() async {
+    if (_cacheClearing) {
+      return;
+    }
+    setState(() => _cacheClearing = true);
+    try {
+      final result = await _localCacheManager.clear();
+      if (!mounted) {
+        return;
+      }
+      setState(() => _localCacheSnapshot = result.remaining);
+      context.showCenteredNotice(
+        result.deletedFileCount == 0
+            ? _t(context, '暂无可清理缓存', 'No cleanable cache')
+            : _t(context, '已清理缓存 ', 'Cache cleared ') +
+                  _formatCacheSize(result.deletedBytes),
+      );
+    } on Object {
+      if (mounted) {
+        context.showCenteredNotice(
+          _t(context, '缓存清理失败', 'Cache cleanup failed'),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _cacheClearing = false);
+      }
+    }
   }
 
   void _setNotificationBool(
@@ -3021,7 +3208,7 @@ class _SettingsSwitchRow extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle!,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: palette.secondaryText,
@@ -3425,6 +3612,27 @@ String _themeModeLabel(BuildContext context, ThemeMode mode) {
     ThemeMode.light => _t(context, '浅色', 'Light'),
     ThemeMode.dark => _t(context, '深色', 'Dark'),
   };
+}
+
+String _formatCacheSize(int bytes) {
+  if (bytes <= 0) {
+    return '0 B';
+  }
+  const units = ['B', 'KB', 'MB', 'GB'];
+  var value = bytes.toDouble();
+  var unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  if (unitIndex == 0) {
+    return '${value.toStringAsFixed(0)} ${units[unitIndex]}';
+  }
+  return '${value.toStringAsFixed(value >= 10 ? 1 : 2)} ${units[unitIndex]}';
+}
+
+String _formatCacheFileCount(BuildContext context, int count) {
+  return _t(context, '$count 个', '$count files');
 }
 
 String _textScaleLabel(BuildContext context, double scale) {
