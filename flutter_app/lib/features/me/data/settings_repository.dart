@@ -41,7 +41,10 @@ class MeSettingsRepository {
     return profile;
   }
 
-  Future<MeProfileBundle> uploadAvatar({required XFile file}) async {
+  Future<MeProfileBundle> uploadAvatar({
+    required XFile file,
+    ProgressCallback? onSendProgress,
+  }) async {
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(file.path, filename: file.name),
     });
@@ -49,6 +52,7 @@ class MeSettingsRepository {
       '/app/help/me/profile/avatar',
       data: formData,
       options: Options(contentType: 'multipart/form-data'),
+      onSendProgress: onSendProgress,
       decode: MeProfileBundle.fromJson,
     );
     final data = result.data;

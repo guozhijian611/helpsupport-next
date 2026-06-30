@@ -202,6 +202,8 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   bool _privacySaving = false;
   bool _notificationSaving = false;
   bool _remoteLoading = false;
+  bool _avatarUploading = false;
+  double? _avatarUploadProgress;
   String? _remoteError;
   int _developerTapCount = 0;
   DateTime? _lastDeveloperTapAt;
@@ -571,6 +573,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     final avatarValue = bundle.avatarUrl.isEmpty
         ? _t(context, '默认头像', 'Default')
         : _t(context, '已设置', 'Set');
+    final avatarSubtitle = _avatarUploading
+        ? _avatarUploadingText(context, _avatarUploadProgress)
+        : avatarValue;
     final genderValue = _genderLabel(bundle.gender, context);
     final birthdayValue = bundle.birthday.isEmpty
         ? _t(context, '未设置', 'Not set')
@@ -581,9 +586,15 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         children: [
           _SettingsNavRow(
             title: _t(context, '头像', 'Avatar'),
-            subtitle: avatarValue,
-            trailing: _AvatarPreview(url: bundle.avatarUrl),
-            onTap: () => _previewAvatar(bundle.avatarUrl),
+            subtitle: avatarSubtitle,
+            trailing: _AvatarPreview(
+              url: bundle.avatarUrl,
+              isUploading: _avatarUploading,
+              progress: _avatarUploadProgress,
+            ),
+            onTap: _avatarUploading
+                ? null
+                : () => _previewAvatar(bundle.avatarUrl),
           ),
           _SettingsNavRow(
             title: _t(context, '昵称', 'Nickname'),
@@ -1396,6 +1407,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   }
 
   Future<void> _previewAvatar(String avatarUrl) async {
+    if (_avatarUploading) {
+      return;
+    }
     final previewUrl = avatarUrl.isEmpty
         ? ''
         : ref.read(apiClientProvider).resolveUrl(avatarUrl);
@@ -1457,6 +1471,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   }
 
   Future<void> _pickAvatar() async {
+    if (_avatarUploading) {
+      return;
+    }
     final permission = await ref
         .read(permissionServiceProvider)
         .requestMediaLibrary();
@@ -1485,21 +1502,70 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       return;
     }
 
+    final progressNotifier = ValueNotifier<double?>(0);
+    BuildContext? uploadDialogContext;
+    Future<void>? uploadDialogFuture;
+    if (mounted) {
+      setState(() {
+        _avatarUploading = true;
+        _avatarUploadProgress = 0;
+      });
+      uploadDialogFuture = showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        barrierColor: Colors.black.withValues(alpha: 0.45),
+        builder: (dialogContext) {
+          uploadDialogContext = dialogContext;
+          return _AvatarUploadProgressDialog(progress: progressNotifier);
+        },
+      );
+      unawaited(uploadDialogFuture);
+      await WidgetsBinding.instance.endOfFrame;
+    }
+
     try {
       final bundle = await ref
           .read(meSettingsRepositoryProvider)
-          .uploadAvatar(file: file);
+          .uploadAvatar(
+            file: file,
+            onSendProgress: (sent, total) {
+              if (total <= 0) {
+                return;
+              }
+              final progress = (sent / total).clamp(0, 1).toDouble();
+              progressNotifier.value = progress;
+              if (mounted) {
+                setState(() => _avatarUploadProgress = progress);
+              }
+            },
+          );
+      progressNotifier.value = 1;
       await ref.read(authControllerProvider.notifier).refreshCurrentSession();
       if (!mounted) {
         return;
       }
       setState(() {
         _profileBundle = bundle;
+        _avatarUploadProgress = 1;
       });
       context.showCenteredNotice(_t(context, '头像已更新', 'Avatar updated'));
     } on Object catch (error) {
       if (mounted) {
         context.showCenteredNotice(_errorText(context, error));
+      }
+    } finally {
+      if (uploadDialogContext != null) {
+        Navigator.of(uploadDialogContext!).pop();
+      }
+      if (uploadDialogFuture != null && uploadDialogContext != null) {
+        await uploadDialogFuture;
+      }
+      progressNotifier.dispose();
+      if (mounted) {
+        setState(() {
+          _avatarUploading = false;
+          _avatarUploadProgress = null;
+        });
       }
     }
   }
@@ -2139,6 +2205,14 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     return '${email.substring(0, 1)}***${email.substring(atIndex - 1)}';
   }
 
+  String _avatarUploadingText(BuildContext context, double? progress) {
+    if (progress == null) {
+      return _t(context, '正在上传头像...', 'Uploading avatar...');
+    }
+    final percent = (progress.clamp(0, 1) * 100).round();
+    return _t(context, '正在上传 $percent%', 'Uploading $percent%');
+  }
+
   String _errorText(BuildContext context, Object error) {
     final text = error.toString();
     if (text.contains('message: ')) {
@@ -2201,10 +2275,101 @@ enum SettingsSectionType {
   }
 }
 
+class _AvatarUploadProgressDialog extends StatelessWidget {
+  const _AvatarUploadProgressDialog({required this.progress});
+
+  final ValueListenable<double?> progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _SettingsPalette.of(context);
+    final theme = Theme.of(context);
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 34),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+        child: ValueListenableBuilder<double?>(
+          valueListenable: progress,
+          builder: (context, value, _) {
+            final normalized = value?.clamp(0, 1).toDouble();
+            final percent = normalized == null
+                ? ''
+                : ' ${(normalized * 100).round()}%';
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: palette.accent.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(
+                        Icons.cloud_upload_outlined,
+                        color: palette.accent,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _t(context, '正在上传头像', 'Uploading avatar') + percent,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: palette.primaryText,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    minHeight: 7,
+                    value: normalized,
+                    backgroundColor: palette.iconBackground,
+                    color: palette.accent,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _t(
+                    context,
+                    '请保持当前页面，上传完成后会自动关闭。',
+                    'Keep this page open. It will close when the upload finishes.',
+                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: palette.secondaryText,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 class _AvatarPreview extends ConsumerWidget {
-  const _AvatarPreview({required this.url});
+  const _AvatarPreview({
+    required this.url,
+    this.isUploading = false,
+    this.progress,
+  });
 
   final String url;
+  final bool isUploading;
+  final double? progress;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2222,17 +2387,40 @@ class _AvatarPreview extends ConsumerWidget {
         child: SizedBox(
           width: 42,
           height: 42,
-          child: resolved.isEmpty
-              ? Icon(Icons.person_rounded, color: palette.accent, size: 22)
-              : Image.network(
-                  resolved,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Icon(
-                    Icons.person_rounded,
-                    color: palette.accent,
-                    size: 22,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              resolved.isEmpty
+                  ? Icon(Icons.person_rounded, color: palette.accent, size: 22)
+                  : Image.network(
+                      resolved,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Icon(
+                        Icons.person_rounded,
+                        color: palette.accent,
+                        size: 22,
+                      ),
+                    ),
+              if (isUploading) ...[
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.38),
                   ),
                 ),
+                Center(
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      value: progress?.clamp(0, 1).toDouble(),
+                      strokeWidth: 2.4,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
