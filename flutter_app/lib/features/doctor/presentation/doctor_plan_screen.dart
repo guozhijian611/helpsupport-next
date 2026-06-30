@@ -130,28 +130,30 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
                             onTap: () => _openTreatmentPlan(patient.memberId),
                           );
                         }
-                        final completedCount = taskItems
-                            .where((task) => task.isDone)
-                            .length;
-                        return _PlanOverviewCard(
-                          title: activePlan.title,
-                          subtitle: [
-                            if (activePlan.startDate.trim().isNotEmpty ||
-                                activePlan.endDate.trim().isNotEmpty)
-                              '${_formatDateLabel(activePlan.startDate)} - ${_formatDateLabel(activePlan.endDate)}',
-                            if (_currentStage(
-                                  activePlan,
-                                )?.description.trim().isNotEmpty ==
-                                true)
-                              _currentStage(activePlan)!.description,
-                            _t(
-                              context,
-                              '关键任务 $completedCount/${taskItems.length}',
-                              'Key tasks $completedCount/${taskItems.length}',
+                        return _ActivePlanSchedule(
+                          activePlan: activePlan,
+                          currentStage: _currentStage(activePlan),
+                          taskItems: taskItems,
+                          tasks: tasks,
+                          month: month,
+                          selectedDate: _selectedDate,
+                          onPreviousMonth: () => setState(
+                            () => _selectedDate = DateTime(
+                              month.year,
+                              month.month - 1,
+                              _selectedDate.day.clamp(1, 28),
                             ),
-                          ].join('\n'),
-                          actionLabel: _t(context, '配置治疗计划', 'Configure plan'),
-                          onTap: () => _openTreatmentPlan(
+                          ),
+                          onNextMonth: () => setState(
+                            () => _selectedDate = DateTime(
+                              month.year,
+                              month.month + 1,
+                              _selectedDate.day.clamp(1, 28),
+                            ),
+                          ),
+                          onSelectedDate: (date) =>
+                              setState(() => _selectedDate = date),
+                          onOpenTreatmentPlan: () => _openTreatmentPlan(
                             patient.memberId,
                             activePlan.id,
                           ),
@@ -164,85 +166,6 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
                         onTap: () => _openTreatmentPlan(patient.memberId),
                       ),
                       loading: () => const _PlanOverviewSkeleton(),
-                    ),
-                    const SizedBox(height: 18),
-                    _MonthNavigator(
-                      month: month,
-                      onPrevious: () => setState(
-                        () => _selectedDate = DateTime(
-                          month.year,
-                          month.month - 1,
-                          _selectedDate.day.clamp(1, 28),
-                        ),
-                      ),
-                      onNext: () => setState(
-                        () => _selectedDate = DateTime(
-                          month.year,
-                          month.month + 1,
-                          _selectedDate.day.clamp(1, 28),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    _MonthCalendar(
-                      selectedDate: _selectedDate,
-                      onSelected: (date) =>
-                          setState(() => _selectedDate = date),
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _ShortcutCard(
-                            title: _t(context, '任务模板', 'Templates'),
-                            icon: Icons.library_books_rounded,
-                            color: const Color(0xFF986FF5),
-                            onTap: () => context.push('/doctor/task-templates'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _ShortcutCard(
-                            title: _t(context, '评估量表', 'Scales'),
-                            icon: Icons.fact_check_rounded,
-                            color: const Color(0xFF7BC96F),
-                            onTap: () =>
-                                context.push('/doctor/assessment-scales'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      _t(context, '当日患者任务', 'Patient tasks'),
-                      style: const TextStyle(
-                        color: Color(0xFF303236),
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    tasks.when(
-                      data: (taskPage) => taskPage.list.isEmpty
-                          ? _TaskEmptyCard(
-                              text: _t(
-                                context,
-                                '当前日期没有任务安排，可切换日期查看其它任务。',
-                                'No tasks are scheduled on this date.',
-                              ),
-                            )
-                          : Column(
-                              children: [
-                                for (final task in taskPage.list)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 12),
-                                    child: _DoctorTaskCard(task: task),
-                                  ),
-                              ],
-                            ),
-                      error: (error, _) =>
-                          _TaskEmptyCard(text: error.toString()),
-                      loading: () => const _DoctorTaskSkeleton(),
                     ),
                   ],
                 );
@@ -539,6 +462,121 @@ class _PlanOverviewSkeleton extends StatelessWidget {
         color: palette.cardBackground,
         borderRadius: BorderRadius.circular(26),
       ),
+    );
+  }
+}
+
+class _ActivePlanSchedule extends StatelessWidget {
+  const _ActivePlanSchedule({
+    required this.activePlan,
+    required this.currentStage,
+    required this.taskItems,
+    required this.tasks,
+    required this.month,
+    required this.selectedDate,
+    required this.onPreviousMonth,
+    required this.onNextMonth,
+    required this.onSelectedDate,
+    required this.onOpenTreatmentPlan,
+  });
+
+  final TreatmentPlan activePlan;
+  final TreatmentStage? currentStage;
+  final List<DailyTask> taskItems;
+  final AsyncValue<PlanPage<DailyTask>> tasks;
+  final DateTime month;
+  final DateTime selectedDate;
+  final VoidCallback onPreviousMonth;
+  final VoidCallback onNextMonth;
+  final ValueChanged<DateTime> onSelectedDate;
+  final VoidCallback onOpenTreatmentPlan;
+
+  @override
+  Widget build(BuildContext context) {
+    final completedCount = taskItems.where((task) => task.isDone).length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _PlanOverviewCard(
+          title: activePlan.title,
+          subtitle: [
+            if (activePlan.startDate.trim().isNotEmpty ||
+                activePlan.endDate.trim().isNotEmpty)
+              '${_formatDateLabel(activePlan.startDate)} - ${_formatDateLabel(activePlan.endDate)}',
+            if (currentStage?.description.trim().isNotEmpty == true)
+              currentStage!.description,
+            _t(
+              context,
+              '关键任务 $completedCount/${taskItems.length}',
+              'Key tasks $completedCount/${taskItems.length}',
+            ),
+          ].join('\n'),
+          actionLabel: _t(context, '配置治疗计划', 'Configure plan'),
+          onTap: onOpenTreatmentPlan,
+        ),
+        const SizedBox(height: 18),
+        _MonthNavigator(
+          month: month,
+          onPrevious: onPreviousMonth,
+          onNext: onNextMonth,
+        ),
+        const SizedBox(height: 14),
+        _MonthCalendar(selectedDate: selectedDate, onSelected: onSelectedDate),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(
+              child: _ShortcutCard(
+                title: _t(context, '任务模板', 'Templates'),
+                icon: Icons.library_books_rounded,
+                color: const Color(0xFF986FF5),
+                onTap: () => context.push('/doctor/task-templates'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ShortcutCard(
+                title: _t(context, '评估量表', 'Scales'),
+                icon: Icons.fact_check_rounded,
+                color: const Color(0xFF7BC96F),
+                onTap: () => context.push('/doctor/assessment-scales'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        Text(
+          _t(context, '当日患者任务', 'Patient tasks'),
+          style: const TextStyle(
+            color: Color(0xFF303236),
+            fontSize: 21,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 12),
+        tasks.when(
+          data: (taskPage) => taskPage.list.isEmpty
+              ? _TaskEmptyCard(
+                  text: _t(
+                    context,
+                    '当前日期没有任务安排，可切换日期查看其它任务。',
+                    'No tasks are scheduled on this date.',
+                  ),
+                )
+              : Column(
+                  children: [
+                    for (final task in taskPage.list)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _DoctorTaskCard(task: task),
+                      ),
+                  ],
+                ),
+          error: (error, _) => _TaskEmptyCard(text: error.toString()),
+          loading: () => const _DoctorTaskSkeleton(),
+        ),
+      ],
     );
   }
 }
