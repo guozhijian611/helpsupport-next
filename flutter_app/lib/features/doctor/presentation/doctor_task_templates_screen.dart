@@ -195,31 +195,10 @@ class _DoctorTaskTemplatesScreenState
   }
 
   Future<void> _createFolder() async {
-    final controller = TextEditingController();
     final name = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(_t(context, '添加模板文件夹', 'Add template folder')),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: _t(context, '请输入文件夹名称', 'Enter a folder name'),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(_t(context, '取消', 'Cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: Text(_t(context, '确定', 'Confirm')),
-          ),
-        ],
-      ),
+      builder: (dialogContext) => const _CreateTemplateFolderDialog(),
     );
-    controller.dispose();
     if (name == null || name.trim().isEmpty || !mounted) {
       return;
     }
@@ -229,15 +208,15 @@ class _DoctorTaskTemplatesScreenState
       final folder = await ref
           .read(doctorRepositoryProvider)
           .saveTaskTemplateFolder(name: name);
-      ref.invalidate(doctorTaskTemplateFoldersProvider);
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _sourceFilter = _TemplateSourceFilter.mine;
         _selectedFolderId = folder.id;
       });
+      ref.invalidate(doctorTaskTemplateFoldersProvider);
       ref.invalidate(doctorTaskTemplatesProvider);
-      if (!mounted) {
-        return;
-      }
       context.showCenteredNotice(
         _t(context, '模板文件夹已添加', 'Template folder created'),
       );
@@ -251,6 +230,65 @@ class _DoctorTaskTemplatesScreenState
         setState(() => _creatingFolder = false);
       }
     }
+  }
+}
+
+class _CreateTemplateFolderDialog extends StatefulWidget {
+  const _CreateTemplateFolderDialog();
+
+  @override
+  State<_CreateTemplateFolderDialog> createState() =>
+      _CreateTemplateFolderDialogState();
+}
+
+class _CreateTemplateFolderDialogState
+    extends State<_CreateTemplateFolderDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = _controller.text.trim();
+    if (value.isEmpty) {
+      return;
+    }
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(_t(context, '添加模板文件夹', 'Add template folder')),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        textInputAction: TextInputAction.done,
+        onSubmitted: (_) => _submit(),
+        decoration: InputDecoration(
+          hintText: _t(context, '请输入文件夹名称', 'Enter a folder name'),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(_t(context, '取消', 'Cancel')),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: Text(_t(context, '确定', 'Confirm')),
+        ),
+      ],
+    );
   }
 }
 
