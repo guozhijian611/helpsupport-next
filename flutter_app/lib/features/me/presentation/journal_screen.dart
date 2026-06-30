@@ -39,7 +39,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
             final selectedEntries = entries
                 .where((item) => item.entryDate == selectedKey)
                 .toList(growable: false);
-            final week = _weekDays(_selectedDate);
+            final entryCounts = <String, int>{};
+            for (final entry in entries) {
+              entryCounts.update(
+                entry.entryDate,
+                (count) => count + 1,
+                ifAbsent: () => 1,
+              );
+            }
 
             return RefreshIndicator(
               onRefresh: () async {
@@ -61,13 +68,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                           children: [
                             _MonthArrow(
                               icon: Icons.chevron_left_rounded,
-                              onTap: () => setState(
-                                () => _selectedDate = DateTime(
-                                  month.year,
-                                  month.month - 1,
-                                  _selectedDate.day.clamp(1, 28),
-                                ),
-                              ),
+                              onTap: () => _shiftSelectedMonth(-1),
                             ),
                             Expanded(
                               child: Center(
@@ -83,59 +84,19 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                             ),
                             _MonthArrow(
                               icon: Icons.chevron_right_rounded,
-                              onTap: () => setState(
-                                () => _selectedDate = DateTime(
-                                  month.year,
-                                  month.month + 1,
-                                  _selectedDate.day.clamp(1, 28),
-                                ),
-                              ),
+                              onTap: () => _shiftSelectedMonth(1),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 18),
-                        Row(
-                          children: [
-                            for (final label in const [
-                              '日',
-                              '一',
-                              '二',
-                              '三',
-                              '四',
-                              '五',
-                              '六',
-                            ])
-                              Expanded(
-                                child: Center(
-                                  child: Text(
-                                    label,
-                                    style: TextStyle(
-                                      color: palette.bodyText,
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
+                        const SizedBox(height: 16),
+                        _MonthCalendar(
+                          month: month,
+                          selectedDate: _selectedDate,
+                          entryCounts: entryCounts,
+                          onSelected: (day) {
+                            setState(() => _selectedDate = day);
+                          },
                         ),
-                        const SizedBox(height: 18),
-                        for (final day in week) ...[
-                          if (day == week.first)
-                            Divider(color: palette.outline, height: 1),
-                          const SizedBox(height: 10),
-                          _WeekDayCell(
-                            day: day,
-                            isSelected: _dateKey(day) == selectedKey,
-                            isToday: _dateKey(day) == _dateKey(DateTime.now()),
-                            count: entries
-                                .where(
-                                  (item) => item.entryDate == _dateKey(day),
-                                )
-                                .length,
-                            onTap: () => setState(() => _selectedDate = day),
-                          ),
-                        ],
                       ],
                     ),
                   ),
@@ -182,17 +143,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
     );
   }
 
-  List<DateTime> _weekDays(DateTime selected) {
-    final weekday = selected.weekday % 7;
-    final start = DateTime(
-      selected.year,
-      selected.month,
-      selected.day,
-    ).subtract(Duration(days: weekday));
-    return List<DateTime>.generate(
-      7,
-      (index) => start.add(Duration(days: index)),
-      growable: false,
+  void _shiftSelectedMonth(int offset) {
+    final targetMonth = DateTime(
+      _selectedDate.year,
+      _selectedDate.month + offset,
+    );
+    final day = _selectedDate.day.clamp(1, _daysInMonth(targetMonth)).toInt();
+    setState(
+      () => _selectedDate = DateTime(targetMonth.year, targetMonth.month, day),
     );
   }
 
@@ -239,9 +197,89 @@ class _MonthArrow extends StatelessWidget {
   }
 }
 
-class _WeekDayCell extends StatelessWidget {
-  const _WeekDayCell({
+class _MonthCalendar extends StatelessWidget {
+  const _MonthCalendar({
+    required this.month,
+    required this.selectedDate,
+    required this.entryCounts,
+    required this.onSelected,
+  });
+
+  final DateTime month;
+  final DateTime selectedDate;
+  final Map<String, int> entryCounts;
+  final ValueChanged<DateTime> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _JournalPalette.of(context);
+    final monthStart = DateTime(month.year, month.month);
+    final firstDayOffset = monthStart.weekday % 7;
+    final gridStart = monthStart.subtract(Duration(days: firstDayOffset));
+    final weekCount = ((firstDayOffset + _daysInMonth(monthStart) + 6) / 7)
+        .floor();
+    final weeks = List<List<DateTime>>.generate(weekCount, (weekIndex) {
+      return List<DateTime>.generate(
+        7,
+        (dayIndex) => gridStart.add(Duration(days: weekIndex * 7 + dayIndex)),
+        growable: false,
+      );
+    }, growable: false);
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            for (final label in _weekdayLabels(context))
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: palette.secondaryText,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        Divider(color: palette.outline, height: 1),
+        const SizedBox(height: 8),
+        for (final week in weeks)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              children: [
+                for (final day in week)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      child: _MonthDayCell(
+                        day: day,
+                        inCurrentMonth: day.month == month.month,
+                        isSelected: _sameDay(day, selectedDate),
+                        isToday: _sameDay(day, DateTime.now()),
+                        count: entryCounts[_dateKey(day)] ?? 0,
+                        onTap: () => onSelected(day),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _MonthDayCell extends StatelessWidget {
+  const _MonthDayCell({
     required this.day,
+    required this.inCurrentMonth,
     required this.isSelected,
     required this.isToday,
     required this.count,
@@ -249,6 +287,7 @@ class _WeekDayCell extends StatelessWidget {
   });
 
   final DateTime day;
+  final bool inCurrentMonth;
   final bool isSelected;
   final bool isToday;
   final int count;
@@ -257,67 +296,106 @@ class _WeekDayCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _JournalPalette.of(context);
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Expanded(
-              child: Center(
-                child: Text(
+    final accent = Theme.of(context).colorScheme.primary;
+    final foregroundColor = isSelected
+        ? Colors.white
+        : inCurrentMonth
+        ? palette.primaryText
+        : palette.mutedText.withValues(alpha: 0.6);
+    final countColor = isSelected
+        ? Colors.white.withValues(alpha: 0.9)
+        : count > 0
+        ? accent
+        : palette.mutedText.withValues(alpha: 0.7);
+    final dateLabel = _dateKey(day);
+    final semanticCount = count <= 0
+        ? _t(context, '无记录', 'No entry')
+        : _t(context, '$count条记录', '$count entries');
+
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: _t(
+        context,
+        '$dateLabel，$semanticCount',
+        '$dateLabel, $semanticCount',
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: 52,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? accent
+                  : count > 0
+                  ? accent.withValues(alpha: 0.08)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              border: isToday && !isSelected
+                  ? Border.all(
+                      color: accent.withValues(alpha: 0.72),
+                      width: 1.4,
+                    )
+                  : null,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
                   '${day.day}',
                   style: TextStyle(
-                    color: isSelected
-                        ? const Color(0xFF5A81DA)
-                        : (day.month == DateTime.now().month
-                              ? palette.primaryText
-                              : palette.mutedText),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                    color: foregroundColor,
+                    fontSize: 17,
+                    fontWeight: isSelected || isToday
+                        ? FontWeight.w800
+                        : FontWeight.w700,
                   ),
                 ),
-              ),
-            ),
-            Expanded(
-              flex: 2,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? const Color(0xFF1877F2)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
+                const SizedBox(height: 4),
+                SizedBox(
+                  height: 8,
+                  child: count > 0
+                      ? count == 1
+                            ? Center(
+                                child: Container(
+                                  width: 5,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: countColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                '$count',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: countColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1,
+                                ),
+                              )
+                      : isToday
+                      ? Container(
+                          width: 14,
+                          height: 3,
+                          decoration: BoxDecoration(
+                            color: countColor,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
                 ),
-                child: Column(
-                  children: [
-                    if (isSelected)
-                      Text(
-                        isToday ? _t(context, '今日', 'Today') : '${day.day}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      )
-                    else
-                      Text(
-                        count <= 0
-                            ? _t(context, '无记录', 'No entry')
-                            : _t(context, '$count条记录', '$count entries'),
-                        style: TextStyle(
-                          color: palette.bodyText,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -772,6 +850,22 @@ class _EditorField extends StatelessWidget {
 }
 
 String _dateKey(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
+
+int _daysInMonth(DateTime month) {
+  return DateTime(month.year, month.month + 1, 0).day;
+}
+
+bool _sameDay(DateTime left, DateTime right) {
+  return left.year == right.year &&
+      left.month == right.month &&
+      left.day == right.day;
+}
+
+List<String> _weekdayLabels(BuildContext context) {
+  return Localizations.localeOf(context).languageCode == 'zh'
+      ? const ['日', '一', '二', '三', '四', '五', '六']
+      : const ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+}
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
