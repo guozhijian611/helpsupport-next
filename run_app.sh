@@ -298,7 +298,11 @@ main() {
   printf '如需修改 API 地址，请编辑 %s。\n' "${API_CONFIG_FILE}"
   print_flutter_run_help
 
-  exec flutter run -d "${device_id}" "${FLUTTER_RUN_ARGS[@]}"
+  if ((${#FLUTTER_RUN_ARGS[@]} > 0)); then
+    exec flutter run -d "${device_id}" "${FLUTTER_RUN_ARGS[@]}"
+  fi
+
+  exec flutter run -d "${device_id}"
 }
 
 main "$@"
