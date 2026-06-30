@@ -144,7 +144,7 @@ class SettingsScreen extends ConsumerWidget {
                 _SettingsNavRow(
                   icon: Icons.support_agent_outlined,
                   title: _t(context, '帮助与反馈', 'Help and feedback'),
-                  onTap: () => _comingSoon(context),
+                  onTap: () => context.push('/me/help'),
                 ),
               ],
             ),

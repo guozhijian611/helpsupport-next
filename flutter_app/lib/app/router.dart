@@ -42,10 +42,12 @@ import '../features/material/presentation/material_resource_screen.dart';
 import '../features/message/presentation/message_center_screen.dart';
 import '../features/me/presentation/about_developer_screen.dart';
 import '../features/me/presentation/diagnostic_logs_screen.dart';
+import '../features/me/presentation/help_center_screen.dart';
 import '../features/me/presentation/journal_screen.dart';
 import '../features/me/presentation/memoir_screen.dart';
 import '../features/me/presentation/honor_badges_screen.dart';
 import '../features/me/presentation/settings_screen.dart';
+import '../features/me/data/help_center_models.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
 import '../features/plan/data/plan_models.dart';
 import '../features/plan/presentation/assessment_task_screen.dart';
@@ -279,6 +281,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/me/settings/about/developer',
             name: 'me-settings-about-developer',
             builder: (context, state) => const AboutDeveloperScreen(),
+          ),
+          GoRoute(
+            path: '/me/help',
+            name: 'me-help',
+            builder: (context, state) => const HelpCenterScreen(),
+          ),
+          GoRoute(
+            path: '/me/help/category/:id',
+            name: 'me-help-category',
+            builder: (context, state) {
+              return HelpArticleListScreen(
+                categoryId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+                categoryName: state.uri.queryParameters['name'] ?? '',
+              );
+            },
+          ),
+          GoRoute(
+            path: '/me/help/article/:id',
+            name: 'me-help-article',
+            builder: (context, state) {
+              return HelpArticleDetailScreen(
+                articleId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+                initialArticle: state.extra is HelpArticleSummary
+                    ? state.extra as HelpArticleSummary
+                    : null,
+              );
+            },
           ),
           GoRoute(
             path: '/me/settings/:section',
