@@ -610,6 +610,17 @@
     }
   }
 
+  const isUrlListValue = (value: unknown) => {
+    if (Array.isArray(value)) {
+      return true
+    }
+    if (typeof value !== 'string') {
+      return false
+    }
+    const text = value.trim()
+    return text.startsWith('[') && text.endsWith(']')
+  }
+
   const MaterialImageGallery = (props: { urls: string[]; detail?: boolean }) => {
     const visibleUrls = props.detail ? props.urls : props.urls.slice(0, 4)
     return h(
@@ -646,12 +657,16 @@
     fieldProp?: string
     detail?: boolean
   }) => {
-    if (props.fieldProp === 'image_urls') {
+    if (
+      props.fieldProp === 'image_urls' ||
+      Reflect.get(props, 'field-prop') === 'image_urls' ||
+      isUrlListValue(props.url)
+    ) {
       const urls = parseUrlList(props.url).filter((url) => isImageMaterial(props.row, url))
       if (urls.length === 0) {
         return h('span', '-')
       }
-      return h(MaterialImageGallery, { urls, detail: props.detail })
+      return MaterialImageGallery({ urls, detail: props.detail })
     }
 
     const url = String(props.url || '').trim()
