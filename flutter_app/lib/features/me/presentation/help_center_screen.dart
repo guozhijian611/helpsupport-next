@@ -37,15 +37,6 @@ class HelpCenterScreen extends ConsumerWidget {
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
                   children: [
-                    _HelpIntroCard(
-                      title: _t(context, '请选择问题分类', 'Choose a topic'),
-                      subtitle: _t(
-                        context,
-                        '分类和文章来自 saiuser 文章管理。',
-                        'Categories and articles are managed in saiuser.',
-                      ),
-                    ),
-                    const SizedBox(height: 14),
                     for (final category in items)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
@@ -230,65 +221,6 @@ class _HelpArticleWebViewState extends ConsumerState<HelpArticleWebView> {
   @override
   Widget build(BuildContext context) {
     return WebViewWidget(controller: _controller);
-  }
-}
-
-class _HelpIntroCard extends StatelessWidget {
-  const _HelpIntroCard({required this.title, required this.subtitle});
-
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = _HelpPalette.of(context);
-    final theme = Theme.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: palette.cardBackground,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: palette.cardBorder),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: palette.accent.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(Icons.support_agent_rounded, color: palette.accent),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: palette.primaryText,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: palette.secondaryText,
-                      height: 1.35,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
