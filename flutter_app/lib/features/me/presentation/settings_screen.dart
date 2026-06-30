@@ -12,10 +12,10 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../core/cache/local_cache_manager.dart';
 import '../../../core/config/build_info.dart';
 import '../../../core/i18n/app_locale_controller.dart';
-import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/settings/app_display_preferences.dart';
+import '../../../core/settings/privacy_preferences.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/data/auth_protocol.dart';
 import '../../plan/application/plan_controller.dart';
@@ -187,8 +187,9 @@ class SettingsDetailScreen extends ConsumerStatefulWidget {
 
 class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   static const _developerTapTarget = 9;
-  static const _privacyPrefix = 'settings.privacy.';
   static const _notificationPrefix = 'settings.notification.';
+  static const _autoClearAttachmentsLastRunAtKey =
+      'settings.privacy.auto_clear_attachments_last_run_at';
   static const _scheduledTaskNotificationIdsKey =
       '${_notificationPrefix}scheduled_task_notification_ids';
   static const _taskNotificationIdBase = 220000000;
@@ -198,7 +199,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   final _imagePicker = ImagePicker();
   final _localCacheManager = const LocalCacheManager();
 
-  _PrivacyVisibility _communityVisibility = _PrivacyVisibility.mutual;
+  CommunityVisibility _communityVisibility = CommunityVisibility.mutual;
   bool _anonymousPosting = true;
   bool _hideRecoveryStage = false;
   bool _showFollowingList = false;
@@ -236,22 +237,15 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   void initState() {
     super.initState();
     final prefs = ref.read(sharedPreferencesProvider);
-    _communityVisibility = _PrivacyVisibility.fromStorage(
-      prefs.getString('${_privacyPrefix}community_visibility'),
-    );
-    _anonymousPosting =
-        prefs.getBool('${_privacyPrefix}anonymous_posting') ?? true;
-    _hideRecoveryStage =
-        prefs.getBool('${_privacyPrefix}hide_recovery_stage') ?? false;
-    _showFollowingList =
-        prefs.getBool('${_privacyPrefix}show_following_list') ?? false;
-    _showSignature = prefs.getBool('${_privacyPrefix}show_signature') ?? true;
-    _syncDiarySummary =
-        prefs.getBool('${_privacyPrefix}sync_diary_summary') ?? true;
-    _autoClearAttachments =
-        prefs.getBool('${_privacyPrefix}auto_clear_attachments') ?? false;
-    _confirmBeforeExport =
-        prefs.getBool('${_privacyPrefix}confirm_before_export') ?? true;
+    final privacy = ref.read(privacyPreferencesProvider);
+    _communityVisibility = privacy.communityVisibility;
+    _anonymousPosting = privacy.anonymousPosting;
+    _hideRecoveryStage = privacy.hideRecoveryStage;
+    _showFollowingList = privacy.showFollowingList;
+    _showSignature = privacy.showSignature;
+    _syncDiarySummary = privacy.syncDiarySummary;
+    _autoClearAttachments = privacy.autoClearAttachments;
+    _confirmBeforeExport = privacy.confirmBeforeExport;
     _planReminders =
         prefs.getBool('${_notificationPrefix}plan_reminders') ?? true;
     _appointmentUpdates =
@@ -846,9 +840,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
 
   String _compactCommunityVisibilityLabel(BuildContext context) {
     return switch (_communityVisibility) {
-      _PrivacyVisibility.private => _t(context, '匿名', 'Anonymous'),
-      _PrivacyVisibility.mutual => _t(context, '互相关注', 'Mutual'),
-      _PrivacyVisibility.public => _t(context, '公开', 'Public'),
+      CommunityVisibility.private => _t(context, '匿名', 'Anonymous'),
+      CommunityVisibility.mutual => _t(context, '互相关注', 'Mutual'),
+      CommunityVisibility.public => _t(context, '公开', 'Public'),
     };
   }
 
@@ -859,21 +853,21 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   }
 
   Future<void> _selectCompactCommunityVisibility() async {
-    final selected = await _showChoiceSheet<_PrivacyVisibility>(
+    final selected = await _showChoiceSheet<CommunityVisibility>(
       context: context,
       title: _t(context, '社区可见范围', 'Community visibility'),
       currentValue: _communityVisibility,
       items: [
         _ChoiceSheetItem(
-          _PrivacyVisibility.private,
+          CommunityVisibility.private,
           _t(context, '匿名', 'Anonymous'),
         ),
         _ChoiceSheetItem(
-          _PrivacyVisibility.mutual,
+          CommunityVisibility.mutual,
           _t(context, '互相关注', 'Mutual'),
         ),
         _ChoiceSheetItem(
-          _PrivacyVisibility.public,
+          CommunityVisibility.public,
           _t(context, '公开', 'Public'),
         ),
       ],
@@ -1178,29 +1172,21 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       return;
     }
     setState(() => _privacySaving = true);
-    final prefs = ref.read(sharedPreferencesProvider);
     try {
-      await Future.wait([
-        prefs.setString(
-          '${_privacyPrefix}community_visibility',
-          _communityVisibility.storageValue,
-        ),
-        prefs.setBool('${_privacyPrefix}anonymous_posting', _anonymousPosting),
-        prefs.setBool(
-          '${_privacyPrefix}hide_recovery_stage',
-          _hideRecoveryStage,
-        ),
-        prefs.setBool(
-          '${_privacyPrefix}show_following_list',
-          _showFollowingList,
-        ),
-        prefs.setBool('${_privacyPrefix}show_signature', _showSignature),
-        prefs.setBool('${_privacyPrefix}sync_diary_summary', _syncDiarySummary),
-        prefs.setBool(
-          '${_privacyPrefix}confirm_before_export',
-          _confirmBeforeExport,
-        ),
-      ]);
+      await ref
+          .read(privacyPreferencesProvider.notifier)
+          .save(
+            PrivacyPreferences(
+              communityVisibility: _communityVisibility,
+              anonymousPosting: _anonymousPosting,
+              hideRecoveryStage: _hideRecoveryStage,
+              showFollowingList: _showFollowingList,
+              showSignature: _showSignature,
+              syncDiarySummary: _syncDiarySummary,
+              autoClearAttachments: _autoClearAttachments,
+              confirmBeforeExport: _confirmBeforeExport,
+            ),
+          );
       if (!mounted) {
         return;
       }
@@ -1215,21 +1201,21 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   }
 
   Future<void> _selectCommunityVisibility() async {
-    final selected = await _showChoiceSheet<_PrivacyVisibility>(
+    final selected = await _showChoiceSheet<CommunityVisibility>(
       context: context,
       title: _t(context, '社区展示范围', 'Community visibility'),
       currentValue: _communityVisibility,
       items: [
         _ChoiceSheetItem(
-          _PrivacyVisibility.private,
+          CommunityVisibility.private,
           _t(context, '仅自己', 'Private'),
         ),
         _ChoiceSheetItem(
-          _PrivacyVisibility.mutual,
+          CommunityVisibility.mutual,
           _t(context, '互相关注', 'Mutual'),
         ),
         _ChoiceSheetItem(
-          _PrivacyVisibility.public,
+          CommunityVisibility.public,
           _t(context, '公开', 'Public'),
         ),
       ],
@@ -1240,11 +1226,8 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     setState(() => _communityVisibility = selected);
     unawaited(
       ref
-          .read(sharedPreferencesProvider)
-          .setString(
-            '${_privacyPrefix}community_visibility',
-            selected.storageValue,
-          ),
+          .read(privacyPreferencesProvider.notifier)
+          .setCommunityVisibility(selected),
     );
   }
 
@@ -1319,17 +1302,39 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     void Function(bool value) update,
   ) {
     setState(() => update(value));
-    unawaited(
-      ref.read(sharedPreferencesProvider).setBool('$_privacyPrefix$key', value),
-    );
+    unawaited(switch (key) {
+      'anonymous_posting' =>
+        ref
+            .read(privacyPreferencesProvider.notifier)
+            .setAnonymousPosting(value),
+      'hide_recovery_stage' =>
+        ref
+            .read(privacyPreferencesProvider.notifier)
+            .setHideRecoveryStage(value),
+      'show_following_list' =>
+        ref
+            .read(privacyPreferencesProvider.notifier)
+            .setShowFollowingList(value),
+      'show_signature' =>
+        ref.read(privacyPreferencesProvider.notifier).setShowSignature(value),
+      'sync_diary_summary' =>
+        ref
+            .read(privacyPreferencesProvider.notifier)
+            .setSyncDiarySummary(value),
+      'confirm_before_export' =>
+        ref
+            .read(privacyPreferencesProvider.notifier)
+            .setConfirmBeforeExport(value),
+      _ => Future<void>.value(),
+    });
   }
 
   void _setAutoClearAttachments(bool value) {
     setState(() => _autoClearAttachments = value);
     unawaited(() async {
       await ref
-          .read(sharedPreferencesProvider)
-          .setBool('${_privacyPrefix}auto_clear_attachments', value);
+          .read(privacyPreferencesProvider.notifier)
+          .setAutoClearAttachments(value);
       if (value) {
         await _runAutoAttachmentCleanup(force: true, showNotice: true);
       }
@@ -1366,8 +1371,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   }) async {
     final prefs = ref.read(sharedPreferencesProvider);
     final lastRunAt = DateTime.tryParse(
-      prefs.getString('${_privacyPrefix}auto_clear_attachments_last_run_at') ??
-          '',
+      prefs.getString(_autoClearAttachmentsLastRunAtKey) ?? '',
     );
     if (!force &&
         lastRunAt != null &&
@@ -1382,7 +1386,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         categories: LocalCacheCategory.values.toSet(),
       );
       await prefs.setString(
-        '${_privacyPrefix}auto_clear_attachments_last_run_at',
+        _autoClearAttachmentsLastRunAtKey,
         DateTime.now().toIso8601String(),
       );
       if (!mounted) {
@@ -2817,16 +2821,6 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         ? _t(context, '操作失败，请稍后重试', 'Request failed. Please try again.')
         : text;
   }
-
-  void _comingSoon(BuildContext context) {
-    context.showCenteredNotice(
-      _t(
-        context,
-        '该设置入口已预留，后续接入接口后开放。',
-        'This setting is reserved and will open after the API is connected.',
-      ),
-    );
-  }
 }
 
 enum SettingsSectionType {
@@ -3070,32 +3064,6 @@ class _AvatarPreviewSurface extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-enum _PrivacyVisibility {
-  private('private'),
-  mutual('mutual'),
-  public('public');
-
-  const _PrivacyVisibility(this.storageValue);
-
-  final String storageValue;
-
-  static _PrivacyVisibility fromStorage(String? value) {
-    return switch (value) {
-      'private' => private,
-      'public' => public,
-      _ => mutual,
-    };
-  }
-
-  String label(BuildContext context) {
-    return switch (this) {
-      private => _t(context, '仅自己', 'Private'),
-      mutual => _t(context, '互相关注', 'Mutual'),
-      public => _t(context, '公开', 'Public'),
-    };
   }
 }
 
@@ -3861,16 +3829,6 @@ Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
   if (context.mounted) {
     context.go('/login');
   }
-}
-
-void _comingSoon(BuildContext context) {
-  context.showCenteredNotice(
-    _t(
-      context,
-      '该设置入口已预留，后续接入接口后开放。',
-      'This setting is reserved and will open after the API is connected.',
-    ),
-  );
 }
 
 String _themeModeLabel(BuildContext context, ThemeMode mode) {

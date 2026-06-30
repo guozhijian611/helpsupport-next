@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/settings/privacy_preferences.dart';
 import '../application/community_controller.dart';
 import '../data/community_models.dart';
 
@@ -31,6 +32,12 @@ class _CommunityPostEditorScreenState
   bool _isSubmitting = false;
   final Set<int> _selectedTagIds = <int>{};
   List<_EditorImageAttachment> _attachments = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _isAnonymous = ref.read(privacyPreferencesProvider).anonymousPosting;
+  }
 
   @override
   void dispose() {

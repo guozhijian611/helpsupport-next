@@ -7,12 +7,14 @@ import '../../../core/i18n/member_text_localizer.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
+import '../../../core/settings/privacy_preferences.dart';
 import '../../../core/ui/app_tab_shell_metrics.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../chat/application/chat_controller.dart';
 import '../../chat/data/chat_models.dart';
 import '../../chat/presentation/chat_launch_sheet.dart';
 import '../../community/application/community_controller.dart';
+import '../../community/data/community_models.dart';
 import '../../message/application/message_controller.dart';
 import '../../plan/application/plan_controller.dart';
 
@@ -28,6 +30,7 @@ class HomeDashboardScreen extends ConsumerWidget {
     final plans = ref.watch(currentPlansProvider);
     final community = ref.watch(communityPostsProvider);
     final unreadCount = ref.watch(unreadMessageCountProvider);
+    final privacy = ref.watch(privacyPreferencesProvider);
     final plansData = switch (plans) {
       AsyncData(:final value) => value,
       _ => null,
@@ -205,22 +208,22 @@ class HomeDashboardScreen extends ConsumerWidget {
               title: _t(context, '最近社区动态', 'Recent community activity'),
               trailing: TextButton(
                 onPressed: () => context.showCenteredNotice(
-                  _communityTeaser(context, communityData),
+                  _communityTeaser(context, communityData, privacy),
                 ),
                 child: Text(_t(context, '摘要', 'Summary')),
               ),
             ),
             community.when(
-              data: (page) => page.list.isEmpty
-                  ? _InfoPanel(
-                      title: context.l10n.communityFeedEmpty,
-                      subtitle: _t(
-                        context,
-                        '当你准备好分享或阅读支持内容时，这里会出现真实动态。',
-                        'Real support posts will appear here when the community is active.',
-                      ),
-                    )
-                  : _CommunityTeaser(post: page.list.first),
+              data: (page) {
+                final post = _visibleCommunityPost(page.list, privacy);
+                if (post == null) {
+                  return _InfoPanel(
+                    title: context.l10n.communityFeedEmpty,
+                    subtitle: _communityEmptySubtitle(context, privacy),
+                  );
+                }
+                return _CommunityTeaser(post: post);
+              },
               error: (error, _) => _InfoPanel(
                 title: context.l10n.networkUnavailable,
                 subtitle: error.toString(),
@@ -788,7 +791,7 @@ class _EmptyConversationCard extends StatelessWidget {
 class _CommunityTeaser extends StatelessWidget {
   const _CommunityTeaser({required this.post});
 
-  final dynamic post;
+  final CommunityPost post;
 
   @override
   Widget build(BuildContext context) {
@@ -803,7 +806,9 @@ class _CommunityTeaser extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            post.authorName as String,
+            post.isAnonymous
+                ? _t(context, '匿名用户', 'Anonymous')
+                : post.authorName,
             style: TextStyle(
               color: palette.primaryText,
               fontSize: 18,
@@ -812,7 +817,7 @@ class _CommunityTeaser extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            post.content as String,
+            post.content,
             maxLines: 4,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -1251,20 +1256,75 @@ String _planSummaryText(BuildContext context, List<dynamic>? plans) {
   return _t(context, '共 ${plans.length} 个阶段', '${plans.length} active plan(s)');
 }
 
-String _communityTeaser(BuildContext context, dynamic page) {
+String _communityTeaser(
+  BuildContext context,
+  CommunityPage<CommunityPost>? page,
+  PrivacyPreferences privacy,
+) {
+  if (!privacy.syncDiarySummary) {
+    return _t(
+      context,
+      '日记摘要已关闭，不会参与进度面板。',
+      'Journal summaries are disabled for the progress panel.',
+    );
+  }
   if (page == null) {
     return context.l10n.communityFeedEmpty;
   }
-  final list = page.list as List<dynamic>;
-  if (list.isEmpty) {
+  final first = _visibleCommunityPost(page.list, privacy);
+  if (first == null) {
     return context.l10n.communityFeedEmpty;
   }
-  final first = list.first;
+  final authorName = first.isAnonymous
+      ? _t(context, '匿名用户', 'Anonymous')
+      : first.authorName;
   return _t(
     context,
-    '最新动态来自 ${first.authorName}',
-    'Latest community post from ${first.authorName}',
+    '最新动态来自 $authorName',
+    'Latest community post from $authorName',
   );
+}
+
+CommunityPost? _visibleCommunityPost(
+  List<CommunityPost> posts,
+  PrivacyPreferences privacy,
+) {
+  if (posts.isEmpty ||
+      privacy.communityVisibility == CommunityVisibility.private) {
+    return null;
+  }
+  if (privacy.communityVisibility == CommunityVisibility.mutual) {
+    for (final post in posts) {
+      if (post.isMutualFollowAuthor) {
+        return post;
+      }
+    }
+    return null;
+  }
+  return posts.first;
+}
+
+String _communityEmptySubtitle(
+  BuildContext context,
+  PrivacyPreferences privacy,
+) {
+  return switch (privacy.communityVisibility) {
+    CommunityVisibility.private => _t(
+      context,
+      '你已将社区可见范围设为匿名，首页不会展示具体社区动态。',
+      'Community visibility is private, so concrete activity is hidden here.',
+    ),
+    CommunityVisibility.mutual => _t(
+      context,
+      '当前没有互相关注作者的新动态。',
+      'No recent posts from mutual follows are available.',
+    ),
+    CommunityVisibility.public => _t(
+      context,
+      '当你准备好分享或阅读支持内容时，这里会出现真实动态。',
+      'Real support posts will appear here when the community is active.',
+    ),
+  };
 }
 
 void _openSession(BuildContext context, ChatSession session) {

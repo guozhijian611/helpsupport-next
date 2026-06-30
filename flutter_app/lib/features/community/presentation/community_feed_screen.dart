@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
+import '../../../core/settings/privacy_preferences.dart';
 import '../../../core/ui/app_tab_shell_metrics.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../message/application/message_controller.dart';
@@ -243,6 +244,7 @@ class CommunityPostCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = _CommunityFeedPalette.of(context);
     final apiClient = ref.watch(apiClientProvider);
+    final privacy = ref.watch(privacyPreferencesProvider);
     final authState = ref.watch(authControllerProvider);
     final session = switch (authState) {
       AsyncData(:final value) => value,
@@ -310,7 +312,11 @@ class CommunityPostCard extends ConsumerWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              _authorSubtitle(context, post),
+                              _authorSubtitle(
+                                context,
+                                post,
+                                hideRecoveryStage: privacy.hideRecoveryStage,
+                              ),
                               style: TextStyle(
                                 color: palette.secondaryText,
                                 fontSize: 14,
@@ -1310,7 +1316,16 @@ class _CircleButton extends StatelessWidget {
   }
 }
 
-String _authorSubtitle(BuildContext context, CommunityPost post) {
+String _authorSubtitle(
+  BuildContext context,
+  CommunityPost post, {
+  required bool hideRecoveryStage,
+}) {
+  if (hideRecoveryStage) {
+    return post.createTime.trim().isEmpty
+        ? _t(context, '社区成员', 'Community member')
+        : post.createTime;
+  }
   final role = post.isDoctorPost
       ? _t(context, '医生作者', 'Doctor author')
       : _t(context, '坚持治疗', 'Recovery journal');

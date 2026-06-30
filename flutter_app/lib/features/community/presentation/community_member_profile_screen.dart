@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/cache/cached_remote_image.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/settings/privacy_preferences.dart';
 import '../application/community_controller.dart';
 import '../data/community_models.dart';
 import 'community_feed_screen.dart';
@@ -29,6 +30,7 @@ class _CommunityMemberProfileScreenState
     final profile = ref.watch(communityMemberProfileProvider(widget.memberId));
     final posts = ref.watch(communityMemberPostsProvider(widget.memberId));
     final apiClient = ref.watch(apiClientProvider);
+    final privacy = ref.watch(privacyPreferencesProvider);
 
     return Scaffold(
       backgroundColor: palette.pageBackground,
@@ -52,6 +54,7 @@ class _CommunityMemberProfileScreenState
                   profile: member,
                   avatarUrl: apiClient.resolveUrl(member.avatar),
                   followBusy: _followingSubmitting,
+                  showSignature: !member.isSelf || privacy.showSignature,
                   onBack: () => Navigator.of(context).maybePop(),
                   onFollow: member.isSelf
                       ? null
@@ -63,9 +66,14 @@ class _CommunityMemberProfileScreenState
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: _StatPanel(
                       profile: member,
-                      onFollowingTap: () => context.push(
-                        '/community/relations/following/${member.memberId}',
-                      ),
+                      onFollowingTap:
+                          member.isSelf && !privacy.showFollowingList
+                          ? () => context.showCenteredNotice(
+                              _t(context, '关注列表已隐藏', 'Following list hidden'),
+                            )
+                          : () => context.push(
+                              '/community/relations/following/${member.memberId}',
+                            ),
                       onFollowersTap: () => context.push(
                         '/community/relations/followers/${member.memberId}',
                       ),
@@ -167,6 +175,7 @@ class _ProfileHero extends StatelessWidget {
     required this.profile,
     required this.avatarUrl,
     required this.followBusy,
+    required this.showSignature,
     required this.onBack,
     this.onFollow,
   });
@@ -174,6 +183,7 @@ class _ProfileHero extends StatelessWidget {
   final CommunityMemberProfile profile;
   final String avatarUrl;
   final bool followBusy;
+  final bool showSignature;
   final VoidCallback onBack;
   final VoidCallback? onFollow;
 
@@ -271,24 +281,26 @@ class _ProfileHero extends StatelessWidget {
                             ],
                           ],
                         ),
-                        const SizedBox(height: 10),
-                        Text(
-                          profile.bio.trim().isEmpty
-                              ? _t(
-                                  context,
-                                  '希望大家一起努力，活得精彩！',
-                                  'Let us keep moving forward together.',
-                                )
-                              : profile.bio,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            height: 1.45,
+                        if (showSignature) ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            profile.bio.trim().isEmpty
+                                ? _t(
+                                    context,
+                                    '希望大家一起努力，活得精彩！',
+                                    'Let us keep moving forward together.',
+                                  )
+                                : profile.bio,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              height: 1.45,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),

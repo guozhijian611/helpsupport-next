@@ -10,6 +10,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/settings/privacy_preferences.dart';
 import '../application/community_controller.dart';
 import '../data/community_models.dart';
 import 'community_feed_screen.dart';
@@ -36,6 +37,12 @@ class _CommunityPostDetailScreenState
   _CommentSortMode _sortMode = _CommentSortMode.recommend;
   CommunityComment? _replyTarget;
   List<_ComposerAttachment> _attachments = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _isAnonymous = ref.read(privacyPreferencesProvider).anonymousPosting;
+  }
 
   @override
   void dispose() {
@@ -191,7 +198,7 @@ class _CommunityPostDetailScreenState
       ref.invalidate(communityCommentsProvider(widget.postId));
       ref.invalidate(communityPostsProvider);
     } on Object catch (error) {
-      if (!mounted) {
+      if (!mounted || !context.mounted) {
         return;
       }
       context.showCenteredNotice(error.toString());
@@ -382,7 +389,7 @@ class _CommunityPostDetailScreenState
         return;
       }
       setState(() {
-        _isAnonymous = false;
+        _isAnonymous = ref.read(privacyPreferencesProvider).anonymousPosting;
         _replyTarget = null;
         _attachments = const [];
       });
