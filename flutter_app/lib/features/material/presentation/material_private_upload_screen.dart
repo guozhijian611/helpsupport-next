@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -97,6 +99,14 @@ class _MaterialPrivateUploadScreenState
               },
               onPickFile: _pickFile,
               onClearFile: () => setState(() => _selectedFiles = const []),
+              onRemoveFile: (index) {
+                setState(() {
+                  _selectedFiles = [
+                    for (var i = 0; i < _selectedFiles.length; i++)
+                      if (i != index) _selectedFiles[i],
+                  ];
+                });
+              },
             ),
             const SizedBox(height: 18),
             FilledButton.icon(
@@ -179,7 +189,7 @@ class _MaterialPrivateUploadScreenState
         ),
       );
     }
-    setState(() => _selectedFiles = files);
+    setState(() => _selectedFiles = [..._selectedFiles, ...files]);
   }
 
   Future<void> _submit() async {
@@ -416,6 +426,7 @@ class _PrivateUploadPanel extends StatelessWidget {
     required this.onMediaChanged,
     required this.onPickFile,
     required this.onClearFile,
+    required this.onRemoveFile,
   });
 
   final _PrivateUploadPalette palette;
@@ -433,6 +444,7 @@ class _PrivateUploadPanel extends StatelessWidget {
   final ValueChanged<String?> onMediaChanged;
   final VoidCallback onPickFile;
   final VoidCallback onClearFile;
+  final ValueChanged<int> onRemoveFile;
 
   @override
   Widget build(BuildContext context) {
@@ -519,6 +531,7 @@ class _PrivateUploadPanel extends StatelessWidget {
               files: selectedFiles,
               onPickFile: onPickFile,
               onClearFile: onClearFile,
+              onRemoveFile: onRemoveFile,
             )
           else if (option.value == 'link')
             TextField(
@@ -589,6 +602,7 @@ class _FilePickerTile extends StatelessWidget {
     required this.files,
     required this.onPickFile,
     required this.onClearFile,
+    required this.onRemoveFile,
   });
 
   final _PrivateUploadPalette palette;
@@ -596,12 +610,20 @@ class _FilePickerTile extends StatelessWidget {
   final List<PlatformFile> files;
   final VoidCallback onPickFile;
   final VoidCallback onClearFile;
+  final ValueChanged<int> onRemoveFile;
 
   @override
   Widget build(BuildContext context) {
     final hasFiles = files.isNotEmpty;
-    final title = _selectedFileTitle(context);
-    final subtitle = _selectedFileSubtitle(context);
+    if (option.value == 'image') {
+      return _ImagePickerTile(
+        palette: palette,
+        files: files,
+        onPickFile: onPickFile,
+        onRemoveFile: onRemoveFile,
+        onClearFile: onClearFile,
+      );
+    }
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
@@ -622,7 +644,7 @@ class _FilePickerTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
+                    _selectedFileTitle(context),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -632,7 +654,7 @@ class _FilePickerTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    subtitle,
+                    _selectedFileSubtitle(context),
                     style: TextStyle(color: palette.secondaryText),
                   ),
                 ],
@@ -683,6 +705,203 @@ class _FilePickerTile extends StatelessWidget {
       context,
       '支持 ${option.extensions.join(' / ')}',
       'Supports ${option.extensions.join(' / ')}',
+    );
+  }
+}
+
+class _ImagePickerTile extends StatelessWidget {
+  const _ImagePickerTile({
+    required this.palette,
+    required this.files,
+    required this.onPickFile,
+    required this.onRemoveFile,
+    required this.onClearFile,
+  });
+
+  final _PrivateUploadPalette palette;
+  final List<PlatformFile> files;
+  final VoidCallback onPickFile;
+  final ValueChanged<int> onRemoveFile;
+  final VoidCallback onClearFile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: palette.fieldBackground,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: palette.outline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.image_rounded, color: palette.accent, size: 30),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      files.isEmpty
+                          ? _t(context, '选择图片', 'Choose images')
+                          : _t(
+                              context,
+                              '已选择 ${files.length} 张图片',
+                              '${files.length} images selected',
+                            ),
+                      style: TextStyle(
+                        color: palette.primaryText,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _t(
+                        context,
+                        '支持 jpg / jpeg / png / webp / gif',
+                        'Supports jpg / jpeg / png / webp / gif',
+                      ),
+                      style: TextStyle(color: palette.secondaryText),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton.filledTonal(
+                tooltip: _t(context, '添加图片', 'Add images'),
+                onPressed: onPickFile,
+                icon: const Icon(Icons.add_photo_alternate_outlined),
+              ),
+              if (files.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  tooltip: _t(context, '清空图片', 'Clear images'),
+                  onPressed: onClearFile,
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ],
+          ),
+          if (files.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: files.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+              ),
+              itemBuilder: (context, index) {
+                final file = files[index];
+                final path = file.path ?? '';
+                return _SelectedImagePreview(
+                  palette: palette,
+                  fileName: file.name,
+                  imagePath: path,
+                  onRemove: () => onRemoveFile(index),
+                );
+              },
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onPickFile,
+                icon: const Icon(Icons.photo_library_outlined),
+                label: Text(_t(context, '从相册选择', 'Choose from library')),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectedImagePreview extends StatelessWidget {
+  const _SelectedImagePreview({
+    required this.palette,
+    required this.fileName,
+    required this.imagePath,
+    required this.onRemove,
+  });
+
+  final _PrivateUploadPalette palette;
+  final String fileName;
+  final String imagePath;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: DecoratedBox(
+              decoration: BoxDecoration(color: palette.cardBackground),
+              child: imagePath.trim().isEmpty
+                  ? Icon(Icons.broken_image_outlined, color: palette.accent)
+                  : Image.file(
+                      File(imagePath),
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Center(
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: palette.accent,
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 6,
+          right: 6,
+          bottom: 6,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.52),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: Text(
+                fileName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: -8,
+          right: -8,
+          child: IconButton.filled(
+            tooltip: _t(context, '删除图片', 'Remove image'),
+            style: IconButton.styleFrom(
+              backgroundColor: palette.accent,
+              foregroundColor: Colors.white,
+              minimumSize: const Size.square(28),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              padding: EdgeInsets.zero,
+            ),
+            onPressed: onRemove,
+            icon: const Icon(Icons.close_rounded, size: 18),
+          ),
+        ),
+      ],
     );
   }
 }
