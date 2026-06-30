@@ -257,6 +257,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     if (_needsRemoteData) {
       unawaited(_loadRemoteSection());
     }
+    if (widget.section == SettingsSectionType.privacy) {
+      unawaited(_loadPrivacyPreferences());
+    }
     if (widget.section == SettingsSectionType.permissions) {
       unawaited(_refreshPermissionStatuses());
     }
@@ -586,6 +589,33 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       if (mounted) {
         setState(() => _remoteLoading = false);
       }
+    }
+  }
+
+  Future<void> _loadPrivacyPreferences() async {
+    try {
+      final privacy = await ref
+          .read(meSettingsRepositoryProvider)
+          .fetchPrivacyPreferences();
+      await ref.read(privacyPreferencesProvider.notifier).save(privacy);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _communityVisibility = privacy.communityVisibility;
+        _anonymousPosting = privacy.anonymousPosting;
+        _hideRecoveryStage = privacy.hideRecoveryStage;
+        _showFollowingList = privacy.showFollowingList;
+        _showSignature = privacy.showSignature;
+        _syncDiarySummary = privacy.syncDiarySummary;
+        _autoClearAttachments = privacy.autoClearAttachments;
+        _confirmBeforeExport = privacy.confirmBeforeExport;
+      });
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(_errorText(context, error));
     }
   }
 
@@ -1173,31 +1203,48 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     }
     setState(() => _privacySaving = true);
     try {
-      await ref
-          .read(privacyPreferencesProvider.notifier)
-          .save(
-            PrivacyPreferences(
-              communityVisibility: _communityVisibility,
-              anonymousPosting: _anonymousPosting,
-              hideRecoveryStage: _hideRecoveryStage,
-              showFollowingList: _showFollowingList,
-              showSignature: _showSignature,
-              syncDiarySummary: _syncDiarySummary,
-              autoClearAttachments: _autoClearAttachments,
-              confirmBeforeExport: _confirmBeforeExport,
-            ),
-          );
+      final saved = await ref
+          .read(meSettingsRepositoryProvider)
+          .savePrivacyPreferences(_currentPrivacyPreferences());
+      await ref.read(privacyPreferencesProvider.notifier).save(saved);
       if (!mounted) {
         return;
       }
+      setState(() {
+        _communityVisibility = saved.communityVisibility;
+        _anonymousPosting = saved.anonymousPosting;
+        _hideRecoveryStage = saved.hideRecoveryStage;
+        _showFollowingList = saved.showFollowingList;
+        _showSignature = saved.showSignature;
+        _syncDiarySummary = saved.syncDiarySummary;
+        _autoClearAttachments = saved.autoClearAttachments;
+        _confirmBeforeExport = saved.confirmBeforeExport;
+      });
       context.showCenteredNotice(
         _t(context, '隐私设置已保存', 'Privacy settings saved'),
       );
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(_errorText(context, error));
+      }
     } finally {
       if (mounted) {
         setState(() => _privacySaving = false);
       }
     }
+  }
+
+  PrivacyPreferences _currentPrivacyPreferences() {
+    return PrivacyPreferences(
+      communityVisibility: _communityVisibility,
+      anonymousPosting: _anonymousPosting,
+      hideRecoveryStage: _hideRecoveryStage,
+      showFollowingList: _showFollowingList,
+      showSignature: _showSignature,
+      syncDiarySummary: _syncDiarySummary,
+      autoClearAttachments: _autoClearAttachments,
+      confirmBeforeExport: _confirmBeforeExport,
+    );
   }
 
   Future<void> _selectCommunityVisibility() async {
@@ -1331,14 +1378,24 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
 
   void _setAutoClearAttachments(bool value) {
     setState(() => _autoClearAttachments = value);
-    unawaited(() async {
-      await ref
-          .read(privacyPreferencesProvider.notifier)
-          .setAutoClearAttachments(value);
-      if (value) {
-        await _runAutoAttachmentCleanup(force: true, showNotice: true);
-      }
-    }());
+    unawaited(
+      () async {
+        await ref
+            .read(privacyPreferencesProvider.notifier)
+            .setAutoClearAttachments(value);
+        final saved = await ref
+            .read(meSettingsRepositoryProvider)
+            .savePrivacyPreferences(ref.read(privacyPreferencesProvider));
+        await ref.read(privacyPreferencesProvider.notifier).save(saved);
+        if (value) {
+          await _runAutoAttachmentCleanup(force: true, showNotice: true);
+        }
+      }().catchError((error) {
+        if (mounted) {
+          context.showCenteredNotice(_errorText(context, error));
+        }
+      }),
+    );
   }
 
   Future<void> _refreshLocalCacheSnapshot() async {

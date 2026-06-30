@@ -76,6 +76,50 @@ class PrivacyPreferences {
       confirmBeforeExport: confirmBeforeExport ?? this.confirmBeforeExport,
     );
   }
+
+  factory PrivacyPreferences.fromJson(Object? value) {
+    if (value is! Map<String, dynamic>) {
+      return const PrivacyPreferences();
+    }
+
+    return PrivacyPreferences(
+      communityVisibility: CommunityVisibility.fromStorage(
+        (value['community_visibility'] ?? '').toString(),
+      ),
+      anonymousPosting: _boolValue(value['anonymous_posting'], fallback: true),
+      hideRecoveryStage: _boolValue(
+        value['hide_recovery_stage'],
+        fallback: false,
+      ),
+      showFollowingList: _boolValue(
+        value['show_following_list'],
+        fallback: false,
+      ),
+      showSignature: _boolValue(value['show_signature'], fallback: true),
+      syncDiarySummary: _boolValue(value['sync_diary_summary'], fallback: true),
+      autoClearAttachments: _boolValue(
+        value['auto_clear_attachments'],
+        fallback: false,
+      ),
+      confirmBeforeExport: _boolValue(
+        value['confirm_before_export'],
+        fallback: true,
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'community_visibility': communityVisibility.storageValue,
+      'anonymous_posting': anonymousPosting,
+      'hide_recovery_stage': hideRecoveryStage,
+      'show_following_list': showFollowingList,
+      'show_signature': showSignature,
+      'sync_diary_summary': syncDiarySummary,
+      'auto_clear_attachments': autoClearAttachments,
+      'confirm_before_export': confirmBeforeExport,
+    };
+  }
 }
 
 class PrivacyPreferencesController extends Notifier<PrivacyPreferences> {
@@ -173,4 +217,27 @@ class PrivacyPreferencesController extends Notifier<PrivacyPreferences> {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+bool _boolValue(Object? value, {required bool fallback}) {
+  if (value == null) {
+    return fallback;
+  }
+  if (value is bool) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt() == 1;
+  }
+  final normalized = value.toString().trim().toLowerCase();
+  if (normalized == '1' || normalized == 'true' || normalized == 'yes') {
+    return true;
+  }
+  if (normalized == '2' ||
+      normalized == '0' ||
+      normalized == 'false' ||
+      normalized == 'no') {
+    return false;
+  }
+  return fallback;
 }

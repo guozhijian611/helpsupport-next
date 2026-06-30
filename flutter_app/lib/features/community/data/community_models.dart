@@ -209,6 +209,7 @@ class CommunityMemberProfile {
     required this.isSelf,
     required this.isFollowed,
     required this.isMutualFollow,
+    required this.canViewFollowingList,
     required this.followCount,
     required this.followerCount,
     required this.likeCount,
@@ -227,6 +228,7 @@ class CommunityMemberProfile {
   final bool isSelf;
   final bool isFollowed;
   final bool isMutualFollow;
+  final bool canViewFollowingList;
   final int followCount;
   final int followerCount;
   final int likeCount;
@@ -246,6 +248,10 @@ class CommunityMemberProfile {
       isSelf: _boolValue(json['is_self']),
       isFollowed: _boolValue(json['is_followed']),
       isMutualFollow: _boolValue(json['is_mutual_follow']),
+      canViewFollowingList: _boolValue(
+        json['can_view_following_list'],
+        fallback: true,
+      ),
       followCount: _intValue(json['follow_count']),
       followerCount: _intValue(json['follower_count']),
       likeCount: _intValue(json['like_count']),
@@ -396,7 +402,7 @@ String _stringValue(Object? value, {String fallback = ''}) {
   return value.toString();
 }
 
-bool _boolValue(Object? value) {
+bool _boolValue(Object? value, {bool fallback = false}) {
   if (value is bool) {
     return value;
   }
@@ -406,5 +412,5 @@ bool _boolValue(Object? value) {
   if (value is String) {
     return value == '1' || value.toLowerCase() == 'true';
   }
-  return false;
+  return fallback;
 }

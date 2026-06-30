@@ -106,6 +106,8 @@ Route::group('/app/help', function () {
 
     Route::get('/me/profile', [MeController::class, 'profile']);
     Route::post('/me/profile/save', [MeController::class, 'saveProfile']);
+    Route::get('/me/privacy', [MeController::class, 'privacy']);
+    Route::post('/me/privacy', [MeController::class, 'savePrivacy']);
     Route::post('/me/profile/avatar', [MeController::class, 'updateAvatar']);
     Route::get('/me/security', [MeController::class, 'security']);
     Route::post('/me/security/password', [MeController::class, 'changePassword']);

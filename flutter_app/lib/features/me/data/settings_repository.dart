@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/settings/privacy_preferences.dart';
 import '../../auth/data/auth_models.dart';
 import 'settings_models.dart';
 
@@ -39,6 +40,25 @@ class MeSettingsRepository {
       throw const FormatException('保存个人资料响应缺少 data');
     }
     return profile;
+  }
+
+  Future<PrivacyPreferences> fetchPrivacyPreferences() async {
+    final result = await _apiClient.getApi<PrivacyPreferences>(
+      '/app/help/me/privacy',
+      decode: PrivacyPreferences.fromJson,
+    );
+    return result.data ?? const PrivacyPreferences();
+  }
+
+  Future<PrivacyPreferences> savePrivacyPreferences(
+    PrivacyPreferences preferences,
+  ) async {
+    final result = await _apiClient.postApi<PrivacyPreferences>(
+      '/app/help/me/privacy',
+      data: preferences.toJson(),
+      decode: PrivacyPreferences.fromJson,
+    );
+    return result.data ?? preferences;
   }
 
   Future<MeProfileBundle> uploadAvatar({

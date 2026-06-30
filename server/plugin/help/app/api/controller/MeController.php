@@ -54,6 +54,39 @@ class MeController extends BaseController
         return ok($this->service->saveProfile($this->memberId, $request->all()));
     }
 
+    #[Apidoc\Title('读取隐私偏好')]
+    #[Apidoc\Url('/app/help/me/privacy')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Returned('community_visibility', type: 'string', desc: '社区可见范围 private/mutual/public')]
+    #[Apidoc\Returned('anonymous_posting', type: 'boolean', desc: '是否默认匿名发言')]
+    #[Apidoc\Returned('hide_recovery_stage', type: 'boolean', desc: '是否隐藏治疗阶段')]
+    #[Apidoc\Returned('show_following_list', type: 'boolean', desc: '是否允许查看关注列表')]
+    #[Apidoc\Returned('show_signature', type: 'boolean', desc: '是否展示个性签名')]
+    #[Apidoc\Returned('sync_diary_summary', type: 'boolean', desc: '是否允许日记摘要参与进度面板')]
+    #[Apidoc\Returned('auto_clear_attachments', type: 'boolean', desc: '是否自动清理附件缓存')]
+    #[Apidoc\Returned('confirm_before_export', type: 'boolean', desc: '是否导出前二次确认')]
+    public function privacy(Request $request): Response
+    {
+        return ok($this->service->privacyPreferences($this->memberId));
+    }
+
+    #[Apidoc\Title('保存隐私偏好')]
+    #[Apidoc\Url('/app/help/me/privacy')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('community_visibility', type: 'string', require: false, default: 'mutual', desc: '社区可见范围 private/mutual/public')]
+    #[Apidoc\Param('anonymous_posting', type: 'boolean', require: false, default: true, desc: '是否默认匿名发言')]
+    #[Apidoc\Param('hide_recovery_stage', type: 'boolean', require: false, default: false, desc: '是否隐藏治疗阶段')]
+    #[Apidoc\Param('show_following_list', type: 'boolean', require: false, default: false, desc: '是否允许查看关注列表')]
+    #[Apidoc\Param('show_signature', type: 'boolean', require: false, default: true, desc: '是否展示个性签名')]
+    #[Apidoc\Param('sync_diary_summary', type: 'boolean', require: false, default: true, desc: '是否允许日记摘要参与进度面板')]
+    #[Apidoc\Param('auto_clear_attachments', type: 'boolean', require: false, default: false, desc: '是否自动清理附件缓存')]
+    #[Apidoc\Param('confirm_before_export', type: 'boolean', require: false, default: true, desc: '是否导出前二次确认')]
+    #[Apidoc\Returned('community_visibility', type: 'string', desc: '社区可见范围 private/mutual/public')]
+    public function savePrivacy(Request $request): Response
+    {
+        return ok($this->service->savePrivacyPreferences($this->memberId, $request->post()));
+    }
+
     #[Apidoc\Title('上传或更换头像')]
     #[Apidoc\Url('/app/help/me/profile/avatar')]
     #[Apidoc\Method('POST')]

@@ -67,7 +67,8 @@ class _CommunityMemberProfileScreenState
                     child: _StatPanel(
                       profile: member,
                       onFollowingTap:
-                          member.isSelf && !privacy.showFollowingList
+                          (member.isSelf && !privacy.showFollowingList) ||
+                              (!member.isSelf && !member.canViewFollowingList)
                           ? () => context.showCenteredNotice(
                               _t(context, '关注列表已隐藏', 'Following list hidden'),
                             )

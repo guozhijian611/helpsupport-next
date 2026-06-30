@@ -151,10 +151,63 @@ class HelpApiService
         return [
             'member' => $member,
             'profile' => $profile,
+            'privacy_preferences' => $this->privacyPreferencesFromProfile($profile),
             'doctor_profile' => $doctorProfile,
             'current_role' => $this->currentRole($profile, $doctorProfile),
             'role_flags' => $this->roleFlags($profile, $doctorProfile),
         ];
+    }
+
+    public function privacyPreferences(int $memberId): array
+    {
+        return $this->privacyPreferencesFromProfile(
+            $this->rowByMember('sa_help_member_profile', $memberId)
+        );
+    }
+
+    public function savePrivacyPreferences(int $memberId, array $data): array
+    {
+        $current = $this->privacyPreferences($memberId);
+        $visibility = trim((string) ($data['community_visibility'] ?? $current['community_visibility']));
+        if (!in_array($visibility, ['private', 'mutual', 'public'], true)) {
+            throw new ApiException('社区可见范围参数错误', 400);
+        }
+
+        $payload = [
+            'community_visibility' => $visibility,
+            'privacy_anonymous_posting' => $this->yesNoFlag(
+                $data['anonymous_posting'] ?? null,
+                $current['anonymous_posting'] ? 1 : 2
+            ),
+            'privacy_hide_recovery_stage' => $this->yesNoFlag(
+                $data['hide_recovery_stage'] ?? null,
+                $current['hide_recovery_stage'] ? 1 : 2
+            ),
+            'privacy_show_following_list' => $this->yesNoFlag(
+                $data['show_following_list'] ?? null,
+                $current['show_following_list'] ? 1 : 2
+            ),
+            'privacy_show_signature' => $this->yesNoFlag(
+                $data['show_signature'] ?? null,
+                $current['show_signature'] ? 1 : 2
+            ),
+            'privacy_sync_diary_summary' => $this->yesNoFlag(
+                $data['sync_diary_summary'] ?? null,
+                $current['sync_diary_summary'] ? 1 : 2
+            ),
+            'privacy_auto_clear_attachments' => $this->yesNoFlag(
+                $data['auto_clear_attachments'] ?? null,
+                $current['auto_clear_attachments'] ? 1 : 2
+            ),
+            'privacy_confirm_before_export' => $this->yesNoFlag(
+                $data['confirm_before_export'] ?? null,
+                $current['confirm_before_export'] ? 1 : 2
+            ),
+        ];
+
+        $this->upsertByMember('sa_help_member_profile', $memberId, $payload);
+
+        return $this->privacyPreferences($memberId);
     }
 
     public function saveProfile(int $memberId, array $data): array
@@ -1361,14 +1414,18 @@ class HelpApiService
         $member = $this->member($targetMemberId);
         $profile = $this->rowByMember('sa_help_member_profile', $targetMemberId);
         $doctorProfile = $this->rowByMember('sa_help_doctor_profile', $targetMemberId);
+        $this->assertCommunityMemberVisible($memberId, $targetMemberId, $profile);
+        $privacy = $this->privacyPreferencesFromProfile($profile);
+        $canViewFollowingList = $targetMemberId === $memberId || $privacy['show_following_list'];
 
         return array_merge(
             $this->communityMemberPayload($memberId, $member, $profile, $doctorProfile),
             [
-                'follow_count' => (int) Db::table('sa_community_follow_member')
+                'can_view_following_list' => $canViewFollowingList,
+                'follow_count' => $canViewFollowingList ? (int) Db::table('sa_community_follow_member')
                     ->where('member_id', $targetMemberId)
                     ->whereNull('delete_time')
-                    ->count(),
+                    ->count() : 0,
                 'follower_count' => (int) Db::table('sa_community_follow_member')
                     ->where('target_member_id', $targetMemberId)
                     ->whereNull('delete_time')
@@ -1387,6 +1444,11 @@ class HelpApiService
     {
         $targetMemberId = $this->communityTargetMemberId($memberId, (int) ($params['member_id'] ?? 0));
         $this->member($targetMemberId);
+        $this->assertCommunityMemberVisible(
+            $memberId,
+            $targetMemberId,
+            $this->rowByMember('sa_help_member_profile', $targetMemberId)
+        );
 
         $page = $this->paginate(function () use ($memberId, $targetMemberId) {
             return $this->visibleCommunityPostQuery($memberId)
@@ -1404,6 +1466,11 @@ class HelpApiService
     {
         $targetMemberId = $this->communityTargetMemberId($memberId, (int) ($params['member_id'] ?? 0));
         $this->member($targetMemberId);
+        $profile = $this->rowByMember('sa_help_member_profile', $targetMemberId);
+        $this->assertCommunityMemberVisible($memberId, $targetMemberId, $profile);
+        if ($targetMemberId !== $memberId && !$this->privacyPreferencesFromProfile($profile)['show_following_list']) {
+            throw new ApiException('该用户已隐藏关注列表', 403);
+        }
 
         $page = $this->paginate(function () use ($targetMemberId, $params) {
             $query = Db::table('sa_community_follow_member')
@@ -1418,6 +1485,7 @@ class HelpApiService
                     'f.id AS relation_id, f.create_time AS relation_time, '
                     . 'm.id AS member_id, m.username, m.nickname, m.avatar, m.create_time AS member_create_time, '
                     . 'hp.bio, hp.recovery_goal, hp.member_role, hp.gender, hp.birthday, hp.create_time AS profile_create_time, '
+                    . 'hp.community_visibility, hp.privacy_hide_recovery_stage, hp.privacy_show_following_list, hp.privacy_show_signature, '
                     . 'dp.audit_status AS doctor_audit_status, dp.status AS doctor_status, dp.title AS doctor_title, dp.specialty AS doctor_specialty'
                 );
 
@@ -1443,6 +1511,11 @@ class HelpApiService
     {
         $targetMemberId = $this->communityTargetMemberId($memberId, (int) ($params['member_id'] ?? 0));
         $this->member($targetMemberId);
+        $this->assertCommunityMemberVisible(
+            $memberId,
+            $targetMemberId,
+            $this->rowByMember('sa_help_member_profile', $targetMemberId)
+        );
 
         $page = $this->paginate(function () use ($targetMemberId, $params) {
             $query = Db::table('sa_community_follow_member')
@@ -1457,6 +1530,7 @@ class HelpApiService
                     'f.id AS relation_id, f.create_time AS relation_time, '
                     . 'm.id AS member_id, m.username, m.nickname, m.avatar, m.create_time AS member_create_time, '
                     . 'hp.bio, hp.recovery_goal, hp.member_role, hp.gender, hp.birthday, hp.create_time AS profile_create_time, '
+                    . 'hp.community_visibility, hp.privacy_hide_recovery_stage, hp.privacy_show_following_list, hp.privacy_show_signature, '
                     . 'dp.audit_status AS doctor_audit_status, dp.status AS doctor_status, dp.title AS doctor_title, dp.specialty AS doctor_specialty'
                 );
 
@@ -1687,7 +1761,11 @@ class HelpApiService
             'images' => $this->jsonValue($data['images'] ?? null),
             'link_url' => trim((string) ($data['link_url'] ?? '')),
             'tags' => $this->jsonValue($data['tags'] ?? null),
-            'is_anonymous' => $this->intIn($data['is_anonymous'] ?? 2, [1, 2], '匿名参数错误'),
+            'is_anonymous' => $this->intIn(
+                $data['is_anonymous'] ?? ($this->privacyPreferences($memberId)['anonymous_posting'] ? 1 : 2),
+                [1, 2],
+                '匿名参数错误'
+            ),
             'is_doctor_post' => 2,
             'audit_status' => $reviewRequired ? 3 : 0,
             'audit_remark' => $reviewRequired ? self::RISK_REVIEW_REMARK : '',
@@ -1763,7 +1841,11 @@ class HelpApiService
             'reply_to_member_id' => (int) ($data['reply_to_member_id'] ?? 0) ?: null,
             'content' => $content,
             'attachments' => $this->jsonValue($data['attachments'] ?? null),
-            'is_anonymous' => $this->intIn($data['is_anonymous'] ?? 2, [1, 2], '匿名参数错误'),
+            'is_anonymous' => $this->intIn(
+                $data['is_anonymous'] ?? ($this->privacyPreferences($memberId)['anonymous_posting'] ? 1 : 2),
+                [1, 2],
+                '匿名参数错误'
+            ),
             'audit_status' => $reviewRequired ? 3 : 0,
             'audit_remark' => $reviewRequired ? self::RISK_REVIEW_REMARK : '',
             'status' => 1,
@@ -5150,6 +5232,74 @@ class HelpApiService
         return is_array($decoded) ? $decoded : [];
     }
 
+    private function privacyPreferencesFromProfile(array $profile): array
+    {
+        $visibility = trim((string) ($profile['community_visibility'] ?? 'mutual'));
+        if (!in_array($visibility, ['private', 'mutual', 'public'], true)) {
+            $visibility = 'mutual';
+        }
+
+        return [
+            'community_visibility' => $visibility,
+            'anonymous_posting' => $this->enabledFlag($profile['privacy_anonymous_posting'] ?? 1, true),
+            'hide_recovery_stage' => $this->enabledFlag($profile['privacy_hide_recovery_stage'] ?? 2, false),
+            'show_following_list' => $this->enabledFlag($profile['privacy_show_following_list'] ?? 2, false),
+            'show_signature' => $this->enabledFlag($profile['privacy_show_signature'] ?? 1, true),
+            'sync_diary_summary' => $this->enabledFlag($profile['privacy_sync_diary_summary'] ?? 1, true),
+            'auto_clear_attachments' => $this->enabledFlag($profile['privacy_auto_clear_attachments'] ?? 2, false),
+            'confirm_before_export' => $this->enabledFlag($profile['privacy_confirm_before_export'] ?? 1, true),
+        ];
+    }
+
+    private function enabledFlag(mixed $value, bool $default): bool
+    {
+        if ($value === null || $value === '') {
+            return $default;
+        }
+        if (is_bool($value)) {
+            return $value;
+        }
+        if (is_numeric($value)) {
+            return (int) $value === 1;
+        }
+
+        $normalized = strtolower(trim((string) $value));
+        if (in_array($normalized, ['1', 'true', 'yes', 'on'], true)) {
+            return true;
+        }
+        if (in_array($normalized, ['2', '0', 'false', 'no', 'off'], true)) {
+            return false;
+        }
+
+        return $default;
+    }
+
+    private function yesNoFlag(mixed $value, int $default): int
+    {
+        if ($value === null || $value === '') {
+            return $default;
+        }
+        if (is_bool($value)) {
+            return $value ? 1 : 2;
+        }
+        if (is_numeric($value)) {
+            if ((int) $value === 0) {
+                return 2;
+            }
+            return $this->intIn($value, [1, 2], '隐私偏好参数错误');
+        }
+
+        $normalized = strtolower(trim((string) $value));
+        if (in_array($normalized, ['true', 'yes', 'on'], true)) {
+            return 1;
+        }
+        if (in_array($normalized, ['false', 'no', 'off'], true)) {
+            return 2;
+        }
+
+        return $this->intIn($normalized, [1, 2], '隐私偏好参数错误');
+    }
+
     private function communityTargetMemberId(int $memberId, int $targetMemberId): int
     {
         $resolved = $targetMemberId > 0 ? $targetMemberId : $memberId;
@@ -5160,6 +5310,23 @@ class HelpApiService
         return $resolved;
     }
 
+    private function assertCommunityMemberVisible(int $viewerId, int $targetMemberId, array $profile): void
+    {
+        if ($viewerId > 0 && $viewerId === $targetMemberId) {
+            return;
+        }
+
+        $visibility = $this->privacyPreferencesFromProfile($profile)['community_visibility'];
+        if ($visibility === 'public') {
+            return;
+        }
+        if ($visibility === 'mutual' && $this->communityFollowState($viewerId, $targetMemberId)['is_mutual_follow']) {
+            return;
+        }
+
+        throw new ApiException('该用户主页不可见', 403);
+    }
+
     private function communityMemberPayload(
         int $viewerId,
         array $member,
@@ -5168,6 +5335,10 @@ class HelpApiService
     ): array {
         $targetMemberId = (int) ($member['id'] ?? 0);
         $followState = $this->communityFollowState($viewerId, $targetMemberId);
+        $privacy = $this->privacyPreferencesFromProfile($profile);
+        $isSelf = $viewerId > 0 && $viewerId === $targetMemberId;
+        $canShowSignature = $isSelf || $privacy['show_signature'];
+        $canShowRecoveryStage = $isSelf || !$privacy['hide_recovery_stage'];
         $displayName = trim((string) ($member['nickname'] ?? ''))
             ?: trim((string) ($member['username'] ?? ''))
             ?: 'Member #' . $targetMemberId;
@@ -5185,15 +5356,16 @@ class HelpApiService
             'member_id' => $targetMemberId,
             'display_name' => $displayName,
             'avatar' => (string) ($member['avatar'] ?? ''),
-            'bio' => $bio,
-            'recovery_goal' => (string) ($profile['recovery_goal'] ?? ''),
+            'bio' => $canShowSignature ? $bio : '',
+            'recovery_goal' => $canShowRecoveryStage ? (string) ($profile['recovery_goal'] ?? '') : '',
             'member_role' => $this->currentRole($profile, $doctorProfile),
             'is_doctor' => $this->isDoctorApproved($doctorProfile),
             'doctor_title' => (string) ($doctorProfile['title'] ?? ''),
-            'recovery_days' => $this->communityRecoveryDays($startedAt),
-            'is_self' => $viewerId > 0 && $viewerId === $targetMemberId,
+            'recovery_days' => $canShowRecoveryStage ? $this->communityRecoveryDays($startedAt) : 0,
+            'is_self' => $isSelf,
             'is_followed' => $followState['is_followed'],
             'is_mutual_follow' => $followState['is_mutual_follow'],
+            'can_view_following_list' => $isSelf || $privacy['show_following_list'],
         ];
     }
 
@@ -5241,6 +5413,10 @@ class HelpApiService
                 'gender' => $row['gender'] ?? 3,
                 'birthday' => $row['birthday'] ?? null,
                 'create_time' => $row['profile_create_time'] ?? null,
+                'community_visibility' => $row['community_visibility'] ?? 'mutual',
+                'privacy_hide_recovery_stage' => $row['privacy_hide_recovery_stage'] ?? 2,
+                'privacy_show_following_list' => $row['privacy_show_following_list'] ?? 2,
+                'privacy_show_signature' => $row['privacy_show_signature'] ?? 1,
             ];
             $doctorProfile = [
                 'audit_status' => $row['doctor_audit_status'] ?? 0,
@@ -5272,14 +5448,51 @@ class HelpApiService
 
     private function visibleCommunityPostQuery(int $memberId)
     {
+        $visibilitySql = $this->communityVisibilitySql($memberId);
+
         return Db::table('sa_community_post')
             ->alias('p')
             ->leftJoin('sa_member m', 'm.id = p.member_id AND m.delete_time IS NULL')
+            ->leftJoin('sa_help_member_profile hp_priv', 'hp_priv.member_id = p.member_id AND hp_priv.delete_time IS NULL')
             ->where('p.status', 1)
             ->whereNull('p.delete_time')
             ->where(function ($query) use ($memberId) {
                 $query->where('p.audit_status', 1)->whereOr('p.member_id', $memberId);
-            });
+            })
+            ->whereRaw($visibilitySql);
+    }
+
+    private function communityVisibilitySql(int $memberId): string
+    {
+        if ($memberId <= 0) {
+            return "COALESCE(hp_priv.`community_visibility`, 'mutual') = 'public'";
+        }
+
+        return sprintf(
+            "(p.`member_id` = %d
+                OR COALESCE(hp_priv.`community_visibility`, 'mutual') = 'public'
+                OR (
+                    COALESCE(hp_priv.`community_visibility`, 'mutual') = 'mutual'
+                    AND EXISTS (
+                        SELECT 1
+                        FROM `sa_community_follow_member` vf
+                        WHERE vf.`member_id` = %d
+                          AND vf.`target_member_id` = p.`member_id`
+                          AND vf.`delete_time` IS NULL
+                    )
+                    AND EXISTS (
+                        SELECT 1
+                        FROM `sa_community_follow_member` af
+                        WHERE af.`member_id` = p.`member_id`
+                          AND af.`target_member_id` = %d
+                          AND af.`delete_time` IS NULL
+                    )
+                )
+            )",
+            $memberId,
+            $memberId,
+            $memberId
+        );
     }
 
     private function assertVisibleCommunityPost(int $memberId, int $postId): array
