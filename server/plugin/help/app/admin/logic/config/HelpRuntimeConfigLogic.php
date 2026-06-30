@@ -22,6 +22,11 @@ class HelpRuntimeConfigLogic
         'help_firebase_push' => ['service_account_json'],
     ];
 
+    public function init($user): void
+    {
+        // 配置聚合页不依赖管理员上下文，仅满足 BaseController 初始化约定。
+    }
+
     public function read(): array
     {
         $groups = [];
