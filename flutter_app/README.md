@@ -6,10 +6,11 @@ HelpSupport 患者端与医生端移动应用工程，当前阶段包含 Flutter
 
 ```bash
 flutter pub get
-flutter run -d ios --dart-define=HELP_SUPPORT_API_BASE_URL=http://10.0.0.6:8787
+cd ..
+./run_app.sh
 ```
 
-`HELP_SUPPORT_API_BASE_URL` 默认值是 `http://10.0.0.6:8787`，后端 API 使用现有 `/app/help/...` 路由。
+`./run_app.sh` 会显示当前 Flutter 设备并让用户选择，然后在 `flutter_app/` 下执行 `flutter run -d <device id>`。API 基础地址写在 `flutter_app/lib/core/api/api_client.dart` 的 `ApiClient.apiBaseUrl` 常量里，默认值是 `http://10.0.0.6:8787`，后端 API 使用现有 `/app/help/...` 路由。
 
 ## iOS 模拟器构建安装
 
@@ -17,10 +18,10 @@ flutter run -d ios --dart-define=HELP_SUPPORT_API_BASE_URL=http://10.0.0.6:8787
 ./tool/build_ios_simulator.sh
 ```
 
-脚本会自动构建 Flutter iOS 模拟器包，安装到 iOS Simulator 并启动 App。默认优先使用已启动的模拟器；也可以指定目标设备和接口地址：
+脚本会自动构建 Flutter iOS 模拟器包，安装到 iOS Simulator 并启动 App。默认优先使用已启动的模拟器；也可以指定目标设备：
 
 ```bash
-IOS_SIMULATOR_NAME="iPhone 17" HELP_SUPPORT_API_BASE_URL=http://127.0.0.1:8787 ./tool/build_ios_simulator.sh
+IOS_SIMULATOR_NAME="iPhone 17" ./tool/build_ios_simulator.sh
 ```
 
 脚本默认走增量构建，不清理 Flutter/Xcode 产物，也不刷新 Swift Package 缓存；只有依赖配置缺失或 `pubspec` 变更时才会执行 `flutter pub get`。日常推送模拟器直接运行上面的命令即可。

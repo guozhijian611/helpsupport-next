@@ -102,9 +102,10 @@ pnpm lint
 当前移动端入口为：
 
 ```bash
-cd flutter_app
-flutter run -d ios --dart-define=HELP_SUPPORT_API_BASE_URL=http://127.0.0.1:8787
+./run_app.sh
 ```
+
+脚本会显示当前 Flutter 设备并让用户选择，然后进入 `flutter_app/` 执行 `flutter run -d <device id>`。API 基础地址写在 `flutter_app/lib/core/api/api_client.dart` 的 `ApiClient.apiBaseUrl` 常量中。
 
 完整 iOS 模拟器构建脚本：
 
@@ -115,7 +116,6 @@ cd flutter_app
 
 脚本支持的关键环境变量：
 
-- `HELP_SUPPORT_API_BASE_URL`
 - `IOS_SIMULATOR_NAME`
 - `IOS_SIMULATOR_UDID`
 - `REFRESH_IOS_SPM=1`
@@ -471,9 +471,10 @@ curl http://127.0.0.1:8787/apidoc/openapi/helpsupport-api
 - 默认联调路径仍然是：
 
 ```bash
-cd flutter_app
-flutter run -d ios --dart-define=HELP_SUPPORT_API_BASE_URL=http://127.0.0.1:8787
+./run_app.sh
 ```
+
+- API 基础地址写在 `flutter_app/lib/core/api/api_client.dart` 的 `ApiClient.apiBaseUrl` 常量中，不通过环境变量或 `--dart-define` 传入。
 
 - 完整构建验证使用：
 

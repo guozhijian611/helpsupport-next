@@ -6,7 +6,6 @@ FLUTTER_APP_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DERIVED_DATA_PATH="${FLUTTER_APP_DIR}/build/ios_simulator_derived"
 SIMULATOR_PRODUCTS_DIR="${DERIVED_DATA_PATH}/Build/Products/Debug-iphonesimulator"
 APP_PATH="${SIMULATOR_PRODUCTS_DIR}/Runner.app"
-API_BASE_URL="${HELP_SUPPORT_API_BASE_URL:-http://10.0.0.6:8787}"
 IOS_DEPLOYMENT_TARGET="${IOS_DEPLOYMENT_TARGET:-15.0}"
 
 usage() {
@@ -20,7 +19,6 @@ Environment:
   IOS_SIMULATOR_UDID       Target simulator UDID. Highest priority.
   IOS_SIMULATOR_NAME       Target simulator name, for example "iPhone 17".
   IOS_BUNDLE_ID            Bundle id override. Default is read from Runner.app.
-  HELP_SUPPORT_API_BASE_URL API base URL. Default: http://10.0.0.6:8787
   HELP_SUPPORT_LLAMA_LIBRARY_PATH Optional dart-define override for llama runtime.
   HELP_SUPPORT_LLAMA_GPU_LAYERS Optional dart-define override for llama GPU layers.
   HELP_SUPPORT_LLAMA_IOS_RUNTIME_DIR Optional directory containing iOS llama dylibs.
@@ -32,7 +30,6 @@ Environment:
 Examples:
   ./tool/build_ios_simulator.sh
   IOS_SIMULATOR_NAME="iPhone 17" ./tool/build_ios_simulator.sh
-  HELP_SUPPORT_API_BASE_URL=http://127.0.0.1:8787 ./tool/build_ios_simulator.sh
 USAGE
 }
 
@@ -168,9 +165,7 @@ clear_ios_spm_cache() {
 }
 
 dart_define_value() {
-  local defines=(
-    "HELP_SUPPORT_API_BASE_URL=${API_BASE_URL}"
-  )
+  local defines=()
   if [[ -n "${HELP_SUPPORT_LLAMA_LIBRARY_PATH:-}" ]]; then
     defines+=("HELP_SUPPORT_LLAMA_LIBRARY_PATH=${HELP_SUPPORT_LLAMA_LIBRARY_PATH}")
   fi
@@ -278,11 +273,16 @@ repair_missing_dynamic_simulator_frameworks() {
 }
 
 run_simulator_xcodebuild() {
-  local build_log
+  local build_log dart_defines
   build_log="$(mktemp -t helpsupport-ios-sim-build.XXXXXX.log)"
+  dart_defines="$(dart_define_value)"
 
   set +e
-  DART_DEFINES="$(dart_define_value)" xcodebuild "$@" 2>&1 | tee "${build_log}"
+  if [[ -n "${dart_defines}" ]]; then
+    DART_DEFINES="${dart_defines}" xcodebuild "$@" 2>&1 | tee "${build_log}"
+  else
+    xcodebuild "$@" 2>&1 | tee "${build_log}"
+  fi
   local status=$?
   set -e
 

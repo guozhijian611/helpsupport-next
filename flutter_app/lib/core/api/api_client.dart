@@ -35,10 +35,7 @@ class ApiClient {
     }
   }
 
-  static const apiBaseUrl = String.fromEnvironment(
-    'HELP_SUPPORT_API_BASE_URL',
-    defaultValue: 'http://10.0.0.6:8787',
-  );
+  static const apiBaseUrl = 'http://10.0.0.6:8787';
 
   final DiagnosticLogService? _diagnosticLogService;
   final SessionInvalidationNotifier _sessionInvalidationNotifier;
