@@ -174,6 +174,8 @@ class CommunityController extends BaseController
     #[Apidoc\Returned('member_id', type: 'int', desc: '会员ID')]
     #[Apidoc\Returned('is_followed', type: 'boolean', desc: '当前是否关注该会员')]
     #[Apidoc\Returned('is_mutual_follow', type: 'boolean', desc: '当前是否与该会员互关')]
+    #[Apidoc\Returned('can_view_following_list', type: 'boolean', desc: '是否允许当前用户查看关注列表')]
+    #[Apidoc\Returned('can_view_followers_list', type: 'boolean', desc: '是否允许当前用户查看粉丝列表')]
     #[Apidoc\Returned('follow_count', type: 'int', desc: '关注数')]
     #[Apidoc\Returned('follower_count', type: 'int', desc: '粉丝数')]
     #[Apidoc\Returned('like_count', type: 'int', desc: '获赞数')]

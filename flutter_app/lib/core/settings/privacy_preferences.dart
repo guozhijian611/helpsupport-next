@@ -40,6 +40,7 @@ class PrivacyPreferences {
     this.anonymousPosting = true,
     this.hideRecoveryStage = false,
     this.showFollowingList = false,
+    this.showFollowersList = false,
     this.showSignature = true,
     this.syncDiarySummary = true,
     this.autoClearAttachments = false,
@@ -50,6 +51,7 @@ class PrivacyPreferences {
   final bool anonymousPosting;
   final bool hideRecoveryStage;
   final bool showFollowingList;
+  final bool showFollowersList;
   final bool showSignature;
   final bool syncDiarySummary;
   final bool autoClearAttachments;
@@ -60,6 +62,7 @@ class PrivacyPreferences {
     bool? anonymousPosting,
     bool? hideRecoveryStage,
     bool? showFollowingList,
+    bool? showFollowersList,
     bool? showSignature,
     bool? syncDiarySummary,
     bool? autoClearAttachments,
@@ -70,6 +73,7 @@ class PrivacyPreferences {
       anonymousPosting: anonymousPosting ?? this.anonymousPosting,
       hideRecoveryStage: hideRecoveryStage ?? this.hideRecoveryStage,
       showFollowingList: showFollowingList ?? this.showFollowingList,
+      showFollowersList: showFollowersList ?? this.showFollowersList,
       showSignature: showSignature ?? this.showSignature,
       syncDiarySummary: syncDiarySummary ?? this.syncDiarySummary,
       autoClearAttachments: autoClearAttachments ?? this.autoClearAttachments,
@@ -95,6 +99,10 @@ class PrivacyPreferences {
         value['show_following_list'],
         fallback: false,
       ),
+      showFollowersList: _boolValue(
+        value['show_followers_list'],
+        fallback: false,
+      ),
       showSignature: _boolValue(value['show_signature'], fallback: true),
       syncDiarySummary: _boolValue(value['sync_diary_summary'], fallback: true),
       autoClearAttachments: _boolValue(
@@ -114,6 +122,7 @@ class PrivacyPreferences {
       'anonymous_posting': anonymousPosting,
       'hide_recovery_stage': hideRecoveryStage,
       'show_following_list': showFollowingList,
+      'show_followers_list': showFollowersList,
       'show_signature': showSignature,
       'sync_diary_summary': syncDiarySummary,
       'auto_clear_attachments': autoClearAttachments,
@@ -137,6 +146,8 @@ class PrivacyPreferencesController extends Notifier<PrivacyPreferences> {
           prefs.getBool('${_prefix}hide_recovery_stage') ?? false,
       showFollowingList:
           prefs.getBool('${_prefix}show_following_list') ?? false,
+      showFollowersList:
+          prefs.getBool('${_prefix}show_followers_list') ?? false,
       showSignature: prefs.getBool('${_prefix}show_signature') ?? true,
       syncDiarySummary: prefs.getBool('${_prefix}sync_diary_summary') ?? true,
       autoClearAttachments:
@@ -165,6 +176,10 @@ class PrivacyPreferencesController extends Notifier<PrivacyPreferences> {
       prefs.setBool(
         '${_prefix}show_following_list',
         preferences.showFollowingList,
+      ),
+      prefs.setBool(
+        '${_prefix}show_followers_list',
+        preferences.showFollowersList,
       ),
       prefs.setBool('${_prefix}show_signature', preferences.showSignature),
       prefs.setBool(
@@ -196,6 +211,10 @@ class PrivacyPreferencesController extends Notifier<PrivacyPreferences> {
 
   Future<void> setShowFollowingList(bool value) {
     return save(state.copyWith(showFollowingList: value));
+  }
+
+  Future<void> setShowFollowersList(bool value) {
+    return save(state.copyWith(showFollowersList: value));
   }
 
   Future<void> setShowSignature(bool value) {

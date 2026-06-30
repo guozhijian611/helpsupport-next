@@ -203,6 +203,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   bool _anonymousPosting = true;
   bool _hideRecoveryStage = false;
   bool _showFollowingList = false;
+  bool _showFollowersList = false;
   bool _showSignature = true;
   bool _syncDiarySummary = true;
   bool _autoClearAttachments = false;
@@ -242,6 +243,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     _anonymousPosting = privacy.anonymousPosting;
     _hideRecoveryStage = privacy.hideRecoveryStage;
     _showFollowingList = privacy.showFollowingList;
+    _showFollowersList = privacy.showFollowersList;
     _showSignature = privacy.showSignature;
     _syncDiarySummary = privacy.syncDiarySummary;
     _autoClearAttachments = privacy.autoClearAttachments;
@@ -406,6 +408,17 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
                   value: _showFollowingList,
                   onChanged: (value) =>
                       setState(() => _showFollowingList = value),
+                ),
+                _SettingsSwitchRow(
+                  title: _t(context, '允许查看粉丝列表', 'Show followers list'),
+                  subtitle: _t(
+                    context,
+                    '关闭后他人无法看到你的粉丝关系',
+                    'Hide follower relationships from others',
+                  ),
+                  value: _showFollowersList,
+                  onChanged: (value) =>
+                      setState(() => _showFollowersList = value),
                 ),
                 _SettingsSwitchRow(
                   title: _t(context, '展示个性签名', 'Show signature'),
@@ -606,6 +619,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         _anonymousPosting = privacy.anonymousPosting;
         _hideRecoveryStage = privacy.hideRecoveryStage;
         _showFollowingList = privacy.showFollowingList;
+        _showFollowersList = privacy.showFollowersList;
         _showSignature = privacy.showSignature;
         _syncDiarySummary = privacy.syncDiarySummary;
         _autoClearAttachments = privacy.autoClearAttachments;
@@ -819,6 +833,20 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
               'show_following_list',
               value,
               (next) => _showFollowingList = next,
+            ),
+          ),
+          _SettingsSwitchRow(
+            title: _t(context, '允许查看粉丝列表', 'Show followers list'),
+            subtitle: _t(
+              context,
+              '关闭后他人无法看到你的粉丝关系',
+              'Hide follower relationships from others',
+            ),
+            value: _showFollowersList,
+            onChanged: (value) => _setPrivacyBool(
+              'show_followers_list',
+              value,
+              (next) => _showFollowersList = next,
             ),
           ),
           _SettingsSwitchRow(
@@ -1215,6 +1243,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         _anonymousPosting = saved.anonymousPosting;
         _hideRecoveryStage = saved.hideRecoveryStage;
         _showFollowingList = saved.showFollowingList;
+        _showFollowersList = saved.showFollowersList;
         _showSignature = saved.showSignature;
         _syncDiarySummary = saved.syncDiarySummary;
         _autoClearAttachments = saved.autoClearAttachments;
@@ -1240,6 +1269,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       anonymousPosting: _anonymousPosting,
       hideRecoveryStage: _hideRecoveryStage,
       showFollowingList: _showFollowingList,
+      showFollowersList: _showFollowersList,
       showSignature: _showSignature,
       syncDiarySummary: _syncDiarySummary,
       autoClearAttachments: _autoClearAttachments,
@@ -1362,6 +1392,10 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         ref
             .read(privacyPreferencesProvider.notifier)
             .setShowFollowingList(value),
+      'show_followers_list' =>
+        ref
+            .read(privacyPreferencesProvider.notifier)
+            .setShowFollowersList(value),
       'show_signature' =>
         ref.read(privacyPreferencesProvider.notifier).setShowSignature(value),
       'sync_diary_summary' =>

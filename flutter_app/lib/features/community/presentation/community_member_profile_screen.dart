@@ -75,9 +75,15 @@ class _CommunityMemberProfileScreenState
                           : () => context.push(
                               '/community/relations/following/${member.memberId}',
                             ),
-                      onFollowersTap: () => context.push(
-                        '/community/relations/followers/${member.memberId}',
-                      ),
+                      onFollowersTap:
+                          (member.isSelf && !privacy.showFollowersList) ||
+                              (!member.isSelf && !member.canViewFollowersList)
+                          ? () => context.showCenteredNotice(
+                              _t(context, '粉丝列表已隐藏', 'Followers list hidden'),
+                            )
+                          : () => context.push(
+                              '/community/relations/followers/${member.memberId}',
+                            ),
                     ),
                   ),
                 ),

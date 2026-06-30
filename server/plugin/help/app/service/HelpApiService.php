@@ -187,6 +187,10 @@ class HelpApiService
                 $data['show_following_list'] ?? null,
                 $current['show_following_list'] ? 1 : 2
             ),
+            'privacy_show_followers_list' => $this->yesNoFlag(
+                $data['show_followers_list'] ?? null,
+                $current['show_followers_list'] ? 1 : 2
+            ),
             'privacy_show_signature' => $this->yesNoFlag(
                 $data['show_signature'] ?? null,
                 $current['show_signature'] ? 1 : 2
@@ -1417,19 +1421,21 @@ class HelpApiService
         $this->assertCommunityMemberVisible($memberId, $targetMemberId, $profile);
         $privacy = $this->privacyPreferencesFromProfile($profile);
         $canViewFollowingList = $targetMemberId === $memberId || $privacy['show_following_list'];
+        $canViewFollowersList = $targetMemberId === $memberId || $privacy['show_followers_list'];
 
         return array_merge(
             $this->communityMemberPayload($memberId, $member, $profile, $doctorProfile),
             [
                 'can_view_following_list' => $canViewFollowingList,
+                'can_view_followers_list' => $canViewFollowersList,
                 'follow_count' => $canViewFollowingList ? (int) Db::table('sa_community_follow_member')
                     ->where('member_id', $targetMemberId)
                     ->whereNull('delete_time')
                     ->count() : 0,
-                'follower_count' => (int) Db::table('sa_community_follow_member')
+                'follower_count' => $canViewFollowersList ? (int) Db::table('sa_community_follow_member')
                     ->where('target_member_id', $targetMemberId)
                     ->whereNull('delete_time')
-                    ->count(),
+                    ->count() : 0,
                 'like_count' => (int) $this->visibleCommunityPostQuery($memberId)
                     ->where('p.member_id', $targetMemberId)
                     ->sum('p.like_count'),
@@ -1485,7 +1491,8 @@ class HelpApiService
                     'f.id AS relation_id, f.create_time AS relation_time, '
                     . 'm.id AS member_id, m.username, m.nickname, m.avatar, m.create_time AS member_create_time, '
                     . 'hp.bio, hp.recovery_goal, hp.member_role, hp.gender, hp.birthday, hp.create_time AS profile_create_time, '
-                    . 'hp.community_visibility, hp.privacy_hide_recovery_stage, hp.privacy_show_following_list, hp.privacy_show_signature, '
+                    . 'hp.community_visibility, hp.privacy_hide_recovery_stage, hp.privacy_show_following_list, '
+                    . 'hp.privacy_show_followers_list, hp.privacy_show_signature, '
                     . 'dp.audit_status AS doctor_audit_status, dp.status AS doctor_status, dp.title AS doctor_title, dp.specialty AS doctor_specialty'
                 );
 
@@ -1511,11 +1518,11 @@ class HelpApiService
     {
         $targetMemberId = $this->communityTargetMemberId($memberId, (int) ($params['member_id'] ?? 0));
         $this->member($targetMemberId);
-        $this->assertCommunityMemberVisible(
-            $memberId,
-            $targetMemberId,
-            $this->rowByMember('sa_help_member_profile', $targetMemberId)
-        );
+        $profile = $this->rowByMember('sa_help_member_profile', $targetMemberId);
+        $this->assertCommunityMemberVisible($memberId, $targetMemberId, $profile);
+        if ($targetMemberId !== $memberId && !$this->privacyPreferencesFromProfile($profile)['show_followers_list']) {
+            throw new ApiException('该用户已隐藏粉丝列表', 403);
+        }
 
         $page = $this->paginate(function () use ($targetMemberId, $params) {
             $query = Db::table('sa_community_follow_member')
@@ -1530,7 +1537,8 @@ class HelpApiService
                     'f.id AS relation_id, f.create_time AS relation_time, '
                     . 'm.id AS member_id, m.username, m.nickname, m.avatar, m.create_time AS member_create_time, '
                     . 'hp.bio, hp.recovery_goal, hp.member_role, hp.gender, hp.birthday, hp.create_time AS profile_create_time, '
-                    . 'hp.community_visibility, hp.privacy_hide_recovery_stage, hp.privacy_show_following_list, hp.privacy_show_signature, '
+                    . 'hp.community_visibility, hp.privacy_hide_recovery_stage, hp.privacy_show_following_list, '
+                    . 'hp.privacy_show_followers_list, hp.privacy_show_signature, '
                     . 'dp.audit_status AS doctor_audit_status, dp.status AS doctor_status, dp.title AS doctor_title, dp.specialty AS doctor_specialty'
                 );
 
@@ -5244,6 +5252,7 @@ class HelpApiService
             'anonymous_posting' => $this->enabledFlag($profile['privacy_anonymous_posting'] ?? 1, true),
             'hide_recovery_stage' => $this->enabledFlag($profile['privacy_hide_recovery_stage'] ?? 2, false),
             'show_following_list' => $this->enabledFlag($profile['privacy_show_following_list'] ?? 2, false),
+            'show_followers_list' => $this->enabledFlag($profile['privacy_show_followers_list'] ?? 2, false),
             'show_signature' => $this->enabledFlag($profile['privacy_show_signature'] ?? 1, true),
             'sync_diary_summary' => $this->enabledFlag($profile['privacy_sync_diary_summary'] ?? 1, true),
             'auto_clear_attachments' => $this->enabledFlag($profile['privacy_auto_clear_attachments'] ?? 2, false),
@@ -5366,6 +5375,7 @@ class HelpApiService
             'is_followed' => $followState['is_followed'],
             'is_mutual_follow' => $followState['is_mutual_follow'],
             'can_view_following_list' => $isSelf || $privacy['show_following_list'],
+            'can_view_followers_list' => $isSelf || $privacy['show_followers_list'],
         ];
     }
 
@@ -5416,6 +5426,7 @@ class HelpApiService
                 'community_visibility' => $row['community_visibility'] ?? 'mutual',
                 'privacy_hide_recovery_stage' => $row['privacy_hide_recovery_stage'] ?? 2,
                 'privacy_show_following_list' => $row['privacy_show_following_list'] ?? 2,
+                'privacy_show_followers_list' => $row['privacy_show_followers_list'] ?? 2,
                 'privacy_show_signature' => $row['privacy_show_signature'] ?? 1,
             ];
             $doctorProfile = [

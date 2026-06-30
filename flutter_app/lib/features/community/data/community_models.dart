@@ -210,6 +210,7 @@ class CommunityMemberProfile {
     required this.isFollowed,
     required this.isMutualFollow,
     required this.canViewFollowingList,
+    required this.canViewFollowersList,
     required this.followCount,
     required this.followerCount,
     required this.likeCount,
@@ -229,6 +230,7 @@ class CommunityMemberProfile {
   final bool isFollowed;
   final bool isMutualFollow;
   final bool canViewFollowingList;
+  final bool canViewFollowersList;
   final int followCount;
   final int followerCount;
   final int likeCount;
@@ -250,6 +252,10 @@ class CommunityMemberProfile {
       isMutualFollow: _boolValue(json['is_mutual_follow']),
       canViewFollowingList: _boolValue(
         json['can_view_following_list'],
+        fallback: true,
+      ),
+      canViewFollowersList: _boolValue(
+        json['can_view_followers_list'],
         fallback: true,
       ),
       followCount: _intValue(json['follow_count']),
