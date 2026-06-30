@@ -27,7 +27,6 @@ class MeScreen extends ConsumerWidget {
   static const _accent = Color(0xFFFF9585);
   static const _blue = Color(0xFF5A81DA);
   static const _orange = Color(0xFFFFAE4D);
-  static const _privacy = Color(0xFFA4C3CC);
   static const _purple = Color(0xFF986FF5);
 
   @override
@@ -1034,12 +1033,6 @@ class _QuickActionsPanel extends StatelessWidget {
         icon: Icons.schedule_rounded,
         color: MeScreen._blue,
         route: '/materials?type=education&source=history',
-      ),
-      _QuickActionData(
-        title: context.l10n.mePrivacy,
-        icon: Icons.lock_rounded,
-        color: MeScreen._privacy,
-        route: '/me/settings/privacy',
       ),
       _QuickActionData(
         title: context.l10n.meMemoir,

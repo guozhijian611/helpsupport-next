@@ -18,7 +18,6 @@ class DoctorMeScreen extends ConsumerWidget {
   static const _accent = Color(0xFFFF9585);
   static const _blue = Color(0xFF5A81DA);
   static const _orange = Color(0xFFFFAE4D);
-  static const _privacy = Color(0xFFA4C3CC);
   static const _purple = Color(0xFF986FF5);
   static const _green = Color(0xFF7BC96F);
   static const _patientBlue = Color(0xFF94C2F8);
@@ -53,12 +52,6 @@ class DoctorMeScreen extends ConsumerWidget {
         icon: Icons.schedule_rounded,
         color: _blue,
         route: '/materials?type=education&source=history',
-      ),
-      _DoctorActionData(
-        title: _t(context, '隐私设置', 'Privacy'),
-        icon: Icons.lock_rounded,
-        color: _privacy,
-        route: '/me/settings/privacy',
       ),
       _DoctorActionData(
         title: _t(context, '治疗计划', 'Plan'),
