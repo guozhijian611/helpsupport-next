@@ -425,8 +425,19 @@ class AuthTextField extends StatelessWidget {
       textInputAction: textInputAction,
       obscureText: obscureText,
       onFieldSubmitted: onFieldSubmitted,
+      cursorColor: _gradientStart,
+      style: const TextStyle(
+        color: _inputTextColor,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+      ),
       decoration: InputDecoration(
         hintText: label,
+        hintStyle: const TextStyle(
+          color: _inputHintColor,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
         errorMaxLines: 2,
         filled: true,
         fillColor: _fieldFillColor,
@@ -547,6 +558,8 @@ class _LogoMarkPainter extends CustomPainter {
 const _gradientStart = Color(0xFFFF9585);
 const _gradientEnd = Color(0xFFFCB08E);
 const _fieldFillColor = Color(0xFFF4F5F9);
+const _inputTextColor = Color(0xFF353740);
+const _inputHintColor = Color(0xFF9EA2AE);
 const _inputIconColor = Color(0xFF343437);
 const _mutedTextColor = Color(0xFFA28D86);
 const _softBorderColor = Color(0xFFECE7E4);
