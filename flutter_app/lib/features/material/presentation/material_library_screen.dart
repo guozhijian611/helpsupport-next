@@ -856,7 +856,7 @@ class _MaterialCard extends ConsumerWidget {
     final palette = _MaterialLibraryPalette.of(context);
     final apiClient = ref.watch(apiClientProvider);
     final coverUrl = apiClient.resolveUrl(item.coverUrl);
-    final rejected = _isRejectedPrivateMaterial(item);
+    final locked = _isBlockedPrivateMaterial(item);
     final busy = dismissing || deleting;
     final chips = [
       if (categoryName.isNotEmpty) categoryName,
@@ -868,14 +868,8 @@ class _MaterialCard extends ConsumerWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(28),
-        onTap: rejected
-            ? () => context.showCenteredNotice(
-                _t(
-                  context,
-                  '该素材违规，具体内容已隐藏。',
-                  'This material violates the rules, so its content is hidden.',
-                ),
-              )
+        onTap: locked
+            ? () => context.showCenteredNotice(_lockedMaterialNotice(context))
             : () => _openMaterialItem(context, item),
         child: Ink(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
@@ -895,50 +889,62 @@ class _MaterialCard extends ConsumerWidget {
                         _MediaIcon(mediaType: item.mediaType),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: Text(
-                            item.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: palette.primaryText,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              height: 1.25,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: palette.primaryText,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.25,
+                                ),
+                              ),
+                              if (locked) ...[
+                                const SizedBox(height: 8),
+                                const _MaterialAuditBadge(),
+                              ],
+                            ],
                           ),
                         ),
                         if (onDelete != null) ...[
                           const SizedBox(width: 8),
-                          IconButton(
-                            tooltip: _t(context, '删除素材', 'Delete material'),
-                            onPressed: busy ? null : onDelete,
-                            icon: deleting
-                                ? SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        palette.mutedIcon,
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: palette.tagBackground,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              tooltip: _t(context, '删除素材', 'Delete material'),
+                              onPressed: busy ? null : onDelete,
+                              icon: deleting
+                                  ? SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              palette.mutedIcon,
+                                            ),
                                       ),
+                                    )
+                                  : Icon(
+                                      Icons.delete_outline_rounded,
+                                      color: palette.mutedIcon,
                                     ),
-                                  )
-                                : Icon(
-                                    Icons.delete_outline_rounded,
-                                    color: palette.mutedIcon,
-                                  ),
+                            ),
                           ),
                         ],
                       ],
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      rejected
-                          ? _t(
-                              context,
-                              '该素材违规，具体内容已隐藏。你可以删除这个素材。',
-                              'This material violates the rules, so its content is hidden. You can delete it.',
-                            )
+                      locked
+                          ? _lockedMaterialDescription(context)
                           : item.summary.isNotEmpty
                           ? item.summary
                           : _t(
@@ -950,59 +956,63 @@ class _MaterialCard extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: palette.bodyText, height: 1.55),
                     ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final chip in chips)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: palette.tagBackground,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              '# $chip',
-                              style: TextStyle(
-                                color: palette.bodyText,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                    if (chips.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final chip in chips)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: palette.tagBackground,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                '# $chip',
+                                style: TextStyle(
+                                  color: palette.bodyText,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
+                        ],
+                      ),
+                    ],
+                    if (!locked) ...[
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          _StatInfo(
+                            icon: Icons.thumb_up_alt_outlined,
+                            value: item.likeCount,
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        _StatInfo(
-                          icon: Icons.thumb_up_alt_outlined,
-                          value: item.likeCount,
-                        ),
-                        const SizedBox(width: 14),
-                        _StatInfo(
-                          icon: isCollectionView
-                              ? Icons.star_rounded
-                              : Icons.bookmark_border_rounded,
-                          value: item.collectCount,
-                          color: isCollectionView
-                              ? const Color(0xFFFFB648)
-                              : const Color(0xFF9CA1AA),
-                          valueColor: isCollectionView
-                              ? const Color(0xFFFFB648)
-                              : const Color(0xFF8B9098),
-                        ),
-                        const SizedBox(width: 14),
-                        _StatInfo(
-                          icon: Icons.chat_bubble_outline_rounded,
-                          value: item.commentCount,
-                        ),
-                      ],
-                    ),
+                          const SizedBox(width: 14),
+                          _StatInfo(
+                            icon: isCollectionView
+                                ? Icons.star_rounded
+                                : Icons.bookmark_border_rounded,
+                            value: item.collectCount,
+                            color: isCollectionView
+                                ? const Color(0xFFFFB648)
+                                : const Color(0xFF9CA1AA),
+                            valueColor: isCollectionView
+                                ? const Color(0xFFFFB648)
+                                : const Color(0xFF8B9098),
+                          ),
+                          const SizedBox(width: 14),
+                          _StatInfo(
+                            icon: Icons.chat_bubble_outline_rounded,
+                            value: item.commentCount,
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1015,8 +1025,8 @@ class _MaterialCard extends ConsumerWidget {
                     Positioned.fill(
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20),
-                        child: rejected
-                            ? const _RejectedMaterialThumb()
+                        child: locked
+                            ? const _LockedMaterialThumb()
                             : coverUrl.isNotEmpty
                             ? Image.network(
                                 coverUrl,
@@ -1028,7 +1038,7 @@ class _MaterialCard extends ConsumerWidget {
                             : const _MaterialThumbShell(),
                       ),
                     ),
-                    if (!rejected && _isPlayableMedia(item.mediaType))
+                    if (!locked && _isPlayableMedia(item.mediaType))
                       Positioned.fill(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
@@ -1829,19 +1839,73 @@ class _MaterialThumbShell extends StatelessWidget {
   }
 }
 
-class _RejectedMaterialThumb extends StatelessWidget {
-  const _RejectedMaterialThumb();
+class _MaterialAuditBadge extends StatelessWidget {
+  const _MaterialAuditBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    const color = Color(0xFFE06F61);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.block_rounded, color: color, size: 14),
+            const SizedBox(width: 5),
+            Text(
+              _lockedMaterialStatusLabel(context),
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LockedMaterialThumb extends StatelessWidget {
+  const _LockedMaterialThumb();
 
   @override
   Widget build(BuildContext context) {
     final palette = _MaterialLibraryPalette.of(context);
     return DecoratedBox(
-      decoration: BoxDecoration(color: palette.tagBackground),
-      child: Center(
-        child: Icon(
-          Icons.visibility_off_outlined,
-          color: palette.secondaryText.withValues(alpha: 0.7),
-          size: 34,
+      decoration: BoxDecoration(
+        color: palette.tagBackground,
+        border: Border.all(color: palette.outline),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.visibility_off_outlined,
+              color: palette.secondaryText.withValues(alpha: 0.72),
+              size: 30,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _t(context, '不可查看', 'Locked'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: palette.secondaryText,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -2007,8 +2071,28 @@ bool _isPlayableMedia(String mediaType) {
       mediaType == 'mp3';
 }
 
-bool _isRejectedPrivateMaterial(MaterialItem item) {
+bool _isBlockedPrivateMaterial(MaterialItem item) {
   return item.materialType == 'private' && item.auditStatus == 3;
+}
+
+String _lockedMaterialStatusLabel(BuildContext context) {
+  return _t(context, '已屏蔽', 'Blocked');
+}
+
+String _lockedMaterialNotice(BuildContext context) {
+  return _t(
+    context,
+    '该素材已被屏蔽，无法查看内容。',
+    'This material is blocked and cannot be opened.',
+  );
+}
+
+String _lockedMaterialDescription(BuildContext context) {
+  return _t(
+    context,
+    '内容未通过审核，已隐藏正文和图片。你可以删除这个素材。',
+    'The content did not pass review, so text and images are hidden. You can delete it.',
+  );
 }
 
 void _openMaterialItem(BuildContext context, MaterialItem item) {
