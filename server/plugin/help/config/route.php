@@ -141,6 +141,7 @@ Route::group('/app/help', function () {
     Route::post('/material/private/category', [MaterialController::class, 'savePrivateCategory']);
     Route::post('/material/private/category/delete', [MaterialController::class, 'deletePrivateCategory']);
     Route::post('/material/private', [MaterialController::class, 'savePrivate']);
+    Route::post('/material/private/delete', [MaterialController::class, 'deletePrivate']);
     Route::get('/material/history', [MaterialController::class, 'history']);
     Route::post('/material/history/save', [MaterialController::class, 'saveHistory']);
     Route::get('/material/collections', [MaterialController::class, 'collections']);

@@ -66,6 +66,8 @@ class MaterialItem {
     required this.durationSeconds,
     required this.isPublic,
     required this.isRecommended,
+    required this.auditStatus,
+    required this.auditRemark,
     required this.viewCount,
     required this.likeCount,
     required this.collectCount,
@@ -96,6 +98,8 @@ class MaterialItem {
   final int durationSeconds;
   final bool isPublic;
   final bool isRecommended;
+  final int auditStatus;
+  final String auditRemark;
   final int viewCount;
   final int likeCount;
   final int collectCount;
@@ -126,6 +130,8 @@ class MaterialItem {
     int? durationSeconds,
     bool? isPublic,
     bool? isRecommended,
+    int? auditStatus,
+    String? auditRemark,
     int? viewCount,
     int? likeCount,
     int? collectCount,
@@ -156,6 +162,8 @@ class MaterialItem {
       durationSeconds: durationSeconds ?? this.durationSeconds,
       isPublic: isPublic ?? this.isPublic,
       isRecommended: isRecommended ?? this.isRecommended,
+      auditStatus: auditStatus ?? this.auditStatus,
+      auditRemark: auditRemark ?? this.auditRemark,
       viewCount: viewCount ?? this.viewCount,
       likeCount: likeCount ?? this.likeCount,
       collectCount: collectCount ?? this.collectCount,
@@ -190,6 +198,8 @@ class MaterialItem {
       durationSeconds: _intValue(json['duration_seconds']),
       isPublic: _boolValue(json['is_public'], trueValue: 1),
       isRecommended: _boolValue(json['is_recommended'], trueValue: 1),
+      auditStatus: _intValue(json['audit_status'], fallback: 2),
+      auditRemark: _stringValue(json['audit_remark']),
       viewCount: _intValue(json['view_count']),
       likeCount: _intValue(json['like_count']),
       collectCount: _intValue(json['collect_count']),

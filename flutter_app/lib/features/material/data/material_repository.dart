@@ -264,6 +264,19 @@ class MaterialRepository {
     return item;
   }
 
+  Future<void> deletePrivateMaterial(int id) async {
+    await _apiClient.postApi<Map<String, dynamic>>(
+      '/app/help/material/private/delete',
+      data: {'id': id},
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return value;
+        }
+        return const {};
+      },
+    );
+  }
+
   Future<MaterialCategory> savePrivateCategory(String name) async {
     final result = await _apiClient.postApi<MaterialCategory>(
       '/app/help/material/private/category',

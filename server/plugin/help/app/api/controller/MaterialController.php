@@ -129,6 +129,16 @@ class MaterialController extends BaseController
         return ok($this->service->savePrivateMaterial($this->memberId, $request->post()));
     }
 
+    #[Apidoc\Title('删除私人素材')]
+    #[Apidoc\Url('/app/help/material/private/delete')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('id', type: 'int', require: true, desc: '私人素材ID')]
+    #[Apidoc\Returned('id', type: 'int', desc: '已删除素材ID')]
+    public function deletePrivate(Request $request): Response
+    {
+        return ok($this->service->deletePrivateMaterial($this->memberId, (int) $request->post('id')));
+    }
+
     #[Apidoc\Title('浏览历史')]
     #[Apidoc\Url('/app/help/material/history')]
     #[Apidoc\Method('GET')]
@@ -150,9 +160,11 @@ class MaterialController extends BaseController
     #[Apidoc\Param('content_type', type: 'string', require: true, desc: '内容类型')]
     #[Apidoc\Param('title', type: 'string', require: true, desc: '内容标题')]
     #[Apidoc\Param('route', type: 'string', require: true, desc: '页面路由')]
+    #[Apidoc\Param('author_name', type: 'string', require: false, desc: '作者或歌手名称')]
     #[Apidoc\Param('progress', type: 'float', require: false, default: 0, desc: '浏览或播放进度百分比')]
     #[Apidoc\Param('duration_seconds', type: 'int', require: false, default: 0, desc: '停留或播放秒数')]
     #[Apidoc\Returned('id', type: 'int', desc: '浏览历史ID')]
+    #[Apidoc\Returned('author_name', type: 'string', desc: '作者或歌手名称')]
     #[Apidoc\Returned('viewed_at', type: 'datetime', desc: '最近浏览时间')]
     public function saveHistory(Request $request): Response
     {

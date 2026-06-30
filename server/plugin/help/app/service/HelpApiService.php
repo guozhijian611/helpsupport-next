@@ -2004,7 +2004,7 @@ class HelpApiService
         $locale = (string) ($params['locale'] ?? '');
         $page = $this->paginate(function () use ($memberId, $params) {
             $query = $this->visibleMaterialQuery($memberId)
-                ->field('id, member_id, category_id, media_type, material_type, title, title_i18n, summary, summary_i18n, artist, album, cover_url, content_url, image_urls, lyric_url, duration_seconds, is_public, is_recommended, view_count, like_count, collect_count, comment_count, sort, create_time');
+                ->field('id, member_id, category_id, media_type, material_type, title, title_i18n, summary, summary_i18n, artist, album, cover_url, content_url, image_urls, lyric_url, duration_seconds, is_public, is_recommended, audit_status, audit_remark, view_count, like_count, collect_count, comment_count, sort, create_time');
 
             if (!empty($params['material_type'])) {
                 $query->where('material_type', (string) $params['material_type']);
@@ -2168,6 +2168,38 @@ class HelpApiService
         $id = $this->saveRow('sa_content_material', $payload, $memberId, $materialId);
 
         return $this->localizeMaterialRow(Db::table('sa_content_material')->where('id', $id)->find() ?: [], '');
+    }
+
+    public function deletePrivateMaterial(int $memberId, int $materialId): array
+    {
+        if ($memberId <= 0) {
+            throw new ApiException('请先登录后再删除私人素材', 401);
+        }
+        if ($materialId <= 0) {
+            throw new ApiException('请选择要删除的私人素材', 400);
+        }
+
+        $material = Db::table('sa_content_material')
+            ->where('id', $materialId)
+            ->where('member_id', $memberId)
+            ->where('material_type', 'private')
+            ->whereNull('delete_time')
+            ->find();
+        if (!$material) {
+            throw new ApiException('私人素材不存在或无权操作', 404);
+        }
+
+        Db::table('sa_content_material')
+            ->where('id', $materialId)
+            ->where('member_id', $memberId)
+            ->update([
+                'status' => 2,
+                'updated_by' => $memberId,
+                'update_time' => date('Y-m-d H:i:s'),
+                'delete_time' => date('Y-m-d H:i:s'),
+            ]);
+
+        return ['id' => $materialId];
     }
 
     public function deletePrivateMaterialCategory(int $memberId, int $categoryId): array
@@ -4788,8 +4820,28 @@ class HelpApiService
         if (array_key_exists('image_urls', $row)) {
             $row['image_urls'] = $this->normalizeImageUrls($row['image_urls'] ?? null);
         }
+        if ($this->isRejectedPrivateMaterial($row)) {
+            $row['summary'] = '';
+            $row['summary_i18n'] = null;
+            $row['artist'] = '';
+            $row['album'] = '';
+            $row['cover_url'] = '';
+            $row['content_url'] = '';
+            $row['image_urls'] = [];
+            $row['lyric_url'] = '';
+            $row['content_text'] = '';
+            $row['content_text_i18n'] = null;
+            $row['tags'] = [];
+            $row['duration_seconds'] = 0;
+        }
 
         return $row;
+    }
+
+    private function isRejectedPrivateMaterial(array $row): bool
+    {
+        return (string) ($row['material_type'] ?? '') === 'private'
+            && (int) ($row['audit_status'] ?? 0) === 3;
     }
 
     private function localizedMaterialText(string $fallback, mixed $i18n, string $locale): string

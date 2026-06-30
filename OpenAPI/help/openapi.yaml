@@ -5444,6 +5444,67 @@
         }
       }
     },
+    "/app/help/material/private/delete": {
+      "post": {
+        "tags": [
+          "helpsupport-api.素材.MaterialController"
+        ],
+        "summary": "删除私人素材",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "私人素材ID",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "已删除素材ID",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
     "/app/help/material/history": {
       "get": {
         "tags": [

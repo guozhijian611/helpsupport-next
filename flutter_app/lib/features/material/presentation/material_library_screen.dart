@@ -32,6 +32,7 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
   final _searchController = TextEditingController();
   final Set<int> _submittingCollectionIds = <int>{};
   final Set<int> _downloadingMusicIds = <int>{};
+  final Set<int> _deletingMaterialIds = <int>{};
   final Map<int, bool> _musicCollectedOverrides = <int, bool>{};
   String _keyword = '';
   int _categoryId = 0;
@@ -283,6 +284,8 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
                                     isCollectionView: true,
                                     dismissing: _submittingCollectionIds
                                         .contains(item.id),
+                                    deleting: false,
+                                    onDelete: null,
                                   ),
                                 )
                               : _MaterialCard(
@@ -291,6 +294,15 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
                                       categoryLookup[item.categoryId] ?? '',
                                   isCollectionView: false,
                                   dismissing: false,
+                                  deleting: _deletingMaterialIds.contains(
+                                    item.id,
+                                  ),
+                                  onDelete: widget.materialType == 'private'
+                                      ? () => _deletePrivateMaterial(
+                                          context,
+                                          item,
+                                        )
+                                      : null,
                                 ),
                         ),
                     ],
@@ -462,6 +474,70 @@ class _MaterialLibraryScreenState extends ConsumerState<MaterialLibraryScreen> {
     } finally {
       if (mounted) {
         setState(() => _submittingCollectionIds.remove(item.id));
+      }
+    }
+  }
+
+  Future<void> _deletePrivateMaterial(
+    BuildContext context,
+    MaterialItem item,
+  ) async {
+    if (_deletingMaterialIds.contains(item.id)) {
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(_t(dialogContext, '删除私人素材', 'Delete private material')),
+        content: Text(
+          _t(
+            dialogContext,
+            '删除后该素材将不会再出现在私人素材中。',
+            'This material will no longer appear in Private Materials.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(_t(dialogContext, '取消', 'Cancel')),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(_t(dialogContext, '删除', 'Delete')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    setState(() => _deletingMaterialIds.add(item.id));
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    final listQuery = MaterialListQuery(
+      materialType: widget.materialType,
+      categoryId: _categoryId,
+      keyword: _keyword,
+      locale: locale,
+    );
+    try {
+      await ref.read(materialRepositoryProvider).deletePrivateMaterial(item.id);
+      ref.invalidate(materialListProvider(listQuery));
+      ref.invalidate(
+        materialDetailProvider(
+          MaterialDetailQuery(id: item.id, locale: locale),
+        ),
+      );
+      if (context.mounted) {
+        context.showCenteredNotice(_t(context, '已删除素材', 'Material deleted'));
+      }
+    } on Object catch (error) {
+      if (context.mounted) {
+        context.showCenteredNotice(error.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _deletingMaterialIds.remove(item.id));
       }
     }
   }
@@ -764,18 +840,24 @@ class _MaterialCard extends ConsumerWidget {
     required this.categoryName,
     required this.isCollectionView,
     required this.dismissing,
+    required this.deleting,
+    required this.onDelete,
   });
 
   final MaterialItem item;
   final String categoryName;
   final bool isCollectionView;
   final bool dismissing;
+  final bool deleting;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = _MaterialLibraryPalette.of(context);
     final apiClient = ref.watch(apiClientProvider);
     final coverUrl = apiClient.resolveUrl(item.coverUrl);
+    final rejected = _isRejectedPrivateMaterial(item);
+    final busy = dismissing || deleting;
     final chips = [
       if (categoryName.isNotEmpty) categoryName,
       if (item.mediaType.isNotEmpty) _mediaLabel(context, item.mediaType),
@@ -786,7 +868,15 @@ class _MaterialCard extends ConsumerWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(28),
-        onTap: () => _openMaterialItem(context, item),
+        onTap: rejected
+            ? () => context.showCenteredNotice(
+                _t(
+                  context,
+                  '该素材违规，具体内容已隐藏。',
+                  'This material violates the rules, so its content is hidden.',
+                ),
+              )
+            : () => _openMaterialItem(context, item),
         child: Ink(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
           decoration: BoxDecoration(
@@ -817,11 +907,39 @@ class _MaterialCard extends ConsumerWidget {
                             ),
                           ),
                         ),
+                        if (onDelete != null) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            tooltip: _t(context, '删除素材', 'Delete material'),
+                            onPressed: busy ? null : onDelete,
+                            icon: deleting
+                                ? SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        palette.mutedIcon,
+                                      ),
+                                    ),
+                                  )
+                                : Icon(
+                                    Icons.delete_outline_rounded,
+                                    color: palette.mutedIcon,
+                                  ),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      item.summary.isNotEmpty
+                      rejected
+                          ? _t(
+                              context,
+                              '该素材违规，具体内容已隐藏。你可以删除这个素材。',
+                              'This material violates the rules, so its content is hidden. You can delete it.',
+                            )
+                          : item.summary.isNotEmpty
                           ? item.summary
                           : _t(
                               context,
@@ -897,7 +1015,9 @@ class _MaterialCard extends ConsumerWidget {
                     Positioned.fill(
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20),
-                        child: coverUrl.isNotEmpty
+                        child: rejected
+                            ? const _RejectedMaterialThumb()
+                            : coverUrl.isNotEmpty
                             ? Image.network(
                                 coverUrl,
                                 fit: BoxFit.cover,
@@ -908,7 +1028,7 @@ class _MaterialCard extends ConsumerWidget {
                             : const _MaterialThumbShell(),
                       ),
                     ),
-                    if (_isPlayableMedia(item.mediaType))
+                    if (!rejected && _isPlayableMedia(item.mediaType))
                       Positioned.fill(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
@@ -924,7 +1044,7 @@ class _MaterialCard extends ConsumerWidget {
                           ),
                         ),
                       ),
-                    if (dismissing)
+                    if (busy)
                       Positioned.fill(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
@@ -1709,6 +1829,25 @@ class _MaterialThumbShell extends StatelessWidget {
   }
 }
 
+class _RejectedMaterialThumb extends StatelessWidget {
+  const _RejectedMaterialThumb();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _MaterialLibraryPalette.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(color: palette.tagBackground),
+      child: Center(
+        child: Icon(
+          Icons.visibility_off_outlined,
+          color: palette.secondaryText.withValues(alpha: 0.7),
+          size: 34,
+        ),
+      ),
+    );
+  }
+}
+
 class _StatInfo extends StatelessWidget {
   const _StatInfo({
     required this.icon,
@@ -1866,6 +2005,10 @@ bool _isPlayableMedia(String mediaType) {
       mediaType == 'mov' ||
       mediaType == 'audio' ||
       mediaType == 'mp3';
+}
+
+bool _isRejectedPrivateMaterial(MaterialItem item) {
+  return item.materialType == 'private' && item.auditStatus == 3;
 }
 
 void _openMaterialItem(BuildContext context, MaterialItem item) {
