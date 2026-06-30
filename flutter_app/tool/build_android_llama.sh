@@ -44,6 +44,32 @@ toolchain_triple() {
   esac
 }
 
+openmp_arch() {
+  case "$1" in
+    arm64-v8a) printf '%s\n' 'aarch64' ;;
+    armeabi-v7a) printf '%s\n' 'arm' ;;
+    x86_64) printf '%s\n' 'x86_64' ;;
+    x86) printf '%s\n' 'i386' ;;
+    *) printf 'Unsupported ABI: %s\n' "$1" >&2; return 1 ;;
+  esac
+}
+
+find_openmp_runtime() {
+  local ndk_dir="$1"
+  local abi="$2"
+  local arch runtime
+  arch="$(openmp_arch "${abi}")"
+  runtime="$(find "${ndk_dir}/toolchains/llvm/prebuilt" \
+    -path "*/lib/clang/*/lib/linux/${arch}/libomp.so" \
+    -type f -print | sort | tail -1)"
+  if [[ -z "${runtime}" ]]; then
+    printf 'OpenMP runtime libomp.so not found for ABI %s under %s\n' \
+      "${abi}" "${ndk_dir}" >&2
+    return 1
+  fi
+  printf '%s\n' "${runtime}"
+}
+
 ensure_llama_source() {
   mkdir -p "${SRC_ROOT}"
   if [[ ! -d "${LLAMA_DIR}/.git" ]]; then
@@ -99,6 +125,7 @@ copy_runtime_libs() {
   cp "${out_dir}/bin/libggml-base.so" "${target_dir}/"
   cp "${out_dir}/bin/libggml-cpu.so" "${target_dir}/"
   cp "${ndk_dir}/toolchains/llvm/prebuilt/"*/"sysroot/usr/lib/${triple}/libc++_shared.so" "${target_dir}/"
+  cp "$(find_openmp_runtime "${ndk_dir}" "${abi}")" "${target_dir}/"
 }
 
 main() {

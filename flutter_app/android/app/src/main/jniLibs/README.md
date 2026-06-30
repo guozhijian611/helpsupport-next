@@ -13,6 +13,7 @@ arm64-v8a/libmtmd.so
 arm64-v8a/libllama.so
 arm64-v8a/libggml*.so
 arm64-v8a/libc++_shared.so
+arm64-v8a/libomp.so
 ```
 
 Generated `.so` files are ignored by Git. Only commit binaries after confirming
