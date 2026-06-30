@@ -29,6 +29,7 @@ class DoctorPlanScreen extends ConsumerStatefulWidget {
 class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
   DateTime _selectedDate = DateTime.now();
   int _selectedMemberId = 0;
+  final Map<int, DoctorPatient> _patientOverrides = {};
 
   @override
   void initState() {
@@ -76,6 +77,15 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
                 memberId: _selectedMemberId,
                 date: _dateKey(_selectedDate),
               ),
+            ),
+          )
+        : const AsyncValue<PlanPage<DailyTask>>.data(
+            PlanPage(list: [], total: 0, page: 1, pageSize: 100),
+          );
+    final allTasks = _selectedMemberId > 0
+        ? ref.watch(
+            doctorDailyTasksProvider(
+              DoctorDailyTasksQuery(memberId: _selectedMemberId),
             ),
           )
         : const AsyncValue<PlanPage<DailyTask>>.data(
@@ -136,55 +146,108 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
                           data: (items) {
                             final taskItems =
                                 tasks.asData?.value.list ?? const [];
+                            final allTaskItems =
+                                allTasks.asData?.value.list ?? const [];
                             final activePlan = _activePlan(items);
+                            final currentMonthTasks = _currentMonthTasks(
+                              allTaskItems,
+                              DateTime(_selectedDate.year, _selectedDate.month),
+                            );
+                            final completedMonthTasks = currentMonthTasks
+                                .where((task) => task.isDone)
+                                .length;
+                            final pendingMonthTasks = currentMonthTasks
+                                .where((task) => !task.isDone)
+                                .length;
+                            final monthPlanValue = pendingMonthTasks > 0
+                                ? _t(
+                                    context,
+                                    '待完成 $pendingMonthTasks 项',
+                                    '$pendingMonthTasks pending',
+                                  )
+                                : activePlan?.title ??
+                                      _t(context, '暂无任务', 'No tasks');
+                            final summaryGrid = _PatientRecoverySummaryGrid(
+                              monthPlanValue: monthPlanValue,
+                              triggerValue: patient.triggerTags.isEmpty
+                                  ? _t(context, '待补充', 'To complete')
+                                  : patient.triggerTags.take(2).join(' '),
+                              recoveryValue: patient.recoveryGoal.isEmpty
+                                  ? _t(
+                                      context,
+                                      '已完成 $completedMonthTasks 项',
+                                      '$completedMonthTasks finished',
+                                    )
+                                  : patient.recoveryGoal,
+                              onPlanTap: () => _openTreatmentPlan(
+                                patient.memberId,
+                                activePlan?.id ?? 0,
+                              ),
+                              onTriggerTap: () => _editTriggerTags(patient),
+                              onRecoveryTap: () => _editRecoveryGoal(patient),
+                            );
                             if (activePlan == null) {
-                              return _PlanOverviewCard(
-                                title: _t(
-                                  context,
-                                  '还没有治疗计划',
-                                  'No treatment plan yet',
-                                ),
-                                subtitle: _t(
-                                  context,
-                                  '先为当前患者配置计划、阶段和关键任务。',
-                                  'Create a plan, stages, and key tasks for this patient.',
-                                ),
-                                actionLabel: _t(
-                                  context,
-                                  '配置治疗计划',
-                                  'Configure plan',
-                                ),
-                                onTap: () =>
-                                    _openTreatmentPlan(patient.memberId),
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  summaryGrid,
+                                  const SizedBox(height: 18),
+                                  _PlanOverviewCard(
+                                    title: _t(
+                                      context,
+                                      '还没有治疗计划',
+                                      'No treatment plan yet',
+                                    ),
+                                    subtitle: _t(
+                                      context,
+                                      '先为当前患者配置计划、阶段和关键任务。',
+                                      'Create a plan, stages, and key tasks for this patient.',
+                                    ),
+                                    actionLabel: _t(
+                                      context,
+                                      '配置治疗计划',
+                                      'Configure plan',
+                                    ),
+                                    onTap: () =>
+                                        _openTreatmentPlan(patient.memberId),
+                                  ),
+                                ],
                               );
                             }
-                            return _ActivePlanSchedule(
-                              activePlan: activePlan,
-                              currentStage: _currentStage(activePlan),
-                              taskItems: taskItems,
-                              tasks: tasks,
-                              month: month,
-                              selectedDate: _selectedDate,
-                              onPreviousMonth: () => setState(
-                                () => _selectedDate = DateTime(
-                                  month.year,
-                                  month.month - 1,
-                                  _selectedDate.day.clamp(1, 28),
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                summaryGrid,
+                                const SizedBox(height: 18),
+                                _ActivePlanSchedule(
+                                  activePlan: activePlan,
+                                  currentStage: _currentStage(activePlan),
+                                  taskItems: taskItems,
+                                  tasks: tasks,
+                                  month: month,
+                                  selectedDate: _selectedDate,
+                                  onPreviousMonth: () => setState(
+                                    () => _selectedDate = DateTime(
+                                      month.year,
+                                      month.month - 1,
+                                      _selectedDate.day.clamp(1, 28),
+                                    ),
+                                  ),
+                                  onNextMonth: () => setState(
+                                    () => _selectedDate = DateTime(
+                                      month.year,
+                                      month.month + 1,
+                                      _selectedDate.day.clamp(1, 28),
+                                    ),
+                                  ),
+                                  onSelectedDate: (date) =>
+                                      setState(() => _selectedDate = date),
+                                  onOpenTreatmentPlan: () => _openTreatmentPlan(
+                                    patient.memberId,
+                                    activePlan.id,
+                                  ),
                                 ),
-                              ),
-                              onNextMonth: () => setState(
-                                () => _selectedDate = DateTime(
-                                  month.year,
-                                  month.month + 1,
-                                  _selectedDate.day.clamp(1, 28),
-                                ),
-                              ),
-                              onSelectedDate: (date) =>
-                                  setState(() => _selectedDate = date),
-                              onOpenTreatmentPlan: () => _openTreatmentPlan(
-                                patient.memberId,
-                                activePlan.id,
-                              ),
+                              ],
                             );
                           },
                           error: (error, _) => _PlanOverviewCard(
@@ -215,13 +278,15 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
     }
     if (_selectedMemberId <= 0) {
       _selectedMemberId = patients.first.memberId;
-      return patients.first;
+      return _patientOverrides[patients.first.memberId] ?? patients.first;
     }
-    return patients.cast<DoctorPatient?>().firstWhere(
+    final patient =
+        patients.cast<DoctorPatient?>().firstWhere(
           (item) => item?.memberId == _selectedMemberId,
           orElse: () => patients.first,
         ) ??
         patients.first;
+    return _patientOverrides[patient.memberId] ?? patient;
   }
 
   TreatmentPlan? _activePlan(List<TreatmentPlan> plans) {
@@ -316,6 +381,81 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
     if (changed == true) {
       ref.invalidate(doctorPatientPlansProvider);
       ref.invalidate(doctorDailyTasksProvider);
+    }
+  }
+
+  Future<void> _editRecoveryGoal(DoctorPatient patient) async {
+    final nextValue = await _showDoctorPlanTextInputSheet(
+      context: context,
+      title: _t(context, '编辑康复目标', 'Edit recovery goal'),
+      initialValue: patient.recoveryGoal,
+      hintText: _t(context, '请输入康复目标', 'Enter recovery goal'),
+      maxLines: 4,
+    );
+    if (!mounted ||
+        nextValue == null ||
+        nextValue.trim() == patient.recoveryGoal.trim()) {
+      return;
+    }
+    await _savePatientProfile(
+      patient,
+      recoveryGoal: nextValue.trim(),
+      successMessage: _t(context, '康复目标已更新', 'Recovery goal updated'),
+    );
+  }
+
+  Future<void> _editTriggerTags(DoctorPatient patient) async {
+    final nextValue = await _showDoctorPlanTextInputSheet(
+      context: context,
+      title: _t(context, '编辑重点触发', 'Edit key triggers'),
+      initialValue: patient.triggerTags.join(', '),
+      hintText: _t(context, '多个触发因素请用逗号分隔', 'Separate triggers with commas'),
+      maxLines: 4,
+    );
+    if (!mounted || nextValue == null) {
+      return;
+    }
+    final tags = nextValue
+        .split(',')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    if (tags.join(',') == patient.triggerTags.join(',')) {
+      return;
+    }
+    await _savePatientProfile(
+      patient,
+      triggerTags: tags,
+      successMessage: _t(context, '重点触发已更新', 'Key triggers updated'),
+    );
+  }
+
+  Future<void> _savePatientProfile(
+    DoctorPatient patient, {
+    String? recoveryGoal,
+    List<String>? triggerTags,
+    required String successMessage,
+  }) async {
+    try {
+      final updated = await ref
+          .read(doctorRepositoryProvider)
+          .savePatientProfile(
+            memberId: patient.memberId,
+            recoveryGoal: recoveryGoal,
+            triggerTags: triggerTags,
+          );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _patientOverrides[patient.memberId] = updated;
+      });
+      ref.invalidate(doctorPatientsProvider);
+      context.showCenteredNotice(successMessage);
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(error.toString());
+      }
     }
   }
 
@@ -460,6 +600,142 @@ class _DoctorPlanHeaderButton extends StatelessWidget {
   }
 }
 
+class _PatientRecoverySummaryGrid extends StatelessWidget {
+  const _PatientRecoverySummaryGrid({
+    required this.monthPlanValue,
+    required this.triggerValue,
+    required this.recoveryValue,
+    required this.onPlanTap,
+    required this.onTriggerTap,
+    required this.onRecoveryTap,
+  });
+
+  final String monthPlanValue;
+  final String triggerValue;
+  final String recoveryValue;
+  final VoidCallback onPlanTap;
+  final VoidCallback onTriggerTap;
+  final VoidCallback onRecoveryTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _PatientRecoverySummaryCard(
+            title: _t(context, '本月计划', 'Monthly plan'),
+            value: monthPlanValue,
+            icon: Icons.graphic_eq_rounded,
+            color: const Color(0xFFFF9585),
+            onTap: onPlanTap,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _PatientRecoverySummaryCard(
+            title: _t(context, '重点触发', 'Key triggers'),
+            value: triggerValue,
+            icon: Icons.hub_rounded,
+            color: const Color(0xFFFFAE4D),
+            onTap: onTriggerTap,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _PatientRecoverySummaryCard(
+            title: _t(context, '康复目标', 'Recovery goal'),
+            value: recoveryValue,
+            icon: Icons.track_changes_rounded,
+            color: const Color(0xFF5A81DA),
+            onTap: onRecoveryTap,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PatientRecoverySummaryCard extends StatelessWidget {
+  const _PatientRecoverySummaryCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    final metrics = AppTabShellMetrics.of(context);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Ink(
+          height: metrics.size(104),
+          padding: metrics.edgeInsets(12, 14, 10, 14),
+          decoration: BoxDecoration(
+            color: palette.cardBackground,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: palette.mutedText,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        height: 1.15,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  CircleAvatar(
+                    radius: metrics.size(14),
+                    backgroundColor: color,
+                    child: Icon(
+                      icon,
+                      color: Colors.white,
+                      size: metrics.size(18),
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: palette.primaryText,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PatientSelectorCard extends ConsumerWidget {
   const _PatientSelectorCard({required this.patient, required this.onTap});
 
@@ -470,7 +746,6 @@ class _PatientSelectorCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = _DoctorPlanPalette.of(context);
     final avatarUrl = ref.watch(apiClientProvider).resolveUrl(patient.avatar);
-    final recoveryGoal = patient.recoveryGoal.trim();
     final bindTime = _formatDateTimeLabel(patient.bindTime);
     return Material(
       color: Colors.transparent,
@@ -540,15 +815,6 @@ class _PatientSelectorCard extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              if (recoveryGoal.isNotEmpty)
-                _PatientDetailLine(
-                  icon: Icons.flag_rounded,
-                  label: _t(context, '康复目标', 'Recovery goal'),
-                  text: recoveryGoal,
-                  color: palette.brandPrimary,
-                ),
-              if (recoveryGoal.isNotEmpty && bindTime.isNotEmpty)
-                const SizedBox(height: 10),
               if (bindTime.isNotEmpty)
                 _PatientDetailLine(
                   icon: Icons.link_rounded,
@@ -556,7 +822,7 @@ class _PatientSelectorCard extends ConsumerWidget {
                   text: _t(context, '绑定于 $bindTime', 'Bound on $bindTime'),
                   color: palette.infoColor,
                 ),
-              if (recoveryGoal.isEmpty && bindTime.isEmpty)
+              if (bindTime.isEmpty)
                 _PatientDetailLine(
                   icon: Icons.account_circle_rounded,
                   label: _t(context, '患者信息', 'Patient info'),
@@ -1423,6 +1689,12 @@ String _formatDateTimeLabel(String value) {
   return DateFormat('yyyy-MM-dd').format(parsed);
 }
 
+List<DailyTask> _currentMonthTasks(List<DailyTask> tasks, DateTime month) {
+  final prefix =
+      '${month.year.toString().padLeft(4, '0')}-${month.month.toString().padLeft(2, '0')}';
+  return tasks.where((task) => task.taskDate.startsWith(prefix)).toList();
+}
+
 String _firstText(List<Object?> values, {String fallback = ''}) {
   for (final value in values) {
     final text = (value ?? '').toString().trim();
@@ -1442,6 +1714,128 @@ String _patientAgeLabel(BuildContext context, DoctorPatient patient) {
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+Future<String?> _showDoctorPlanTextInputSheet({
+  required BuildContext context,
+  required String title,
+  required String initialValue,
+  required String hintText,
+  int maxLines = 1,
+}) {
+  final palette = _DoctorPlanPalette.of(context);
+  return showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: palette.pageBackground,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    showDragHandle: true,
+    builder: (sheetContext) => _DoctorPlanTextInputSheet(
+      title: title,
+      initialValue: initialValue,
+      hintText: hintText,
+      maxLines: maxLines,
+    ),
+  );
+}
+
+class _DoctorPlanTextInputSheet extends StatefulWidget {
+  const _DoctorPlanTextInputSheet({
+    required this.title,
+    required this.initialValue,
+    required this.hintText,
+    required this.maxLines,
+  });
+
+  final String title;
+  final String initialValue;
+  final String hintText;
+  final int maxLines;
+
+  @override
+  State<_DoctorPlanTextInputSheet> createState() =>
+      _DoctorPlanTextInputSheetState();
+}
+
+class _DoctorPlanTextInputSheetState extends State<_DoctorPlanTextInputSheet> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _close([String? value]) {
+    FocusScope.of(context).unfocus();
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+            child: Text(
+              widget.title,
+              style: TextStyle(
+                color: palette.primaryText,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            minLines: 1,
+            maxLines: widget.maxLines,
+            textInputAction: widget.maxLines == 1
+                ? TextInputAction.done
+                : TextInputAction.newline,
+            decoration: InputDecoration(hintText: widget.hintText),
+            onSubmitted: widget.maxLines == 1
+                ? (value) => _close(value.trim())
+                : null,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _close(),
+                  child: Text(_t(context, '取消', 'Cancel')),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => _close(_controller.text.trim()),
+                  child: Text(_t(context, '保存', 'Save')),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _DoctorPlanPalette {

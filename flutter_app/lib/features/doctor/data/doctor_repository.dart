@@ -84,6 +84,36 @@ class DoctorRepository {
     );
   }
 
+  Future<DoctorPatient> savePatientProfile({
+    required int memberId,
+    String? recoveryGoal,
+    List<String>? triggerTags,
+  }) async {
+    final result = await _apiClient.postApi<DoctorPatient>(
+      '/app/help/doctor/patient/profile',
+      data: {
+        'member_id': memberId,
+        if (recoveryGoal != null) 'recovery_goal': recoveryGoal.trim(),
+        if (triggerTags != null)
+          'trigger_tags': triggerTags
+              .map((item) => item.trim())
+              .where((item) => item.isNotEmpty)
+              .toList(growable: false),
+      },
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return DoctorPatient.fromJson(value);
+        }
+        throw const FormatException('Unexpected doctor patient shape');
+      },
+    );
+    final patient = result.data;
+    if (patient == null || patient.memberId <= 0) {
+      throw const FormatException('患者资料保存失败');
+    }
+    return patient;
+  }
+
   Future<List<TreatmentPlan>> fetchPatientPlans({
     required int memberId,
     int? status,

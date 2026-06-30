@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../plan/data/plan_models.dart';
 
 class DoctorPage<T> {
@@ -44,6 +46,7 @@ class DoctorPatient {
     required this.gender,
     required this.birthday,
     required this.recoveryGoal,
+    required this.triggerTags,
     required this.locale,
     required this.timezone,
     required this.isBound,
@@ -63,6 +66,7 @@ class DoctorPatient {
       gender: _stringValue(json['gender']),
       birthday: _stringValue(json['birthday']),
       recoveryGoal: _stringValue(json['recovery_goal']),
+      triggerTags: _stringListValue(json['trigger_tags']),
       locale: _stringValue(json['locale']),
       timezone: _stringValue(json['timezone']),
       isBound: _intValue(json['is_bound']) == 1,
@@ -81,6 +85,7 @@ class DoctorPatient {
   final String gender;
   final String birthday;
   final String recoveryGoal;
+  final List<String> triggerTags;
   final String locale;
   final String timezone;
   final bool isBound;
@@ -110,6 +115,27 @@ class DoctorPatient {
       age -= 1;
     }
     return age < 0 ? '--' : '$age';
+  }
+
+  DoctorPatient copyWith({String? recoveryGoal, List<String>? triggerTags}) {
+    return DoctorPatient(
+      id: id,
+      doctorId: doctorId,
+      memberId: memberId,
+      status: status,
+      bindSource: bindSource,
+      bindTime: bindTime,
+      unbindTime: unbindTime,
+      nickname: nickname,
+      avatar: avatar,
+      gender: gender,
+      birthday: birthday,
+      recoveryGoal: recoveryGoal ?? this.recoveryGoal,
+      triggerTags: triggerTags ?? this.triggerTags,
+      locale: locale,
+      timezone: timezone,
+      isBound: isBound,
+    );
   }
 }
 
@@ -524,6 +550,34 @@ String _stringValue(Object? value, {String fallback = ''}) {
   }
   final text = '$value'.trim();
   return text.isEmpty ? fallback : text;
+}
+
+List<String> _stringListValue(Object? value) {
+  if (value is List) {
+    return value
+        .map((item) => (item ?? '').toString().trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
+  }
+  if (value is String && value.trim().isNotEmpty) {
+    final normalized = value.trim();
+    if (normalized.startsWith('[') && normalized.endsWith(']')) {
+      try {
+        final decoded = jsonDecode(normalized);
+        if (decoded is List) {
+          return _stringListValue(decoded);
+        }
+      } on FormatException {
+        return const [];
+      }
+    }
+    return normalized
+        .split(',')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
+  }
+  return const [];
 }
 
 typedef DoctorDailyTaskPage = PlanPage<DailyTask>;

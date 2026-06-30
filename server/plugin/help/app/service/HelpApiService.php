@@ -2848,7 +2848,7 @@ class HelpApiService
                 ->leftJoin('sa_help_member_profile hp', 'hp.member_id = dp.member_id AND hp.delete_time IS NULL')
                 ->where('dp.doctor_id', $doctorId)
                 ->whereNull('dp.delete_time')
-                ->field('dp.*, m.nickname, m.avatar, hp.gender, hp.birthday, hp.recovery_goal, hp.locale, hp.timezone');
+                ->field('dp.*, m.nickname, m.avatar, hp.gender, hp.birthday, hp.recovery_goal, hp.trigger_tags, hp.locale, hp.timezone');
 
             if (isset($params['status']) && $params['status'] !== '') {
                 $query->where('dp.status', (int) $params['status']);
@@ -2891,7 +2891,7 @@ class HelpApiService
                     . 'COALESCE(dp.bind_source, \'\') AS bind_source, '
                     . 'COALESCE(dp.bind_time, \'\') AS bind_time, '
                     . 'COALESCE(dp.unbind_time, \'\') AS unbind_time, '
-                    . 'm.nickname, m.avatar, hp.gender, hp.birthday, hp.recovery_goal, hp.locale, hp.timezone, '
+                    . 'm.nickname, m.avatar, hp.gender, hp.birthday, hp.recovery_goal, hp.trigger_tags, hp.locale, hp.timezone, '
                     . 'CASE WHEN dp.id IS NOT NULL AND dp.status = 1 THEN 1 ELSE 0 END AS is_bound'
                 );
 
@@ -2944,6 +2944,30 @@ class HelpApiService
         ]);
 
         return Db::table('sa_doctor_patient')->where('id', $relation['id'])->find() ?: [];
+    }
+
+    public function saveDoctorPatientProfile(int $doctorId, array $data): array
+    {
+        $memberId = (int) ($data['member_id'] ?? 0);
+        $this->assertDoctorPatient($doctorId, $memberId);
+
+        $payload = $this->only($data, ['recovery_goal', 'trigger_tags']);
+        if ($payload === []) {
+            throw new ApiException('患者资料参数不能为空', 400);
+        }
+        if (array_key_exists('trigger_tags', $payload)) {
+            $payload['trigger_tags'] = $this->jsonValue($payload['trigger_tags']);
+        }
+        if (array_key_exists('recovery_goal', $payload)) {
+            $payload['recovery_goal'] = (new HelpRiskService())->filterText(
+                'profile',
+                (string) $payload['recovery_goal']
+            );
+        }
+
+        $this->upsertByMember('sa_help_member_profile', $memberId, $payload);
+
+        return $this->doctorPatientProfileRow($doctorId, $memberId);
     }
 
     public function doctorPatientPlans(int $doctorId, array $params): array
@@ -4120,6 +4144,22 @@ class HelpApiService
         }
 
         return $relation;
+    }
+
+    private function doctorPatientProfileRow(int $doctorId, int $memberId): array
+    {
+        $this->assertDoctorPatient($doctorId, $memberId);
+
+        return Db::table('sa_doctor_patient')
+            ->alias('dp')
+            ->leftJoin('sa_member m', 'm.id = dp.member_id AND m.delete_time IS NULL')
+            ->leftJoin('sa_help_member_profile hp', 'hp.member_id = dp.member_id AND hp.delete_time IS NULL')
+            ->where('dp.doctor_id', $doctorId)
+            ->where('dp.member_id', $memberId)
+            ->where('dp.status', 1)
+            ->whereNull('dp.delete_time')
+            ->field('dp.*, m.nickname, m.avatar, hp.gender, hp.birthday, hp.recovery_goal, hp.trigger_tags, hp.locale, hp.timezone, 1 AS is_bound')
+            ->find() ?: [];
     }
 
     private function assertMemberDailyTask(int $memberId, int $taskId): array

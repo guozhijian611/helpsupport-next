@@ -66,6 +66,20 @@ class DoctorController extends BaseController
         return ok($this->service->unbindDoctorPatient($this->memberId, $request->post()));
     }
 
+    #[Apidoc\Title('保存患者康复资料')]
+    #[Apidoc\Url('/app/help/doctor/patient/profile')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('member_id', type: 'int', require: true, desc: '患者会员ID')]
+    #[Apidoc\Param('recovery_goal', type: 'string', require: false, desc: '康复目标')]
+    #[Apidoc\Param('trigger_tags', type: 'array', require: false, desc: '重点触发因素')]
+    #[Apidoc\Returned('member_id', type: 'int', desc: '患者会员ID')]
+    #[Apidoc\Returned('recovery_goal', type: 'string', desc: '康复目标')]
+    #[Apidoc\Returned('trigger_tags', type: 'array', desc: '重点触发因素')]
+    public function savePatientProfile(Request $request): Response
+    {
+        return ok($this->service->saveDoctorPatientProfile($this->memberId, $request->post()));
+    }
+
     #[Apidoc\Title('患者治疗计划')]
     #[Apidoc\Url('/app/help/doctor/patient/plans')]
     #[Apidoc\Method('GET')]

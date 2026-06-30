@@ -169,6 +169,7 @@ Route::group('/app/help', function () {
     Route::get('/doctor/patient/candidates', [DoctorController::class, 'patientCandidates']);
     Route::post('/doctor/patient/bind', [DoctorController::class, 'bindPatient']);
     Route::post('/doctor/patient/unbind', [DoctorController::class, 'unbindPatient']);
+    Route::post('/doctor/patient/profile', [DoctorController::class, 'savePatientProfile']);
     Route::get('/doctor/patient/plans', [DoctorController::class, 'patientPlans']);
     Route::post('/doctor/treatment-plan', [DoctorController::class, 'saveTreatmentPlan']);
     Route::get('/doctor/daily-tasks', [DoctorController::class, 'dailyTasks']);
