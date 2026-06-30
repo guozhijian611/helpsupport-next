@@ -1622,7 +1622,7 @@ Future<_MaterialReportDraft?> _showMaterialReportDialog(
   final reasonController = TextEditingController();
   final descriptionController = TextEditingController();
   try {
-    return showDialog<_MaterialReportDraft>(
+    return await showDialog<_MaterialReportDraft>(
       context: context,
       builder: (dialogContext) {
         String? errorText;
