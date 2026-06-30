@@ -3,7 +3,11 @@ set -euo pipefail
 
 LLAMA_CPP_COMMIT="${LLAMA_CPP_COMMIT:-4ffc47cb2001e7d523f9ff525335bbe34b1a2858}"
 LLAMA_CPP_REPO="${LLAMA_CPP_REPO:-https://github.com/ggml-org/llama.cpp}"
+VULKAN_HEADERS_REPO="${VULKAN_HEADERS_REPO:-https://github.com/KhronosGroup/Vulkan-Headers}"
+VULKAN_HEADERS_REF="${VULKAN_HEADERS_REF:-v1.3.275}"
 LLAMA_ANDROID_ABIS="${LLAMA_ANDROID_ABIS:-arm64-v8a}"
+LLAMA_ANDROID_PLATFORM="${LLAMA_ANDROID_PLATFORM:-android-28}"
+LLAMA_ANDROID_ENABLE_VULKAN="${LLAMA_ANDROID_ENABLE_VULKAN:-1}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FLUTTER_APP_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -12,7 +16,13 @@ LOCAL_PROPERTIES="${ANDROID_DIR}/local.properties"
 BUILD_ROOT="${FLUTTER_APP_DIR}/.dart_tool/native/llama_cpp_dart_android"
 SRC_ROOT="${BUILD_ROOT}/src"
 LLAMA_DIR="${SRC_ROOT}/llama.cpp"
+VULKAN_HEADERS_DIR="${SRC_ROOT}/Vulkan-Headers"
 JNI_ROOT="${ANDROID_DIR}/app/src/main/jniLibs"
+
+fail() {
+  printf 'Error: %s\n' "$*" >&2
+  exit 1
+}
 
 android_sdk_dir() {
   if [[ -n "${ANDROID_HOME:-}" ]]; then
@@ -70,6 +80,17 @@ find_openmp_runtime() {
   printf '%s\n' "${runtime}"
 }
 
+find_vulkan_glslc() {
+  local ndk_dir="$1"
+  local glslc
+  glslc="$(find "${ndk_dir}/shader-tools" -type f -name glslc -print | sort | tail -1)"
+  if [[ -z "${glslc}" ]]; then
+    printf 'Vulkan shader compiler glslc not found under %s\n' "${ndk_dir}" >&2
+    return 1
+  fi
+  printf '%s\n' "${glslc}"
+}
+
 ensure_llama_source() {
   mkdir -p "${SRC_ROOT}"
   if [[ ! -d "${LLAMA_DIR}/.git" ]]; then
@@ -78,6 +99,18 @@ ensure_llama_source() {
   fi
   git -C "${LLAMA_DIR}" fetch --depth 1 origin "${LLAMA_CPP_COMMIT}"
   git -C "${LLAMA_DIR}" checkout --detach "${LLAMA_CPP_COMMIT}"
+}
+
+ensure_vulkan_headers() {
+  mkdir -p "${SRC_ROOT}"
+  if [[ ! -d "${VULKAN_HEADERS_DIR}/.git" ]]; then
+    rm -rf "${VULKAN_HEADERS_DIR}"
+    git clone --filter=blob:none "${VULKAN_HEADERS_REPO}" "${VULKAN_HEADERS_DIR}"
+  fi
+  git -C "${VULKAN_HEADERS_DIR}" fetch --depth 1 origin "${VULKAN_HEADERS_REF}"
+  git -C "${VULKAN_HEADERS_DIR}" checkout --detach FETCH_HEAD
+  [[ -f "${VULKAN_HEADERS_DIR}/include/vulkan/vulkan.hpp" ]] ||
+    fail "vulkan.hpp not found in ${VULKAN_HEADERS_DIR}/include"
 }
 
 write_wrapper_cmake() {
@@ -114,6 +147,7 @@ copy_runtime_libs() {
   local abi="$1"
   local out_dir="$2"
   local ndk_dir="$3"
+  local enable_vulkan="$4"
   local target_dir="${JNI_ROOT}/${abi}"
   local triple
   triple="$(toolchain_triple "${abi}")"
@@ -124,12 +158,15 @@ copy_runtime_libs() {
   cp "${out_dir}/bin/libggml.so" "${target_dir}/"
   cp "${out_dir}/bin/libggml-base.so" "${target_dir}/"
   cp "${out_dir}/bin/libggml-cpu.so" "${target_dir}/"
+  if [[ "${enable_vulkan}" == "1" ]]; then
+    cp "${out_dir}/bin/libggml-vulkan.so" "${target_dir}/"
+  fi
   cp "${ndk_dir}/toolchains/llvm/prebuilt/"*/"sysroot/usr/lib/${triple}/libc++_shared.so" "${target_dir}/"
   cp "$(find_openmp_runtime "${ndk_dir}" "${abi}")" "${target_dir}/"
 }
 
 main() {
-  local sdk_dir ndk_dir cmake_dir cmake_bin
+  local sdk_dir ndk_dir cmake_dir cmake_bin vulkan_glslc
   sdk_dir="$(android_sdk_dir)"
   if [[ -z "${sdk_dir}" || ! -d "${sdk_dir}" ]]; then
     echo "Android SDK not found. Set ANDROID_HOME or android/local.properties sdk.dir." >&2
@@ -151,15 +188,29 @@ main() {
 
   ensure_llama_source
   write_wrapper_cmake
+  if [[ "${LLAMA_ANDROID_ENABLE_VULKAN}" == "1" ]]; then
+    ensure_vulkan_headers
+    vulkan_glslc="$(find_vulkan_glslc "${ndk_dir}")"
+  fi
 
   for abi in ${LLAMA_ANDROID_ABIS}; do
     local out_dir="${BUILD_ROOT}/build/${abi}"
+    local vulkan_args=()
+    if [[ "${LLAMA_ANDROID_ENABLE_VULKAN}" == "1" ]]; then
+      vulkan_args=(
+        -DGGML_VULKAN=ON
+        -DVulkan_INCLUDE_DIR="${VULKAN_HEADERS_DIR}/include"
+        -DVulkan_GLSLC_EXECUTABLE="${vulkan_glslc}"
+      )
+    else
+      vulkan_args=(-DGGML_VULKAN=OFF)
+    fi
     rm -rf "${out_dir}"
     "${cmake_bin}" -S "${SRC_ROOT}" -B "${out_dir}" \
       -G "Unix Makefiles" \
       -DCMAKE_TOOLCHAIN_FILE="${ndk_dir}/build/cmake/android.toolchain.cmake" \
       -DANDROID_ABI="${abi}" \
-      -DANDROID_PLATFORM=android-24 \
+      -DANDROID_PLATFORM="${LLAMA_ANDROID_PLATFORM}" \
       -DANDROID_STL=c++_shared \
       -DCMAKE_BUILD_TYPE=Release \
       -DBUILD_SHARED_LIBS=ON \
@@ -170,9 +221,11 @@ main() {
       -DLLAMA_BUILD_SERVER=OFF \
       -DLLAMA_BUILD_TOOLS=OFF \
       -DGGML_CCACHE=OFF \
-      -DGGML_OPENCL=OFF
+      -DGGML_BACKEND_DL=OFF \
+      -DGGML_OPENCL=OFF \
+      "${vulkan_args[@]}"
     "${cmake_bin}" --build "${out_dir}" --target mtmd -j "${LLAMA_ANDROID_JOBS:-4}"
-    copy_runtime_libs "${abi}" "${out_dir}" "${ndk_dir}"
+    copy_runtime_libs "${abi}" "${out_dir}" "${ndk_dir}" "${LLAMA_ANDROID_ENABLE_VULKAN}"
     echo "Wrote ${JNI_ROOT}/${abi}"
   done
 }

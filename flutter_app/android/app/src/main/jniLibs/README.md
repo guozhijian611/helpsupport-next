@@ -12,6 +12,7 @@ The script writes generated binaries here by Android ABI:
 arm64-v8a/libmtmd.so
 arm64-v8a/libllama.so
 arm64-v8a/libggml*.so
+arm64-v8a/libggml-vulkan.so
 arm64-v8a/libc++_shared.so
 arm64-v8a/libomp.so
 ```
