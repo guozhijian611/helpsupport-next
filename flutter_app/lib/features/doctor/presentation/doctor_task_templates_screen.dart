@@ -90,47 +90,39 @@ class _DoctorTaskTemplatesScreenState
                   if (visibleItems.isEmpty) {
                     return const SizedBox.shrink();
                   }
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    clipBehavior: Clip.none,
-                    child: Row(
-                      children: [
-                        for (
-                          var index = 0;
-                          index < visibleItems.length;
-                          index++
-                        ) ...[
-                          Builder(
-                            builder: (context) {
-                              final item = visibleItems[index];
-                              final selected = item.id == _selectedFolderId;
-                              return ChoiceChip(
-                                label: _FolderChipLabel(
-                                  folder: item,
-                                  selected: selected,
-                                ),
-                                selected: selected,
-                                onSelected: (_) => setState(
-                                  () => _selectedFolderId = selected
-                                      ? ''
-                                      : item.id,
-                                ),
-                                selectedColor: const Color(0xFFFFE1DB),
-                                backgroundColor: palette.cardBackground,
-                                labelStyle: TextStyle(
-                                  color: selected
-                                      ? const Color(0xFFFF7C69)
-                                      : palette.mutedText,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              );
-                            },
+                  return SizedBox(
+                    height: 42,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      primary: false,
+                      padding: const EdgeInsets.only(right: 24),
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      itemBuilder: (context, index) {
+                        final item = visibleItems[index];
+                        final selected = item.id == _selectedFolderId;
+                        return ChoiceChip(
+                          label: _FolderChipLabel(
+                            folder: item,
+                            selected: selected,
                           ),
-                          if (index != visibleItems.length - 1)
-                            const SizedBox(width: 10),
-                        ],
-                      ],
+                          selected: selected,
+                          onSelected: (_) => setState(
+                            () => _selectedFolderId = selected ? '' : item.id,
+                          ),
+                          selectedColor: const Color(0xFFFFE1DB),
+                          backgroundColor: palette.cardBackground,
+                          labelStyle: TextStyle(
+                            color: selected
+                                ? const Color(0xFFFF7C69)
+                                : palette.mutedText,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        );
+                      },
+                      separatorBuilder: (_, _) => const SizedBox(width: 10),
+                      itemCount: visibleItems.length,
                     ),
                   );
                 },
