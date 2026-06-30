@@ -5,6 +5,8 @@ import '../../../core/notifications/centered_notice.dart';
 import '../application/doctor_controller.dart';
 import '../data/doctor_models.dart';
 
+const _uncategorizedFolderId = '__uncategorized__';
+
 class DoctorTaskTemplatesScreen extends ConsumerStatefulWidget {
   const DoctorTaskTemplatesScreen({super.key});
 
@@ -24,9 +26,12 @@ class _DoctorTaskTemplatesScreenState
   Widget build(BuildContext context) {
     final palette = _DoctorTaskTemplatesPalette.of(context);
     final folders = ref.watch(doctorTaskTemplateFoldersProvider);
+    final queryFolderId = _selectedFolderId == _uncategorizedFolderId
+        ? ''
+        : _selectedFolderId;
     final templates = ref.watch(
       doctorTaskTemplatesProvider(
-        DoctorTaskTemplatesQuery(folderId: _selectedFolderId),
+        DoctorTaskTemplatesQuery(folderId: queryFolderId),
       ),
     );
 
@@ -48,7 +53,7 @@ class _DoctorTaskTemplatesScreenState
               ref.read(doctorTaskTemplateFoldersProvider.future),
               ref.read(
                 doctorTaskTemplatesProvider(
-                  DoctorTaskTemplatesQuery(folderId: _selectedFolderId),
+                  DoctorTaskTemplatesQuery(folderId: queryFolderId),
                 ).future,
               ),
             ]);
@@ -88,9 +93,7 @@ class _DoctorTaskTemplatesScreenState
                   final visibleItems = items
                       .where((item) => _matchesSource(item.doctorId))
                       .toList(growable: false);
-                  if (visibleItems.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
+                  final chipCount = visibleItems.length + 1;
                   return SizedBox(
                     height: 42,
                     child: ListView.separated(
@@ -101,7 +104,31 @@ class _DoctorTaskTemplatesScreenState
                         parent: BouncingScrollPhysics(),
                       ),
                       itemBuilder: (context, index) {
-                        final item = visibleItems[index];
+                        if (index == 0) {
+                          final selected =
+                              _selectedFolderId == _uncategorizedFolderId;
+                          return ChoiceChip(
+                            label: Text(_t(context, '未分类', 'Uncategorized')),
+                            selected: selected,
+                            onSelected: (_) => setState(
+                              () => _selectedFolderId = selected
+                                  ? ''
+                                  : _uncategorizedFolderId,
+                            ),
+                            selectedColor: const Color(0xFFFFE1DB),
+                            backgroundColor: palette.cardBackground,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            labelStyle: TextStyle(
+                              color: selected
+                                  ? const Color(0xFFFF7C69)
+                                  : palette.mutedText,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          );
+                        }
+                        final folderIndex = index - 1;
+                        final item = visibleItems[folderIndex];
                         final selected = item.id == _selectedFolderId;
                         final deleting = _deletingFolderIds.contains(item.id);
                         final deletable = item.doctorId > 0 && !deleting;
@@ -141,7 +168,7 @@ class _DoctorTaskTemplatesScreenState
                         );
                       },
                       separatorBuilder: (_, _) => const SizedBox(width: 10),
-                      itemCount: visibleItems.length,
+                      itemCount: chipCount,
                     ),
                   );
                 },
@@ -158,6 +185,7 @@ class _DoctorTaskTemplatesScreenState
                 data: (items) {
                   final visibleItems = items
                       .where((item) => _matchesSource(item.doctorId))
+                      .where(_matchesSelectedFolder)
                       .toList(growable: false);
                   if (visibleItems.isEmpty) {
                     return _EmptyBlock(
@@ -288,7 +316,7 @@ class _DoctorTaskTemplatesScreenState
         return;
       }
       if (_selectedFolderId == folder.id) {
-        setState(() => _selectedFolderId = '');
+        setState(() => _selectedFolderId = _uncategorizedFolderId);
       }
       ref.invalidate(doctorTaskTemplateFoldersProvider);
       ref.invalidate(doctorTaskTemplatesProvider);
@@ -305,6 +333,13 @@ class _DoctorTaskTemplatesScreenState
         setState(() => _deletingFolderIds.remove(folder.id));
       }
     }
+  }
+
+  bool _matchesSelectedFolder(DoctorTaskTemplate item) {
+    if (_selectedFolderId == _uncategorizedFolderId) {
+      return item.folderId.trim().isEmpty;
+    }
+    return true;
   }
 }
 
