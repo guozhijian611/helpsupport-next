@@ -79,31 +79,15 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
     final pendingCount = (diagnostics['pendingCount'] as num?)?.toInt() ?? 0;
     final deliveredCount =
         (diagnostics['deliveredCount'] as num?)?.toInt() ?? 0;
-    final authorizationStatus =
-        (diagnostics['authorizationStatus'] as String?) ?? '-';
-    final alertSetting = (diagnostics['alertSetting'] as String?) ?? '-';
-    final lockScreenSetting =
-        (diagnostics['lockScreenSetting'] as String?) ?? '-';
-    final centerSetting =
-        (diagnostics['notificationCenterSetting'] as String?) ?? '-';
-    final alertStyle = (diagnostics['alertStyle'] as String?) ?? '-';
-    final timeZoneIdentifier =
-        (diagnostics['timeZoneIdentifier'] as String?) ?? '-';
-    final pendingRequests =
-        (diagnostics['pendingRequests'] as List<dynamic>? ?? const [])
-            .cast<Map<dynamic, dynamic>>();
-    final nextTriggerDate = pendingRequests.isEmpty
-        ? null
-        : pendingRequests.first['nextTriggerDate']?.toString();
-
     setState(() {
       _lastNotificationSnapshot = _t(
         context,
         '待发送 $pendingCount 条，通知中心中 $deliveredCount 条',
         'Pending $pendingCount, delivered $deliveredCount',
       );
-      _notificationDiagnosticsText =
-          'iOS: auth=$authorizationStatus, alert=$alertSetting, lock=$lockScreenSetting, center=$centerSetting, style=$alertStyle, tz=$timeZoneIdentifier${nextTriggerDate == null ? '' : '\nnext=$nextTriggerDate'}';
+      _notificationDiagnosticsText = _formatNotificationDiagnostics(
+        diagnostics,
+      );
     });
   }
 
@@ -242,7 +226,10 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
         );
         _notificationDiagnosticsText = result.diagnostics == null
             ? null
-            : 'iOS: auth=${result.diagnostics!['authorizationStatus'] ?? '-'}, alert=${result.diagnostics!['alertSetting'] ?? '-'}, lock=${result.diagnostics!['lockScreenSetting'] ?? '-'}, center=${result.diagnostics!['notificationCenterSetting'] ?? '-'}, style=${result.diagnostics!['alertStyle'] ?? '-'}, tz=${result.timeZoneIdentifier ?? result.diagnostics!['timeZoneIdentifier'] ?? '-'}';
+            : _formatNotificationDiagnostics(
+                result.diagnostics!,
+                timeZoneIdentifier: result.timeZoneIdentifier,
+              );
       });
       context.showCenteredNotice(
         _t(
@@ -340,7 +327,10 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
         );
         _notificationDiagnosticsText = result.diagnostics == null
             ? null
-            : 'iOS: auth=${result.diagnostics!['authorizationStatus'] ?? '-'}, alert=${result.diagnostics!['alertSetting'] ?? '-'}, lock=${result.diagnostics!['lockScreenSetting'] ?? '-'}, center=${result.diagnostics!['notificationCenterSetting'] ?? '-'}, style=${result.diagnostics!['alertStyle'] ?? '-'}, tz=${result.timeZoneIdentifier ?? result.diagnostics!['timeZoneIdentifier'] ?? '-'}';
+            : _formatNotificationDiagnostics(
+                result.diagnostics!,
+                timeZoneIdentifier: result.timeZoneIdentifier,
+              );
       });
       context.showCenteredNotice(
         _t(
@@ -1048,8 +1038,8 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
                     Text(
                       _t(
                         context,
-                        '先用“立即前台横幅”确认当前页顶部能否立刻弹出系统横幅，再用“3 秒后系统通知”验证回桌面或锁屏后的投递链路。',
-                        'Use the immediate foreground banner test first, then use the 3-second system notification test to verify delivery after leaving the app or locking the device.',
+                        '先用“立即前台横幅”确认当前页顶部能否立刻弹出系统横幅，再用“3 秒后系统通知”验证回桌面或锁屏后的投递链路；Android 未开放精确闹钟时会自动改用非精确定时。',
+                        'Use the immediate foreground banner test first, then use the 3-second system notification test after leaving the app or locking the device; Android falls back to inexact scheduling when exact alarms are unavailable.',
                       ),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: palette.secondaryText,
@@ -2195,6 +2185,25 @@ String _permissionCode(Permission permission) {
     return text;
   }
   return text.substring(index + 1);
+}
+
+String _formatNotificationDiagnostics(
+  Map<String, Object?> diagnostics, {
+  String? timeZoneIdentifier,
+}) {
+  final platform = (diagnostics['platform'] as String?)?.toLowerCase();
+  final resolvedTimeZone =
+      timeZoneIdentifier ?? diagnostics['timeZoneIdentifier'] ?? '-';
+  if (platform == 'android') {
+    return 'Android: enabled=${diagnostics['notificationsEnabled'] ?? '-'}, exact=${diagnostics['canScheduleExactAlarms'] ?? '-'}, sdk=${diagnostics['sdkInt'] ?? '-'}, mode=${diagnostics['androidScheduleMode'] ?? '-'}, fallback=${diagnostics['fellBackFromExactAlarm'] ?? '-'}, tz=$resolvedTimeZone';
+  }
+  final pendingRequests =
+      (diagnostics['pendingRequests'] as List<dynamic>? ?? const [])
+          .cast<Map<dynamic, dynamic>>();
+  final nextTriggerDate = pendingRequests.isEmpty
+      ? null
+      : pendingRequests.first['nextTriggerDate']?.toString();
+  return 'iOS: auth=${diagnostics['authorizationStatus'] ?? '-'}, alert=${diagnostics['alertSetting'] ?? '-'}, lock=${diagnostics['lockScreenSetting'] ?? '-'}, center=${diagnostics['notificationCenterSetting'] ?? '-'}, style=${diagnostics['alertStyle'] ?? '-'}, tz=$resolvedTimeZone${nextTriggerDate == null ? '' : '\nnext=$nextTriggerDate'}';
 }
 
 String _formatDateTime(DateTime value) {

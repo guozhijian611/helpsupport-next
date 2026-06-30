@@ -207,15 +207,31 @@ class LocalNotificationService {
     await _plugin.cancelAll();
     final id = DateTime.now().millisecondsSinceEpoch.remainder(1 << 31);
     final scheduledAt = timezone.TZDateTime.now(timezone.local).add(delay);
-    await _plugin.zonedSchedule(
-      id: id,
-      title: title,
-      body: body,
-      scheduledDate: scheduledAt,
-      notificationDetails: _developerNotificationDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      payload: 'developer-test:$id',
-    );
+    var androidScheduleMode = await _developerAndroidScheduleMode();
+    var fellBackFromExactAlarm = false;
+    try {
+      await _scheduleDeveloperNotification(
+        id: id,
+        title: title,
+        body: body,
+        scheduledAt: scheduledAt,
+        androidScheduleMode: androidScheduleMode,
+      );
+    } on PlatformException catch (error) {
+      if (error.code != 'exact_alarms_not_permitted' ||
+          androidScheduleMode == AndroidScheduleMode.inexactAllowWhileIdle) {
+        rethrow;
+      }
+      androidScheduleMode = AndroidScheduleMode.inexactAllowWhileIdle;
+      fellBackFromExactAlarm = true;
+      await _scheduleDeveloperNotification(
+        id: id,
+        title: title,
+        body: body,
+        scheduledAt: scheduledAt,
+        androidScheduleMode: androidScheduleMode,
+      );
+    }
     final pendingRequests = await _plugin.pendingNotificationRequests();
     final deliveredNotifications = await _plugin.getActiveNotifications();
     final diagnostics = await readDeveloperNotificationDiagnostics();
@@ -225,7 +241,47 @@ class LocalNotificationService {
       deliveredCount: deliveredNotifications.length,
       scheduledAt: displayScheduledAt,
       timeZoneIdentifier: timeZoneIdentifier,
-      diagnostics: diagnostics,
+      diagnostics: <String, Object?>{
+        ...?diagnostics,
+        'androidScheduleMode': androidScheduleMode.name,
+        'fellBackFromExactAlarm': fellBackFromExactAlarm,
+      },
+    );
+  }
+
+  Future<AndroidScheduleMode> _developerAndroidScheduleMode() async {
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (android == null) {
+      return AndroidScheduleMode.exactAllowWhileIdle;
+    }
+    try {
+      final canScheduleExact = await android.canScheduleExactNotifications();
+      return canScheduleExact == false
+          ? AndroidScheduleMode.inexactAllowWhileIdle
+          : AndroidScheduleMode.exactAllowWhileIdle;
+    } on Object {
+      return AndroidScheduleMode.inexactAllowWhileIdle;
+    }
+  }
+
+  Future<void> _scheduleDeveloperNotification({
+    required int id,
+    required String title,
+    required String body,
+    required timezone.TZDateTime scheduledAt,
+    required AndroidScheduleMode androidScheduleMode,
+  }) {
+    return _plugin.zonedSchedule(
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: scheduledAt,
+      notificationDetails: _developerNotificationDetails,
+      androidScheduleMode: androidScheduleMode,
+      payload: 'developer-test:$id',
     );
   }
 
