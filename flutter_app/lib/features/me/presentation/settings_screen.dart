@@ -202,6 +202,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   bool _journalReminders = false;
   bool _privacySaving = false;
   bool _notificationSaving = false;
+  bool _permissionRefreshing = false;
   bool _remoteLoading = false;
   bool _avatarUploading = false;
   double? _avatarUploadProgress;
@@ -212,6 +213,8 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   MeProfileBundle? _profileBundle;
   SecurityOverview? _securityOverview;
   PushPreferenceSettings? _pushPreference;
+  Permission? _permissionRequesting;
+  final Map<Permission, PermissionStatus> _permissionStatuses = {};
 
   @override
   void initState() {
@@ -243,6 +246,9 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         prefs.getBool('${_notificationPrefix}journal_reminders') ?? false;
     if (_needsRemoteData) {
       unawaited(_loadRemoteSection());
+    }
+    if (widget.section == SettingsSectionType.permissions) {
+      unawaited(_refreshPermissionStatuses());
     }
   }
 
@@ -1002,31 +1008,48 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   List<Widget> _permissionChildren(BuildContext context) {
     return [
       _SettingsGroup(
+        footer: _t(
+          context,
+          '点击相册、相机、麦克风会调用系统授权；本地文件访问由系统文件选择器按次授权。',
+          'Tap Photos, Camera, or Microphone to request system permission. Local file access is granted per action through the system file picker.',
+        ),
         children: [
           _SettingsNavRow(
             title: _t(context, '通知', 'Notifications'),
-            value: _t(context, '系统设置', 'System'),
-            onTap: _requestNotifications,
+            value: _permissionValueLabel(
+              context,
+              _permissionStatuses[Permission.notification],
+            ),
+            onTap: () => _requestRuntimePermission(Permission.notification),
           ),
           _SettingsNavRow(
             title: _t(context, '相册', 'Photos'),
-            value: _t(context, '按需申请', 'On request'),
-            onTap: () => _comingSoon(context),
+            value: _permissionValueLabel(
+              context,
+              _permissionStatuses[Permission.photos],
+            ),
+            onTap: () => _requestRuntimePermission(Permission.photos),
           ),
           _SettingsNavRow(
             title: _t(context, '相机', 'Camera'),
-            value: _t(context, '按需申请', 'On request'),
-            onTap: () => _comingSoon(context),
+            value: _permissionValueLabel(
+              context,
+              _permissionStatuses[Permission.camera],
+            ),
+            onTap: () => _requestRuntimePermission(Permission.camera),
           ),
           _SettingsNavRow(
             title: _t(context, '麦克风', 'Microphone'),
-            value: _t(context, '按需申请', 'On request'),
-            onTap: () => _comingSoon(context),
+            value: _permissionValueLabel(
+              context,
+              _permissionStatuses[Permission.microphone],
+            ),
+            onTap: () => _requestRuntimePermission(Permission.microphone),
           ),
           _SettingsNavRow(
             title: _t(context, '本地文件访问', 'Local files'),
-            value: _t(context, '按需申请', 'On request'),
-            onTap: () => _comingSoon(context),
+            value: _t(context, '系统选择器', 'System picker'),
+            onTap: _explainLocalFileAccess,
           ),
         ],
       ),
@@ -1404,6 +1427,144 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
               '通知权限未开启，可在系统设置中打开',
               'Notification permission is not enabled. You can enable it in system settings.',
             ),
+    );
+    if (widget.section == SettingsSectionType.permissions) {
+      setState(() {
+        _permissionStatuses[Permission.notification] = granted
+            ? PermissionStatus.granted
+            : permission;
+      });
+    }
+  }
+
+  Future<void> _refreshPermissionStatuses() async {
+    if (_permissionRefreshing) {
+      return;
+    }
+    setState(() => _permissionRefreshing = true);
+    try {
+      final statuses = await Future.wait([
+        _readPermissionStatus(Permission.notification),
+        _readPermissionStatus(Permission.photos),
+        _readPermissionStatus(Permission.camera),
+        _readPermissionStatus(Permission.microphone),
+      ]);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _permissionStatuses
+          ..[Permission.notification] = statuses[0]
+          ..[Permission.photos] = statuses[1]
+          ..[Permission.camera] = statuses[2]
+          ..[Permission.microphone] = statuses[3];
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _permissionRefreshing = false);
+      }
+    }
+  }
+
+  Future<void> _requestRuntimePermission(Permission permission) async {
+    if (_permissionRequesting != null) {
+      return;
+    }
+    setState(() => _permissionRequesting = permission);
+    try {
+      final current = await _readPermissionStatus(permission);
+      PermissionStatus next = current;
+      if (_shouldOpenSettingsForPermission(current)) {
+        final opened = await openAppSettings();
+        if (!mounted) {
+          return;
+        }
+        context.showCenteredNotice(
+          opened
+              ? _t(
+                  context,
+                  '已打开系统设置，请在那里调整权限',
+                  'System settings opened. Adjust the permission there.',
+                )
+              : _t(
+                  context,
+                  '无法打开系统设置，请手动前往系统设置调整权限',
+                  'Unable to open settings. Please adjust the permission in system settings.',
+                ),
+        );
+      } else {
+        next = await _requestPermission(permission);
+      }
+      final fresh = _shouldOpenSettingsForPermission(current)
+          ? await _readPermissionStatus(permission)
+          : next;
+      if (!mounted) {
+        return;
+      }
+      setState(() => _permissionStatuses[permission] = fresh);
+      if (!_shouldOpenSettingsForPermission(current)) {
+        context.showCenteredNotice(_permissionResultMessage(context, fresh));
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(_errorText(context, error));
+    } finally {
+      if (mounted) {
+        setState(() => _permissionRequesting = null);
+      }
+    }
+  }
+
+  Future<PermissionStatus> _readPermissionStatus(Permission permission) {
+    final service = ref.read(permissionServiceProvider);
+    if (permission == Permission.notification) {
+      return service.notificationStatus();
+    }
+    if (permission == Permission.photos) {
+      return service.mediaLibraryStatus();
+    }
+    if (permission == Permission.camera) {
+      return service.cameraStatus();
+    }
+    if (permission == Permission.microphone) {
+      return service.microphoneStatus();
+    }
+    return permission.status;
+  }
+
+  Future<PermissionStatus> _requestPermission(Permission permission) async {
+    final service = ref.read(permissionServiceProvider);
+    if (permission == Permission.notification) {
+      final localGranted = await ref
+          .read(localNotificationServiceProvider)
+          .requestPermissions();
+      final status = await service.requestNotifications();
+      if (localGranted == true && !_isRuntimePermissionUsable(status)) {
+        return PermissionStatus.granted;
+      }
+      return status;
+    }
+    if (permission == Permission.photos) {
+      return service.requestMediaLibrary();
+    }
+    if (permission == Permission.camera) {
+      return service.requestCamera();
+    }
+    if (permission == Permission.microphone) {
+      return service.requestMicrophone();
+    }
+    return permission.request();
+  }
+
+  void _explainLocalFileAccess() {
+    context.showCenteredNotice(
+      _t(
+        context,
+        '本地文件访问通过系统文件选择器按次授权，无需单独开启权限。',
+        'Local file access is granted per action through the system file picker. No separate permission is required.',
+      ),
     );
   }
 
@@ -3274,6 +3435,48 @@ String _textScaleLabel(BuildContext context, double scale) {
     return _t(context, '大', 'Large');
   }
   return _t(context, '标准', 'Default');
+}
+
+String _permissionValueLabel(BuildContext context, PermissionStatus? status) {
+  if (status == null) {
+    return _t(context, '读取中', 'Loading');
+  }
+  if (status.isGranted) {
+    return _t(context, '已授权', 'Granted');
+  }
+  return switch (status) {
+    PermissionStatus.granted => _t(context, '已授权', 'Granted'),
+    PermissionStatus.denied => _t(context, '未授权', 'Denied'),
+    PermissionStatus.restricted => _t(context, '受限制', 'Restricted'),
+    PermissionStatus.limited => _t(context, '部分授权', 'Limited'),
+    PermissionStatus.permanentlyDenied => _t(
+      context,
+      '已拒绝',
+      'Denied permanently',
+    ),
+    PermissionStatus.provisional => _t(context, '临时授权', 'Provisional'),
+  };
+}
+
+String _permissionResultMessage(BuildContext context, PermissionStatus status) {
+  return _isRuntimePermissionUsable(status)
+      ? _t(context, '权限已开启', 'Permission is enabled')
+      : _t(
+          context,
+          '权限未开启，可在系统设置中打开',
+          'Permission is not enabled. You can enable it in system settings.',
+        );
+}
+
+bool _isRuntimePermissionUsable(PermissionStatus status) {
+  return status.isGranted ||
+      status == PermissionStatus.limited ||
+      status == PermissionStatus.provisional;
+}
+
+bool _shouldOpenSettingsForPermission(PermissionStatus status) {
+  return status == PermissionStatus.permanentlyDenied ||
+      status == PermissionStatus.restricted;
 }
 
 String _t(BuildContext context, String zh, String en) {
