@@ -17,6 +17,7 @@ class DoctorAssessmentScalesScreen extends ConsumerStatefulWidget {
 class _DoctorAssessmentScalesScreenState
     extends ConsumerState<DoctorAssessmentScalesScreen> {
   String _status = 'published';
+  _ScaleSourceFilter _sourceFilter = _ScaleSourceFilter.all;
 
   @override
   Widget build(BuildContext context) {
@@ -69,9 +70,17 @@ class _DoctorAssessmentScalesScreenState
           child: ListView(
             padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
             children: [
+              _ScaleSourceFilterBar(
+                value: _sourceFilter,
+                onChanged: (value) => setState(() => _sourceFilter = value),
+              ),
+              const SizedBox(height: 14),
               scales.when(
                 data: (items) {
-                  if (items.isEmpty) {
+                  final visibleItems = items
+                      .where((item) => _matchesSource(item.doctorId))
+                      .toList(growable: false);
+                  if (visibleItems.isEmpty) {
                     return _EmptyScaleBlock(
                       title: _t(context, '还没有量表', 'No scales yet'),
                       subtitle: _t(
@@ -84,7 +93,7 @@ class _DoctorAssessmentScalesScreenState
                   }
                   return Column(
                     children: [
-                      for (final scale in items) ...[
+                      for (final scale in visibleItems) ...[
                         Builder(
                           builder: (context) {
                             final canEdit =
@@ -121,6 +130,14 @@ class _DoctorAssessmentScalesScreenState
         ),
       ),
     );
+  }
+
+  bool _matchesSource(int doctorId) {
+    return switch (_sourceFilter) {
+      _ScaleSourceFilter.all => true,
+      _ScaleSourceFilter.system => doctorId == 0,
+      _ScaleSourceFilter.mine => doctorId > 0,
+    };
   }
 
   Future<void> _openEditor([DoctorAssessmentScale? scale]) async {
@@ -219,6 +236,88 @@ class _TabItem extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+enum _ScaleSourceFilter { all, system, mine }
+
+class _ScaleSourceFilterBar extends StatelessWidget {
+  const _ScaleSourceFilterBar({required this.value, required this.onChanged});
+
+  final _ScaleSourceFilter value;
+  final ValueChanged<_ScaleSourceFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorAssessmentScalesPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          _ScaleSourceFilterButton(
+            label: _t(context, '全部', 'All'),
+            selected: value == _ScaleSourceFilter.all,
+            onTap: () => onChanged(_ScaleSourceFilter.all),
+          ),
+          _ScaleSourceFilterButton(
+            label: _t(context, '系统预设', 'System'),
+            selected: value == _ScaleSourceFilter.system,
+            onTap: () => onChanged(_ScaleSourceFilter.system),
+          ),
+          _ScaleSourceFilterButton(
+            label: _t(context, '我的创建', 'Mine'),
+            selected: value == _ScaleSourceFilter.mine,
+            onTap: () => onChanged(_ScaleSourceFilter.mine),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScaleSourceFilterButton extends StatelessWidget {
+  const _ScaleSourceFilterButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorAssessmentScalesPalette.of(context);
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFFEAF1FF) : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: selected ? const Color(0xFF5A81DA) : palette.mutedText,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
       ),
     );
   }

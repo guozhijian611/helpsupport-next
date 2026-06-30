@@ -16,6 +16,7 @@ class DoctorTaskTemplatesScreen extends ConsumerStatefulWidget {
 class _DoctorTaskTemplatesScreenState
     extends ConsumerState<DoctorTaskTemplatesScreen> {
   String _selectedFolderId = '';
+  _TemplateSourceFilter _sourceFilter = _TemplateSourceFilter.all;
   bool _creatingFolder = false;
 
   @override
@@ -71,39 +72,65 @@ class _DoctorTaskTemplatesScreenState
                 ),
               ),
               const SizedBox(height: 16),
+              _SourceFilterBar(
+                value: _sourceFilter,
+                onChanged: (value) {
+                  setState(() {
+                    _sourceFilter = value;
+                    _selectedFolderId = '';
+                  });
+                },
+              ),
+              const SizedBox(height: 14),
               folders.when(
                 data: (items) {
-                  if (items.isEmpty) {
+                  final visibleItems = items
+                      .where((item) => _matchesSource(item.doctorId))
+                      .toList(growable: false);
+                  if (visibleItems.isEmpty) {
                     return const SizedBox.shrink();
                   }
-                  return SizedBox(
-                    height: 40,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemBuilder: (context, index) {
-                        final item = items[index];
-                        final selected = item.id == _selectedFolderId;
-                        return ChoiceChip(
-                          label: _FolderChipLabel(
-                            folder: item,
-                            selected: selected,
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    clipBehavior: Clip.none,
+                    child: Row(
+                      children: [
+                        for (
+                          var index = 0;
+                          index < visibleItems.length;
+                          index++
+                        ) ...[
+                          Builder(
+                            builder: (context) {
+                              final item = visibleItems[index];
+                              final selected = item.id == _selectedFolderId;
+                              return ChoiceChip(
+                                label: _FolderChipLabel(
+                                  folder: item,
+                                  selected: selected,
+                                ),
+                                selected: selected,
+                                onSelected: (_) => setState(
+                                  () => _selectedFolderId = selected
+                                      ? ''
+                                      : item.id,
+                                ),
+                                selectedColor: const Color(0xFFFFE1DB),
+                                backgroundColor: palette.cardBackground,
+                                labelStyle: TextStyle(
+                                  color: selected
+                                      ? const Color(0xFFFF7C69)
+                                      : palette.mutedText,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              );
+                            },
                           ),
-                          selected: selected,
-                          onSelected: (_) => setState(
-                            () => _selectedFolderId = selected ? '' : item.id,
-                          ),
-                          selectedColor: const Color(0xFFFFE1DB),
-                          backgroundColor: palette.cardBackground,
-                          labelStyle: TextStyle(
-                            color: selected
-                                ? const Color(0xFFFF7C69)
-                                : palette.mutedText,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        );
-                      },
-                      separatorBuilder: (_, _) => const SizedBox(width: 10),
-                      itemCount: items.length,
+                          if (index != visibleItems.length - 1)
+                            const SizedBox(width: 10),
+                        ],
+                      ],
                     ),
                   );
                 },
@@ -118,7 +145,10 @@ class _DoctorTaskTemplatesScreenState
               const SizedBox(height: 18),
               templates.when(
                 data: (items) {
-                  if (items.isEmpty) {
+                  final visibleItems = items
+                      .where((item) => _matchesSource(item.doctorId))
+                      .toList(growable: false);
+                  if (visibleItems.isEmpty) {
                     return _EmptyBlock(
                       title: _t(context, '还没有任务模板', 'No task templates'),
                       subtitle: _t(
@@ -130,7 +160,7 @@ class _DoctorTaskTemplatesScreenState
                   }
                   return Column(
                     children: [
-                      for (final template in items)
+                      for (final template in visibleItems)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 14),
                           child: _TemplateCard(
@@ -152,6 +182,14 @@ class _DoctorTaskTemplatesScreenState
         ),
       ),
     );
+  }
+
+  bool _matchesSource(int doctorId) {
+    return switch (_sourceFilter) {
+      _TemplateSourceFilter.all => true,
+      _TemplateSourceFilter.system => doctorId == 0,
+      _TemplateSourceFilter.mine => doctorId > 0,
+    };
   }
 
   Future<void> _openTemplateDetail(DoctorTaskTemplate template) {
@@ -200,7 +238,10 @@ class _DoctorTaskTemplatesScreenState
           .read(doctorRepositoryProvider)
           .saveTaskTemplateFolder(name: name);
       ref.invalidate(doctorTaskTemplateFoldersProvider);
-      setState(() => _selectedFolderId = folder.id);
+      setState(() {
+        _sourceFilter = _TemplateSourceFilter.mine;
+        _selectedFolderId = folder.id;
+      });
       ref.invalidate(doctorTaskTemplatesProvider);
       if (!mounted) {
         return;
@@ -218,6 +259,97 @@ class _DoctorTaskTemplatesScreenState
         setState(() => _creatingFolder = false);
       }
     }
+  }
+}
+
+enum _TemplateSourceFilter { all, system, mine }
+
+class _SourceFilterBar extends StatelessWidget {
+  const _SourceFilterBar({required this.value, required this.onChanged});
+
+  final _TemplateSourceFilter value;
+  final ValueChanged<_TemplateSourceFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorTaskTemplatesPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: palette.softBackground,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          _SourceFilterButton(
+            label: _t(context, '全部', 'All'),
+            selected: value == _TemplateSourceFilter.all,
+            onTap: () => onChanged(_TemplateSourceFilter.all),
+          ),
+          _SourceFilterButton(
+            label: _t(context, '系统预设', 'System'),
+            selected: value == _TemplateSourceFilter.system,
+            onTap: () => onChanged(_TemplateSourceFilter.system),
+          ),
+          _SourceFilterButton(
+            label: _t(context, '我的创建', 'Mine'),
+            selected: value == _TemplateSourceFilter.mine,
+            onTap: () => onChanged(_TemplateSourceFilter.mine),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SourceFilterButton extends StatelessWidget {
+  const _SourceFilterButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorTaskTemplatesPalette.of(context);
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? palette.cardBackground : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: selected ? const Color(0xFF5A81DA) : palette.mutedText,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
