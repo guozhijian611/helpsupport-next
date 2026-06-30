@@ -81,116 +81,121 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
       style: const TextStyle(decoration: TextDecoration.none),
       child: ColoredBox(
         color: palette.pageBackground,
-        child: RefreshIndicator(
-          color: palette.brandPrimary,
-          onRefresh: () async {
-            ref.invalidate(doctorPatientsProvider(patientsQuery));
-            if (_selectedMemberId > 0) {
-              ref.invalidate(doctorDailyTasksProvider);
-            }
-            await ref.read(doctorPatientsProvider(patientsQuery).future);
-          },
-          child: ListView(
-            padding: metrics
-                .edgeInsets(22, 18, 22, 0)
-                .copyWith(
-                  bottom: metrics.floatingTabBarInset(
-                    context,
-                    extraSpacing: 32,
+        child: SafeArea(
+          top: true,
+          bottom: false,
+          child: RefreshIndicator(
+            color: palette.brandPrimary,
+            onRefresh: () async {
+              ref.invalidate(doctorPatientsProvider(patientsQuery));
+              if (_selectedMemberId > 0) {
+                ref.invalidate(doctorDailyTasksProvider);
+              }
+              await ref.read(doctorPatientsProvider(patientsQuery).future);
+            },
+            child: ListView(
+              padding: metrics
+                  .edgeInsets(22, 18, 22, 0)
+                  .copyWith(
+                    bottom: metrics.floatingTabBarInset(
+                      context,
+                      extraSpacing: 32,
+                    ),
                   ),
-                ),
-            children: [
-              _DoctorPlanHeader(name: nickname),
-              SizedBox(height: metrics.size(20)),
-              patients.when(
-                data: (page) {
-                  final patient = _resolveSelectedPatient(page.list);
-                  if (patient == null) {
-                    return _DoctorPlanEmptyState(
-                      onOpenPatients: () => context.push('/doctor/patients'),
+              children: [
+                _DoctorPlanHeader(name: nickname),
+                SizedBox(height: metrics.size(20)),
+                patients.when(
+                  data: (page) {
+                    final patient = _resolveSelectedPatient(page.list);
+                    if (patient == null) {
+                      return _DoctorPlanEmptyState(
+                        onOpenPatients: () => context.push('/doctor/patients'),
+                      );
+                    }
+                    final month = DateTime(
+                      _selectedDate.year,
+                      _selectedDate.month,
                     );
-                  }
-                  final month = DateTime(
-                    _selectedDate.year,
-                    _selectedDate.month,
-                  );
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _PatientSelectorCard(
-                        patient: patient,
-                        onTap: () => _selectPatient(page.list),
-                      ),
-                      SizedBox(height: metrics.size(18)),
-                      plans.when(
-                        data: (items) {
-                          final taskItems =
-                              tasks.asData?.value.list ?? const [];
-                          final activePlan = _activePlan(items);
-                          if (activePlan == null) {
-                            return _PlanOverviewCard(
-                              title: _t(
-                                context,
-                                '还没有治疗计划',
-                                'No treatment plan yet',
-                              ),
-                              subtitle: _t(
-                                context,
-                                '先为当前患者配置计划、阶段和关键任务。',
-                                'Create a plan, stages, and key tasks for this patient.',
-                              ),
-                              actionLabel: _t(
-                                context,
-                                '配置治疗计划',
-                                'Configure plan',
-                              ),
-                              onTap: () => _openTreatmentPlan(patient.memberId),
-                            );
-                          }
-                          return _ActivePlanSchedule(
-                            activePlan: activePlan,
-                            currentStage: _currentStage(activePlan),
-                            taskItems: taskItems,
-                            tasks: tasks,
-                            month: month,
-                            selectedDate: _selectedDate,
-                            onPreviousMonth: () => setState(
-                              () => _selectedDate = DateTime(
-                                month.year,
-                                month.month - 1,
-                                _selectedDate.day.clamp(1, 28),
-                              ),
-                            ),
-                            onNextMonth: () => setState(
-                              () => _selectedDate = DateTime(
-                                month.year,
-                                month.month + 1,
-                                _selectedDate.day.clamp(1, 28),
-                              ),
-                            ),
-                            onSelectedDate: (date) =>
-                                setState(() => _selectedDate = date),
-                            onOpenTreatmentPlan: () => _openTreatmentPlan(
-                              patient.memberId,
-                              activePlan.id,
-                            ),
-                          );
-                        },
-                        error: (error, _) => _PlanOverviewCard(
-                          title: _t(context, '治疗计划读取失败', 'Plan load failed'),
-                          subtitle: error.toString(),
-                          actionLabel: _t(context, '重新配置', 'Configure again'),
-                          onTap: () => _openTreatmentPlan(patient.memberId),
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _PatientSelectorCard(
+                          patient: patient,
+                          onTap: () => _selectPatient(page.list),
                         ),
-                        loading: () => const _PlanOverviewSkeleton(),
-                      ),
-                    ],
-                  );
-                },
-                error: (error, _) => _TaskEmptyCard(text: error.toString()),
-                loading: () => const _DoctorTaskSkeleton(),
-              ),
-            ],
+                        SizedBox(height: metrics.size(18)),
+                        plans.when(
+                          data: (items) {
+                            final taskItems =
+                                tasks.asData?.value.list ?? const [];
+                            final activePlan = _activePlan(items);
+                            if (activePlan == null) {
+                              return _PlanOverviewCard(
+                                title: _t(
+                                  context,
+                                  '还没有治疗计划',
+                                  'No treatment plan yet',
+                                ),
+                                subtitle: _t(
+                                  context,
+                                  '先为当前患者配置计划、阶段和关键任务。',
+                                  'Create a plan, stages, and key tasks for this patient.',
+                                ),
+                                actionLabel: _t(
+                                  context,
+                                  '配置治疗计划',
+                                  'Configure plan',
+                                ),
+                                onTap: () =>
+                                    _openTreatmentPlan(patient.memberId),
+                              );
+                            }
+                            return _ActivePlanSchedule(
+                              activePlan: activePlan,
+                              currentStage: _currentStage(activePlan),
+                              taskItems: taskItems,
+                              tasks: tasks,
+                              month: month,
+                              selectedDate: _selectedDate,
+                              onPreviousMonth: () => setState(
+                                () => _selectedDate = DateTime(
+                                  month.year,
+                                  month.month - 1,
+                                  _selectedDate.day.clamp(1, 28),
+                                ),
+                              ),
+                              onNextMonth: () => setState(
+                                () => _selectedDate = DateTime(
+                                  month.year,
+                                  month.month + 1,
+                                  _selectedDate.day.clamp(1, 28),
+                                ),
+                              ),
+                              onSelectedDate: (date) =>
+                                  setState(() => _selectedDate = date),
+                              onOpenTreatmentPlan: () => _openTreatmentPlan(
+                                patient.memberId,
+                                activePlan.id,
+                              ),
+                            );
+                          },
+                          error: (error, _) => _PlanOverviewCard(
+                            title: _t(context, '治疗计划读取失败', 'Plan load failed'),
+                            subtitle: error.toString(),
+                            actionLabel: _t(context, '重新配置', 'Configure again'),
+                            onTap: () => _openTreatmentPlan(patient.memberId),
+                          ),
+                          loading: () => const _PlanOverviewSkeleton(),
+                        ),
+                      ],
+                    );
+                  },
+                  error: (error, _) => _TaskEmptyCard(text: error.toString()),
+                  loading: () => const _DoctorTaskSkeleton(),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -371,7 +376,7 @@ class _PatientSelectorCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = _DoctorPlanPalette.of(context);
     final avatarUrl = ref.watch(apiClientProvider).resolveUrl(patient.avatar);
-    final goal = patient.recoveryGoal.trim();
+    final recoveryGoal = patient.recoveryGoal.trim();
     final bindTime = _formatDateTimeLabel(patient.bindTime);
     return Material(
       color: Colors.transparent,
@@ -441,23 +446,26 @@ class _PatientSelectorCard extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              if (goal.isNotEmpty)
+              if (recoveryGoal.isNotEmpty)
                 _PatientDetailLine(
                   icon: Icons.flag_rounded,
-                  text: goal,
+                  label: _t(context, '康复目标', 'Recovery goal'),
+                  text: recoveryGoal,
                   color: palette.brandPrimary,
                 ),
-              if (goal.isNotEmpty && bindTime.isNotEmpty)
+              if (recoveryGoal.isNotEmpty && bindTime.isNotEmpty)
                 const SizedBox(height: 10),
               if (bindTime.isNotEmpty)
                 _PatientDetailLine(
                   icon: Icons.link_rounded,
+                  label: _t(context, '绑定时间', 'Bound'),
                   text: _t(context, '绑定于 $bindTime', 'Bound on $bindTime'),
                   color: palette.infoColor,
                 ),
-              if (goal.isEmpty && bindTime.isEmpty)
+              if (recoveryGoal.isEmpty && bindTime.isEmpty)
                 _PatientDetailLine(
                   icon: Icons.account_circle_rounded,
+                  label: _t(context, '患者信息', 'Patient info'),
                   text: _t(
                     context,
                     '患者基础信息已同步，可点击切换患者。',
@@ -522,11 +530,13 @@ class _PatientInfoChip extends StatelessWidget {
 class _PatientDetailLine extends StatelessWidget {
   const _PatientDetailLine({
     required this.icon,
+    required this.label,
     required this.text,
     required this.color,
   });
 
   final IconData icon;
+  final String label;
   final String text;
   final Color color;
 
@@ -539,13 +549,25 @@ class _PatientDetailLine extends StatelessWidget {
         Icon(icon, size: 17, color: color),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              color: palette.mutedText,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              height: 1.45,
+          child: RichText(
+            textScaler: MediaQuery.textScalerOf(context),
+            text: TextSpan(
+              style: TextStyle(
+                color: palette.mutedText,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                height: 1.45,
+              ),
+              children: [
+                TextSpan(
+                  text: '$label：',
+                  style: TextStyle(
+                    color: palette.secondaryText,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                TextSpan(text: text),
+              ],
             ),
           ),
         ),
