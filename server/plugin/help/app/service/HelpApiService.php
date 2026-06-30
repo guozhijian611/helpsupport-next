@@ -3314,6 +3314,46 @@ class HelpApiService
         return Db::table('sa_doctor_task_template_folder')->where('id', $id)->find() ?: [];
     }
 
+    public function deleteDoctorTaskTemplateFolder(int $doctorId, string $id): array
+    {
+        $this->assertApprovedDoctor($doctorId);
+        $id = trim($id);
+        if ($id === '') {
+            throw new ApiException('文件夹ID必须填写', 400);
+        }
+
+        $folder = Db::table('sa_doctor_task_template_folder')
+            ->where('id', $id)
+            ->where('doctor_id', $doctorId)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$folder) {
+            throw new ApiException('模板文件夹不存在或无权操作', 404);
+        }
+
+        $now = date('Y-m-d H:i:s');
+        Db::table('sa_doctor_task_template')
+            ->where('doctor_id', $doctorId)
+            ->where('folder_id', $id)
+            ->whereNull('delete_time')
+            ->update([
+                'folder_id' => '',
+                'updated_by' => $doctorId,
+                'update_time' => $now,
+            ]);
+        Db::table('sa_doctor_task_template_folder')
+            ->where('id', $id)
+            ->where('doctor_id', $doctorId)
+            ->whereNull('delete_time')
+            ->update([
+                'delete_time' => $now,
+                'updated_by' => $doctorId,
+                'update_time' => $now,
+            ]);
+
+        return ['id' => $id];
+    }
+
     public function doctorTaskTemplates(int $doctorId, array $params): array
     {
         $this->assertApprovedDoctor($doctorId);

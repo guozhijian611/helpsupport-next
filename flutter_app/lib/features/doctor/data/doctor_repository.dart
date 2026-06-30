@@ -308,6 +308,19 @@ class DoctorRepository {
     return folder;
   }
 
+  Future<void> deleteTaskTemplateFolder(String id) async {
+    await _apiClient.postApi<Map<String, dynamic>>(
+      '/app/help/doctor/task-template-folder/delete',
+      data: {'id': id.trim()},
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return value;
+        }
+        return const {};
+      },
+    );
+  }
+
   Future<List<DoctorTaskTemplate>> fetchTaskTemplates({
     String folderId = '',
     String stage = '',

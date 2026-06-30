@@ -18,6 +18,7 @@ class _DoctorTaskTemplatesScreenState
   String _selectedFolderId = '';
   _TemplateSourceFilter _sourceFilter = _TemplateSourceFilter.all;
   bool _creatingFolder = false;
+  final Set<String> _deletingFolderIds = <String>{};
 
   @override
   Widget build(BuildContext context) {
@@ -102,7 +103,9 @@ class _DoctorTaskTemplatesScreenState
                       itemBuilder: (context, index) {
                         final item = visibleItems[index];
                         final selected = item.id == _selectedFolderId;
-                        return ChoiceChip(
+                        final deleting = _deletingFolderIds.contains(item.id);
+                        final deletable = item.doctorId > 0 && !deleting;
+                        return InputChip(
                           label: _FolderChipLabel(
                             folder: item,
                             selected: selected,
@@ -111,8 +114,24 @@ class _DoctorTaskTemplatesScreenState
                           onSelected: (_) => setState(
                             () => _selectedFolderId = selected ? '' : item.id,
                           ),
+                          onDeleted: deletable
+                              ? () => _deleteFolder(item)
+                              : null,
+                          deleteIcon: item.doctorId > 0
+                              ? deleting
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.close_rounded, size: 16)
+                              : null,
                           selectedColor: const Color(0xFFFFE1DB),
                           backgroundColor: palette.cardBackground,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
                           labelStyle: TextStyle(
                             color: selected
                                 ? const Color(0xFFFF7C69)
@@ -228,6 +247,62 @@ class _DoctorTaskTemplatesScreenState
     } finally {
       if (mounted) {
         setState(() => _creatingFolder = false);
+      }
+    }
+  }
+
+  Future<void> _deleteFolder(DoctorTaskTemplateFolder folder) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(_t(dialogContext, '删除模板文件夹', 'Delete folder')),
+        content: Text(
+          _t(
+            dialogContext,
+            '删除后模板会保留在未分类中，确定删除这个文件夹吗？',
+            'Templates will remain uncategorized. Delete this folder?',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(_t(dialogContext, '取消', 'Cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(_t(dialogContext, '删除', 'Delete')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    setState(() => _deletingFolderIds.add(folder.id));
+    try {
+      await ref
+          .read(doctorRepositoryProvider)
+          .deleteTaskTemplateFolder(folder.id);
+      if (!mounted) {
+        return;
+      }
+      if (_selectedFolderId == folder.id) {
+        setState(() => _selectedFolderId = '');
+      }
+      ref.invalidate(doctorTaskTemplateFoldersProvider);
+      ref.invalidate(doctorTaskTemplatesProvider);
+      context.showCenteredNotice(
+        _t(context, '模板文件夹已删除', 'Template folder deleted'),
+      );
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(error.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _deletingFolderIds.remove(folder.id));
       }
     }
   }

@@ -177,6 +177,16 @@ class DoctorController extends BaseController
         return ok($this->service->saveDoctorTaskTemplateFolder($this->memberId, $request->post()));
     }
 
+    #[Apidoc\Title('删除任务模板文件夹')]
+    #[Apidoc\Url('/app/help/doctor/task-template-folder/delete')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('id', type: 'string', require: true, desc: '文件夹ID')]
+    #[Apidoc\Returned('id', type: 'string', desc: '已删除文件夹ID')]
+    public function deleteTaskTemplateFolder(Request $request): Response
+    {
+        return ok($this->service->deleteDoctorTaskTemplateFolder($this->memberId, (string) $request->post('id', '')));
+    }
+
     #[Apidoc\Title('任务模板列表')]
     #[Apidoc\Url('/app/help/doctor/task-templates')]
     #[Apidoc\Method('GET')]
