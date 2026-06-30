@@ -3,6 +3,7 @@ package com.openb8.helpsupport_app
 import android.app.AlarmManager
 import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -19,6 +20,7 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "getTimeZone" -> result.success(TimeZone.getDefault().id)
                 "getNotificationDiagnostics" -> result.success(notificationDiagnostics())
+                "getLocalLlmDiagnostics" -> result.success(localLlmDiagnostics())
                 else -> result.notImplemented()
             }
         }
@@ -45,6 +47,33 @@ class MainActivity : FlutterActivity() {
             "canScheduleExactAlarms" to canScheduleExactAlarms,
             "sdkInt" to Build.VERSION.SDK_INT,
         )
+    }
+
+    private fun localLlmDiagnostics(): Map<String, Any?> {
+        val vulkanVersion = vulkanHardwareVersion()
+        val vulkanMajor = vulkanVersion ushr 22
+        val vulkanMinor = (vulkanVersion ushr 12) and 0x3ff
+        val vulkanPatch = vulkanVersion and 0xfff
+        val supportsVulkan11 = vulkanMajor > 1 || (vulkanMajor == 1 && vulkanMinor >= 1)
+        val minSdkSatisfied = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+
+        return mapOf(
+            "platform" to "android",
+            "sdkInt" to Build.VERSION.SDK_INT,
+            "vulkanHardwareVersion" to vulkanVersion,
+            "vulkanVersionName" to "$vulkanMajor.$vulkanMinor.$vulkanPatch",
+            "supportsVulkan11" to supportsVulkan11,
+            "supportsGpuOffload" to (minSdkSatisfied && supportsVulkan11),
+        )
+    }
+
+    private fun vulkanHardwareVersion(): Int {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            return 0
+        }
+        return packageManager.systemAvailableFeatures
+            .firstOrNull { it.name == PackageManager.FEATURE_VULKAN_HARDWARE_VERSION }
+            ?.version ?: 0
     }
 
     private companion object {

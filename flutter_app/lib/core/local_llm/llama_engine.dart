@@ -3,6 +3,7 @@ import 'dart:ffi';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/services.dart';
 import 'package:llama_cpp_dart/llama_cpp_dart.dart';
 
 import '../../features/local_model/data/local_model_models.dart';
@@ -43,13 +44,17 @@ class LlamaEngine {
   );
   static const _backend = String.fromEnvironment(
     'HELP_SUPPORT_LLAMA_BACKEND',
-    defaultValue: 'cpu',
+    defaultValue: 'auto',
+  );
+  static const _developerToolsChannel = MethodChannel(
+    'helpsupport/developer_tools',
   );
 
   Future<LlamaRuntimeStatus> inspectRuntime() async {
     final path = _resolvedLibraryPath();
     try {
       DynamicLibrary.open(path);
+      await _resolvedGpuLayers();
       return LlamaRuntimeStatus.available(path);
     } on Object catch (error) {
       return LlamaRuntimeStatus.unavailable(path, error.toString());
@@ -64,7 +69,7 @@ class LlamaEngine {
     required String userMessage,
   }) async {
     final prompt = _buildPrompt(systemPrompt, history, userMessage);
-    final parent = LlamaParent(_loadCommand(model, modelPath));
+    final parent = LlamaParent(await _loadCommand(model, modelPath));
     final buffer = StringBuffer();
     StreamSubscription<String>? subscription;
     final runtime = await inspectRuntime();
@@ -95,7 +100,7 @@ class LlamaEngine {
     }
   }
 
-  LlamaLoad _loadCommand(LocalModelItem model, String modelPath) {
+  Future<LlamaLoad> _loadCommand(LocalModelItem model, String modelPath) async {
     final contextParams = ContextParams()
       ..nCtx = model.contextSize > 0 ? model.contextSize : 2048
       ..nPredict = 512
@@ -107,7 +112,7 @@ class LlamaEngine {
       ..penaltyRepeat = 1.1;
 
     final modelParams = ModelParams();
-    final gpuLayers = _resolvedGpuLayers();
+    final gpuLayers = await _resolvedGpuLayers();
     modelParams.nGpuLayers = gpuLayers;
     if (gpuLayers == 0) {
       contextParams
@@ -165,13 +170,35 @@ class LlamaEngine {
     return 'libllama.so';
   }
 
-  int _resolvedGpuLayers() {
+  Future<int> _resolvedGpuLayers() async {
     final configuredGpuLayers = int.tryParse(_gpuLayers);
     final mode = _backend.trim().toLowerCase();
-    if (mode == 'gpu' || mode == 'auto') {
+    if (mode == 'gpu') {
+      if (!await _supportsGpuOffload()) {
+        throw StateError('当前设备不支持本地模型 GPU 模式');
+      }
+      return configuredGpuLayers ?? 99;
+    }
+    if (mode == 'auto' && await _supportsGpuOffload()) {
       return configuredGpuLayers ?? 99;
     }
     return 0;
+  }
+
+  Future<bool> _supportsGpuOffload() async {
+    if (Platform.isIOS || Platform.isMacOS) {
+      return true;
+    }
+    if (!Platform.isAndroid) {
+      return false;
+    }
+    try {
+      final diagnostics = await _developerToolsChannel
+          .invokeMapMethod<String, Object?>('getLocalLlmDiagnostics');
+      return diagnostics?['supportsGpuOffload'] == true;
+    } on Object {
+      return false;
+    }
   }
 }
 

@@ -68,7 +68,7 @@ GET /app/help/common/onboarding?scene=first_launch&version=&locale={locale}
 - iOS 真机：默认同样会尝试复制 `llama_cpp_dart` 的 `OS64` CPU 和 Metal 产物；发布前仍需确认签名、嵌入方式和 App Store 分发要求。
 - 桌面或本机调试：可用 `--dart-define=HELP_SUPPORT_LLAMA_LIBRARY_PATH=/absolute/path/libllama.dylib` 指定动态库路径。
 
-默认使用 CPU 加载本地模型，确保不支持 Vulkan 或 Metal 的设备也能稳定运行。CPU 模式会强制 `nGpuLayers=0` 并关闭 KQV / op offload。如需在 Android 或 iOS 验证 GPU offload，可显式传入：
+默认使用 `auto` 加载本地模型。Android 会先检测系统 API 与 Vulkan 1.1 能力，支持则启用 GPU offload，不支持则自动回落 CPU；iOS / macOS 默认允许 Metal GPU offload。CPU 模式会强制 `nGpuLayers=0` 并关闭 KQV / op offload。如需显式指定模式，可传入：
 
 ```bash
 flutter run -d <device id> \
@@ -78,7 +78,7 @@ flutter run -d <device id> \
 HELP_SUPPORT_LLAMA_BACKEND=gpu HELP_SUPPORT_LLAMA_GPU_LAYERS=99 ./tool/build_ios_simulator.sh
 ```
 
-`HELP_SUPPORT_LLAMA_BACKEND` 支持 `cpu`、`gpu` 和 `auto`。`cpu` 强制 CPU；`gpu` / `auto` 会使用 `HELP_SUPPORT_LLAMA_GPU_LAYERS`，未指定时默认 offload 99 层。Android GPU 后端使用 Vulkan，native 库默认按 `LLAMA_ANDROID_PLATFORM=android-28` 构建，设备系统和驱动必须支持 Android 9 / Vulkan 1.1；iOS GPU 后端使用 Metal。
+`HELP_SUPPORT_LLAMA_BACKEND` 支持 `cpu`、`gpu` 和 `auto`，默认值为 `auto`。`cpu` 强制 CPU；`gpu` 会强制 GPU 并在设备不支持时直接报错；`auto` 会在支持 GPU 时使用 `HELP_SUPPORT_LLAMA_GPU_LAYERS`，未指定时默认 offload 99 层，不支持 GPU 时自动使用 CPU。Android GPU 后端使用 Vulkan，native 库默认按 `LLAMA_ANDROID_PLATFORM=android-28` 构建，设备系统和驱动必须支持 Android 9 / Vulkan 1.1；iOS GPU 后端使用 Metal。
 
 Android 默认构建 `arm64-v8a`。如需额外构建 x86_64 模拟器库，可运行：
 
