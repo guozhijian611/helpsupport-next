@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -242,7 +243,21 @@ class _MeProfile {
           .toList(growable: false);
     }
     if (value is String && value.trim().isNotEmpty) {
-      return value
+      final normalized = value.trim();
+      if (normalized.startsWith('[') && normalized.endsWith(']')) {
+        try {
+          final decoded = jsonDecode(normalized);
+          if (decoded is List) {
+            return decoded
+                .map((item) => (item ?? '').toString().trim())
+                .where((item) => item.isNotEmpty)
+                .toList(growable: false);
+          }
+        } on FormatException {
+          // Fall through to comma splitting for legacy manually-entered values.
+        }
+      }
+      return normalized
           .split(',')
           .map((item) => item.trim())
           .where((item) => item.isNotEmpty)

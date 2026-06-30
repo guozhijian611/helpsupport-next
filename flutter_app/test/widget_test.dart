@@ -10,6 +10,9 @@ import 'package:helpsupport_app/features/chat/data/chat_models.dart';
 import 'package:helpsupport_app/features/community/application/community_controller.dart';
 import 'package:helpsupport_app/features/community/data/community_models.dart';
 import 'package:helpsupport_app/features/home/presentation/home_shell.dart';
+import 'package:helpsupport_app/features/me/application/me_content_controller.dart';
+import 'package:helpsupport_app/features/me/data/me_content_models.dart';
+import 'package:helpsupport_app/features/me/presentation/me_screen.dart';
 import 'package:helpsupport_app/features/plan/application/plan_controller.dart';
 import 'package:helpsupport_app/features/plan/data/plan_models.dart';
 import 'package:helpsupport_app/features/plan/presentation/plan_screen.dart';
@@ -165,6 +168,56 @@ void main() {
     expect(find.byKey(const Key('plan-month-calendar')), findsOneWidget);
     expect(find.byKey(const Key('plan-week-strip')), findsNothing);
   });
+
+  testWidgets('me screen renders json trigger tags as plain text', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authControllerProvider.overrideWith(_TriggerTagsAuthController.new),
+          memberBadgesProvider.overrideWith(
+            (ref) async => const MePage<MemberBadge>(
+              list: [],
+              total: 0,
+              page: 1,
+              pageSize: 20,
+            ),
+          ),
+          pointLogsProvider.overrideWith(
+            (ref) async => const PointLogPage(
+              list: [],
+              total: 0,
+              page: 1,
+              pageSize: 20,
+              balance: 0,
+            ),
+          ),
+          currentPlansProvider.overrideWith((ref) async => const []),
+          dailyTasksProvider.overrideWith(
+            (ref) async => const PlanPage<DailyTask>(
+              list: [],
+              total: 0,
+              page: 1,
+              pageSize: 20,
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(body: MeScreen()),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('睡眠障碍 焦虑'), findsOneWidget);
+    expect(find.textContaining('["'), findsNothing);
+  });
 }
 
 class _TestAuthController extends AuthController {
@@ -179,6 +232,35 @@ class _TestAuthController extends AuthController {
       ),
       member: {'id': 1, 'username': 'tester'},
       profile: {},
+      doctorProfile: {},
+      currentRole: 'patient',
+      roleFlags: AuthRoleFlags(
+        profileRole: 'patient',
+        isPatient: true,
+        isDoctor: false,
+        doctorProfileSubmitted: false,
+        doctorApproved: false,
+      ),
+    );
+  }
+}
+
+class _TriggerTagsAuthController extends AuthController {
+  @override
+  Future<AuthSession?> build() async {
+    return const AuthSession(
+      token: AuthToken(
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        tokenType: 'Bearer',
+        expiresIn: 3600,
+      ),
+      member: {'id': 1, 'username': 'tester'},
+      profile: {
+        'nickname': 'reused',
+        'gender': '1',
+        'trigger_tags': '["睡眠障碍","焦虑"]',
+      },
       doctorProfile: {},
       currentRole: 'patient',
       roleFlags: AuthRoleFlags(
