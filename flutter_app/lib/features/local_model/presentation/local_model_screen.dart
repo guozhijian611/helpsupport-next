@@ -35,6 +35,36 @@ class _LocalModelScreenState extends ConsumerState<LocalModelScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = _LocalModelScreenPalette.of(context);
+    if (widget.preferredChatMode == 'doctor') {
+      return Scaffold(
+        backgroundColor: palette.pageBackground,
+        appBar: AppBar(
+          backgroundColor: palette.pageBackground,
+          foregroundColor: palette.primaryText,
+          surfaceTintColor: Colors.transparent,
+          title: Text(context.l10n.localModelTitle),
+          centerTitle: true,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              _t(
+                context,
+                'AI 心理医生仅支持在线模式，请从互动聊天入口进入。',
+                'AI doctor is available in online mode only. Enter from Interactive care.',
+              ),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: palette.secondaryText,
+                height: 1.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     final catalog = ref.watch(localModelCatalogProvider);
     final downloadStates = ref.watch(localModelDownloadControllerProvider);
     final states = downloadStates.hasValue

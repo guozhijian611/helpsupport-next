@@ -70,6 +70,26 @@ class ChatSession {
   }
 }
 
+class ChatConfig {
+  const ChatConfig({
+    required this.id,
+    required this.chatMode,
+    required this.promptText,
+  });
+
+  final int id;
+  final String chatMode;
+  final String promptText;
+
+  factory ChatConfig.fromJson(Map<String, dynamic> json) {
+    return ChatConfig(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      chatMode: (json['chat_mode'] as String?) ?? '',
+      promptText: (json['prompt_text'] as String?) ?? '',
+    );
+  }
+}
+
 class ChatRecord {
   const ChatRecord({
     required this.id,

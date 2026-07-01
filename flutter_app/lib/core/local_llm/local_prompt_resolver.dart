@@ -4,10 +4,12 @@ class ResolvedLocalPrompt {
   const ResolvedLocalPrompt({
     required this.systemPrompt,
     required this.firstMessage,
+    required this.hasPreset,
   });
 
   final String systemPrompt;
   final String firstMessage;
+  final bool hasPreset;
 }
 
 class LocalPromptResolver {
@@ -38,6 +40,7 @@ class LocalPromptResolver {
     return ResolvedLocalPrompt(
       systemPrompt: systemPrompt,
       firstMessage: prompt?.firstMessage.trim() ?? '',
+      hasPreset: prompt != null,
     );
   }
 

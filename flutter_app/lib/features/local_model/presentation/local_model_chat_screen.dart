@@ -7,6 +7,7 @@ import '../../../core/local_llm/local_chat_store.dart';
 import '../../../core/local_llm/local_prompt_resolver.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../chat/presentation/chat_prompt_config_sheet.dart';
 import '../application/local_model_controller.dart';
 import '../data/local_model_models.dart';
 
@@ -30,13 +31,17 @@ class LocalModelChatScreen extends ConsumerStatefulWidget {
 class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
   final _controller = TextEditingController();
   List<LocalChatMessage> _messages = const [];
+  String _customPrompt = '';
   bool _loadingMessages = true;
+  bool _loadingPrompt = true;
   bool _sending = false;
+  bool _promptGateShown = false;
 
   @override
   void initState() {
     super.initState();
     Future.microtask(_loadMessages);
+    Future.microtask(_loadPrompt);
   }
 
   @override
@@ -47,6 +52,29 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.chatMode == 'doctor') {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            widget.title.isEmpty ? context.l10n.localChat : widget.title,
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              _t(
+                context,
+                'AI 心理医生仅支持在线模式，请从互动聊天入口进入。',
+                'AI doctor is available in online mode only. Enter from Interactive care.',
+              ),
+              textAlign: TextAlign.center,
+              style: const TextStyle(height: 1.5, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+      );
+    }
     final catalog = ref.watch(localModelCatalogProvider);
     final promptLocale = Localizations.localeOf(context).toLanguageTag();
     final prompts = ref.watch(localModelPromptsProvider(promptLocale));
@@ -97,9 +125,21 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
                       locale: promptLocale,
                       prompts: items,
                     );
+                final promptReady =
+                    !_loadingPrompt &&
+                    (prompt.hasPreset || _customPrompt.trim().isNotEmpty);
+                final effectivePrompt = _effectivePrompt(prompt);
+                if (!_loadingPrompt) {
+                  _scheduleLocalPromptGate(prompt);
+                }
                 return Column(
                   children: [
                     _RuntimeBanner(status: runtimeStatus),
+                    ChatPromptSummaryBar(
+                      label: _t(context, '本地提示词', 'Local prompt'),
+                      prompt: promptReady ? effectivePrompt.systemPrompt : '',
+                      onEdit: () => _editLocalPrompt(effectivePrompt),
+                    ),
                     Expanded(
                       child: _LocalMessageList(
                         loading: _loadingMessages,
@@ -114,22 +154,23 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
                           Expanded(
                             child: TextField(
                               controller: _controller,
-                              enabled: !_sending && runtimeReady,
+                              enabled: !_sending && runtimeReady && promptReady,
                               minLines: 1,
                               maxLines: 4,
                               decoration: InputDecoration(
                                 hintText: context.l10n.localModelMessageHint,
                                 border: const OutlineInputBorder(),
                               ),
-                              onSubmitted: (_) => _send(model, state, prompt),
+                              onSubmitted: (_) =>
+                                  _send(model, state, effectivePrompt),
                             ),
                           ),
                           const SizedBox(width: 8),
                           IconButton.filled(
                             tooltip: context.l10n.sendMessage,
-                            onPressed: _sending || !runtimeReady
+                            onPressed: _sending || !runtimeReady || !promptReady
                                 ? null
-                                : () => _send(model, state, prompt),
+                                : () => _send(model, state, effectivePrompt),
                             icon: _sending
                                 ? const SizedBox.square(
                                     dimension: 18,
@@ -183,6 +224,24 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
     });
   }
 
+  Future<void> _loadPrompt() async {
+    final memberId = await _memberId();
+    final prompt = await ref
+        .read(localChatStoreProvider)
+        .readPrompt(
+          memberId: memberId,
+          modelId: widget.modelId,
+          chatMode: widget.chatMode,
+        );
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _customPrompt = prompt;
+      _loadingPrompt = false;
+    });
+  }
+
   Future<void> _send(
     LocalModelItem model,
     LocalModelDownloadState state,
@@ -190,6 +249,10 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
   ) async {
     final content = _controller.text.trim();
     if (content.isEmpty || _sending) {
+      return;
+    }
+    if (prompt.systemPrompt.trim().isEmpty) {
+      context.showCenteredNotice(_t(context, '请先设置提示词', 'Set a prompt first'));
       return;
     }
 
@@ -254,9 +317,86 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
     setState(() => _messages = const []);
   }
 
+  ResolvedLocalPrompt _effectivePrompt(ResolvedLocalPrompt prompt) {
+    final custom = _customPrompt.trim();
+    if (custom.isEmpty) {
+      return prompt;
+    }
+    return ResolvedLocalPrompt(
+      systemPrompt: custom,
+      firstMessage: prompt.firstMessage,
+      hasPreset: prompt.hasPreset,
+    );
+  }
+
+  void _scheduleLocalPromptGate(ResolvedLocalPrompt prompt) {
+    if (prompt.hasPreset ||
+        _customPrompt.trim().isNotEmpty ||
+        _promptGateShown) {
+      return;
+    }
+    _promptGateShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        return;
+      }
+      final nextPrompt = await showChatPromptConfigSheet(
+        context,
+        chatMode: widget.chatMode,
+        title: _t(context, '设置本地提示词', 'Set local prompt'),
+        initialPrompt: '',
+      );
+      if (!mounted) {
+        return;
+      }
+      if (nextPrompt == null) {
+        Navigator.of(context).maybePop();
+        return;
+      }
+      await _saveLocalPrompt(nextPrompt);
+    });
+  }
+
+  Future<void> _editLocalPrompt(ResolvedLocalPrompt prompt) async {
+    final nextPrompt = await showChatPromptConfigSheet(
+      context,
+      chatMode: widget.chatMode,
+      title: _t(context, '修改本地提示词', 'Edit local prompt'),
+      initialPrompt: _customPrompt.trim().isNotEmpty
+          ? _customPrompt
+          : prompt.systemPrompt,
+    );
+    if (!mounted || nextPrompt == null) {
+      return;
+    }
+    await _saveLocalPrompt(nextPrompt);
+  }
+
+  Future<void> _saveLocalPrompt(String prompt) async {
+    final normalized = prompt.trim();
+    final memberId = await _memberId();
+    await ref
+        .read(localChatStoreProvider)
+        .savePrompt(
+          memberId: memberId,
+          modelId: widget.modelId,
+          chatMode: widget.chatMode,
+          prompt: normalized,
+        );
+    if (!mounted) {
+      return;
+    }
+    setState(() => _customPrompt = normalized);
+    context.showCenteredNotice(_t(context, '提示词已保存', 'Prompt saved'));
+  }
+
   Future<String> _memberId() async {
     return await ref.read(tokenStorageProvider).readMemberId() ?? 'anonymous';
   }
+}
+
+String _t(BuildContext context, String zh, String en) {
+  return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
 }
 
 class _RuntimeBanner extends StatelessWidget {

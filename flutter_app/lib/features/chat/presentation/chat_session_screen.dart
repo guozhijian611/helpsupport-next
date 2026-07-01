@@ -15,6 +15,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../auth/data/auth_models.dart';
 import '../application/chat_controller.dart';
 import '../data/chat_models.dart';
+import 'chat_prompt_config_sheet.dart';
 
 class ChatSessionScreen extends ConsumerStatefulWidget {
   const ChatSessionScreen({
@@ -52,6 +53,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   bool _callSubtitlesEnabled = false;
   bool _callFlashEnabled = false;
   bool _callUsingFrontCamera = true;
+  bool _promptGateShown = false;
 
   bool get _supportsDoctorCall => widget.chatMode == 'doctor';
 
@@ -91,6 +93,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   Widget build(BuildContext context) {
     final palette = _ChatSessionPalette.of(context);
     final records = ref.watch(chatRecordsProvider(widget.sessionId));
+    final promptConfig = ref.watch(chatConfigProvider(widget.chatMode));
     final authState = ref.watch(authControllerProvider);
     final session = switch (authState) {
       AsyncData(:final value) => value,
@@ -177,6 +180,30 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                   child: Column(
                     key: const ValueKey('chat-message-view'),
                     children: [
+                      promptConfig.when(
+                        data: (config) {
+                          final prompt = config?.promptText.trim() ?? '';
+                          _scheduleOnlinePromptGate(prompt);
+                          return ChatPromptSummaryBar(
+                            label: _t(context, '对话提示词', 'Chat prompt'),
+                            prompt: prompt,
+                            onEdit: () => _editOnlinePrompt(prompt),
+                          );
+                        },
+                        error: (error, _) => Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+                          child: Text(
+                            error.toString(),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: palette.secondaryText),
+                          ),
+                        ),
+                        loading: () => const Padding(
+                          padding: EdgeInsets.fromLTRB(16, 10, 16, 6),
+                          child: LinearProgressIndicator(minHeight: 2),
+                        ),
+                      ),
                       if (_conversationTime(
                         records.asData?.value.list ?? const [],
                       ).isNotEmpty)
@@ -694,6 +721,62 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     } finally {
       if (mounted) {
         setState(() => _sending = false);
+      }
+    }
+  }
+
+  void _scheduleOnlinePromptGate(String prompt) {
+    if (prompt.isNotEmpty || _promptGateShown) {
+      return;
+    }
+    _promptGateShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        return;
+      }
+      final nextPrompt = await showChatPromptConfigSheet(
+        context,
+        chatMode: widget.chatMode,
+        title: _t(context, '设置对话提示词', 'Set chat prompt'),
+        initialPrompt: '',
+      );
+      if (!mounted) {
+        return;
+      }
+      if (nextPrompt == null) {
+        Navigator.of(context).maybePop();
+        return;
+      }
+      await _saveOnlinePrompt(nextPrompt);
+    });
+  }
+
+  Future<void> _editOnlinePrompt(String currentPrompt) async {
+    final nextPrompt = await showChatPromptConfigSheet(
+      context,
+      chatMode: widget.chatMode,
+      title: _t(context, '修改对话提示词', 'Edit chat prompt'),
+      initialPrompt: currentPrompt,
+    );
+    if (!mounted || nextPrompt == null) {
+      return;
+    }
+    await _saveOnlinePrompt(nextPrompt);
+  }
+
+  Future<void> _saveOnlinePrompt(String prompt) async {
+    try {
+      await ref
+          .read(chatRepositoryProvider)
+          .saveConfig(chatMode: widget.chatMode, promptText: prompt);
+      ref.invalidate(chatConfigProvider(widget.chatMode));
+      ref.invalidate(chatOverviewProvider);
+      if (mounted) {
+        context.showCenteredNotice(_t(context, '提示词已保存', 'Prompt saved'));
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(error.toString());
       }
     }
   }

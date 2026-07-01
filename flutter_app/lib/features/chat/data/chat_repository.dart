@@ -16,6 +16,37 @@ class ChatRepository {
     return result.data ?? const ChatOverview(modes: [], recentSessions: []);
   }
 
+  Future<ChatConfig?> fetchConfig(String chatMode) async {
+    final result = await _apiClient.getApi<List<ChatConfig>>(
+      '/app/help/chat/config',
+      queryParameters: {'chat_mode': chatMode},
+      decode: (value) => _decodeList(value, ChatConfig.fromJson),
+    );
+    final configs = result.data ?? const <ChatConfig>[];
+    return configs.isEmpty ? null : configs.first;
+  }
+
+  Future<ChatConfig> saveConfig({
+    required String chatMode,
+    required String promptText,
+  }) async {
+    final result = await _apiClient.postApi<ChatConfig>(
+      '/app/help/chat/config',
+      data: {'chat_mode': chatMode, 'prompt_text': promptText},
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return ChatConfig.fromJson(value);
+        }
+        throw const FormatException('Unexpected chat config shape');
+      },
+    );
+    final config = result.data;
+    if (config == null || config.promptText.trim().isEmpty) {
+      throw const FormatException('聊天提示词保存失败');
+    }
+    return config;
+  }
+
   Future<ChatPage<ChatSession>> fetchSessions({String? chatMode}) async {
     final result = await _apiClient.getApi<ChatPage<ChatSession>>(
       '/app/help/chat/sessions',
@@ -111,4 +142,17 @@ class ChatRepository {
       decode: (_) => true,
     );
   }
+}
+
+List<T> _decodeList<T>(
+  Object? value,
+  T Function(Map<String, dynamic> json) decode,
+) {
+  if (value is! List) {
+    return const [];
+  }
+  return value
+      .whereType<Map<String, dynamic>>()
+      .map(decode)
+      .toList(growable: false);
 }

@@ -13,6 +13,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../chat/application/chat_controller.dart';
 import '../../chat/data/chat_models.dart';
 import '../../chat/presentation/chat_launch_sheet.dart';
+import '../../chat/presentation/chat_prompt_config_sheet.dart';
 import '../../community/application/community_controller.dart';
 import '../../community/data/community_models.dart';
 import '../../message/application/message_controller.dart';
@@ -156,8 +157,7 @@ class HomeDashboardScreen extends ConsumerWidget {
                       padding: const EdgeInsets.only(bottom: 14),
                       child: _ChatModeHeroCard(
                         mode: mode,
-                        onPrimaryTap: () =>
-                            _startSession(context, ref, mode.chatMode),
+                        onPrimaryTap: () => _startSession(context, ref, mode),
                       ),
                     ),
                   const SizedBox(height: 10),
@@ -241,12 +241,15 @@ class HomeDashboardScreen extends ConsumerWidget {
   Future<void> _startSession(
     BuildContext context,
     WidgetRef ref,
-    String chatMode,
+    ChatModeInfo mode,
   ) async {
-    final option = await showChatLaunchSheet(
-      context,
-      title: _modeTitle(context, chatMode),
-    );
+    final chatMode = mode.chatMode;
+    final option = chatMode == 'doctor'
+        ? ChatLaunchOption.online
+        : await showChatLaunchSheet(
+            context,
+            title: _modeTitle(context, chatMode),
+          );
     if (option == null || !context.mounted) {
       return;
     }
@@ -260,6 +263,10 @@ class HomeDashboardScreen extends ConsumerWidget {
           },
         ).toString(),
       );
+      return;
+    }
+    final promptReady = await _ensureOnlinePrompt(context, ref, mode);
+    if (!promptReady || !context.mounted) {
       return;
     }
     try {
@@ -276,6 +283,38 @@ class HomeDashboardScreen extends ConsumerWidget {
         return;
       }
       context.showCenteredNotice(error.toString());
+    }
+  }
+
+  Future<bool> _ensureOnlinePrompt(
+    BuildContext context,
+    WidgetRef ref,
+    ChatModeInfo mode,
+  ) async {
+    if (mode.promptText.trim().isNotEmpty) {
+      return true;
+    }
+    final prompt = await showChatPromptConfigSheet(
+      context,
+      chatMode: mode.chatMode,
+      title: _t(context, '设置对话提示词', 'Set chat prompt'),
+      initialPrompt: '',
+    );
+    if (prompt == null || !context.mounted) {
+      return false;
+    }
+    try {
+      await ref
+          .read(chatRepositoryProvider)
+          .saveConfig(chatMode: mode.chatMode, promptText: prompt);
+      ref.invalidate(chatOverviewProvider);
+      ref.invalidate(chatConfigProvider(mode.chatMode));
+      return true;
+    } on Object catch (error) {
+      if (context.mounted) {
+        context.showCenteredNotice(error.toString());
+      }
+      return false;
     }
   }
 

@@ -12,6 +12,11 @@ final chatOverviewProvider = FutureProvider.autoDispose<ChatOverview>((ref) {
   return ref.watch(chatRepositoryProvider).fetchOverview();
 });
 
+final chatConfigProvider = FutureProvider.autoDispose
+    .family<ChatConfig?, String>((ref, chatMode) {
+      return ref.watch(chatRepositoryProvider).fetchConfig(chatMode);
+    });
+
 final chatRecordsProvider = FutureProvider.autoDispose
     .family<ChatPage<ChatRecord>, int>((ref, sessionId) {
       return ref.watch(chatRepositoryProvider).fetchRecords(sessionId);

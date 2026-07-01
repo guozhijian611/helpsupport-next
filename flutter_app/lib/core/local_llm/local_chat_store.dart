@@ -104,8 +104,35 @@ class LocalChatStore {
     return _storage.deleteValue(_key(memberId, modelId, chatMode));
   }
 
+  Future<String> readPrompt({
+    required String memberId,
+    required int modelId,
+    required String chatMode,
+  }) async {
+    return (await _storage.readValue(
+          _promptKey(memberId, modelId, chatMode),
+        ))?.trim() ??
+        '';
+  }
+
+  Future<void> savePrompt({
+    required String memberId,
+    required int modelId,
+    required String chatMode,
+    required String prompt,
+  }) {
+    return _storage.writeValue(
+      _promptKey(memberId, modelId, chatMode),
+      prompt.trim(),
+    );
+  }
+
   String _key(String memberId, int modelId, String chatMode) {
     return 'helpsupport.local_chat.${_safePart(memberId)}.$modelId.$chatMode';
+  }
+
+  String _promptKey(String memberId, int modelId, String chatMode) {
+    return 'helpsupport.local_chat_prompt.${_safePart(memberId)}.$modelId.$chatMode';
   }
 
   String _safePart(String value) {
