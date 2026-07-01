@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cache/cached_remote_image.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/local_llm/llama_engine.dart';
 import '../../../core/local_llm/local_chat_store.dart';
 import '../../../core/local_llm/local_prompt_resolver.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../chat/application/chat_controller.dart';
+import '../../chat/data/chat_models.dart';
 import '../../chat/presentation/chat_prompt_config_sheet.dart';
 import '../application/local_model_controller.dart';
 import '../data/local_model_models.dart';
@@ -80,6 +83,13 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
     final prompts = ref.watch(localModelPromptsProvider(promptLocale));
     final downloadStates = ref.watch(localModelDownloadControllerProvider);
     final runtimeStatus = ref.watch(llamaRuntimeStatusProvider);
+    final robotProfiles = ref.watch(aiRobotProfilesProvider('local'));
+    final apiClient = ref.watch(apiClientProvider);
+    final robotProfile = _robotProfileFor(
+      widget.chatMode,
+      'local',
+      robotProfiles.asData?.value,
+    );
     final runtimeReady = runtimeStatus.hasValue
         ? runtimeStatus.value?.isAvailable == true
         : false;
@@ -145,6 +155,8 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
                         loading: _loadingMessages,
                         messages: _messages,
                         firstMessage: prompt.firstMessage,
+                        robotProfile: robotProfile,
+                        resolveImageUrl: apiClient.resolveUrl,
                       ),
                     ),
                     Padding(
@@ -501,11 +513,15 @@ class _LocalMessageList extends StatelessWidget {
     required this.loading,
     required this.messages,
     required this.firstMessage,
+    required this.robotProfile,
+    required this.resolveImageUrl,
   });
 
   final bool loading;
   final List<LocalChatMessage> messages;
   final String firstMessage;
+  final AiRobotProfile robotProfile;
+  final String Function(String value) resolveImageUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -532,26 +548,123 @@ class _LocalMessageList extends StatelessWidget {
       itemBuilder: (context, index) {
         final message = visibleMessages[index];
         final isUser = message.role == 'user';
+        final messageCard = ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.sizeOf(context).width * 0.72,
+          ),
+          child: Card(
+            color: isUser
+                ? Theme.of(context).colorScheme.primaryContainer
+                : null,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(message.content),
+            ),
+          ),
+        );
+        if (!isUser) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _LocalRobotAvatar(
+                  profile: robotProfile,
+                  resolveImageUrl: resolveImageUrl,
+                ),
+                const SizedBox(width: 10),
+                Flexible(child: messageCard),
+              ],
+            ),
+          );
+        }
+
         return Align(
-          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.sizeOf(context).width * 0.78,
-            ),
-            child: Card(
-              color: isUser
-                  ? Theme.of(context).colorScheme.primaryContainer
-                  : null,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Text(message.content),
-              ),
-            ),
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: messageCard,
           ),
         );
       },
     );
   }
+}
+
+class _LocalRobotAvatar extends StatelessWidget {
+  const _LocalRobotAvatar({
+    required this.profile,
+    required this.resolveImageUrl,
+  });
+
+  final AiRobotProfile profile;
+  final String Function(String value) resolveImageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final rawAvatar = profile.avatarFor(
+      darkMode: Theme.of(context).brightness == Brightness.dark,
+    );
+    final avatarUrl = rawAvatar.trim().isEmpty
+        ? ''
+        : resolveImageUrl(rawAvatar);
+    if (avatarUrl.isEmpty) {
+      return CircleAvatar(
+        radius: 20,
+        backgroundColor: colorScheme.secondaryContainer,
+        child: Icon(
+          _modeAvatarIcon(profile.chatMode),
+          color: colorScheme.onSecondaryContainer,
+          size: 20,
+        ),
+      );
+    }
+
+    return ClipOval(
+      child: SizedBox(
+        width: 40,
+        height: 40,
+        child: CachedRemoteImage(
+          avatarUrl,
+          fit: BoxFit.cover,
+          placeholder: ColoredBox(color: colorScheme.secondaryContainer),
+          errorWidget: CircleAvatar(
+            radius: 20,
+            backgroundColor: colorScheme.secondaryContainer,
+            child: Icon(
+              _modeAvatarIcon(profile.chatMode),
+              color: colorScheme.onSecondaryContainer,
+              size: 20,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+AiRobotProfile _robotProfileFor(
+  String chatMode,
+  String runtimeMode,
+  List<AiRobotProfile>? profiles,
+) {
+  if (profiles != null) {
+    for (final profile in profiles) {
+      if (profile.chatMode == chatMode) {
+        return profile;
+      }
+    }
+  }
+  return AiRobotProfile.fallback(chatMode: chatMode, runtimeMode: runtimeMode);
+}
+
+IconData _modeAvatarIcon(String mode) {
+  return switch (mode) {
+    'patient' => Icons.healing_rounded,
+    'companion' => Icons.volunteer_activism_rounded,
+    _ => Icons.smart_toy_rounded,
+  };
 }
 
 class _CenteredMessage extends StatelessWidget {

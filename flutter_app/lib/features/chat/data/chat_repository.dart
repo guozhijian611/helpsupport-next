@@ -26,6 +26,19 @@ class ChatRepository {
     return configs.isEmpty ? null : configs.first;
   }
 
+  Future<List<AiRobotProfile>> fetchRobotProfiles(String runtimeMode) async {
+    final result = await _apiClient.getApi<List<AiRobotProfile>>(
+      '/app/help/chat/robot-profiles',
+      queryParameters: {'runtime_mode': runtimeMode},
+      decode: (value) => _decodeList(
+        value,
+        (json) =>
+            AiRobotProfile.fromJson(json, fallbackRuntimeMode: runtimeMode),
+      ),
+    );
+    return result.data ?? const [];
+  }
+
   Future<ChatConfig> saveConfig({
     required String chatMode,
     required String promptText,

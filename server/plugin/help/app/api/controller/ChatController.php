@@ -51,6 +51,17 @@ class ChatController extends BaseController
         return ok($this->service->saveChatConfig($this->memberId, $request->post()));
     }
 
+    #[Apidoc\Title('AI机器人形象配置')]
+    #[Apidoc\Url('/app/help/chat/robot-profiles')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('runtime_mode', type: 'string', require: false, default: 'online', desc: '运行模式 online/local')]
+    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient')]
+    #[Apidoc\Returned('list', type: 'array', desc: '按聊天模式返回机器人头像、显示名和简介')]
+    public function robotProfiles(Request $request): Response
+    {
+        return ok($this->service->aiRobotProfiles($request->get()));
+    }
+
     #[Apidoc\Title('聊天会话列表')]
     #[Apidoc\Url('/app/help/chat/sessions')]
     #[Apidoc\Method('GET')]

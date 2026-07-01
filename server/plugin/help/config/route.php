@@ -15,6 +15,7 @@ use plugin\help\app\api\controller\PushController;
 use plugin\help\app\admin\controller\appointment\SaDoctorAppointmentController as AdminDoctorAppointmentController;
 use plugin\help\app\admin\controller\appointment\SaDoctorScheduleController as AdminDoctorScheduleController;
 use plugin\help\app\admin\controller\audit\SaHelpDoctorProfileController as AdminHelpDoctorProfileController;
+use plugin\help\app\admin\controller\chat\SaAiRobotProfileController as AdminAiRobotProfileController;
 use plugin\help\app\admin\controller\chat\SaMemberChatConfigController as AdminMemberChatConfigController;
 use plugin\help\app\admin\controller\chat\SaMemberChatRecordController as AdminMemberChatRecordController;
 use plugin\help\app\admin\controller\chat\SaMemberChatSessionController as AdminMemberChatSessionController;
@@ -78,6 +79,7 @@ Route::group('/app/help', function () {
     Route::get('/chat/overview', [ChatController::class, 'overview']);
     Route::get('/chat/config', [ChatController::class, 'configs']);
     Route::post('/chat/config', [ChatController::class, 'saveConfig']);
+    Route::get('/chat/robot-profiles', [ChatController::class, 'robotProfiles']);
     Route::get('/chat/sessions', [ChatController::class, 'sessions']);
     Route::post('/chat/session', [ChatController::class, 'saveSession']);
     Route::post('/chat/session/delete', [ChatController::class, 'deleteSession']);
@@ -227,6 +229,7 @@ Route::group('/app/help/admin/audit', function () {
 });
 
 Route::group('/app/help/admin/chat', function () {
+    fastRoute('SaAiRobotProfile', AdminAiRobotProfileController::class);
     fastRoute('SaMemberChatConfig', AdminMemberChatConfigController::class);
     fastRoute('SaMemberChatSession', AdminMemberChatSessionController::class);
     fastRoute('SaMemberChatRecord', AdminMemberChatRecordController::class);

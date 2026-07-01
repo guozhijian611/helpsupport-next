@@ -103,6 +103,17 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     };
     final apiClient = ref.watch(apiClientProvider);
     final userAvatarUrl = _resolveUserAvatar(session, apiClient.resolveUrl);
+    final robotProfiles = ref.watch(aiRobotProfilesProvider('online'));
+    final robotProfile = _robotProfileFor(
+      widget.chatMode,
+      'online',
+      robotProfiles.asData?.value,
+    );
+    final assistantAvatarUrl = _resolveRobotAvatar(
+      context,
+      robotProfile,
+      apiClient.resolveUrl,
+    );
 
     return WillPopScope(
       onWillPop: () async {
@@ -229,6 +240,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                             records: page.list,
                             chatMode: widget.chatMode,
                             userAvatarUrl: userAvatarUrl,
+                            assistantAvatarUrl: assistantAvatarUrl,
                             expandedVoiceTextIds: _expandedVoiceTextIds,
                             onToggleTranscript: _toggleTranscript,
                             onRecordActions: _openRecordActions,
@@ -905,6 +917,7 @@ class _RecordList extends StatelessWidget {
     required this.records,
     required this.chatMode,
     required this.userAvatarUrl,
+    required this.assistantAvatarUrl,
     required this.expandedVoiceTextIds,
     required this.onToggleTranscript,
     required this.onRecordActions,
@@ -913,6 +926,7 @@ class _RecordList extends StatelessWidget {
   final List<ChatRecord> records;
   final String chatMode;
   final String userAvatarUrl;
+  final String assistantAvatarUrl;
   final Set<int> expandedVoiceTextIds;
   final ValueChanged<ChatRecord> onToggleTranscript;
   final ValueChanged<ChatRecord> onRecordActions;
@@ -934,6 +948,7 @@ class _RecordList extends StatelessWidget {
             record: record,
             chatMode: chatMode,
             userAvatarUrl: userAvatarUrl,
+            assistantAvatarUrl: assistantAvatarUrl,
             transcriptExpanded: expandedVoiceTextIds.contains(record.id),
             onToggleTranscript: () => onToggleTranscript(record),
             onLongPress: () => onRecordActions(record),
@@ -949,6 +964,7 @@ class _MessageBubble extends StatelessWidget {
     required this.record,
     required this.chatMode,
     required this.userAvatarUrl,
+    required this.assistantAvatarUrl,
     required this.transcriptExpanded,
     required this.onToggleTranscript,
     required this.onLongPress,
@@ -957,6 +973,7 @@ class _MessageBubble extends StatelessWidget {
   final ChatRecord record;
   final String chatMode;
   final String userAvatarUrl;
+  final String assistantAvatarUrl;
   final bool transcriptExpanded;
   final VoidCallback onToggleTranscript;
   final VoidCallback onLongPress;
@@ -987,7 +1004,8 @@ class _MessageBubble extends StatelessWidget {
           if (!record.isUser)
             _BubbleAvatar(
               backgroundColor: avatarColor,
-              icon: Icons.smart_toy_rounded,
+              icon: _modeAvatarIcon(chatMode),
+              imageUrl: assistantAvatarUrl,
             ),
           if (!record.isUser) const SizedBox(width: 10),
           Flexible(
@@ -2193,6 +2211,40 @@ String _resolveUserAvatar(
     return '';
   }
   return resolveUrl(avatar);
+}
+
+AiRobotProfile _robotProfileFor(
+  String chatMode,
+  String runtimeMode,
+  List<AiRobotProfile>? profiles,
+) {
+  if (profiles != null) {
+    for (final profile in profiles) {
+      if (profile.chatMode == chatMode) {
+        return profile;
+      }
+    }
+  }
+  return AiRobotProfile.fallback(chatMode: chatMode, runtimeMode: runtimeMode);
+}
+
+String _resolveRobotAvatar(
+  BuildContext context,
+  AiRobotProfile profile,
+  String Function(String value) resolveUrl,
+) {
+  final raw = profile.avatarFor(
+    darkMode: Theme.of(context).brightness == Brightness.dark,
+  );
+  return raw.trim().isEmpty ? '' : resolveUrl(raw);
+}
+
+IconData _modeAvatarIcon(String mode) {
+  return switch (mode) {
+    'patient' => Icons.healing_rounded,
+    'companion' => Icons.volunteer_activism_rounded,
+    _ => Icons.smart_toy_rounded,
+  };
 }
 
 bool _hasTranscript(ChatRecord record) {

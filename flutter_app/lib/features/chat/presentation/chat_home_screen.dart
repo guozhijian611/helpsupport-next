@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/cache/cached_remote_image.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
+import '../../../core/providers/app_providers.dart';
 import '../application/chat_controller.dart';
 import '../data/chat_models.dart';
 import 'chat_launch_sheet.dart';
@@ -16,6 +18,7 @@ class ChatHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = _ChatHomePalette.of(context);
     final overview = ref.watch(chatOverviewProvider);
+    final apiClient = ref.watch(apiClientProvider);
 
     return Scaffold(
       backgroundColor: palette.pageBackground,
@@ -28,90 +31,100 @@ class ChatHomeScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: overview.when(
-          data: (data) => RefreshIndicator(
-            onRefresh: () async => ref.invalidate(chatOverviewProvider),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: palette.cardBackground,
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 26,
-                        backgroundColor: palette.avatarBackground,
-                        child: const Icon(
-                          Icons.smart_toy_rounded,
-                          color: Color(0xFF5B86DB),
-                          size: 28,
+          data: (data) {
+            final robotProfiles = {
+              for (final mode in data.modes) mode.chatMode: mode.robotProfile,
+            };
+            return RefreshIndicator(
+              onRefresh: () async => ref.invalidate(chatOverviewProvider),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: palette.cardBackground,
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundColor: palette.avatarBackground,
+                          child: const Icon(
+                            Icons.smart_toy_rounded,
+                            color: Color(0xFF5B86DB),
+                            size: 28,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              context.l10n.chatTitle,
-                              style: TextStyle(
-                                color: palette.primaryText,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                context.l10n.chatTitle,
+                                style: TextStyle(
+                                  color: palette.primaryText,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              _t(
-                                context,
-                                '选择适合你当前状态的模式，开始一段真实对话。',
-                                'Choose the mode that fits your current state and begin a real conversation.',
+                              const SizedBox(height: 6),
+                              Text(
+                                _t(
+                                  context,
+                                  '选择适合你当前状态的模式，开始一段真实对话。',
+                                  'Choose the mode that fits your current state and begin a real conversation.',
+                                ),
+                                style: TextStyle(
+                                  color: palette.secondaryText,
+                                  height: 1.5,
+                                ),
                               ),
-                              style: TextStyle(
-                                color: palette.secondaryText,
-                                height: 1.5,
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                for (final mode in data.modes)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: _ModeCard(
-                      mode: mode,
-                      onTap: () => _startSession(context, ref, mode),
+                      ],
                     ),
                   ),
-                const SizedBox(height: 8),
-                Text(
-                  context.l10n.recentConversations,
-                  style: TextStyle(
-                    color: palette.primaryText,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (data.recentSessions.isEmpty)
-                  _EmptyState(text: context.l10n.noConversations)
-                else
-                  ...data.recentSessions.map(
-                    (session) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _SessionTile(session: session),
+                  const SizedBox(height: 16),
+                  for (final mode in data.modes)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: _ModeCard(
+                        mode: mode,
+                        resolveImageUrl: apiClient.resolveUrl,
+                        onTap: () => _startSession(context, ref, mode),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  Text(
+                    context.l10n.recentConversations,
+                    style: TextStyle(
+                      color: palette.primaryText,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-              ],
-            ),
-          ),
+                  const SizedBox(height: 12),
+                  if (data.recentSessions.isEmpty)
+                    _EmptyState(text: context.l10n.noConversations)
+                  else
+                    ...data.recentSessions.map(
+                      (session) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _SessionTile(
+                          session: session,
+                          robotProfile: robotProfiles[session.chatMode],
+                          resolveImageUrl: apiClient.resolveUrl,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
           error: (error, _) => _ErrorState(
             message: error.toString(),
             onRetry: () => ref.invalidate(chatOverviewProvider),
@@ -207,15 +220,21 @@ class ChatHomeScreen extends ConsumerWidget {
 }
 
 class _ModeCard extends StatelessWidget {
-  const _ModeCard({required this.mode, required this.onTap});
+  const _ModeCard({
+    required this.mode,
+    required this.resolveImageUrl,
+    required this.onTap,
+  });
 
   final ChatModeInfo mode;
+  final String Function(String value) resolveImageUrl;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final visual = _modeVisual(context, mode.chatMode);
     final latest = mode.latestSession;
+    final languageCode = Localizations.localeOf(context).languageCode;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
@@ -230,7 +249,7 @@ class _ModeCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _modeTitle(context, mode.chatMode),
+                  mode.robotProfile.displayNameFor(languageCode),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 22,
@@ -239,7 +258,7 @@ class _ModeCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _modeDescription(context, mode.chatMode),
+                  mode.robotProfile.descriptionFor(languageCode),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -302,11 +321,13 @@ class _ModeCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 18),
-          Container(
-            width: 104,
-            height: 104,
-            decoration: BoxDecoration(color: visual.$4, shape: BoxShape.circle),
-            child: Icon(visual.$5, color: Colors.white, size: 50),
+          _RobotProfileAvatar(
+            profile: mode.robotProfile,
+            resolveImageUrl: resolveImageUrl,
+            size: 104,
+            backgroundColor: visual.$4,
+            icon: visual.$5,
+            iconColor: Colors.white,
           ),
         ],
       ),
@@ -315,9 +336,15 @@ class _ModeCard extends StatelessWidget {
 }
 
 class _SessionTile extends ConsumerWidget {
-  const _SessionTile({required this.session});
+  const _SessionTile({
+    required this.session,
+    required this.robotProfile,
+    required this.resolveImageUrl,
+  });
 
   final ChatSession session;
+  final AiRobotProfile? robotProfile;
+  final String Function(String value) resolveImageUrl;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -329,14 +356,20 @@ class _SessionTile extends ConsumerWidget {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-        leading: CircleAvatar(
+        leading: _RobotProfileAvatar(
+          profile:
+              robotProfile ??
+              AiRobotProfile.fallback(
+                chatMode: session.chatMode,
+                runtimeMode: 'online',
+              ),
+          resolveImageUrl: resolveImageUrl,
+          size: 40,
           backgroundColor: _modeAccent(
             session.chatMode,
           ).withValues(alpha: 0.14),
-          child: Icon(
-            _modeIcon(session.chatMode),
-            color: _modeAccent(session.chatMode),
-          ),
+          icon: _modeIcon(session.chatMode),
+          iconColor: _modeAccent(session.chatMode),
         ),
         title: Text(
           session.sessionName,
@@ -405,6 +438,84 @@ class _EmptyState extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _RobotProfileAvatar extends StatelessWidget {
+  const _RobotProfileAvatar({
+    required this.profile,
+    required this.resolveImageUrl,
+    required this.size,
+    required this.backgroundColor,
+    required this.icon,
+    required this.iconColor,
+  });
+
+  final AiRobotProfile profile;
+  final String Function(String value) resolveImageUrl;
+  final double size;
+  final Color backgroundColor;
+  final IconData icon;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final rawAvatar = profile.avatarFor(
+      darkMode: Theme.of(context).brightness == Brightness.dark,
+    );
+    final avatarUrl = rawAvatar.trim().isEmpty
+        ? ''
+        : resolveImageUrl(rawAvatar);
+    if (avatarUrl.isEmpty) {
+      return _FallbackRobotAvatar(
+        size: size,
+        backgroundColor: backgroundColor,
+        icon: icon,
+        iconColor: iconColor,
+      );
+    }
+
+    return ClipOval(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: CachedRemoteImage(
+          avatarUrl,
+          fit: BoxFit.cover,
+          placeholder: ColoredBox(color: backgroundColor),
+          errorWidget: _FallbackRobotAvatar(
+            size: size,
+            backgroundColor: backgroundColor,
+            icon: icon,
+            iconColor: iconColor,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FallbackRobotAvatar extends StatelessWidget {
+  const _FallbackRobotAvatar({
+    required this.size,
+    required this.backgroundColor,
+    required this.icon,
+    required this.iconColor,
+  });
+
+  final double size;
+  final Color backgroundColor;
+  final IconData icon;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: backgroundColor, shape: BoxShape.circle),
+      child: Icon(icon, color: iconColor, size: size * 0.48),
     );
   }
 }

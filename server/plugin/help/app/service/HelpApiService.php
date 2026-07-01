@@ -844,6 +844,7 @@ class HelpApiService
     public function chatOverview(int $memberId): array
     {
         $modes = [];
+        $robotProfiles = $this->aiRobotProfilesByRuntime('online');
         foreach ($this->chatModes() as $mode) {
             $latestSession = Db::table('sa_member_chat_session')
                 ->where('member_id', $memberId)
@@ -863,6 +864,7 @@ class HelpApiService
                     ->where('chat_mode', $mode)
                     ->whereNull('delete_time')
                     ->value('prompt_text'),
+                'robot_profile' => $robotProfiles[$mode] ?? $this->defaultAiRobotProfile($mode, 'online'),
                 'session_count' => (int) Db::table('sa_member_chat_session')
                     ->where('member_id', $memberId)
                     ->where('chat_mode', $mode)
@@ -887,6 +889,23 @@ class HelpApiService
                 ->select()
                 ->toArray(),
         ];
+    }
+
+    public function aiRobotProfiles(array $params): array
+    {
+        $runtimeMode = $this->runtimeMode($params['runtime_mode'] ?? 'online');
+        $profiles = $this->aiRobotProfilesByRuntime($runtimeMode);
+        if (!empty($params['chat_mode'])) {
+            $chatMode = $this->chatMode($params['chat_mode']);
+            return [$profiles[$chatMode] ?? $this->defaultAiRobotProfile($chatMode, $runtimeMode)];
+        }
+
+        $result = [];
+        foreach ($this->chatModes() as $chatMode) {
+            $result[] = $profiles[$chatMode] ?? $this->defaultAiRobotProfile($chatMode, $runtimeMode);
+        }
+
+        return $result;
     }
 
     public function chatConfigs(int $memberId, array $params): array
@@ -6105,6 +6124,116 @@ class HelpApiService
     private function chatModes(): array
     {
         return ['doctor', 'companion', 'patient'];
+    }
+
+    private function runtimeMode(mixed $value): string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            $value = 'online';
+        }
+        if (!in_array($value, ['online', 'local'], true)) {
+            throw new ApiException('运行模式参数错误', 400);
+        }
+
+        return $value;
+    }
+
+    private function aiRobotProfilesByRuntime(string $runtimeMode): array
+    {
+        if (!$this->tableExists('sa_ai_robot_profile')) {
+            return [];
+        }
+
+        $rows = Db::table('sa_ai_robot_profile')
+            ->where('runtime_mode', $runtimeMode)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->order('sort', 'asc')
+            ->order('id', 'asc')
+            ->select()
+            ->toArray();
+        $profiles = [];
+        foreach ($rows as $row) {
+            $chatMode = (string) ($row['chat_mode'] ?? '');
+            if (!in_array($chatMode, $this->chatModes(), true) || isset($profiles[$chatMode])) {
+                continue;
+            }
+            $profiles[$chatMode] = $this->normalizeAiRobotProfile($row, $runtimeMode);
+        }
+
+        return $profiles;
+    }
+
+    private function tableExists(string $table): bool
+    {
+        static $cache = [];
+        if (array_key_exists($table, $cache)) {
+            return $cache[$table];
+        }
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $table)) {
+            $cache[$table] = false;
+            return false;
+        }
+
+        try {
+            $cache[$table] = Db::query("SHOW TABLES LIKE '{$table}'") !== [];
+        } catch (Throwable) {
+            $cache[$table] = false;
+        }
+
+        return $cache[$table];
+    }
+
+    private function normalizeAiRobotProfile(array $row, string $runtimeMode): array
+    {
+        $chatMode = (string) ($row['chat_mode'] ?? '');
+        $fallback = $this->defaultAiRobotProfile($chatMode, $runtimeMode);
+
+        return [
+            'id' => (int) ($row['id'] ?? 0),
+            'chat_mode' => $chatMode !== '' ? $chatMode : $fallback['chat_mode'],
+            'runtime_mode' => (string) ($row['runtime_mode'] ?? $runtimeMode),
+            'display_name' => trim((string) ($row['display_name'] ?? '')) ?: $fallback['display_name'],
+            'display_name_en' => trim((string) ($row['display_name_en'] ?? '')) ?: $fallback['display_name_en'],
+            'description' => trim((string) ($row['description'] ?? '')) ?: $fallback['description'],
+            'description_en' => trim((string) ($row['description_en'] ?? '')) ?: $fallback['description_en'],
+            'avatar' => trim((string) ($row['avatar'] ?? '')),
+            'dark_avatar' => trim((string) ($row['dark_avatar'] ?? '')),
+            'sort' => (int) ($row['sort'] ?? 100),
+            'status' => (int) ($row['status'] ?? 1),
+        ];
+    }
+
+    private function defaultAiRobotProfile(string $chatMode, string $runtimeMode): array
+    {
+        $displayNames = [
+            'doctor' => ['AI 心理医生', 'AI doctor'],
+            'patient' => ['AI 模拟病人', 'AI patient'],
+            'companion' => ['AI 心理陪伴', 'AI companion'],
+        ];
+        $descriptions = [
+            'doctor' => ['谨慎、温和的心理支持助手', 'Careful and gentle mental health support'],
+            'patient' => ['用于角色演练和沟通练习的模拟病人', 'A simulated patient for role-play and communication practice'],
+            'companion' => ['稳定、耐心的陪伴式支持助手', 'Steady and patient companion support'],
+        ];
+        $chatMode = in_array($chatMode, $this->chatModes(), true) ? $chatMode : 'companion';
+        $name = $displayNames[$chatMode];
+        $description = $descriptions[$chatMode];
+
+        return [
+            'id' => 0,
+            'chat_mode' => $chatMode,
+            'runtime_mode' => $runtimeMode,
+            'display_name' => $name[0],
+            'display_name_en' => $name[1],
+            'description' => $description[0],
+            'description_en' => $description[1],
+            'avatar' => '',
+            'dark_avatar' => '',
+            'sort' => 100,
+            'status' => 1,
+        ];
     }
 
     private function chatMode(mixed $value): string

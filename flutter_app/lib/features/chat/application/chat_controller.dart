@@ -17,6 +17,11 @@ final chatConfigProvider = FutureProvider.autoDispose
       return ref.watch(chatRepositoryProvider).fetchConfig(chatMode);
     });
 
+final aiRobotProfilesProvider = FutureProvider.autoDispose
+    .family<List<AiRobotProfile>, String>((ref, runtimeMode) {
+      return ref.watch(chatRepositoryProvider).fetchRobotProfiles(runtimeMode);
+    });
+
 final chatRecordsProvider = FutureProvider.autoDispose
     .family<ChatPage<ChatRecord>, int>((ref, sessionId) {
       return ref.watch(chatRepositoryProvider).fetchRecords(sessionId);
