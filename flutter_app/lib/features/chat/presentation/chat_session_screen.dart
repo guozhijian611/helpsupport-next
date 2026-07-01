@@ -54,6 +54,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   Timer? _recordingTicker;
   Timer? _callFrameTimer;
   Timer? _callPingTimer;
+  Timer? _callAudioWatchdogTimer;
   Duration _recordingElapsed = Duration.zero;
   DateTime? _recordingStartedAt;
   DateTime? _callStartedAt;
@@ -102,6 +103,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     unawaited(_streamSubscription?.cancel() ?? Future<void>.value());
     unawaited(_stopRealtimeCall());
     _recordingTicker?.cancel();
+    _stopCallAudioWatchdog();
     unawaited(_cameraController?.dispose() ?? Future<void>.value());
     unawaited(_callRecorder.dispose());
     unawaited(_callAudioPlayer.dispose());
@@ -587,6 +589,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   Future<void> _stopRealtimeCall() async {
     _stopCallPingTimer();
     _stopCallFrameTimer();
+    _stopCallAudioWatchdog();
     await _stopCallAudio();
     final socket = _callSocket;
     _callSocket = null;
@@ -761,6 +764,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
             chunk.isEmpty) {
           return;
         }
+        _stopCallAudioWatchdog();
         _sendRealtimeJson({
           'type': 'input_audio_buffer.append',
           'event_id': _realtimeEventId('audio'),
@@ -771,6 +775,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         unawaited(_sendCallVideoFrame());
       },
       onError: (Object error) {
+        _stopCallAudioWatchdog();
         if (mounted) {
           setState(() => _callStatusMessage = error.toString());
         }
@@ -781,12 +786,14 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         _callRecording = true;
         _callStatusMessage = _t(context, '你可以开始说话', 'You can start talking');
       });
+      _startCallAudioWatchdog();
     } else {
       _callRecording = true;
     }
   }
 
   Future<void> _stopCallAudio() async {
+    _stopCallAudioWatchdog();
     await _callAudioSubscription?.cancel();
     _callAudioSubscription = null;
     try {
@@ -797,6 +804,32 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       // Ignore teardown failures while closing the realtime call.
     }
     _callRecording = false;
+  }
+
+  void _startCallAudioWatchdog() {
+    _stopCallAudioWatchdog();
+    _callAudioWatchdogTimer = Timer(const Duration(seconds: 6), () {
+      if (!mounted ||
+          !_callActive ||
+          !_callConnected ||
+          !_callUpstreamReady ||
+          !_callRecording ||
+          _callSentAudioChunks > 0) {
+        return;
+      }
+      setState(() {
+        _callStatusMessage = _t(
+          context,
+          '未收到麦克风音频，请检查 BlueStacks 麦克风或改用真机测试',
+          'No microphone audio was received. Check BlueStacks microphone or test on a real device.',
+        );
+      });
+    });
+  }
+
+  void _stopCallAudioWatchdog() {
+    _callAudioWatchdogTimer?.cancel();
+    _callAudioWatchdogTimer = null;
   }
 
   void _startCallFrameTimer() {
