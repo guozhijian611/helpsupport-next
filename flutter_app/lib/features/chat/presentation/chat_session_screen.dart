@@ -54,6 +54,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   Timer? _streamSyncTimer;
   Timer? _recordingTicker;
   Timer? _callPingTimer;
+  Timer? _callDebugTicker;
   Timer? _callAudioWatchdogTimer;
   Timer? _callTurnCommitTimer;
   Duration _recordingElapsed = Duration.zero;
@@ -82,8 +83,11 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   bool _callAudioReadyForFrame = false;
   bool _callPendingAudioTurn = false;
   bool _callResponseActive = false;
+  bool _callDebugOverlayExpanded = true;
   bool _promptGateShown = false;
   String _callStatusMessage = '';
+  String _callLastRealtimeEvent = '';
+  String _callLastRealtimeError = '';
   String _callAssistantText = '';
   final List<Uint8List> _callOutputPcmChunks = <Uint8List>[];
   final Set<String> _callSavedUserTranscriptIds = <String>{};
@@ -107,6 +111,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     unawaited(_streamSubscription?.cancel() ?? Future<void>.value());
     unawaited(_stopRealtimeCall());
     _recordingTicker?.cancel();
+    _stopCallDebugTicker();
     _stopCallAudioWatchdog();
     unawaited(_disposeCallCamera());
     unawaited(_callRecorder.dispose());
@@ -227,6 +232,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                   recording: _callRecording,
                   statusMessage: _callStatusMessage,
                   assistantText: _callAssistantText,
+                  debugLines: _callDebugLines(),
+                  debugExpanded: _callDebugOverlayExpanded,
                   flashEnabled: _callFlashEnabled,
                   usingFrontCamera: _callUsingFrontCamera,
                   onBackToMessages: _dismissCallView,
@@ -235,6 +242,10 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                   onToggleMute: _toggleCallMute,
                   onToggleSubtitles: () => setState(
                     () => _callSubtitlesEnabled = !_callSubtitlesEnabled,
+                  ),
+                  onToggleDebug: () => setState(
+                    () =>
+                        _callDebugOverlayExpanded = !_callDebugOverlayExpanded,
                   ),
                   onToggleFlash: () => unawaited(_toggleCallFlash()),
                   onFlipCamera: () => unawaited(_flipCallCamera()),
@@ -362,7 +373,10 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       _callUpstreamReady = false;
       _callRecording = false;
       _callResponseActive = false;
+      _callDebugOverlayExpanded = true;
       _callStatusMessage = '';
+      _callLastRealtimeEvent = '';
+      _callLastRealtimeError = '';
       _callAssistantText = '';
       _cameraInitializing = false;
       _cameraErrorMessage = null;
@@ -391,6 +405,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         _callUsingFrontCamera = true;
         _cameraErrorMessage = null;
       });
+      _startCallDebugTicker();
       await _ensureCallCameraReady();
       await _startRealtimeCall();
     }
@@ -426,7 +441,10 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         _callUpstreamReady = false;
         _callRecording = false;
         _callResponseActive = false;
+        _callDebugOverlayExpanded = true;
         _callStatusMessage = '';
+        _callLastRealtimeEvent = '';
+        _callLastRealtimeError = '';
         _callAssistantText = '';
         _cameraInitializing = false;
         _cameraErrorMessage = null;
@@ -506,6 +524,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         'Connecting to realtime AI',
       );
       _callAssistantText = '';
+      _callLastRealtimeEvent = 'client.connect';
+      _callLastRealtimeError = '';
       _callSavedUserTranscriptIds.clear();
       _callOutputPcmChunks.clear();
       _callSentAudioChunks = 0;
@@ -542,6 +562,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
           }
           setState(() {
             _callStatusMessage = error.toString();
+            _callLastRealtimeError = error.toString();
             _callConnected = false;
             _callUpstreamReady = false;
           });
@@ -554,6 +575,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
             _callConnected = false;
             _callUpstreamReady = false;
             _callRecording = false;
+            _callLastRealtimeEvent = 'socket.done';
             if (_callActive) {
               _callStatusMessage = _t(
                 context,
@@ -576,6 +598,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       setState(() {
         _callConnecting = false;
         _callStatusMessage = error.toString();
+        _callLastRealtimeError = error.toString();
       });
       context.showCenteredNotice(error.toString());
     }
@@ -596,6 +619,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   }
 
   Future<void> _stopRealtimeCall() async {
+    _stopCallDebugTicker();
     _stopCallPingTimer();
     await _stopCallImageStream();
     _stopCallAudioWatchdog();
@@ -620,14 +644,57 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         _callUpstreamReady = false;
         _callRecording = false;
         _callResponseActive = false;
+        _callLastRealtimeEvent = 'client.stop';
       });
     } else {
       _callConnecting = false;
       _callConnected = false;
       _callUpstreamReady = false;
       _callRecording = false;
+      _callLastRealtimeEvent = 'client.stop';
     }
   }
+
+  void _startCallDebugTicker() {
+    _stopCallDebugTicker();
+    _callDebugTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || !_callActive) {
+        return;
+      }
+      setState(() {});
+    });
+  }
+
+  void _stopCallDebugTicker() {
+    _callDebugTicker?.cancel();
+    _callDebugTicker = null;
+  }
+
+  List<String> _callDebugLines() {
+    final cameraValue = _cameraController?.value;
+    final cameraReady = cameraValue?.isInitialized == true;
+    final imageStreaming = cameraValue?.isStreamingImages == true;
+    final connectedForMs = _callStartedAt == null
+        ? 0
+        : DateTime.now().difference(_callStartedAt!).inMilliseconds;
+    final lastFrameAge = _callLastVideoFrameAt == null
+        ? '-'
+        : '${DateTime.now().difference(_callLastVideoFrameAt!).inSeconds}s';
+    return <String>[
+      'ws connecting=${_callFlag(_callConnecting)} connected=${_callFlag(_callConnected)} upstream=${_callFlag(_callUpstreamReady)} age=${connectedForMs}ms',
+      'mic recording=${_callFlag(_callRecording)} muted=${_callFlag(_callMuted)} chunks=$_callSentAudioChunks pending=${_callFlag(_callPendingAudioTurn)} response=${_callFlag(_callResponseActive)}',
+      'cam enabled=${_callFlag(_callVideoEnabled)} init=${_callFlag(cameraReady)} stream=${_callFlag(imageStreaming)} frames=$_callSentVideoFrames capturing=${_callFlag(_callCapturingFrame)} last=$lastFrameAge',
+      'out pcm=${_callOutputPcmChunks.length} playing=${_callFlag(_callAudioPlayer.playing)} text=${_callAssistantText.length} userSaved=${_callSavedUserTranscriptIds.length}',
+      'event=${_callLastRealtimeEvent.isEmpty ? '-' : _callLastRealtimeEvent}',
+      if ((_cameraErrorMessage ?? '').trim().isNotEmpty)
+        'camErr=${_cameraErrorMessage!.trim()}',
+      if (_callLastRealtimeError.isNotEmpty) 'err=$_callLastRealtimeError',
+      if (_callStatusMessage.trim().isNotEmpty)
+        'status=${_callStatusMessage.trim()}',
+    ];
+  }
+
+  String _callFlag(bool value) => value ? '1' : '0';
 
   void _handleRealtimeMessage(dynamic raw) {
     if (raw is! String) {
@@ -644,9 +711,11 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     }
 
     final type = (payload['type'] ?? '').toString();
+    _callLastRealtimeEvent = type.isEmpty ? 'unknown' : type;
     if (type == 'session.created') {
       setState(() {
         _callUpstreamReady = true;
+        _callLastRealtimeError = '';
         _callStatusMessage = _t(
           context,
           'AI 已就绪，你可以开始说话',
@@ -674,6 +743,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       setState(() {
         _callStatusMessage = _t(context, 'AI 正在回答', 'AI is responding');
         _callAssistantText = '';
+        _callLastRealtimeError = '';
       });
       _callResponseActive = true;
       _callOutputPcmChunks.clear();
@@ -703,6 +773,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
 
     if (type == 'conversation.item.input_audio_transcription.failed') {
       setState(() {
+        _callLastRealtimeError = 'input_audio_transcription.failed';
         _callStatusMessage = _t(
           context,
           '语音转文字失败，请再说一次',
@@ -758,6 +829,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         _callAudioReadyForFrame = false;
       }
       setState(() {
+        _callLastRealtimeError = message;
         _callStatusMessage = message;
         if (error is Map && error['fatal'] == true) {
           _callUpstreamReady = false;
@@ -822,6 +894,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
           'event_id': _realtimeEventId('audio'),
           'audio': base64Encode(chunk),
         });
+        _callLastRealtimeEvent = 'client.audio.append';
         _callSentAudioChunks++;
         _callAudioReadyForFrame = true;
         _callPendingAudioTurn = true;
@@ -830,7 +903,10 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       onError: (Object error) {
         _stopCallAudioWatchdog();
         if (mounted) {
-          setState(() => _callStatusMessage = error.toString());
+          setState(() {
+            _callStatusMessage = error.toString();
+            _callLastRealtimeError = error.toString();
+          });
         }
       },
     );
@@ -906,6 +982,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       return;
     }
     _callPendingAudioTurn = false;
+    _callLastRealtimeEvent = 'client.response.create';
     _sendRealtimeJson({
       'type': 'input_audio_buffer.commit',
       'event_id': _realtimeEventId('commit'),
@@ -987,13 +1064,20 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     }
     try {
       await controller.startImageStream(_handleCallCameraImage);
+      _callLastRealtimeEvent = 'client.image.stream.start';
     } on CameraException catch (error) {
       if (mounted) {
-        setState(() => _cameraErrorMessage = _describeCameraException(error));
+        setState(() {
+          _cameraErrorMessage = _describeCameraException(error);
+          _callLastRealtimeError = _cameraErrorMessage ?? error.toString();
+        });
       }
     } on Object catch (error) {
       if (mounted) {
-        setState(() => _cameraErrorMessage = error.toString());
+        setState(() {
+          _cameraErrorMessage = error.toString();
+          _callLastRealtimeError = error.toString();
+        });
       }
     }
   }
@@ -1007,6 +1091,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     }
     try {
       await controller.stopImageStream();
+      _callLastRealtimeEvent = 'client.image.stream.stop';
     } on CameraException {
       // Ignore teardown failures while closing or switching the call camera.
     }
@@ -1046,6 +1131,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
             ? 0
             : DateTime.now().difference(_callStartedAt!).inMilliseconds,
       });
+      _callLastRealtimeEvent = 'client.image.append';
       _callSentVideoFrames++;
     } on Object {
       // Frame upload is best-effort; keep the call alive.
@@ -2557,6 +2643,8 @@ class _DoctorCallView extends StatelessWidget {
     required this.recording,
     required this.statusMessage,
     required this.assistantText,
+    required this.debugLines,
+    required this.debugExpanded,
     required this.flashEnabled,
     required this.usingFrontCamera,
     required this.onBackToMessages,
@@ -2564,6 +2652,7 @@ class _DoctorCallView extends StatelessWidget {
     required this.onToggleVideo,
     required this.onToggleMute,
     required this.onToggleSubtitles,
+    required this.onToggleDebug,
     required this.onToggleFlash,
     required this.onFlipCamera,
   });
@@ -2580,6 +2669,8 @@ class _DoctorCallView extends StatelessWidget {
   final bool recording;
   final String statusMessage;
   final String assistantText;
+  final List<String> debugLines;
+  final bool debugExpanded;
   final bool flashEnabled;
   final bool usingFrontCamera;
   final VoidCallback onBackToMessages;
@@ -2587,6 +2678,7 @@ class _DoctorCallView extends StatelessWidget {
   final VoidCallback onToggleVideo;
   final VoidCallback onToggleMute;
   final VoidCallback onToggleSubtitles;
+  final VoidCallback onToggleDebug;
   final VoidCallback onToggleFlash;
   final VoidCallback onFlipCamera;
 
@@ -2712,6 +2804,16 @@ class _DoctorCallView extends StatelessWidget {
               ),
             ),
             Positioned(
+              top: subtitlesEnabled ? 124 : 64,
+              left: 12,
+              right: 12,
+              child: _CallDebugOverlay(
+                lines: debugLines,
+                expanded: debugExpanded,
+                onToggle: onToggleDebug,
+              ),
+            ),
+            Positioned(
               left: 0,
               right: 0,
               bottom: 146,
@@ -2785,6 +2887,113 @@ class _DoctorCallView extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CallDebugOverlay extends StatelessWidget {
+  const _CallDebugOverlay({
+    required this.lines,
+    required this.expanded,
+    required this.onToggle,
+  });
+
+  final List<String> lines;
+  final bool expanded;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleLines = expanded
+        ? lines
+        : lines.isEmpty
+        ? const <String>['-']
+        : lines.take(1).toList();
+    return Align(
+      alignment: Alignment.topLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.68),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onToggle,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.bug_report_rounded,
+                            color: Color(0xFFFFB4A8),
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'Debug',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            expanded
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
+                            color: Colors.white70,
+                            size: 18,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      DefaultTextStyle(
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10.5,
+                          height: 1.25,
+                          fontFamily: 'monospace',
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (final line in visibleLines)
+                              Text(
+                                line,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
