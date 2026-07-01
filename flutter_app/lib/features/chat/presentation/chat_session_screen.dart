@@ -38,6 +38,7 @@ class ChatSessionScreen extends ConsumerStatefulWidget {
 class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     with WidgetsBindingObserver {
   final _controller = TextEditingController();
+  final _scrollController = ScrollController();
   final Set<int> _expandedVoiceTextIds = <int>{};
   Timer? _recordingTicker;
   Duration _recordingElapsed = Duration.zero;
@@ -71,6 +72,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     WidgetsBinding.instance.removeObserver(this);
     _recordingTicker?.cancel();
     unawaited(_cameraController?.dispose() ?? Future<void>.value());
+    _scrollController.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -241,6 +243,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                         child: records.when(
                           data: (page) => _RecordList(
                             records: _visibleRecords(page.list),
+                            controller: _scrollController,
                             chatMode: widget.chatMode,
                             userAvatarUrl: userAvatarUrl,
                             assistantAvatarUrl: assistantAvatarUrl,
@@ -720,7 +723,32 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       return;
     }
 
-    setState(() => _sending = true);
+    final now = _localMessageTime();
+    final tempUserId = -DateTime.now().microsecondsSinceEpoch;
+    setState(() {
+      _sending = true;
+      _streamingRecords = [
+        ChatRecord(
+          id: tempUserId,
+          sessionId: widget.sessionId,
+          chatMode: widget.chatMode,
+          role: 'user',
+          content: content,
+          contentType: 'text',
+          messageTime: now,
+        ),
+        ChatRecord(
+          id: tempUserId - 1,
+          sessionId: widget.sessionId,
+          chatMode: widget.chatMode,
+          role: 'assistant',
+          content: '',
+          contentType: 'text',
+          messageTime: now,
+        ),
+      ];
+    });
+    _scrollToLatest();
     try {
       _controller.clear();
       await for (final event
@@ -740,14 +768,12 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       ref.invalidate(chatOverviewProvider);
     } on Object catch (error) {
       if (mounted) {
+        setState(() => _streamingRecords = const <ChatRecord>[]);
         context.showCenteredNotice(error.toString());
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _sending = false;
-          _streamingRecords = const <ChatRecord>[];
-        });
+        setState(() => _sending = false);
       }
     }
   }
@@ -784,6 +810,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
             ),
           ];
         });
+        _scrollToLatest();
         return;
       case 'delta':
         if (event.content.isEmpty) {
@@ -799,6 +826,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
               })
               .toList(growable: false);
         });
+        _scrollToLatest();
         return;
       case 'done':
         setState(() {
@@ -806,6 +834,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
               ? event.records
               : const <ChatRecord>[];
         });
+        _scrollToLatest();
         return;
       case 'error':
         setState(() => _streamingRecords = const <ChatRecord>[]);
@@ -822,6 +851,23 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       default:
         return;
     }
+  }
+
+  void _scrollToLatest() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) {
+        return;
+      }
+      final position = _scrollController.position;
+      if (!position.hasContentDimensions) {
+        return;
+      }
+      _scrollController.animateTo(
+        position.maxScrollExtent,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   void _scheduleOnlinePromptGate(String prompt) {
@@ -999,6 +1045,7 @@ class _TopModeButton extends StatelessWidget {
 class _RecordList extends StatelessWidget {
   const _RecordList({
     required this.records,
+    required this.controller,
     required this.chatMode,
     required this.userAvatarUrl,
     required this.assistantAvatarUrl,
@@ -1008,6 +1055,7 @@ class _RecordList extends StatelessWidget {
   });
 
   final List<ChatRecord> records;
+  final ScrollController controller;
   final String chatMode;
   final String userAvatarUrl;
   final String assistantAvatarUrl;
@@ -1022,6 +1070,7 @@ class _RecordList extends StatelessWidget {
     }
 
     return ListView.builder(
+      controller: controller,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
       itemCount: records.length,
       itemBuilder: (context, index) {
@@ -2332,6 +2381,13 @@ String _messageTimeText(String value) {
     return trimmed.substring(11, 16);
   }
   return trimmed;
+}
+
+String _localMessageTime() {
+  final now = DateTime.now();
+  String two(int value) => value.toString().padLeft(2, '0');
+  return '${now.year}-${two(now.month)}-${two(now.day)} '
+      '${two(now.hour)}:${two(now.minute)}:${two(now.second)}';
 }
 
 String _voiceDisplayText(String value) {
