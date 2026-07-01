@@ -615,6 +615,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get meHonorRecentBadges => '最近获得';
 
   @override
+  String get meHonorViewAll => '查看全部';
+
+  @override
   String get meHonorNoBadges => '暂未获得徽章';
 
   @override
@@ -625,6 +628,38 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String meHonorPointsBalance(Object points) {
     return '当前积分 $points';
+  }
+
+  @override
+  String get meHonorBadgeWallTitle => '勋章墙';
+
+  @override
+  String meHonorBadgeAwardedAt(Object date) {
+    return '$date 获得';
+  }
+
+  @override
+  String get meHonorPointListTitle => '积分清单';
+
+  @override
+  String get meHonorNoPointLogs => '暂无积分记录';
+
+  @override
+  String get meHonorPointChange => '积分变动';
+
+  @override
+  String meHonorPointLogTotal(Object total) {
+    return '共 $total 条记录';
+  }
+
+  @override
+  String meHonorBalanceAfter(Object balance) {
+    return '余额 $balance';
+  }
+
+  @override
+  String meHonorPointSource(Object source) {
+    return '来源 $source';
   }
 
   @override

@@ -216,6 +216,7 @@
   },
   "meHonorFinalHint": "You have reached the final level. Wishing you steady progress in the next chapter.",
   "meHonorRecentBadges": "Recent badges",
+  "meHonorViewAll": "View all",
   "meHonorNoBadges": "No badges yet",
   "meHonorBadgeCount": "{count} badges earned",
   "@meHonorBadgeCount": {
@@ -227,6 +228,34 @@
   "@meHonorPointsBalance": {
     "placeholders": {
       "points": {}
+    }
+  },
+  "meHonorBadgeWallTitle": "Badge wall",
+  "meHonorBadgeAwardedAt": "Earned on {date}",
+  "@meHonorBadgeAwardedAt": {
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "meHonorPointListTitle": "Points history",
+  "meHonorNoPointLogs": "No point records yet",
+  "meHonorPointChange": "Point change",
+  "meHonorPointLogTotal": "{total} records",
+  "@meHonorPointLogTotal": {
+    "placeholders": {
+      "total": {}
+    }
+  },
+  "meHonorBalanceAfter": "Balance {balance}",
+  "@meHonorBalanceAfter": {
+    "placeholders": {
+      "balance": {}
+    }
+  },
+  "meHonorPointSource": "Source {source}",
+  "@meHonorPointSource": {
+    "placeholders": {
+      "source": {}
     }
   },
   "meCommonFunctions": "Common actions",

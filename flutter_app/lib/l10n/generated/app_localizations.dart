@@ -1298,6 +1298,12 @@ abstract class AppLocalizations {
   /// **'Recent badges'**
   String get meHonorRecentBadges;
 
+  /// No description provided for @meHonorViewAll.
+  ///
+  /// In en, this message translates to:
+  /// **'View all'**
+  String get meHonorViewAll;
+
   /// No description provided for @meHonorNoBadges.
   ///
   /// In en, this message translates to:
@@ -1315,6 +1321,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Current points {points}'**
   String meHonorPointsBalance(Object points);
+
+  /// No description provided for @meHonorBadgeWallTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Badge wall'**
+  String get meHonorBadgeWallTitle;
+
+  /// No description provided for @meHonorBadgeAwardedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Earned on {date}'**
+  String meHonorBadgeAwardedAt(Object date);
+
+  /// No description provided for @meHonorPointListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Points history'**
+  String get meHonorPointListTitle;
+
+  /// No description provided for @meHonorNoPointLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'No point records yet'**
+  String get meHonorNoPointLogs;
+
+  /// No description provided for @meHonorPointChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Point change'**
+  String get meHonorPointChange;
+
+  /// No description provided for @meHonorPointLogTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'{total} records'**
+  String meHonorPointLogTotal(Object total);
+
+  /// No description provided for @meHonorBalanceAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance {balance}'**
+  String meHonorBalanceAfter(Object balance);
+
+  /// No description provided for @meHonorPointSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Source {source}'**
+  String meHonorPointSource(Object source);
 
   /// No description provided for @meCommonFunctions.
   ///

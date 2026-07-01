@@ -216,6 +216,7 @@
   },
   "meHonorFinalHint": "恭喜你已经到达了最终阶段，祝你在新的阶段一帆风顺！",
   "meHonorRecentBadges": "最近获得",
+  "meHonorViewAll": "查看全部",
   "meHonorNoBadges": "暂未获得徽章",
   "meHonorBadgeCount": "已获得 {count} 枚徽章",
   "@meHonorBadgeCount": {
@@ -227,6 +228,34 @@
   "@meHonorPointsBalance": {
     "placeholders": {
       "points": {}
+    }
+  },
+  "meHonorBadgeWallTitle": "勋章墙",
+  "meHonorBadgeAwardedAt": "{date} 获得",
+  "@meHonorBadgeAwardedAt": {
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "meHonorPointListTitle": "积分清单",
+  "meHonorNoPointLogs": "暂无积分记录",
+  "meHonorPointChange": "积分变动",
+  "meHonorPointLogTotal": "共 {total} 条记录",
+  "@meHonorPointLogTotal": {
+    "placeholders": {
+      "total": {}
+    }
+  },
+  "meHonorBalanceAfter": "余额 {balance}",
+  "@meHonorBalanceAfter": {
+    "placeholders": {
+      "balance": {}
+    }
+  },
+  "meHonorPointSource": "来源 {source}",
+  "@meHonorPointSource": {
+    "placeholders": {
+      "source": {}
     }
   },
   "meCommonFunctions": "常用功能",

@@ -38,6 +38,16 @@ final memberBadgesProvider = FutureProvider.autoDispose<MePage<MemberBadge>>((
   return ref.watch(meContentRepositoryProvider).fetchBadges();
 });
 
+final memberBadgeWallProvider = FutureProvider.autoDispose<MePage<MemberBadge>>(
+  (ref) {
+    return ref.watch(meContentRepositoryProvider).fetchBadges(pageSize: 200);
+  },
+);
+
 final pointLogsProvider = FutureProvider.autoDispose<PointLogPage>((ref) {
   return ref.watch(meContentRepositoryProvider).fetchPointLogs();
+});
+
+final pointLogListProvider = FutureProvider.autoDispose<PointLogPage>((ref) {
+  return ref.watch(meContentRepositoryProvider).fetchPointLogs(pageSize: 100);
 });

@@ -45,7 +45,9 @@ import '../features/me/presentation/diagnostic_logs_screen.dart';
 import '../features/me/presentation/help_center_screen.dart';
 import '../features/me/presentation/journal_screen.dart';
 import '../features/me/presentation/memoir_screen.dart';
+import '../features/me/presentation/honor_badge_wall_screen.dart';
 import '../features/me/presentation/honor_badges_screen.dart';
+import '../features/me/presentation/point_logs_screen.dart';
 import '../features/me/presentation/settings_screen.dart';
 import '../features/me/data/help_center_models.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
@@ -334,6 +336,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/me/honors',
             name: 'me-honors',
             builder: (context, state) => const HonorBadgesScreen(),
+          ),
+          GoRoute(
+            path: '/me/honors/badges',
+            name: 'me-honor-badges',
+            builder: (context, state) => const HonorBadgeWallScreen(),
+          ),
+          GoRoute(
+            path: '/me/honors/points',
+            name: 'me-honor-points',
+            builder: (context, state) => const PointLogsScreen(),
           ),
           GoRoute(
             path: '/local-model',

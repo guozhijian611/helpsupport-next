@@ -74,10 +74,12 @@ class HonorBadgesScreen extends ConsumerWidget {
                   _InfoPill(
                     icon: Icons.workspace_premium_rounded,
                     text: context.l10n.meHonorBadgeCount(summary.badgeCount),
+                    onTap: () => context.push('/me/honors/badges'),
                   ),
                   _InfoPill(
                     icon: Icons.stars_rounded,
                     text: context.l10n.meHonorPointsBalance(summary.balance),
+                    onTap: () => context.push('/me/honors/points'),
                   ),
                 ],
               ),
@@ -97,6 +99,7 @@ class HonorBadgesScreen extends ConsumerWidget {
               _RecentBadgesPanel(
                 badges: latestBadges,
                 loading: badgesState.isLoading,
+                onViewAll: () => context.push('/me/honors/badges'),
               ),
             ],
           ),
@@ -235,34 +238,50 @@ class _HonorAvatar extends StatelessWidget {
 }
 
 class _InfoPill extends StatelessWidget {
-  const _InfoPill({required this.icon, required this.text});
+  const _InfoPill({required this.icon, required this.text, this.onTap});
 
   final IconData icon;
   final String text;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final palette = _HonorPalette.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: palette.cardBackground,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: const Color(0xFF5A81DA)),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: TextStyle(
-              color: palette.primaryText,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: palette.cardBackground,
+            borderRadius: BorderRadius.circular(999),
           ),
-        ],
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: const Color(0xFF5A81DA)),
+              const SizedBox(width: 8),
+              Text(
+                text,
+                style: TextStyle(
+                  color: palette.primaryText,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (onTap != null) ...[
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: palette.secondaryText,
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -523,10 +542,15 @@ class _LevelMedal extends StatelessWidget {
 }
 
 class _RecentBadgesPanel extends StatelessWidget {
-  const _RecentBadgesPanel({required this.badges, required this.loading});
+  const _RecentBadgesPanel({
+    required this.badges,
+    required this.loading,
+    required this.onViewAll,
+  });
 
   final List<MemberBadge> badges;
   final bool loading;
+  final VoidCallback onViewAll;
 
   @override
   Widget build(BuildContext context) {
@@ -540,13 +564,23 @@ class _RecentBadgesPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            context.l10n.meHonorRecentBadges,
-            style: TextStyle(
-              color: palette.primaryText,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  context.l10n.meHonorRecentBadges,
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: onViewAll,
+                child: Text(context.l10n.meHonorViewAll),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           if (loading && badges.isEmpty)

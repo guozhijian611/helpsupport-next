@@ -635,6 +635,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get meHonorRecentBadges => 'Recent badges';
 
   @override
+  String get meHonorViewAll => 'View all';
+
+  @override
   String get meHonorNoBadges => 'No badges yet';
 
   @override
@@ -645,6 +648,38 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String meHonorPointsBalance(Object points) {
     return 'Current points $points';
+  }
+
+  @override
+  String get meHonorBadgeWallTitle => 'Badge wall';
+
+  @override
+  String meHonorBadgeAwardedAt(Object date) {
+    return 'Earned on $date';
+  }
+
+  @override
+  String get meHonorPointListTitle => 'Points history';
+
+  @override
+  String get meHonorNoPointLogs => 'No point records yet';
+
+  @override
+  String get meHonorPointChange => 'Point change';
+
+  @override
+  String meHonorPointLogTotal(Object total) {
+    return '$total records';
+  }
+
+  @override
+  String meHonorBalanceAfter(Object balance) {
+    return 'Balance $balance';
+  }
+
+  @override
+  String meHonorPointSource(Object source) {
+    return 'Source $source';
   }
 
   @override
