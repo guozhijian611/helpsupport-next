@@ -638,14 +638,14 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   Future<void> _configureCallAudioSession() async {
     final session = await AudioSession.instance;
     await session.configure(
-      const AudioSessionConfiguration(
+      AudioSessionConfiguration(
         avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
         avAudioSessionCategoryOptions:
             AVAudioSessionCategoryOptions.defaultToSpeaker |
             AVAudioSessionCategoryOptions.allowBluetooth |
             AVAudioSessionCategoryOptions.allowBluetoothA2dp,
         avAudioSessionMode: AVAudioSessionMode.videoChat,
-        androidAudioAttributes: AndroidAudioAttributes(
+        androidAudioAttributes: const AndroidAudioAttributes(
           contentType: AndroidAudioContentType.speech,
           usage: AndroidAudioUsage.voiceCommunication,
         ),
