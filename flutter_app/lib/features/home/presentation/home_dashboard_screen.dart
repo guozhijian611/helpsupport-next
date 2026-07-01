@@ -7,15 +7,12 @@ import '../../../core/i18n/member_text_localizer.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
-import '../../../core/settings/privacy_preferences.dart';
 import '../../../core/ui/app_tab_shell_metrics.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../chat/application/chat_controller.dart';
 import '../../chat/data/chat_models.dart';
 import '../../chat/presentation/chat_launch_sheet.dart';
 import '../../chat/presentation/chat_prompt_config_sheet.dart';
-import '../../community/application/community_controller.dart';
-import '../../community/data/community_models.dart';
 import '../../message/application/message_controller.dart';
 import '../../plan/application/plan_controller.dart';
 
@@ -29,14 +26,8 @@ class HomeDashboardScreen extends ConsumerWidget {
     final authState = ref.watch(authControllerProvider);
     final overview = ref.watch(chatOverviewProvider);
     final plans = ref.watch(currentPlansProvider);
-    final community = ref.watch(communityPostsProvider);
     final unreadCount = ref.watch(unreadMessageCountProvider);
-    final privacy = ref.watch(privacyPreferencesProvider);
     final plansData = switch (plans) {
-      AsyncData(:final value) => value,
-      _ => null,
-    };
-    final communityData = switch (community) {
       AsyncData(:final value) => value,
       _ => null,
     };
@@ -68,12 +59,10 @@ class HomeDashboardScreen extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(chatOverviewProvider);
           ref.invalidate(currentPlansProvider);
-          ref.invalidate(communityPostsProvider);
           ref.invalidate(unreadMessageCountProvider);
           await Future.wait([
             ref.read(chatOverviewProvider.future),
             ref.read(currentPlansProvider.future),
-            ref.read(communityPostsProvider.future),
             ref.read(unreadMessageCountProvider.future),
           ]);
         },
@@ -142,13 +131,7 @@ class HomeDashboardScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 28),
-            _SectionTitle(
-              title: _t(context, '互动聊天', 'Interactive care'),
-              trailing: TextButton(
-                onPressed: () => context.push('/chat'),
-                child: Text(_t(context, '查看全部', 'View all')),
-              ),
-            ),
+            _SectionTitle(title: _t(context, '互动聊天', 'Interactive care')),
             overview.when(
               data: (data) => Column(
                 children: [
@@ -202,35 +185,6 @@ class HomeDashboardScreen extends ConsumerWidget {
                 onPressed: () => ref.invalidate(chatOverviewProvider),
               ),
               loading: () => const _DashboardLoading(),
-            ),
-            const SizedBox(height: 10),
-            _SectionTitle(
-              title: _t(context, '最近社区动态', 'Recent community activity'),
-              trailing: TextButton(
-                onPressed: () => context.showCenteredNotice(
-                  _communityTeaser(context, communityData, privacy),
-                ),
-                child: Text(_t(context, '摘要', 'Summary')),
-              ),
-            ),
-            community.when(
-              data: (page) {
-                final post = _visibleCommunityPost(page.list, privacy);
-                if (post == null) {
-                  return _InfoPanel(
-                    title: context.l10n.communityFeedEmpty,
-                    subtitle: _communityEmptySubtitle(context, privacy),
-                  );
-                }
-                return _CommunityTeaser(post: post);
-              },
-              error: (error, _) => _InfoPanel(
-                title: context.l10n.networkUnavailable,
-                subtitle: error.toString(),
-                actionLabel: context.l10n.retry,
-                onPressed: () => ref.invalidate(communityPostsProvider),
-              ),
-              loading: () => const _InfoPanelSkeleton(),
             ),
           ],
         ),
@@ -830,103 +784,6 @@ class _EmptyConversationCard extends StatelessWidget {
   }
 }
 
-class _CommunityTeaser extends StatelessWidget {
-  const _CommunityTeaser({required this.post});
-
-  final CommunityPost post;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = _HomeDashboardPalette.of(context);
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: palette.cardBackground,
-        borderRadius: BorderRadius.circular(28),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            post.isAnonymous
-                ? _t(context, '匿名用户', 'Anonymous')
-                : post.authorName,
-            style: TextStyle(
-              color: palette.primaryText,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            post.content,
-            maxLines: 4,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: palette.bodyText,
-              fontSize: 15,
-              height: 1.6,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _MetaChip(
-                icon: Icons.forum_outlined,
-                text: '${post.commentCount}',
-              ),
-              const SizedBox(width: 10),
-              _MetaChip(
-                icon: Icons.favorite_border_rounded,
-                text: '${post.likeCount}',
-              ),
-              const SizedBox(width: 10),
-              _MetaChip(
-                icon: Icons.bookmark_border_rounded,
-                text: '${post.collectCount}',
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetaChip extends StatelessWidget {
-  const _MetaChip({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = _HomeDashboardPalette.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: palette.softBackground,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: palette.secondaryText),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: TextStyle(
-              color: palette.secondaryText,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _InfoPanel extends StatelessWidget {
   const _InfoPanel({
     required this.title,
@@ -1296,77 +1153,6 @@ String _planSummaryText(BuildContext context, List<dynamic>? plans) {
     return _t(context, '暂无计划', 'No plans');
   }
   return _t(context, '共 ${plans.length} 个阶段', '${plans.length} active plan(s)');
-}
-
-String _communityTeaser(
-  BuildContext context,
-  CommunityPage<CommunityPost>? page,
-  PrivacyPreferences privacy,
-) {
-  if (!privacy.syncDiarySummary) {
-    return _t(
-      context,
-      '日记摘要已关闭，不会参与进度面板。',
-      'Journal summaries are disabled for the progress panel.',
-    );
-  }
-  if (page == null) {
-    return context.l10n.communityFeedEmpty;
-  }
-  final first = _visibleCommunityPost(page.list, privacy);
-  if (first == null) {
-    return context.l10n.communityFeedEmpty;
-  }
-  final authorName = first.isAnonymous
-      ? _t(context, '匿名用户', 'Anonymous')
-      : first.authorName;
-  return _t(
-    context,
-    '最新动态来自 $authorName',
-    'Latest community post from $authorName',
-  );
-}
-
-CommunityPost? _visibleCommunityPost(
-  List<CommunityPost> posts,
-  PrivacyPreferences privacy,
-) {
-  if (posts.isEmpty ||
-      privacy.communityVisibility == CommunityVisibility.private) {
-    return null;
-  }
-  if (privacy.communityVisibility == CommunityVisibility.mutual) {
-    for (final post in posts) {
-      if (post.isMutualFollowAuthor) {
-        return post;
-      }
-    }
-    return null;
-  }
-  return posts.first;
-}
-
-String _communityEmptySubtitle(
-  BuildContext context,
-  PrivacyPreferences privacy,
-) {
-  return switch (privacy.communityVisibility) {
-    CommunityVisibility.private => _t(
-      context,
-      '你已将社区可见范围设为仅自己可见，首页不会展示具体社区动态。',
-      'Community visibility is private, so concrete activity is hidden here.',
-    ),
-    CommunityVisibility.mutual => _t(
-      context,
-      '当前没有互相关注作者的新动态。',
-      'No recent posts from mutual follows are available.',
-    ),
-    CommunityVisibility.public => _t(
-      context,
-      '当你准备好分享或阅读支持内容时，这里会出现真实动态。',
-      'Real support posts will appear here when the community is active.',
-    ),
-  };
 }
 
 void _openSession(BuildContext context, ChatSession session) {
