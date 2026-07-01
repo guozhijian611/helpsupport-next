@@ -33,6 +33,7 @@ class LocalModelChatScreen extends ConsumerStatefulWidget {
 
 class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
   final _controller = TextEditingController();
+  final _scrollController = ScrollController();
   List<LocalChatMessage> _messages = const [];
   String _customPrompt = '';
   bool _loadingMessages = true;
@@ -49,6 +50,7 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -157,6 +159,7 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
                         firstMessage: prompt.firstMessage,
                         robotProfile: robotProfile,
                         resolveImageUrl: apiClient.resolveUrl,
+                        controller: _scrollController,
                       ),
                     ),
                     Padding(
@@ -270,6 +273,7 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
 
     final unavailableMessage = context.l10n.localModelRuntimeUnavailable;
     setState(() => _sending = true);
+    List<LocalChatMessage>? rollbackMessages;
     try {
       final runtime = await ref.read(llamaRuntimeStatusProvider.future);
       if (!runtime.isAvailable) {
@@ -283,15 +287,39 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
             modelId: model.id,
             chatMode: widget.chatMode,
           );
-      final reply = await ref
-          .read(llamaEngineProvider)
-          .generate(
-            model: model,
-            modelPath: state.filePath,
-            systemPrompt: prompt.systemPrompt,
-            history: history,
-            userMessage: content,
-          );
+      rollbackMessages = history;
+      final now = DateTime.now();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _messages = [
+          ...history,
+          LocalChatMessage(role: 'user', content: content, createdAt: now),
+          LocalChatMessage(role: 'assistant', content: '', createdAt: now),
+        ];
+      });
+      _controller.clear();
+      _scrollToLatest();
+
+      final replyBuffer = StringBuffer();
+      await for (final token
+          in ref
+              .read(llamaEngineProvider)
+              .generateStream(
+                model: model,
+                modelPath: state.filePath,
+                systemPrompt: prompt.systemPrompt,
+                history: history,
+                userMessage: content,
+              )) {
+        replyBuffer.write(token);
+        _replaceStreamingAssistant(replyBuffer.toString());
+      }
+      final reply = replyBuffer.toString().trim();
+      if (reply.isEmpty) {
+        throw StateError('本地模型未返回有效内容');
+      }
       await ref
           .read(localChatStoreProvider)
           .appendPair(
@@ -301,10 +329,17 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
             userContent: content,
             assistantContent: reply,
           );
-      _controller.clear();
       await _loadMessages();
     } on Object catch (error) {
       if (mounted) {
+        if (rollbackMessages != null) {
+          setState(() => _messages = rollbackMessages!);
+        }
+        if (_controller.text.trim().isEmpty) {
+          _controller
+            ..text = content
+            ..selection = TextSelection.collapsed(offset: content.length);
+        }
         context.showCenteredNotice(error.toString());
       }
     } finally {
@@ -312,6 +347,40 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
         setState(() => _sending = false);
       }
     }
+  }
+
+  void _replaceStreamingAssistant(String content) {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      final next = [..._messages];
+      for (var index = next.length - 1; index >= 0; index--) {
+        if (next[index].role == 'assistant') {
+          next[index] = next[index].copyWith(content: content);
+          break;
+        }
+      }
+      _messages = next;
+    });
+    _scrollToLatest();
+  }
+
+  void _scrollToLatest() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) {
+        return;
+      }
+      final position = _scrollController.position;
+      if (!position.hasContentDimensions) {
+        return;
+      }
+      _scrollController.animateTo(
+        position.maxScrollExtent,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   Future<void> _clearMessages() async {
@@ -515,6 +584,7 @@ class _LocalMessageList extends StatelessWidget {
     required this.firstMessage,
     required this.robotProfile,
     required this.resolveImageUrl,
+    required this.controller,
   });
 
   final bool loading;
@@ -522,6 +592,7 @@ class _LocalMessageList extends StatelessWidget {
   final String firstMessage;
   final AiRobotProfile robotProfile;
   final String Function(String value) resolveImageUrl;
+  final ScrollController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -543,6 +614,7 @@ class _LocalMessageList extends StatelessWidget {
     }
 
     return ListView.builder(
+      controller: controller,
       padding: const EdgeInsets.all(16),
       itemCount: visibleMessages.length,
       itemBuilder: (context, index) {
@@ -558,7 +630,11 @@ class _LocalMessageList extends StatelessWidget {
                 : null,
             child: Padding(
               padding: const EdgeInsets.all(12),
-              child: Text(message.content),
+              child: Text(
+                message.content.trim().isEmpty && !isUser
+                    ? _t(context, '正在输入...', 'Typing...')
+                    : message.content,
+              ),
             ),
           ),
         );

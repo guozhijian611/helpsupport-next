@@ -68,6 +68,30 @@ class LlamaEngine {
     required List<LocalChatMessage> history,
     required String userMessage,
   }) async {
+    final buffer = StringBuffer();
+    await for (final token in generateStream(
+      model: model,
+      modelPath: modelPath,
+      systemPrompt: systemPrompt,
+      history: history,
+      userMessage: userMessage,
+    )) {
+      buffer.write(token);
+    }
+    final text = buffer.toString().trim();
+    if (text.isEmpty) {
+      throw StateError('本地模型未返回有效内容');
+    }
+    return text;
+  }
+
+  Stream<String> generateStream({
+    required LocalModelItem model,
+    required String modelPath,
+    required String systemPrompt,
+    required List<LocalChatMessage> history,
+    required String userMessage,
+  }) async* {
     final runtime = await inspectRuntime();
     if (!runtime.isAvailable) {
       throw StateError('本地推理库不可用：${runtime.errorMessage}');
@@ -75,22 +99,27 @@ class LlamaEngine {
 
     Llama.libraryPath = runtime.libraryPath;
     final gpuLayers = await _resolvedGpuLayers();
+    var emittedToken = false;
     try {
-      return await _generateWithLayers(
+      await for (final token in _generateStreamWithLayers(
         model: model,
         modelPath: modelPath,
         systemPrompt: systemPrompt,
         history: history,
         userMessage: userMessage,
         gpuLayers: gpuLayers,
-      );
+      )) {
+        emittedToken = true;
+        yield token;
+      }
+      return;
     } on Object {
-      if (!_isAutoBackend() || gpuLayers == 0) {
+      if (!_isAutoBackend() || gpuLayers == 0 || emittedToken) {
         rethrow;
       }
     }
 
-    return _generateWithLayers(
+    yield* _generateStreamWithLayers(
       model: model,
       modelPath: modelPath,
       systemPrompt: systemPrompt,
@@ -100,38 +129,66 @@ class LlamaEngine {
     );
   }
 
-  Future<String> _generateWithLayers({
+  Stream<String> _generateStreamWithLayers({
     required LocalModelItem model,
     required String modelPath,
     required String systemPrompt,
     required List<LocalChatMessage> history,
     required String userMessage,
     required int gpuLayers,
-  }) async {
+  }) async* {
     final prompt = _buildPrompt(systemPrompt, history, userMessage);
     final parent = LlamaParent(
       _loadCommand(model, modelPath, gpuLayers: gpuLayers),
     );
-    final buffer = StringBuffer();
+    final tokens = StreamController<String>();
     StreamSubscription<String>? subscription;
+    Future<void>? completionGuard;
 
     try {
       await parent.init();
-      subscription = parent.stream.listen(buffer.write);
+      subscription = parent.stream.listen(
+        (token) {
+          if (token.isNotEmpty && !tokens.isClosed) {
+            tokens.add(token);
+          }
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          if (!tokens.isClosed) {
+            tokens.addError(error, stackTrace);
+          }
+        },
+      );
       final promptId = await parent.sendPrompt(prompt);
-      final completion = await parent.completions
+      final completionFuture = parent.completions
           .firstWhere((event) => event.promptId == promptId)
           .timeout(const Duration(minutes: 3));
-      if (!completion.success) {
-        throw StateError(completion.errorDetails ?? '本地模型推理失败');
+      completionGuard = completionFuture.then(
+        (completion) {
+          if (!completion.success && !tokens.isClosed) {
+            tokens.addError(StateError(completion.errorDetails ?? '本地模型推理失败'));
+          }
+          return tokens.close();
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          if (!tokens.isClosed) {
+            tokens.addError(error, stackTrace);
+          }
+          return tokens.close();
+        },
+      );
+
+      await for (final token in tokens.stream) {
+        yield token;
       }
-      final text = buffer.toString().trim();
-      if (text.isEmpty) {
-        throw StateError('本地模型未返回有效内容');
-      }
-      return text;
     } finally {
+      if (completionGuard != null) {
+        await completionGuard;
+      }
       await subscription?.cancel();
+      if (!tokens.isClosed) {
+        await tokens.close();
+      }
       await parent.dispose();
     }
   }

@@ -13,6 +13,18 @@ class LocalChatMessage {
   final String content;
   final DateTime createdAt;
 
+  LocalChatMessage copyWith({
+    String? role,
+    String? content,
+    DateTime? createdAt,
+  }) {
+    return LocalChatMessage(
+      role: role ?? this.role,
+      content: content ?? this.content,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
   factory LocalChatMessage.fromJson(Map<String, dynamic> json) {
     return LocalChatMessage(
       role: (json['role'] as String?) ?? 'user',
