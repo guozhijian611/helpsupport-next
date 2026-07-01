@@ -12,7 +12,12 @@
 
     <ElSkeleton :loading="loading" animated :rows="5">
       <div class="hot-list">
-        <div v-for="(item, index) in hotPosts" :key="item.id || index" class="hot-item">
+        <div
+          v-for="(item, index) in hotPosts"
+          :key="item.id || index"
+          class="hot-item"
+          @click="openPostDetail(item)"
+        >
           <div class="rank" :class="{ top: index < 3 }">{{ index + 1 }}</div>
           <div class="min-w-0 flex-1">
             <p class="truncate font-medium text-g-900">{{ item.content }}</p>
@@ -33,6 +38,33 @@
         <ElEmpty v-if="!hotPosts.length" description="暂无帖子数据" :image-size="80" />
       </div>
     </ElSkeleton>
+
+    <ElDrawer v-model="detailVisible" size="520px" title="帖子详情">
+      <ElSkeleton :loading="detailLoading" animated :rows="6">
+        <div class="post-detail">
+          <p class="content">{{ detailText }}</p>
+          <ElDescriptions :column="1" border>
+            <ElDescriptionsItem label="帖子ID">#{{ postDetail.id || '-' }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="会员ID">
+              {{ postDetail.member_id ? '#' + postDetail.member_id : '-' }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="浏览/点赞/评论">
+              {{ Number(postDetail.view_count || 0) }} / {{ Number(postDetail.like_count || 0) }} /
+              {{ Number(postDetail.comment_count || 0) }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="审核状态">
+              {{ auditStatusText(Number(postDetail.audit_status || 0)) }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="发布时间">
+              {{ postDetail.create_time || '-' }}
+            </ElDescriptionsItem>
+          </ElDescriptions>
+          <ElButton class="mt-4" type="primary" @click="goPage('/helpsupport/community/post')">
+            进入帖子管理
+          </ElButton>
+        </div>
+      </ElSkeleton>
+    </ElDrawer>
   </div>
 </template>
 
@@ -54,7 +86,12 @@
 
   const router = useRouter()
   const loading = ref(false)
+  const detailVisible = ref(false)
+  const detailLoading = ref(false)
   const hotPosts = ref<HotPost[]>([])
+  const postDetail = ref<Record<string, any>>({})
+
+  const detailText = computed(() => plainText(postDetail.value.content))
 
   const plainText = (content: unknown) =>
     String(content || '')
@@ -102,9 +139,25 @@
           }
         })
         .sort((a, b) => b.score - a.score)
-        .slice(0, 6)
+        .slice(0, 4)
     } finally {
       loading.value = false
+    }
+  }
+
+  const normalizeDetail = (response: unknown) => {
+    const data = response as Record<string, any>
+    return (data?.data || data || {}) as Record<string, any>
+  }
+
+  const openPostDetail = async (item: HotPost) => {
+    if (!item.id) return
+    detailVisible.value = true
+    detailLoading.value = true
+    try {
+      postDetail.value = normalizeDetail(await postApi.read(item.id))
+    } finally {
+      detailLoading.value = false
     }
   }
 
@@ -121,9 +174,7 @@
   }
 
   .hot-list {
-    max-height: 330px;
     margin-top: 14px;
-    overflow: auto;
   }
 
   .hot-item {
@@ -133,6 +184,12 @@
     min-width: 0;
     padding: 13px 0;
     border-bottom: 1px solid var(--default-border);
+    cursor: pointer;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: var(--default-bg-color);
+    }
 
     &:last-child {
       border-bottom: 0;
@@ -170,6 +227,19 @@
 
     small {
       color: var(--art-gray-500);
+    }
+  }
+
+  .post-detail {
+    .content {
+      padding: 14px;
+      margin-bottom: 16px;
+      line-height: 1.8;
+      border: 1px solid var(--default-border);
+      border-radius: 8px;
+      background: var(--default-bg-color);
+      color: var(--art-gray-900);
+      white-space: pre-wrap;
     }
   }
 </style>
