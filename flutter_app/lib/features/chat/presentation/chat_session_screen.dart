@@ -93,7 +93,9 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   Widget build(BuildContext context) {
     final palette = _ChatSessionPalette.of(context);
     final records = ref.watch(chatRecordsProvider(widget.sessionId));
-    final promptConfig = ref.watch(chatConfigProvider(widget.chatMode));
+    final promptConfig = widget.chatMode == 'doctor'
+        ? null
+        : ref.watch(chatConfigProvider(widget.chatMode));
     final authState = ref.watch(authControllerProvider);
     final session = switch (authState) {
       AsyncData(:final value) => value,
@@ -180,30 +182,31 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                   child: Column(
                     key: const ValueKey('chat-message-view'),
                     children: [
-                      promptConfig.when(
-                        data: (config) {
-                          final prompt = config?.promptText.trim() ?? '';
-                          _scheduleOnlinePromptGate(prompt);
-                          return ChatPromptSummaryBar(
-                            label: _t(context, '对话提示词', 'Chat prompt'),
-                            prompt: prompt,
-                            onEdit: () => _editOnlinePrompt(prompt),
-                          );
-                        },
-                        error: (error, _) => Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-                          child: Text(
-                            error.toString(),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: palette.secondaryText),
+                      if (promptConfig != null)
+                        promptConfig.when(
+                          data: (config) {
+                            final prompt = config?.promptText.trim() ?? '';
+                            _scheduleOnlinePromptGate(prompt);
+                            return ChatPromptSummaryBar(
+                              label: _t(context, '对话提示词', 'Chat prompt'),
+                              prompt: prompt,
+                              onEdit: () => _editOnlinePrompt(prompt),
+                            );
+                          },
+                          error: (error, _) => Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+                            child: Text(
+                              error.toString(),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: palette.secondaryText),
+                            ),
+                          ),
+                          loading: () => const Padding(
+                            padding: EdgeInsets.fromLTRB(16, 10, 16, 6),
+                            child: LinearProgressIndicator(minHeight: 2),
                           ),
                         ),
-                        loading: () => const Padding(
-                          padding: EdgeInsets.fromLTRB(16, 10, 16, 6),
-                          child: LinearProgressIndicator(minHeight: 2),
-                        ),
-                      ),
                       if (_conversationTime(
                         records.asData?.value.list ?? const [],
                       ).isNotEmpty)

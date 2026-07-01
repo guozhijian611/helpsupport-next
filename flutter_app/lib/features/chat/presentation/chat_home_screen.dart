@@ -175,6 +175,9 @@ class ChatHomeScreen extends ConsumerWidget {
     WidgetRef ref,
     ChatModeInfo mode,
   ) async {
+    if (mode.chatMode == 'doctor') {
+      return true;
+    }
     if (mode.promptText.trim().isNotEmpty) {
       return true;
     }
