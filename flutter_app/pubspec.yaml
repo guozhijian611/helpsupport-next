@@ -63,7 +63,7 @@ dependencies:
   archive: ^4.0.9
   xml: ^7.0.1
   record: ^7.1.0
-
+  flutter_markdown_plus: ^1.0.7
 dev_dependencies:
   flutter_test:
     sdk: flutter

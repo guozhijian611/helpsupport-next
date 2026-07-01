@@ -1239,6 +1239,149 @@ class HelpApiService
         });
     }
 
+    public function beginChatStream(int $memberId, array $data): array
+    {
+        $sessionId = (int) ($data['session_id'] ?? 0);
+        $content = trim((string) ($data['content'] ?? $data['message'] ?? ''));
+        $contentType = trim((string) ($data['content_type'] ?? 'text'));
+        $configId = max(0, (int) ($data['config_id'] ?? 0));
+
+        if ($content === '') {
+            throw new ApiException('消息内容必须填写', 400);
+        }
+        $content = (new HelpRiskService())->filterText('chat', $content);
+        if ($content === '') {
+            throw new ApiException('消息内容必须填写', 400);
+        }
+        if ($contentType !== 'text') {
+            throw new ApiException('在线 AI 暂只支持文本消息', 400);
+        }
+
+        if ($sessionId > 0) {
+            $session = $this->assertChatSession($memberId, $sessionId);
+            $chatMode = (string) $session['chat_mode'];
+            if (!empty($data['chat_mode']) && $this->chatMode($data['chat_mode']) !== $chatMode) {
+                throw new ApiException('聊天模式与会话不匹配', 400);
+            }
+        } else {
+            $chatMode = $this->chatMode($data['chat_mode'] ?? '');
+            $session = [];
+        }
+
+        $history = $sessionId > 0 ? $this->chatHistory($memberId, $sessionId) : [];
+        $prompt = $this->chatSystemPrompt($memberId, $chatMode);
+        $now = date('Y-m-d H:i:s');
+
+        $result = Db::transaction(function () use ($memberId, $session, $sessionId, $chatMode, $content, $contentType, $now) {
+            $activeSession = $session;
+            if ($sessionId <= 0) {
+                $count = (int) Db::table('sa_member_chat_session')
+                    ->where('member_id', $memberId)
+                    ->where('status', 1)
+                    ->whereNull('delete_time')
+                    ->count();
+                $newSessionId = Db::table('sa_member_chat_session')->insertGetId([
+                    'member_id' => $memberId,
+                    'chat_mode' => $chatMode,
+                    'session_name' => 'Conversation ' . ($count + 1),
+                    'last_message' => '',
+                    'last_message_time' => null,
+                    'is_pinned' => 2,
+                    'status' => 1,
+                    'created_by' => $memberId,
+                    'updated_by' => $memberId,
+                    'create_time' => $now,
+                    'update_time' => $now,
+                ]);
+                $activeSession = Db::table('sa_member_chat_session')->where('id', $newSessionId)->find() ?: [];
+            }
+
+            $activeSessionId = (int) ($activeSession['id'] ?? 0);
+            $userRecord = $this->insertChatRecord(
+                $memberId,
+                $activeSessionId,
+                $chatMode,
+                'user',
+                $content,
+                $contentType,
+                null,
+                $now
+            );
+
+            Db::table('sa_member_chat_session')->where('id', $activeSessionId)->update([
+                'last_message' => $this->chatSummary($content, $contentType),
+                'last_message_time' => $now,
+                'updated_by' => $memberId,
+                'update_time' => $now,
+            ]);
+
+            return [
+                'session' => Db::table('sa_member_chat_session')->where('id', $activeSessionId)->find() ?: [],
+                'user_record' => $userRecord,
+            ];
+        });
+
+        return [
+            ...$result,
+            'chat_mode' => $chatMode,
+            'content' => $content,
+            'history' => $history,
+            'ai_message' => $this->chatAiMessage($prompt, $content),
+            'config_id' => $configId,
+        ];
+    }
+
+    public function finishChatStream(int $memberId, array $context, string $assistantContent, array $aiMeta = []): array
+    {
+        $assistantContent = trim($assistantContent);
+        if ($assistantContent === '') {
+            throw new ApiException('AI 未返回有效内容', 502);
+        }
+
+        $session = (array) ($context['session'] ?? []);
+        $userRecord = (array) ($context['user_record'] ?? []);
+        $activeSessionId = (int) ($session['id'] ?? 0);
+        $chatMode = (string) ($context['chat_mode'] ?? ($session['chat_mode'] ?? ''));
+        if ($activeSessionId <= 0) {
+            throw new ApiException('会话状态异常', 500);
+        }
+
+        $this->assertChatSession($memberId, $activeSessionId);
+        $configId = (int) ($context['config_id'] ?? 0);
+        $now = date('Y-m-d H:i:s');
+
+        return Db::transaction(function () use ($memberId, $activeSessionId, $chatMode, $assistantContent, $aiMeta, $configId, $now, $userRecord) {
+            $assistantRecord = $this->insertChatRecord(
+                $memberId,
+                $activeSessionId,
+                $chatMode,
+                'assistant',
+                $assistantContent,
+                'text',
+                $this->jsonValue([
+                    'ai_model' => (string) ($aiMeta['model'] ?? ''),
+                    'ai_type' => (string) ($aiMeta['type'] ?? ''),
+                    'config_id' => $configId,
+                ]),
+                $now
+            );
+
+            Db::table('sa_member_chat_session')->where('id', $activeSessionId)->update([
+                'last_message' => $this->chatSummary($assistantContent),
+                'last_message_time' => $now,
+                'updated_by' => $memberId,
+                'update_time' => $now,
+            ]);
+
+            return [
+                'session' => Db::table('sa_member_chat_session')->where('id', $activeSessionId)->find() ?: [],
+                'user_record' => $userRecord,
+                'assistant_record' => $assistantRecord,
+                'records' => [$userRecord, $assistantRecord],
+            ];
+        });
+    }
+
     public function registerDevice(int $memberId, array $data): array
     {
         $deviceId = trim((string) ($data['device_id'] ?? ''));

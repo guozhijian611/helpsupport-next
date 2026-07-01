@@ -86,6 +86,7 @@ Route::group('/app/help', function () {
     Route::get('/chat/records', [ChatController::class, 'records']);
     Route::post('/chat/record', [ChatController::class, 'saveRecord']);
     Route::post('/chat/send', [ChatController::class, 'send']);
+    Route::post('/chat/send/stream', [ChatController::class, 'sendStream']);
 
     Route::get('/community/tags', [CommunityController::class, 'tags']);
     Route::get('/community/posts', [CommunityController::class, 'posts']);

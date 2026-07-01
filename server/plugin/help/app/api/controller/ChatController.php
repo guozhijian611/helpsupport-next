@@ -6,9 +6,12 @@ namespace plugin\help\app\api\controller;
 
 use hg\apidoc\annotation as Apidoc;
 use plugin\help\app\service\HelpApiService;
+use plugin\saiai\app\service\AiFactory;
 use plugin\saiuser\basic\BaseController;
+use support\Log;
 use support\Request;
 use support\Response;
+use Workerman\Protocols\Http\ServerSentEvents;
 
 #[Apidoc\Group('AI聊天')]
 #[Apidoc\Title('HelpSupport AI聊天')]
@@ -140,5 +143,89 @@ class ChatController extends BaseController
     public function send(Request $request): Response
     {
         return ok($this->service->sendChatMessage($this->memberId, $request->post()));
+    }
+
+    #[Apidoc\Title('流式发送在线AI消息')]
+    #[Apidoc\Url('/app/help/chat/send/stream')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('session_id', type: 'int', require: false, desc: '会话ID，不传时按 chat_mode 创建新会话')]
+    #[Apidoc\Param('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient，创建新会话时必填')]
+    #[Apidoc\Param('content', type: 'string', require: true, desc: '用户消息内容')]
+    #[Apidoc\Param('config_id', type: 'int', require: false, default: 0, desc: '可选 SaiAI 模型配置ID')]
+    #[Apidoc\Returned('event:start', type: 'object', desc: '返回会话与用户消息记录')]
+    #[Apidoc\Returned('event:delta', type: 'object', desc: '返回 AI 回复增量文本')]
+    #[Apidoc\Returned('event:done', type: 'object', desc: '返回已保存的 AI 回复消息')]
+    public function sendStream(Request $request): void
+    {
+        $connection = $request->connection;
+        $connection->send(new Response(200, [
+            'Content-Type' => 'text/event-stream; charset=utf-8',
+            'Cache-Control' => 'no-cache',
+            'Connection' => 'keep-alive',
+            'X-Accel-Buffering' => 'no',
+        ], "\r\n"));
+
+        try {
+            $context = $this->service->beginChatStream($this->memberId, $request->post());
+            $this->sendSse($connection, 'start', [
+                'session' => $context['session'],
+                'user_record' => $context['user_record'],
+            ]);
+
+            $fullContent = '';
+            $aiMeta = [
+                'model' => '',
+                'type' => '',
+                'config_id' => (int) $context['config_id'],
+            ];
+            foreach (AiFactory::chatStreamByConfigId(
+                (string) $context['ai_message'],
+                (array) $context['history'],
+                (int) $context['config_id']
+            ) as $chunk) {
+                $aiMeta['model'] = (string) ($chunk['model'] ?? $aiMeta['model']);
+                $aiMeta['type'] = (string) ($chunk['platform_type'] ?? $aiMeta['type']);
+                if (($chunk['type'] ?? '') !== 'content') {
+                    continue;
+                }
+
+                $delta = (string) ($chunk['content'] ?? '');
+                if ($delta === '') {
+                    continue;
+                }
+                $fullContent .= $delta;
+                $this->sendSse($connection, 'delta', [
+                    'content' => $delta,
+                    'model' => $aiMeta['model'],
+                ]);
+            }
+
+            $result = $this->service->finishChatStream($this->memberId, $context, $fullContent, $aiMeta);
+            $this->sendSse($connection, 'done', $result);
+        } catch (\Throwable $e) {
+            Log::error('[help.chat.stream] ' . $e->getMessage());
+            $this->sendSse($connection, 'error', [
+                'message' => $this->streamErrorMessage($e),
+            ]);
+        } finally {
+            $connection->close();
+        }
+    }
+
+    private function sendSse(mixed $connection, string $type, array $data = []): void
+    {
+        $connection->send(new ServerSentEvents([
+            'event' => 'message',
+            'data' => json_encode([
+                'type' => $type,
+                'data' => $data,
+            ], JSON_UNESCAPED_UNICODE),
+        ]));
+    }
+
+    private function streamErrorMessage(\Throwable $e): string
+    {
+        $message = trim($e->getMessage());
+        return $message !== '' ? $message : 'AI 服务调用失败，请稍后重试';
     }
 }

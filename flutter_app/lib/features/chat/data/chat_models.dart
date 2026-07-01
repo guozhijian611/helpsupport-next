@@ -216,6 +216,26 @@ class ChatRecord {
 
   bool get isUser => role == 'user';
 
+  ChatRecord copyWith({
+    int? id,
+    int? sessionId,
+    String? chatMode,
+    String? role,
+    String? content,
+    String? contentType,
+    String? messageTime,
+  }) {
+    return ChatRecord(
+      id: id ?? this.id,
+      sessionId: sessionId ?? this.sessionId,
+      chatMode: chatMode ?? this.chatMode,
+      role: role ?? this.role,
+      content: content ?? this.content,
+      contentType: contentType ?? this.contentType,
+      messageTime: messageTime ?? this.messageTime,
+    );
+  }
+
   factory ChatRecord.fromJson(Map<String, dynamic> json) {
     return ChatRecord(
       id: (json['id'] as num?)?.toInt() ?? 0,
@@ -225,6 +245,50 @@ class ChatRecord {
       content: (json['content'] as String?) ?? '',
       contentType: (json['content_type'] as String?) ?? 'text',
       messageTime: json['message_time'] as String?,
+    );
+  }
+}
+
+class ChatStreamEvent {
+  const ChatStreamEvent({
+    required this.type,
+    this.session,
+    this.userRecord,
+    this.assistantRecord,
+    this.records = const [],
+    this.content = '',
+    this.message = '',
+  });
+
+  final String type;
+  final ChatSession? session;
+  final ChatRecord? userRecord;
+  final ChatRecord? assistantRecord;
+  final List<ChatRecord> records;
+  final String content;
+  final String message;
+
+  factory ChatStreamEvent.fromJson(Object? value) {
+    if (value is! Map<String, dynamic>) {
+      throw const FormatException('Unexpected chat stream event shape');
+    }
+
+    final data = _map(value['data']);
+    final type = (value['type'] ?? '').toString();
+    return ChatStreamEvent(
+      type: type,
+      session: data['session'] is Map<String, dynamic>
+          ? ChatSession.fromJson(_map(data['session']))
+          : null,
+      userRecord: data['user_record'] is Map<String, dynamic>
+          ? ChatRecord.fromJson(_map(data['user_record']))
+          : null,
+      assistantRecord: data['assistant_record'] is Map<String, dynamic>
+          ? ChatRecord.fromJson(_map(data['assistant_record']))
+          : null,
+      records: _list(data['records'], ChatRecord.fromJson),
+      content: (data['content'] ?? '').toString(),
+      message: (data['message'] ?? value['message'] ?? '').toString(),
     );
   }
 }

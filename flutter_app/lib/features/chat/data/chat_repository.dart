@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 import '../../../core/api/api_client.dart';
@@ -146,6 +148,49 @@ class ChatRepository {
       throw const FormatException('AI 回复保存失败');
     }
     return sendResult;
+  }
+
+  Stream<ChatStreamEvent> sendMessageStream({
+    required int sessionId,
+    required String chatMode,
+    required String content,
+  }) async* {
+    final response = await _apiClient.dio.post<ResponseBody>(
+      '/app/help/chat/send/stream',
+      data: {
+        'session_id': sessionId,
+        'chat_mode': chatMode,
+        'content': content,
+      },
+      options: Options(
+        responseType: ResponseType.stream,
+        receiveTimeout: const Duration(minutes: 2),
+        headers: const {'Accept': 'text/event-stream'},
+      ),
+    );
+    final body = response.data;
+    if (body == null) {
+      throw const FormatException('聊天流响应为空');
+    }
+
+    final dataLines = <String>[];
+    final lines = body.stream
+        .cast<List<int>>()
+        .transform(utf8.decoder)
+        .transform(const LineSplitter());
+    await for (final line in lines) {
+      if (line.startsWith('data:')) {
+        dataLines.add(line.substring(5).trimLeft());
+        continue;
+      }
+      if (line.isEmpty && dataLines.isNotEmpty) {
+        yield ChatStreamEvent.fromJson(jsonDecode(dataLines.join('\n')));
+        dataLines.clear();
+      }
+    }
+    if (dataLines.isNotEmpty) {
+      yield ChatStreamEvent.fromJson(jsonDecode(dataLines.join('\n')));
+    }
   }
 
   Future<void> deleteSession(int sessionId) async {

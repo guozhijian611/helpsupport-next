@@ -4,8 +4,10 @@ import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/cache/cached_remote_image.dart';
@@ -54,6 +56,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   bool _callFlashEnabled = false;
   bool _callUsingFrontCamera = true;
   bool _promptGateShown = false;
+  List<ChatRecord> _streamingRecords = const <ChatRecord>[];
 
   bool get _supportsDoctorCall => widget.chatMode == 'doctor';
 
@@ -237,7 +240,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                       Expanded(
                         child: records.when(
                           data: (page) => _RecordList(
-                            records: page.list,
+                            records: _visibleRecords(page.list),
                             chatMode: widget.chatMode,
                             userAvatarUrl: userAvatarUrl,
                             assistantAvatarUrl: assistantAvatarUrl,
@@ -719,14 +722,20 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
 
     setState(() => _sending = true);
     try {
-      await ref
-          .read(chatRepositoryProvider)
-          .sendMessage(
-            sessionId: widget.sessionId,
-            chatMode: widget.chatMode,
-            content: content,
-          );
       _controller.clear();
+      await for (final event
+          in ref
+              .read(chatRepositoryProvider)
+              .sendMessageStream(
+                sessionId: widget.sessionId,
+                chatMode: widget.chatMode,
+                content: content,
+              )) {
+        if (!mounted) {
+          return;
+        }
+        _applyStreamEvent(event);
+      }
       ref.invalidate(chatRecordsProvider(widget.sessionId));
       ref.invalidate(chatOverviewProvider);
     } on Object catch (error) {
@@ -735,8 +744,83 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       }
     } finally {
       if (mounted) {
-        setState(() => _sending = false);
+        setState(() {
+          _sending = false;
+          _streamingRecords = const <ChatRecord>[];
+        });
       }
+    }
+  }
+
+  List<ChatRecord> _visibleRecords(List<ChatRecord> records) {
+    if (_streamingRecords.isEmpty) {
+      return records;
+    }
+    final existingIds = records.map((record) => record.id).toSet();
+    return [
+      ...records,
+      ..._streamingRecords.where((record) => !existingIds.contains(record.id)),
+    ];
+  }
+
+  void _applyStreamEvent(ChatStreamEvent event) {
+    switch (event.type) {
+      case 'start':
+        final userRecord = event.userRecord;
+        if (userRecord == null) {
+          return;
+        }
+        setState(() {
+          _streamingRecords = [
+            userRecord,
+            ChatRecord(
+              id: -DateTime.now().microsecondsSinceEpoch,
+              sessionId: userRecord.sessionId,
+              chatMode: userRecord.chatMode,
+              role: 'assistant',
+              content: '',
+              contentType: 'text',
+              messageTime: userRecord.messageTime,
+            ),
+          ];
+        });
+        return;
+      case 'delta':
+        if (event.content.isEmpty) {
+          return;
+        }
+        setState(() {
+          _streamingRecords = _streamingRecords
+              .map((record) {
+                if (record.role != 'assistant') {
+                  return record;
+                }
+                return record.copyWith(content: record.content + event.content);
+              })
+              .toList(growable: false);
+        });
+        return;
+      case 'done':
+        setState(() {
+          _streamingRecords = event.records.isNotEmpty
+              ? event.records
+              : const <ChatRecord>[];
+        });
+        return;
+      case 'error':
+        setState(() => _streamingRecords = const <ChatRecord>[]);
+        context.showCenteredNotice(
+          event.message.trim().isEmpty
+              ? _t(
+                  context,
+                  'AI 回复失败，请稍后重试',
+                  'AI reply failed. Try again later.',
+                )
+              : event.message,
+        );
+        return;
+      default:
+        return;
     }
   }
 
@@ -1235,11 +1319,68 @@ class _RecordContent extends StatelessWidget {
           ],
         );
       default:
+        if (!record.isUser) {
+          return _MarkdownRecordContent(record: record, textColor: textColor);
+        }
         return Text(
           record.content,
           style: TextStyle(color: textColor, fontSize: 16, height: 1.6),
         );
     }
+  }
+}
+
+class _MarkdownRecordContent extends StatelessWidget {
+  const _MarkdownRecordContent({required this.record, required this.textColor});
+
+  final ChatRecord record;
+  final Color textColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final content = record.content.trim();
+    if (content.isEmpty) {
+      return Text(
+        _t(context, '正在输入...', 'Typing...'),
+        style: TextStyle(color: textColor, fontSize: 16, height: 1.6),
+      );
+    }
+
+    final theme = Theme.of(context);
+    final palette = _ChatSessionPalette.of(context);
+    final baseTextStyle = theme.textTheme.bodyMedium?.copyWith(
+      color: textColor,
+      fontSize: 16,
+      height: 1.6,
+    );
+    return MarkdownBody(
+      data: record.content,
+      selectable: true,
+      styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+        p: baseTextStyle,
+        strong: baseTextStyle?.copyWith(fontWeight: FontWeight.w800),
+        em: baseTextStyle?.copyWith(fontStyle: FontStyle.italic),
+        listBullet: baseTextStyle,
+        blockquote: baseTextStyle?.copyWith(color: palette.secondaryText),
+        code: TextStyle(
+          color: textColor,
+          fontSize: 14,
+          height: 1.5,
+          backgroundColor: palette.softSurface,
+          fontFamily: 'monospace',
+        ),
+        codeblockDecoration: BoxDecoration(
+          color: palette.softSurface,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        a: baseTextStyle?.copyWith(
+          color: const Color(0xFF5A81DA),
+          fontWeight: FontWeight.w700,
+          decoration: TextDecoration.underline,
+        ),
+      ),
+      onTapLink: (_, href, __) => _openMarkdownLink(href),
+    );
   }
 }
 
@@ -2259,6 +2400,18 @@ bool _hasTranscript(ChatRecord record) {
     return false;
   }
   return true;
+}
+
+void _openMarkdownLink(String? href) {
+  final value = href?.trim() ?? '';
+  if (value.isEmpty) {
+    return;
+  }
+  final uri = Uri.tryParse(value);
+  if (uri == null || !uri.hasScheme) {
+    return;
+  }
+  unawaited(launchUrl(uri, mode: LaunchMode.externalApplication));
 }
 
 class _ChatSessionPalette {

@@ -168,6 +168,7 @@ class AiFactory
                     'type' => 'content',
                     'content' => $text,
                     'model' => $resolvedModel,
+                    'platform_type' => (string) $resolved['platformType'],
                 ];
             }
         }
@@ -175,6 +176,7 @@ class AiFactory
         yield [
             'type' => 'done',
             'model' => $resolvedModel,
+            'platform_type' => (string) $resolved['platformType'],
         ];
     }
 
