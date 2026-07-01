@@ -170,6 +170,10 @@ class AliyunQwenRealtimeAdapter implements RealtimeProviderAdapterInterface
 
     private function imageAppendEvent(array $event, RealtimeSessionState $state, string $eventId): array
     {
+        if ($state->audioChunks <= 0) {
+            return [];
+        }
+
         $image = (string) ($event['image'] ?? '');
         if ($image === '') {
             throw new \InvalidArgumentException('image 不能为空', 4006);

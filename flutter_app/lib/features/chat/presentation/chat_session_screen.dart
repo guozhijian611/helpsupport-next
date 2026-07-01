@@ -57,6 +57,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   Duration _recordingElapsed = Duration.zero;
   DateTime? _recordingStartedAt;
   DateTime? _callStartedAt;
+  DateTime? _callLastVideoFrameAt;
   WebSocket? _callSocket;
   CameraController? _cameraController;
   List<CameraDescription> _availableCameras = const <CameraDescription>[];
@@ -76,6 +77,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   bool _callUpstreamReady = false;
   bool _callRecording = false;
   bool _callCapturingFrame = false;
+  bool _callAudioReadyForFrame = false;
   bool _promptGateShown = false;
   String _callStatusMessage = '';
   String _callAssistantText = '';
@@ -499,6 +501,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       _callOutputPcmChunks.clear();
       _callSentAudioChunks = 0;
       _callSentVideoFrames = 0;
+      _callAudioReadyForFrame = false;
+      _callLastVideoFrameAt = null;
     });
 
     try {
@@ -591,6 +595,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     }
     await _callAudioPlayer.stop();
     _callOutputPcmChunks.clear();
+    _callAudioReadyForFrame = false;
+    _callLastVideoFrameAt = null;
     if (mounted) {
       setState(() {
         _callConnecting = false;
@@ -672,6 +678,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     }
 
     if (type == 'response.done') {
+      _callAudioReadyForFrame = false;
+      _callLastVideoFrameAt = null;
       setState(() {
         _callStatusMessage = _t(context, '你可以继续说话', 'You can continue talking');
       });
@@ -684,6 +692,12 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       final message = error is Map
           ? (error['message'] ?? '').toString()
           : _t(context, '实时会话发生错误', 'Realtime session error');
+      final code = error is Map ? (error['code'] ?? '').toString() : '';
+      if (message.contains('append image before append audio') ||
+          code.contains('image')) {
+        _stopCallFrameTimer();
+        _callAudioReadyForFrame = false;
+      }
       setState(() {
         _callStatusMessage = message;
         if (error is Map && error['fatal'] == true) {
@@ -753,6 +767,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
           'audio': base64Encode(chunk),
         });
         _callSentAudioChunks++;
+        _callAudioReadyForFrame = true;
+        unawaited(_sendCallVideoFrame());
       },
       onError: (Object error) {
         if (mounted) {
@@ -788,10 +804,9 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     if (!_callVideoEnabled || !_callConnected || !_callUpstreamReady) {
       return;
     }
-    _callFrameTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+    _callFrameTimer = Timer.periodic(const Duration(seconds: 8), (_) {
       unawaited(_sendCallVideoFrame());
     });
-    unawaited(_sendCallVideoFrame());
   }
 
   void _stopCallFrameTimer() {
@@ -805,12 +820,19 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         !_callVideoEnabled ||
         !_callConnected ||
         !_callUpstreamReady ||
+        !_callAudioReadyForFrame ||
         controller == null ||
         !controller.value.isInitialized ||
         controller.value.isTakingPicture) {
       return;
     }
+    final lastFrameAt = _callLastVideoFrameAt;
+    if (lastFrameAt != null &&
+        DateTime.now().difference(lastFrameAt) < const Duration(seconds: 8)) {
+      return;
+    }
     _callCapturingFrame = true;
+    _callAudioReadyForFrame = false;
     try {
       final picture = await controller.takePicture();
       final bytes = await picture.readAsBytes();
@@ -824,6 +846,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
             : DateTime.now().difference(_callStartedAt!).inMilliseconds,
       });
       _callSentVideoFrames++;
+      _callLastVideoFrameAt = DateTime.now();
     } on Object {
       // Frame upload is best-effort; keep the call alive.
     } finally {
