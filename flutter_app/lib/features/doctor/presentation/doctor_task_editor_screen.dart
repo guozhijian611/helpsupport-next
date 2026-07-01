@@ -239,29 +239,17 @@ class _DoctorTaskEditorScreenState
   }
 
   Future<void> _pickLearningMaterials() async {
-    try {
-      final page = await ref
-          .read(materialRepositoryProvider)
-          .fetchMaterials(materialType: 'education', pageSize: 100);
-      if (!mounted) {
-        return;
-      }
-      final selected = await showModalBottomSheet<List<MaterialItem>>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (context) => _AttachmentSelectionSheet(
-          items: page.list,
-          selectedItems: _selectedLearningMaterials,
-        ),
-      );
-      if (selected != null && mounted) {
-        setState(() => _selectedLearningMaterials = selected);
-      }
-    } on Object catch (error) {
-      if (mounted) {
-        context.showCenteredNotice(error.toString());
-      }
+    final selected = await showModalBottomSheet<List<MaterialItem>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _LearningMaterialSelectionSheet(
+        selectedItems: _selectedLearningMaterials,
+        locale: Localizations.localeOf(context).toLanguageTag(),
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() => _selectedLearningMaterials = selected);
     }
   }
 
@@ -607,27 +595,105 @@ class _DoctorTaskEditorScreenState
   }
 }
 
-class _AttachmentSelectionSheet extends StatefulWidget {
-  const _AttachmentSelectionSheet({
-    required this.items,
+class _LearningMaterialSelectionSheet extends ConsumerStatefulWidget {
+  const _LearningMaterialSelectionSheet({
     required this.selectedItems,
+    required this.locale,
   });
 
-  final List<MaterialItem> items;
   final List<MaterialItem> selectedItems;
+  final String locale;
 
   @override
-  State<_AttachmentSelectionSheet> createState() =>
-      _AttachmentSelectionSheetState();
+  ConsumerState<_LearningMaterialSelectionSheet> createState() =>
+      _LearningMaterialSelectionSheetState();
 }
 
-class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
+class _LearningMaterialSelectionSheetState
+    extends ConsumerState<_LearningMaterialSelectionSheet> {
+  late final TextEditingController _keywordController;
   late final Set<int> _selectedIds;
+  late final Map<int, MaterialItem> _selectedItemsById;
+  List<MaterialCategory> _categories = const [];
+  List<MaterialItem> _items = const [];
+  bool _loading = true;
+  String _error = '';
+  int _categoryId = 0;
 
   @override
   void initState() {
     super.initState();
+    _keywordController = TextEditingController();
     _selectedIds = widget.selectedItems.map((item) => item.id).toSet();
+    _selectedItemsById = {
+      for (final item in widget.selectedItems) item.id: item,
+    };
+    _loadMaterials(includeCategories: true);
+  }
+
+  @override
+  void dispose() {
+    _keywordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadMaterials({bool includeCategories = false}) async {
+    setState(() {
+      _loading = true;
+      _error = '';
+    });
+    try {
+      final repository = ref.read(materialRepositoryProvider);
+      final categories = includeCategories
+          ? await repository.fetchCategories(
+              type: 'education',
+              locale: widget.locale,
+            )
+          : _categories;
+      final page = await repository.fetchMaterials(
+        materialType: 'education',
+        categoryId: _categoryId,
+        keyword: _keywordController.text.trim(),
+        locale: widget.locale,
+        pageSize: 500,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _categories = categories;
+        _items = page.list;
+        _loading = false;
+      });
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _loading = false;
+        _error = error.toString();
+      });
+    }
+  }
+
+  void _toggleMaterial(MaterialItem item) {
+    setState(() {
+      if (_selectedIds.contains(item.id)) {
+        _selectedIds.remove(item.id);
+        _selectedItemsById.remove(item.id);
+      } else {
+        _selectedIds.add(item.id);
+        _selectedItemsById[item.id] = item;
+      }
+    });
+  }
+
+  void _selectCategory(int categoryId) {
+    if (_categoryId == categoryId) {
+      return;
+    }
+    setState(() => _categoryId = categoryId);
+    _loadMaterials();
   }
 
   @override
@@ -653,16 +719,54 @@ class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 18),
-              if (widget.items.isEmpty)
+              const SizedBox(height: 16),
+              _MaterialSearchField(
+                controller: _keywordController,
+                onSubmitted: (_) => _loadMaterials(),
+                onSearch: () => _loadMaterials(),
+              ),
+              const SizedBox(height: 12),
+              _MaterialCategoryChips(
+                categories: _categories,
+                selectedCategoryId: _categoryId,
+                onSelected: _selectCategory,
+              ),
+              const SizedBox(height: 12),
+              if (_loading)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 54),
+                  child: const CircularProgressIndicator(
+                    color: Color(0xFFFF9585),
+                  ),
+                )
+              else if (_error.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  child: Column(
+                    children: [
+                      Text(
+                        _error,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: palette.secondaryText,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton(
+                        onPressed: () => _loadMaterials(
+                          includeCategories: _categories.isEmpty,
+                        ),
+                        child: Text(_t(context, '重试', 'Retry')),
+                      ),
+                    ],
+                  ),
+                )
+              else if (_items.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 42),
                   child: Text(
-                    _t(
-                      context,
-                      '还没有可用的教育素材',
-                      'No learning materials available yet',
-                    ),
+                    _t(context, '没有匹配的教育素材', 'No matching learning materials'),
                     style: TextStyle(
                       color: palette.secondaryText,
                       fontSize: 15,
@@ -672,26 +776,18 @@ class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
               else
                 ConstrainedBox(
                   constraints: BoxConstraints(
-                    maxHeight: MediaQuery.sizeOf(context).height * 0.52,
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.42,
                   ),
                   child: ListView.separated(
                     shrinkWrap: true,
-                    itemCount: widget.items.length,
+                    itemCount: _items.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
-                      final item = widget.items[index];
+                      final item = _items[index];
                       final selected = _selectedIds.contains(item.id);
                       return InkWell(
                         borderRadius: BorderRadius.circular(20),
-                        onTap: () {
-                          setState(() {
-                            if (selected) {
-                              _selectedIds.remove(item.id);
-                            } else {
-                              _selectedIds.add(item.id);
-                            }
-                          });
-                        },
+                        onTap: () => _toggleMaterial(item),
                         child: Container(
                           padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
                           decoration: BoxDecoration(
@@ -750,8 +846,9 @@ class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
               const SizedBox(height: 18),
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(
-                  widget.items
-                      .where((item) => _selectedIds.contains(item.id))
+                  _selectedIds
+                      .map((id) => _selectedItemsById[id])
+                      .whereType<MaterialItem>()
                       .toList(growable: false),
                 ),
                 style: FilledButton.styleFrom(
@@ -766,6 +863,107 @@ class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _MaterialSearchField extends StatelessWidget {
+  const _MaterialSearchField({
+    required this.controller,
+    required this.onSubmitted,
+    required this.onSearch,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onSubmitted;
+  final VoidCallback onSearch;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorTaskEditorPalette.of(context);
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: controller,
+            textInputAction: TextInputAction.search,
+            onSubmitted: onSubmitted,
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: _t(context, '输入关键词', 'Search materials'),
+              prefixIcon: const Icon(Icons.search_rounded),
+              filled: true,
+              fillColor: palette.softBackground,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide.none,
+              ),
+              hintStyle: TextStyle(color: palette.mutedText),
+            ),
+            style: TextStyle(color: palette.primaryText, fontSize: 15),
+          ),
+        ),
+        const SizedBox(width: 10),
+        TextButton(
+          onPressed: onSearch,
+          child: Text(_t(context, '搜索', 'Search')),
+        ),
+      ],
+    );
+  }
+}
+
+class _MaterialCategoryChips extends StatelessWidget {
+  const _MaterialCategoryChips({
+    required this.categories,
+    required this.selectedCategoryId,
+    required this.onSelected,
+  });
+
+  final List<MaterialCategory> categories;
+  final int selectedCategoryId;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorTaskEditorPalette.of(context);
+    final items = [
+      MaterialCategory(
+        id: 0,
+        parentId: 0,
+        name: _t(context, '全部', 'All'),
+        type: 'education',
+        icon: '',
+        sort: 0,
+      ),
+      ...categories,
+    ];
+    return SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final item = items[index];
+          final selected = item.id == selectedCategoryId;
+          return ChoiceChip(
+            label: Text(item.name),
+            selected: selected,
+            onSelected: (_) => onSelected(item.id),
+            labelStyle: TextStyle(
+              color: selected ? Colors.white : palette.primaryText,
+              fontWeight: FontWeight.w700,
+            ),
+            selectedColor: const Color(0xFFFF9585),
+            backgroundColor: palette.softBackground,
+            side: BorderSide.none,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(999),
+            ),
+          );
+        },
       ),
     );
   }
