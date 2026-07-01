@@ -41,6 +41,22 @@ class ChatRepository {
     return result.data ?? const [];
   }
 
+  Future<ChatRealtimeConfig> fetchRealtimeConfig() async {
+    final result = await _apiClient.getApi<ChatRealtimeConfig>(
+      '/app/help/chat/realtime-config',
+      decode: ChatRealtimeConfig.fromJson,
+    );
+    final config = result.data;
+    if (config == null || config.wsUrl.trim().isEmpty) {
+      throw const FormatException('实时音视频配置无效');
+    }
+    return config;
+  }
+
+  Future<String> readAccessToken() {
+    return _apiClient.readAccessToken();
+  }
+
   Future<ChatConfig> saveConfig({
     required String chatMode,
     required String promptText,

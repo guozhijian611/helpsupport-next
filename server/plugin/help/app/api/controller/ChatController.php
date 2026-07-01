@@ -7,6 +7,7 @@ namespace plugin\help\app\api\controller;
 use hg\apidoc\annotation as Apidoc;
 use plugin\help\app\service\HelpApiService;
 use plugin\saiai\app\service\AiFactory;
+use plugin\saiai\app\service\AliyunRealtimeConfig;
 use plugin\saiuser\basic\BaseController;
 use support\Log;
 use support\Request;
@@ -63,6 +64,73 @@ class ChatController extends BaseController
     public function robotProfiles(Request $request): Response
     {
         return ok($this->service->aiRobotProfiles($request->get()));
+    }
+
+    #[Apidoc\Title('移动端实时音视频配置')]
+    #[Apidoc\Url('/app/help/chat/realtime-config')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Returned('ws_url', type: 'string', desc: '实时 WebSocket 地址')]
+    #[Apidoc\Returned('default_model', type: 'string', desc: '默认实时模型')]
+    #[Apidoc\Returned('default_session', type: 'object', desc: '默认实时会话参数')]
+    #[Apidoc\Returned('config_id', type: 'int', desc: '默认 realtime 配置ID')]
+    public function realtimeConfig(Request $request): Response
+    {
+        $config = AliyunRealtimeConfig::resolve(null);
+
+        return ok([
+            'ws_url' => $this->buildRealtimeProxyUrl($request),
+            'default_model' => (string) ($config['model'] ?? AliyunRealtimeConfig::DEFAULT_MODEL),
+            'default_session' => AliyunRealtimeConfig::defaultSession((array) ($config['options'] ?? [])),
+            'config_id' => (int) ($config['id'] ?? 0),
+        ]);
+    }
+
+    private function buildRealtimeProxyUrl(Request $request): string
+    {
+        $customUrl = trim((string) env('SAIAI_REALTIME_PUBLIC_URL', ''));
+        if ($customUrl !== '') {
+            return $customUrl;
+        }
+
+        $scheme = $this->isHttpsRequest($request) ? 'wss' : 'ws';
+        $hostHeader = $this->resolveRequestHost($request) ?: '127.0.0.1';
+        $hostParts = parse_url('//' . $hostHeader);
+        $host = (string) ($hostParts['host'] ?? $hostHeader);
+        $requestPort = isset($hostParts['port']) ? (int) $hostParts['port'] : null;
+        $gatewayPort = (int) env('SAIAI_REALTIME_WS_PORT', 8791);
+
+        $authority = $host;
+        if ($scheme === 'wss') {
+            if ($requestPort !== null && $requestPort !== 443 && $requestPort !== $gatewayPort) {
+                $authority .= ':' . $requestPort;
+            }
+        } elseif ($gatewayPort !== 80) {
+            $authority .= ':' . $gatewayPort;
+        }
+
+        return $scheme . '://' . $authority . '/v1/realtime';
+    }
+
+    private function isHttpsRequest(Request $request): bool
+    {
+        $forwardedProto = strtolower(trim(explode(',', (string) $request->header('x-forwarded-proto', ''))[0]));
+        if ($forwardedProto === '') {
+            $forwardedProto = strtolower(trim(explode(',', (string) $request->header('x-forwarded-protocol', ''))[0]));
+        }
+
+        return $forwardedProto === 'https'
+            || strtolower((string) $request->header('x-forwarded-ssl', '')) === 'on'
+            || strtolower((string) $request->header('front-end-https', '')) === 'on';
+    }
+
+    private function resolveRequestHost(Request $request): string
+    {
+        $forwardedHost = trim(explode(',', (string) $request->header('x-forwarded-host', ''))[0]);
+        if ($forwardedHost !== '') {
+            return $forwardedHost;
+        }
+
+        return (string) $request->host(true);
     }
 
     #[Apidoc\Title('聊天会话列表')]

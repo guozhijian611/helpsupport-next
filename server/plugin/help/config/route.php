@@ -80,6 +80,7 @@ Route::group('/app/help', function () {
     Route::get('/chat/config', [ChatController::class, 'configs']);
     Route::post('/chat/config', [ChatController::class, 'saveConfig']);
     Route::get('/chat/robot-profiles', [ChatController::class, 'robotProfiles']);
+    Route::get('/chat/realtime-config', [ChatController::class, 'realtimeConfig']);
     Route::get('/chat/sessions', [ChatController::class, 'sessions']);
     Route::post('/chat/session', [ChatController::class, 'saveSession']);
     Route::post('/chat/session/delete', [ChatController::class, 'deleteSession']);

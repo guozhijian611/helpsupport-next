@@ -195,6 +195,36 @@ class ChatConfig {
   }
 }
 
+class ChatRealtimeConfig {
+  const ChatRealtimeConfig({
+    required this.wsUrl,
+    required this.defaultModel,
+    required this.defaultSession,
+    required this.configId,
+  });
+
+  final String wsUrl;
+  final String defaultModel;
+  final Map<String, dynamic> defaultSession;
+  final int configId;
+
+  factory ChatRealtimeConfig.fromJson(Object? value) {
+    if (value is! Map<String, dynamic>) {
+      throw const FormatException('Unexpected realtime config shape');
+    }
+
+    final session = value['default_session'];
+    return ChatRealtimeConfig(
+      wsUrl: (value['ws_url'] ?? '').toString(),
+      defaultModel: (value['default_model'] ?? '').toString(),
+      defaultSession: session is Map<String, dynamic>
+          ? Map<String, dynamic>.from(session)
+          : const <String, dynamic>{},
+      configId: (value['config_id'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 class ChatRecord {
   const ChatRecord({
     required this.id,

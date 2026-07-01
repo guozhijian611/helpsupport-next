@@ -1,12 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
@@ -39,12 +45,19 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     with WidgetsBindingObserver {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
+  final _callRecorder = AudioRecorder();
+  final _callAudioPlayer = AudioPlayer();
   final Set<int> _expandedVoiceTextIds = <int>{};
   StreamSubscription<ChatStreamEvent>? _streamSubscription;
+  StreamSubscription<Uint8List>? _callAudioSubscription;
   Timer? _streamSyncTimer;
   Timer? _recordingTicker;
+  Timer? _callFrameTimer;
+  Timer? _callPingTimer;
   Duration _recordingElapsed = Duration.zero;
   DateTime? _recordingStartedAt;
+  DateTime? _callStartedAt;
+  WebSocket? _callSocket;
   CameraController? _cameraController;
   List<CameraDescription> _availableCameras = const <CameraDescription>[];
   bool _cameraInitializing = false;
@@ -58,9 +71,19 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   bool _callSubtitlesEnabled = false;
   bool _callFlashEnabled = false;
   bool _callUsingFrontCamera = true;
+  bool _callConnecting = false;
+  bool _callConnected = false;
+  bool _callUpstreamReady = false;
+  bool _callRecording = false;
+  bool _callCapturingFrame = false;
   bool _promptGateShown = false;
+  String _callStatusMessage = '';
+  String _callAssistantText = '';
+  final List<Uint8List> _callOutputPcmChunks = <Uint8List>[];
   List<ChatRecord> _streamingRecords = const <ChatRecord>[];
   int _sendGeneration = 0;
+  int _callSentAudioChunks = 0;
+  int _callSentVideoFrames = 0;
 
   bool get _supportsDoctorCall => widget.chatMode == 'doctor';
 
@@ -75,8 +98,11 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     WidgetsBinding.instance.removeObserver(this);
     _streamSyncTimer?.cancel();
     unawaited(_streamSubscription?.cancel() ?? Future<void>.value());
+    unawaited(_stopRealtimeCall());
     _recordingTicker?.cancel();
     unawaited(_cameraController?.dispose() ?? Future<void>.value());
+    unawaited(_callRecorder.dispose());
+    unawaited(_callAudioPlayer.dispose());
     _scrollController.dispose();
     _controller.dispose();
     super.dispose();
@@ -187,12 +213,18 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                   cameraErrorMessage: _cameraErrorMessage,
                   muted: _callMuted,
                   subtitlesEnabled: _callSubtitlesEnabled,
+                  connecting: _callConnecting,
+                  connected: _callConnected,
+                  upstreamReady: _callUpstreamReady,
+                  recording: _callRecording,
+                  statusMessage: _callStatusMessage,
+                  assistantText: _callAssistantText,
                   flashEnabled: _callFlashEnabled,
                   usingFrontCamera: _callUsingFrontCamera,
                   onBackToMessages: _dismissCallView,
                   onEndCall: _confirmEndCall,
                   onToggleVideo: () => unawaited(_toggleCallVideo()),
-                  onToggleMute: () => setState(() => _callMuted = !_callMuted),
+                  onToggleMute: _toggleCallMute,
                   onToggleSubtitles: () => setState(
                     () => _callSubtitlesEnabled = !_callSubtitlesEnabled,
                   ),
@@ -305,6 +337,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   }
 
   Future<void> _dismissCallView() async {
+    await _stopRealtimeCall();
     await _disposeCallCamera();
     if (!mounted) {
       return;
@@ -316,6 +349,12 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       _callSubtitlesEnabled = false;
       _callFlashEnabled = false;
       _callUsingFrontCamera = true;
+      _callConnecting = false;
+      _callConnected = false;
+      _callUpstreamReady = false;
+      _callRecording = false;
+      _callStatusMessage = '';
+      _callAssistantText = '';
       _cameraInitializing = false;
       _cameraErrorMessage = null;
     });
@@ -338,12 +377,13 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         _callActive = true;
         _callVideoEnabled = true;
         _callMuted = false;
-        _callSubtitlesEnabled = false;
+        _callSubtitlesEnabled = true;
         _callFlashEnabled = false;
         _callUsingFrontCamera = true;
         _cameraErrorMessage = null;
       });
       await _ensureCallCameraReady();
+      await _startRealtimeCall();
     }
   }
 
@@ -360,6 +400,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       ),
     );
     if (confirmed == true && mounted) {
+      await _stopRealtimeCall();
       await _disposeCallCamera();
       if (!mounted) {
         return;
@@ -371,6 +412,12 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         _callSubtitlesEnabled = false;
         _callFlashEnabled = false;
         _callUsingFrontCamera = true;
+        _callConnecting = false;
+        _callConnected = false;
+        _callUpstreamReady = false;
+        _callRecording = false;
+        _callStatusMessage = '';
+        _callAssistantText = '';
         _cameraInitializing = false;
         _cameraErrorMessage = null;
       });
@@ -388,6 +435,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         _callFlashEnabled = false;
         _cameraErrorMessage = null;
       });
+      _stopCallFrameTimer();
       return;
     }
     setState(() {
@@ -395,6 +443,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       _cameraErrorMessage = null;
     });
     await _ensureCallCameraReady();
+    _startCallFrameTimer();
   }
 
   Future<void> _toggleCallFlash() async {
@@ -424,6 +473,434 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         setState(() => _callFlashEnabled = false);
       }
     }
+  }
+
+  void _toggleCallMute() {
+    setState(() {
+      _callMuted = !_callMuted;
+      _callStatusMessage = _callMuted
+          ? _t(context, '麦克风已静音', 'Microphone muted')
+          : _t(context, '你可以开始说话', 'You can start talking');
+    });
+  }
+
+  Future<void> _startRealtimeCall() async {
+    if (_callConnecting || _callConnected) {
+      return;
+    }
+    setState(() {
+      _callConnecting = true;
+      _callStatusMessage = _t(
+        context,
+        '正在连接实时 AI',
+        'Connecting to realtime AI',
+      );
+      _callAssistantText = '';
+      _callOutputPcmChunks.clear();
+      _callSentAudioChunks = 0;
+      _callSentVideoFrames = 0;
+    });
+
+    try {
+      final repository = ref.read(chatRepositoryProvider);
+      final config = await repository.fetchRealtimeConfig();
+      final token = await repository.readAccessToken();
+      if (token.isEmpty) {
+        throw StateError(_t(context, '登录状态已失效，请重新登录', 'Please sign in again'));
+      }
+
+      final uri = _buildRealtimeUri(config, token);
+      final socket = await WebSocket.connect(uri.toString());
+      _callSocket = socket;
+      _callStartedAt = DateTime.now();
+      setState(() {
+        _callConnecting = false;
+        _callConnected = true;
+        _callStatusMessage = _t(context, '正在等待 AI 就绪', 'Waiting for AI');
+      });
+
+      socket.listen(
+        _handleRealtimeMessage,
+        onError: (Object error) {
+          if (!mounted) {
+            return;
+          }
+          setState(() {
+            _callStatusMessage = error.toString();
+            _callConnected = false;
+            _callUpstreamReady = false;
+          });
+        },
+        onDone: () {
+          if (!mounted) {
+            return;
+          }
+          setState(() {
+            _callConnected = false;
+            _callUpstreamReady = false;
+            _callRecording = false;
+            if (_callActive) {
+              _callStatusMessage = _t(
+                context,
+                '实时连接已断开',
+                'Realtime connection closed',
+              );
+            }
+          });
+          _stopCallFrameTimer();
+          unawaited(_stopCallAudio());
+        },
+        cancelOnError: true,
+      );
+      _startCallPingTimer();
+    } on Object catch (error) {
+      await _stopRealtimeCall();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _callConnecting = false;
+        _callStatusMessage = error.toString();
+      });
+      context.showCenteredNotice(error.toString());
+    }
+  }
+
+  Uri _buildRealtimeUri(ChatRealtimeConfig config, String token) {
+    final baseUri = Uri.parse(config.wsUrl);
+    final query = Map<String, String>.from(baseUri.queryParameters);
+    query['token'] = token;
+    if (config.configId > 0) {
+      query['config_id'] = config.configId.toString();
+    }
+    if (config.defaultModel.trim().isNotEmpty) {
+      query['model'] = config.defaultModel.trim();
+    }
+
+    return baseUri.replace(queryParameters: query);
+  }
+
+  Future<void> _stopRealtimeCall() async {
+    _stopCallPingTimer();
+    _stopCallFrameTimer();
+    await _stopCallAudio();
+    final socket = _callSocket;
+    _callSocket = null;
+    if (socket != null) {
+      await socket.close();
+    }
+    await _callAudioPlayer.stop();
+    _callOutputPcmChunks.clear();
+    if (mounted) {
+      setState(() {
+        _callConnecting = false;
+        _callConnected = false;
+        _callUpstreamReady = false;
+        _callRecording = false;
+      });
+    } else {
+      _callConnecting = false;
+      _callConnected = false;
+      _callUpstreamReady = false;
+      _callRecording = false;
+    }
+  }
+
+  void _handleRealtimeMessage(dynamic raw) {
+    if (raw is! String) {
+      return;
+    }
+    final Object? payload;
+    try {
+      payload = jsonDecode(raw);
+    } on FormatException {
+      return;
+    }
+    if (payload is! Map<String, dynamic>) {
+      return;
+    }
+
+    final type = (payload['type'] ?? '').toString();
+    if (type == 'session.created') {
+      setState(() {
+        _callUpstreamReady = true;
+        _callStatusMessage = _t(
+          context,
+          'AI 已就绪，你可以开始说话',
+          'AI is ready. You can talk now',
+        );
+      });
+      _sendRealtimeJson({
+        'type': 'session.update',
+        'event_id': _realtimeEventId('session'),
+        'session': _buildRealtimeSession(payload['session']),
+      });
+      unawaited(_startCallAudio());
+      _startCallFrameTimer();
+      return;
+    }
+
+    if (type == 'session.updated') {
+      setState(() {
+        _callStatusMessage = _t(context, '正在聆听', 'Listening');
+      });
+      return;
+    }
+
+    if (type == 'response.started') {
+      setState(() {
+        _callStatusMessage = _t(context, 'AI 正在回答', 'AI is responding');
+      });
+      _callOutputPcmChunks.clear();
+      return;
+    }
+
+    if (type == 'response.text.delta') {
+      final delta = (payload['delta'] ?? '').toString();
+      if (delta.isNotEmpty) {
+        setState(() => _callAssistantText += delta);
+      }
+      return;
+    }
+
+    if (type == 'response.audio.delta') {
+      final delta = (payload['delta'] ?? '').toString();
+      if (delta.isNotEmpty) {
+        _callOutputPcmChunks.add(base64Decode(delta));
+      }
+      return;
+    }
+
+    if (type == 'response.done') {
+      setState(() {
+        _callStatusMessage = _t(context, '你可以继续说话', 'You can continue talking');
+      });
+      unawaited(_playRealtimeAudio());
+      return;
+    }
+
+    if (type == 'error') {
+      final error = payload['error'];
+      final message = error is Map
+          ? (error['message'] ?? '').toString()
+          : _t(context, '实时会话发生错误', 'Realtime session error');
+      setState(() {
+        _callStatusMessage = message;
+        if (error is Map && error['fatal'] == true) {
+          _callUpstreamReady = false;
+        }
+      });
+      return;
+    }
+  }
+
+  Map<String, dynamic> _buildRealtimeSession(Object? serverSession) {
+    final session = serverSession is Map<String, dynamic>
+        ? Map<String, dynamic>.from(serverSession)
+        : <String, dynamic>{};
+    return <String, dynamic>{
+      ...session,
+      'modalities': const ['text', 'audio'],
+      'input_audio_format': 'pcm16',
+      'output_audio_format': 'pcm16',
+      'instructions':
+          '${_modeDescription(context, widget.chatMode)}\n'
+          '请以 HelpSupport 的 AI 心理医生身份进行实时对话，回答要简洁、温和、可执行。'
+          '如果用户表达自伤、自杀、伤人或失控风险，立即建议联系家属、当地急救电话或线下精神心理专科。',
+      'turn_detection': {
+        'type': 'server_vad',
+        'threshold': 0.5,
+        'silence_duration_ms': 800,
+      },
+      'temperature': 0.8,
+      'tools': const <Object>[],
+    };
+  }
+
+  Future<void> _startCallAudio() async {
+    if (_callRecording || !_callConnected || !_callUpstreamReady) {
+      return;
+    }
+    final hasPermission = await _callRecorder.hasPermission(request: true);
+    if (!hasPermission) {
+      throw StateError(
+        _t(context, '麦克风权限未开启', 'Microphone permission is required'),
+      );
+    }
+
+    final stream = await _callRecorder.startStream(
+      const RecordConfig(
+        encoder: AudioEncoder.pcm16bits,
+        sampleRate: 16000,
+        numChannels: 1,
+        echoCancel: true,
+        noiseSuppress: true,
+        autoGain: true,
+        streamBufferSize: 4096,
+      ),
+    );
+    _callAudioSubscription = stream.listen(
+      (chunk) {
+        if (_callMuted ||
+            !_callConnected ||
+            !_callUpstreamReady ||
+            chunk.isEmpty) {
+          return;
+        }
+        _sendRealtimeJson({
+          'type': 'input_audio_buffer.append',
+          'event_id': _realtimeEventId('audio'),
+          'audio': base64Encode(chunk),
+        });
+        _callSentAudioChunks++;
+      },
+      onError: (Object error) {
+        if (mounted) {
+          setState(() => _callStatusMessage = error.toString());
+        }
+      },
+    );
+    if (mounted) {
+      setState(() {
+        _callRecording = true;
+        _callStatusMessage = _t(context, '你可以开始说话', 'You can start talking');
+      });
+    } else {
+      _callRecording = true;
+    }
+  }
+
+  Future<void> _stopCallAudio() async {
+    await _callAudioSubscription?.cancel();
+    _callAudioSubscription = null;
+    try {
+      if (await _callRecorder.isRecording()) {
+        await _callRecorder.stop();
+      }
+    } on Object {
+      // Ignore teardown failures while closing the realtime call.
+    }
+    _callRecording = false;
+  }
+
+  void _startCallFrameTimer() {
+    _stopCallFrameTimer();
+    if (!_callVideoEnabled || !_callConnected || !_callUpstreamReady) {
+      return;
+    }
+    _callFrameTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      unawaited(_sendCallVideoFrame());
+    });
+    unawaited(_sendCallVideoFrame());
+  }
+
+  void _stopCallFrameTimer() {
+    _callFrameTimer?.cancel();
+    _callFrameTimer = null;
+  }
+
+  Future<void> _sendCallVideoFrame() async {
+    final controller = _cameraController;
+    if (_callCapturingFrame ||
+        !_callVideoEnabled ||
+        !_callConnected ||
+        !_callUpstreamReady ||
+        controller == null ||
+        !controller.value.isInitialized ||
+        controller.value.isTakingPicture) {
+      return;
+    }
+    _callCapturingFrame = true;
+    try {
+      final picture = await controller.takePicture();
+      final bytes = await picture.readAsBytes();
+      _sendRealtimeJson({
+        'type': 'input_image.append',
+        'event_id': _realtimeEventId('frame'),
+        'image': base64Encode(bytes),
+        'mime_type': 'image/jpeg',
+        'timestamp_ms': _callStartedAt == null
+            ? 0
+            : DateTime.now().difference(_callStartedAt!).inMilliseconds,
+      });
+      _callSentVideoFrames++;
+    } on Object {
+      // Frame upload is best-effort; keep the call alive.
+    } finally {
+      _callCapturingFrame = false;
+    }
+  }
+
+  void _startCallPingTimer() {
+    _stopCallPingTimer();
+    _callPingTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _sendRealtimeJson({'type': 'ping', 'event_id': _realtimeEventId('ping')});
+    });
+  }
+
+  void _stopCallPingTimer() {
+    _callPingTimer?.cancel();
+    _callPingTimer = null;
+  }
+
+  void _sendRealtimeJson(Map<String, dynamic> payload) {
+    final socket = _callSocket;
+    if (socket == null || socket.readyState != WebSocket.open) {
+      return;
+    }
+    socket.add(jsonEncode(payload));
+  }
+
+  String _realtimeEventId(String prefix) {
+    return '${prefix}_${DateTime.now().microsecondsSinceEpoch}_${math.Random().nextInt(0x7fffffff)}';
+  }
+
+  Future<void> _playRealtimeAudio() async {
+    if (_callOutputPcmChunks.isEmpty) {
+      return;
+    }
+    final wavBytes = _buildPcm16Wav(_callOutputPcmChunks, sampleRate: 24000);
+    _callOutputPcmChunks.clear();
+
+    final dir = await getTemporaryDirectory();
+    final file = File(
+      '${dir.path}/helpsupport-realtime-${DateTime.now().microsecondsSinceEpoch}.wav',
+    );
+    await file.writeAsBytes(wavBytes, flush: true);
+    await _callAudioPlayer.setFilePath(file.path);
+    await _callAudioPlayer.play();
+  }
+
+  Uint8List _buildPcm16Wav(List<Uint8List> chunks, {required int sampleRate}) {
+    final pcmLength = chunks.fold<int>(0, (sum, chunk) => sum + chunk.length);
+    final bytes = Uint8List(44 + pcmLength);
+    final data = ByteData.view(bytes.buffer);
+    void writeAscii(int offset, String value) {
+      for (var i = 0; i < value.length; i++) {
+        bytes[offset + i] = value.codeUnitAt(i);
+      }
+    }
+
+    writeAscii(0, 'RIFF');
+    data.setUint32(4, 36 + pcmLength, Endian.little);
+    writeAscii(8, 'WAVE');
+    writeAscii(12, 'fmt ');
+    data.setUint32(16, 16, Endian.little);
+    data.setUint16(20, 1, Endian.little);
+    data.setUint16(22, 1, Endian.little);
+    data.setUint32(24, sampleRate, Endian.little);
+    data.setUint32(28, sampleRate * 2, Endian.little);
+    data.setUint16(32, 2, Endian.little);
+    data.setUint16(34, 16, Endian.little);
+    writeAscii(36, 'data');
+    data.setUint32(40, pcmLength, Endian.little);
+
+    var offset = 44;
+    for (final chunk in chunks) {
+      bytes.setRange(offset, offset + chunk.length, chunk);
+      offset += chunk.length;
+    }
+    return bytes;
   }
 
   Future<void> _flipCallCamera() async {
@@ -502,7 +979,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       final previousController = _cameraController;
       final nextController = CameraController(
         description,
-        ResolutionPreset.high,
+        ResolutionPreset.medium,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
@@ -1758,6 +2235,12 @@ class _DoctorCallView extends StatelessWidget {
     required this.cameraErrorMessage,
     required this.muted,
     required this.subtitlesEnabled,
+    required this.connecting,
+    required this.connected,
+    required this.upstreamReady,
+    required this.recording,
+    required this.statusMessage,
+    required this.assistantText,
     required this.flashEnabled,
     required this.usingFrontCamera,
     required this.onBackToMessages,
@@ -1775,6 +2258,12 @@ class _DoctorCallView extends StatelessWidget {
   final String? cameraErrorMessage;
   final bool muted;
   final bool subtitlesEnabled;
+  final bool connecting;
+  final bool connected;
+  final bool upstreamReady;
+  final bool recording;
+  final String statusMessage;
+  final String assistantText;
   final bool flashEnabled;
   final bool usingFrontCamera;
   final VoidCallback onBackToMessages;
@@ -1797,9 +2286,23 @@ class _DoctorCallView extends StatelessWidget {
     final neutralButtonBackground = videoEnabled
         ? const Color(0xFF787878)
         : Colors.white.withValues(alpha: isDark ? 0.14 : 0.34);
-    final prompt = muted
+    final fallbackPrompt = muted
         ? _t(context, '麦克风已静音', 'Microphone muted')
-        : _t(context, '你可以开始说话', 'You can start talking');
+        : connecting
+        ? _t(context, '正在连接实时 AI', 'Connecting to realtime AI')
+        : !connected
+        ? _t(context, '实时连接未建立', 'Realtime connection is not connected')
+        : !upstreamReady
+        ? _t(context, '正在等待 AI 就绪', 'Waiting for AI')
+        : recording
+        ? _t(context, '你可以开始说话', 'You can start talking')
+        : _t(context, '正在启动麦克风', 'Starting microphone');
+    final prompt = statusMessage.trim().isEmpty
+        ? fallbackPrompt
+        : statusMessage.trim();
+    final subtitle = assistantText.trim().isEmpty
+        ? prompt
+        : assistantText.trim();
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 260),
@@ -1863,17 +2366,14 @@ class _DoctorCallView extends StatelessWidget {
             if (subtitlesEnabled)
               Positioned(
                 top: 64,
-                left: 0,
-                right: 0,
+                left: 24,
+                right: 24,
                 child: Center(
                   child: _CallGlassChip(
-                    label: _t(
-                      context,
-                      '字幕已开启，等待语音输入',
-                      'Subtitles are on, waiting for audio',
-                    ),
+                    label: subtitle,
                     icon: Icons.subtitles_rounded,
                     darkBackdrop: videoEnabled,
+                    maxLines: 3,
                   ),
                 ),
               ),
@@ -2203,11 +2703,13 @@ class _CallGlassChip extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.darkBackdrop,
+    this.maxLines = 1,
   });
 
   final String label;
   final IconData icon;
   final bool darkBackdrop;
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -2230,12 +2732,16 @@ class _CallGlassChip extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: foreground),
           const SizedBox(width: 8),
-          Text(
-            label,
-            style: TextStyle(
-              color: foreground,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: maxLines,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: foreground,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

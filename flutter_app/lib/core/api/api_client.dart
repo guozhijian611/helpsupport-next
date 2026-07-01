@@ -112,6 +112,11 @@ class ApiClient {
     );
   }
 
+  Future<String> readAccessToken() async {
+    final token = await _tokenStorage.readAccessToken();
+    return token?.trim() ?? '';
+  }
+
   Future<ApiResult<T>> _sendWithSessionRefresh<T>({
     required String path,
     required Future<Response<Object?>> Function() request,

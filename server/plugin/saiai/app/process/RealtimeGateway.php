@@ -90,7 +90,7 @@ class RealtimeGateway
 
         try {
             $this->assertRealtimePath($request);
-            $this->assertAdminToken($request, $query);
+            $this->assertAccessToken($request, $query);
 
             [$config, $adapter] = $this->resolveAdapter($query);
             $state = new RealtimeSessionState(
@@ -238,7 +238,7 @@ class RealtimeGateway
         }
     }
 
-    private function assertAdminToken(string|WsRequest $request, array $query): void
+    private function assertAccessToken(string|WsRequest $request, array $query): void
     {
         $token = $this->extractBearerToken($request, $query);
         if ($token === '') {
@@ -247,7 +247,7 @@ class RealtimeGateway
 
         $payload = JwtToken::verify(1, $token);
         $extend = (array) ($payload['extend'] ?? []);
-        if (($extend['plat'] ?? '') !== 'saiadmin') {
+        if (!in_array((string) ($extend['plat'] ?? ''), ['saiadmin', 'saiuser'], true)) {
             throw new \RuntimeException('登录凭证平台不匹配', 4011);
         }
     }
