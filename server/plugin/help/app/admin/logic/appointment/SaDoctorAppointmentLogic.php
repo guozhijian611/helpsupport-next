@@ -4,6 +4,7 @@ namespace plugin\help\app\admin\logic\appointment;
 
 use plugin\help\app\model\appointment\SaDoctorAppointment;
 use plugin\help\app\service\HelpBadgeService;
+use plugin\help\app\service\HelpPointService;
 use plugin\help\app\service\HelpPushService;
 use plugin\saiadmin\basic\think\BaseLogic;
 use plugin\saiadmin\exception\ApiException;
@@ -131,7 +132,7 @@ class SaDoctorAppointmentLogic extends BaseLogic
                 'cancel_reason' => $reason,
                 'cancel_by' => $cancelBy,
                 'canceled_at' => date('Y-m-d H:i:s'),
-            ]) && $this->releaseScheduleBookedCount($appointment);
+            ]) && $this->releaseScheduleBookedCount($appointment) && $this->refundAppointmentPointsIfNeeded($appointment, '后台取消预约退回积分');
         });
         if ($result) {
             $this->notifyAppointmentMember($appointment, 'canceled');
@@ -153,7 +154,7 @@ class SaDoctorAppointmentLogic extends BaseLogic
             return (bool) parent::edit($id, [
                 'status' => 4,
                 'confirm_remark' => $remark,
-            ]) && $this->releaseScheduleBookedCount($appointment);
+            ]) && $this->releaseScheduleBookedCount($appointment) && $this->refundAppointmentPointsIfNeeded($appointment, '后台拒绝预约退回积分');
         });
         if ($result) {
             $this->notifyAppointmentMember($appointment, 'rejected');
@@ -173,6 +174,16 @@ class SaDoctorAppointmentLogic extends BaseLogic
         foreach (['confirmed_at', 'finished_at', 'canceled_at'] as $field) {
             if (array_key_exists($field, $data) && $data[$field] === '') {
                 $data[$field] = null;
+            }
+        }
+
+        if (array_key_exists('payment_method', $data)) {
+            $paymentMethod = trim((string) $data['payment_method']);
+            $data['payment_method'] = in_array($paymentMethod, ['cash', 'points'], true) ? $paymentMethod : 'cash';
+        }
+        foreach (['points_cost', 'points_log_id', 'points_refund_log_id'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $data[$field] = max(0, (int) $data[$field]);
             }
         }
 
@@ -343,6 +354,67 @@ class SaDoctorAppointmentLogic extends BaseLogic
         );
 
         return true;
+    }
+
+    private function refundAppointmentPointsIfNeeded(array $appointment, string $title): bool
+    {
+        $config = $this->appointmentPaymentConfig();
+        $memberId = (int) ($appointment['member_id'] ?? 0);
+        $appointmentId = (int) ($appointment['id'] ?? 0);
+        $pointsCost = (int) ($appointment['points_cost'] ?? 0);
+        if (
+            !$config['refund_on_cancel']
+            || $memberId <= 0
+            || $appointmentId <= 0
+            || (string) ($appointment['payment_method'] ?? '') !== 'points'
+            || $pointsCost <= 0
+            || (int) ($appointment['points_log_id'] ?? 0) <= 0
+            || (int) ($appointment['points_refund_log_id'] ?? 0) > 0
+        ) {
+            return true;
+        }
+
+        $refundLogId = (int) ((new HelpPointService())->addLog([
+            'member_id' => $memberId,
+            'points' => $pointsCost,
+            'change_type' => 'income',
+            'source_type' => 'doctor_appointment_refund',
+            'source_id' => $appointmentId,
+            'title' => $title,
+            'remark' => '积分预约未完成，系统自动退回积分',
+        ], null) ?? 0);
+
+        if ($refundLogId > 0) {
+            Db::table('sa_doctor_appointment')->where('id', $appointmentId)->update([
+                'points_refund_log_id' => $refundLogId,
+                'update_time' => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        return true;
+    }
+
+    private function appointmentPaymentConfig(): array
+    {
+        $rows = Db::table('sa_system_config_group')
+            ->alias('g')
+            ->leftJoin('sa_system_config c', 'c.group_id = g.id AND c.delete_time IS NULL')
+            ->where('g.code', 'help_appointment_payment')
+            ->whereNull('g.delete_time')
+            ->field('c.key, c.value')
+            ->select()
+            ->toArray();
+
+        $config = [];
+        foreach ($rows as $row) {
+            if (!empty($row['key'])) {
+                $config[(string) $row['key']] = (string) ($row['value'] ?? '');
+            }
+        }
+
+        return [
+            'refund_on_cancel' => ($config['refund_on_cancel'] ?? '1') === '1',
+        ];
     }
 
     private function upsertDoctorPatientRelation(int $doctorId, int $memberId): void

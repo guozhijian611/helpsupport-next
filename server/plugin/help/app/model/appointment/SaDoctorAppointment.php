@@ -39,4 +39,9 @@ class SaDoctorAppointment extends BaseModel
     {
         $query->where('meet_type', (string) $value);
     }
+
+    public function searchPaymentMethodAttr($query, $value): void
+    {
+        $query->where('payment_method', (string) $value);
+    }
 }

@@ -15,6 +15,7 @@ class HelpRuntimeConfigLogic
         'help_google_oauth' => 'Google 登录',
         'help_apple_oauth' => 'Apple 登录',
         'help_firebase_push' => 'Firebase 推送',
+        'help_appointment_payment' => '预约积分',
     ];
 
     private const SECRET_KEYS = [
@@ -97,7 +98,7 @@ class HelpRuntimeConfigLogic
                     if ($this->isSecretKey($groupCode, (string) $key) && $this->isBlank($value)) {
                         continue;
                     }
-                    $value = $this->stringValue($value);
+                    $value = $this->normalizeValue((string) $key, $value);
                     $this->assertAllowedOption($items[$key], $value);
 
                     Db::table('sa_system_config')
@@ -190,6 +191,21 @@ class HelpRuntimeConfigLogic
         }
 
         return trim((string) $value);
+    }
+
+    private function normalizeValue(string $key, mixed $value): string
+    {
+        $value = $this->stringValue($value);
+        if ($key === 'points_cost') {
+            $points = (int) $value;
+            if ($points <= 0) {
+                throw new ApiException('每次预约积分必须大于0');
+            }
+
+            return (string) $points;
+        }
+
+        return $value;
     }
 
     private function formatRemark(string $remark): string

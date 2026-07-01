@@ -21,7 +21,7 @@ export interface RuntimeConfigGroup {
 }
 
 /**
- * 登录与推送配置 API接口
+ * HelpSupport 运行配置 API接口
  */
 export default {
   read() {

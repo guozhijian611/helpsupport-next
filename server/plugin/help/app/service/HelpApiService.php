@@ -3184,8 +3184,14 @@ class HelpApiService
             ->select()
             ->toArray();
 
+        $paymentConfig = $this->appointmentPaymentConfig();
         foreach ($rows as &$row) {
             $row['available_count'] = max(0, (int) ($row['capacity'] ?? 0) - (int) ($row['booked_count'] ?? 0));
+            $row['can_use_points'] = $paymentConfig['points_enabled'];
+            $row['points_cost'] = $paymentConfig['points_enabled'] ? $paymentConfig['points_cost'] : 0;
+            $row['payment_method'] = $paymentConfig['points_enabled'] ? 'points' : 'cash';
+            $row['cash_price'] = (string) ($row['price'] ?? '0.00');
+            $row['cash_currency'] = (string) ($row['currency'] ?? 'USD');
         }
         unset($row);
 
@@ -3209,6 +3215,7 @@ class HelpApiService
     public function createAppointment(int $memberId, array $data): array
     {
         $id = Db::transaction(function () use ($memberId, $data) {
+            $paymentConfig = $this->appointmentPaymentConfig();
             $schedule = $this->lockAvailableSchedule($data);
             $doctorId = (int) $schedule['doctor_id'];
             if ($doctorId === $memberId) {
@@ -3226,9 +3233,26 @@ class HelpApiService
             $payload['meet_link'] = trim((string) ($payload['meet_link'] ?? '')) !== '' ? $payload['meet_link'] : $schedule['meet_link'];
             $payload['price'] = (string) $schedule['price'];
             $payload['currency'] = (string) $schedule['currency'];
+            $payload['payment_method'] = 'cash';
+            $payload['points_cost'] = 0;
+            $payload['points_log_id'] = 0;
+            $payload['points_refund_log_id'] = 0;
+            if ($paymentConfig['points_enabled']) {
+                $payload['payment_method'] = 'points';
+                $payload['points_cost'] = $paymentConfig['points_cost'];
+                $payload['price'] = '0.00';
+                $payload['currency'] = 'POINTS';
+            }
             $payload['status'] = 0;
 
             $appointmentId = $this->saveRow('sa_doctor_appointment', $payload, $memberId);
+            if ($paymentConfig['points_enabled']) {
+                $pointsLogId = $this->chargeAppointmentPoints($memberId, $appointmentId, $paymentConfig['points_cost']);
+                Db::table('sa_doctor_appointment')->where('id', $appointmentId)->update([
+                    'points_log_id' => $pointsLogId,
+                    'update_time' => date('Y-m-d H:i:s'),
+                ]);
+            }
             Db::execute('UPDATE `sa_doctor_schedule` SET `booked_count` = `booked_count` + 1, `update_time` = NOW() WHERE `id` = ' . (int) $schedule['id']);
 
             return $appointmentId;
@@ -3269,6 +3293,7 @@ class HelpApiService
                 'canceled_at' => date('Y-m-d H:i:s'),
             ], $memberId, $appointmentId);
             $this->releaseAppointmentSchedule($appointment);
+            $this->refundAppointmentPointsIfNeeded((int) $appointment['member_id'], $appointment, $memberId, '预约取消退回积分');
         });
 
         $updated = Db::table('sa_doctor_appointment')->where('id', $appointmentId)->find() ?: [];
@@ -4163,6 +4188,7 @@ class HelpApiService
                 'update_time' => date('Y-m-d H:i:s'),
             ]);
             $this->releaseAppointmentSchedule($appointment);
+            $this->refundAppointmentPointsIfNeeded((int) $appointment['member_id'], $appointment, $doctorId, '医生取消预约退回积分');
         });
 
         $updated = Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
@@ -4189,6 +4215,7 @@ class HelpApiService
                 'update_time' => date('Y-m-d H:i:s'),
             ]);
             $this->releaseAppointmentSchedule($appointment);
+            $this->refundAppointmentPointsIfNeeded((int) $appointment['member_id'], $appointment, $doctorId, '医生拒绝预约退回积分');
         });
 
         $updated = Db::table('sa_doctor_appointment')->where('id', $appointment['id'])->find() ?: [];
@@ -5202,6 +5229,71 @@ class HelpApiService
             ->find();
         if ($exists) {
             throw new ApiException('该时段已有待处理预约，请勿重复预约', 400);
+        }
+    }
+
+    private function appointmentPaymentConfig(): array
+    {
+        $group = $this->configGroups(['help_appointment_payment'])['help_appointment_payment'] ?? [];
+        $pointsCost = max(0, (int) ($group['points_cost'] ?? 0));
+        $pointsEnabled = ($group['points_enabled'] ?? '2') === '1' && $pointsCost > 0;
+
+        return [
+            'points_enabled' => $pointsEnabled,
+            'points_cost' => $pointsEnabled ? $pointsCost : 0,
+            'refund_on_cancel' => ($group['refund_on_cancel'] ?? '1') === '1',
+        ];
+    }
+
+    private function chargeAppointmentPoints(int $memberId, int $appointmentId, int $pointsCost): int
+    {
+        if ($memberId <= 0 || $appointmentId <= 0 || $pointsCost <= 0) {
+            throw new ApiException('预约积分参数错误', 400);
+        }
+
+        return (int) ((new HelpPointService())->addLog([
+            'member_id' => $memberId,
+            'points' => -$pointsCost,
+            'change_type' => 'expense',
+            'source_type' => 'doctor_appointment',
+            'source_id' => $appointmentId,
+            'title' => '积分预约医生',
+            'remark' => '创建医生预约消耗积分',
+        ], $memberId) ?? 0);
+    }
+
+    private function refundAppointmentPointsIfNeeded(int $memberId, array $appointment, int $operatorId, string $title): void
+    {
+        $config = $this->appointmentPaymentConfig();
+        $appointmentId = (int) ($appointment['id'] ?? 0);
+        $pointsCost = (int) ($appointment['points_cost'] ?? 0);
+        if (
+            !$config['refund_on_cancel']
+            || $memberId <= 0
+            || $appointmentId <= 0
+            || (string) ($appointment['payment_method'] ?? '') !== 'points'
+            || $pointsCost <= 0
+            || (int) ($appointment['points_log_id'] ?? 0) <= 0
+            || (int) ($appointment['points_refund_log_id'] ?? 0) > 0
+        ) {
+            return;
+        }
+
+        $refundLogId = (int) ((new HelpPointService())->addLog([
+            'member_id' => $memberId,
+            'points' => $pointsCost,
+            'change_type' => 'income',
+            'source_type' => 'doctor_appointment_refund',
+            'source_id' => $appointmentId,
+            'title' => $title,
+            'remark' => '积分预约未完成，系统自动退回积分',
+        ], $operatorId > 0 ? $operatorId : $memberId) ?? 0);
+
+        if ($refundLogId > 0) {
+            Db::table('sa_doctor_appointment')->where('id', $appointmentId)->update([
+                'points_refund_log_id' => $refundLogId,
+                'update_time' => date('Y-m-d H:i:s'),
+            ]);
         }
     }
 

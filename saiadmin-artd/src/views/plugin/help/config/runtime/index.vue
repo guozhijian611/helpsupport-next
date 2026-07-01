@@ -3,7 +3,7 @@
     <ElCard class="art-card-xs flex flex-col h-full mt-0 runtime-card" shadow="never">
       <template #header>
         <div class="flex items-center justify-between gap-3">
-          <b>登录推送配置</b>
+          <b>运行配置</b>
           <ElSpace>
             <SaButton
               type="primary"
@@ -41,13 +41,21 @@
                 :label="item.name"
               >
                 <ElSwitch
-                  v-if="item.key === 'enabled'"
+                  v-if="item.key === 'enabled' || item.input_type === 'radio'"
                   v-model="formValues[group.code][item.key]"
                   active-value="1"
                   inactive-value="2"
                   active-text="启用"
                   inactive-text="禁用"
                   inline-prompt
+                />
+                <ElInput
+                  v-else-if="item.input_type === 'number'"
+                  v-model="formValues[group.code][item.key]"
+                  type="number"
+                  min="1"
+                  clearable
+                  :placeholder="secretPlaceholder(item)"
                 />
                 <ElInput
                   v-else-if="item.input_type === 'textarea'"

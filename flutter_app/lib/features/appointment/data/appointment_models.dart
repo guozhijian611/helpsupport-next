@@ -95,6 +95,11 @@ class AppointmentSlot {
     required this.bookedCount,
     required this.availableCount,
     required this.remark,
+    required this.canUsePoints,
+    required this.pointsCost,
+    required this.paymentMethod,
+    required this.cashPrice,
+    required this.cashCurrency,
   });
 
   factory AppointmentSlot.fromJson(Map<String, dynamic> json) {
@@ -113,6 +118,11 @@ class AppointmentSlot {
       bookedCount: _intValue(json['booked_count']),
       availableCount: _intValue(json['available_count']),
       remark: _stringValue(json['remark']),
+      canUsePoints: _boolValue(json['can_use_points']),
+      pointsCost: _intValue(json['points_cost']),
+      paymentMethod: _stringValue(json['payment_method']),
+      cashPrice: _doubleValue(json['cash_price']),
+      cashCurrency: _stringValue(json['cash_currency']),
     );
   }
 
@@ -130,6 +140,13 @@ class AppointmentSlot {
   final int bookedCount;
   final int availableCount;
   final String remark;
+  final bool canUsePoints;
+  final int pointsCost;
+  final String paymentMethod;
+  final double cashPrice;
+  final String cashCurrency;
+
+  bool get isPointsAppointment => canUsePoints && pointsCost > 0;
 }
 
 class AppointmentRecord {
@@ -158,6 +175,10 @@ class AppointmentRecord {
     required this.doctorTitle,
     required this.doctorHospital,
     required this.doctorAvatar,
+    required this.paymentMethod,
+    required this.pointsCost,
+    required this.pointsLogId,
+    required this.pointsRefundLogId,
   });
 
   factory AppointmentRecord.fromJson(Map<String, dynamic> json) {
@@ -186,6 +207,10 @@ class AppointmentRecord {
       doctorTitle: _stringValue(json['doctor_title']),
       doctorHospital: _stringValue(json['doctor_hospital']),
       doctorAvatar: _stringValue(json['doctor_avatar']),
+      paymentMethod: _stringValue(json['payment_method']),
+      pointsCost: _intValue(json['points_cost']),
+      pointsLogId: _intValue(json['points_log_id']),
+      pointsRefundLogId: _intValue(json['points_refund_log_id']),
     );
   }
 
@@ -213,6 +238,10 @@ class AppointmentRecord {
   final String doctorTitle;
   final String doctorHospital;
   final String doctorAvatar;
+  final String paymentMethod;
+  final int pointsCost;
+  final int pointsLogId;
+  final int pointsRefundLogId;
 
   AppointmentRecord copyWith({
     String? doctorName,
@@ -245,10 +274,16 @@ class AppointmentRecord {
       doctorTitle: doctorTitle ?? this.doctorTitle,
       doctorHospital: doctorHospital ?? this.doctorHospital,
       doctorAvatar: doctorAvatar ?? this.doctorAvatar,
+      paymentMethod: paymentMethod,
+      pointsCost: pointsCost,
+      pointsLogId: pointsLogId,
+      pointsRefundLogId: pointsRefundLogId,
     );
   }
 
   String get displayDoctorName => doctorName.trim().isEmpty ? '医生' : doctorName;
+
+  bool get isPointsAppointment => paymentMethod == 'points' && pointsCost > 0;
 }
 
 class AppointmentDoctorQuery {
@@ -335,4 +370,15 @@ String _stringValue(Object? value) {
     return '';
   }
   return '$value'.trim();
+}
+
+bool _boolValue(Object? value) {
+  if (value is bool) {
+    return value;
+  }
+  if (value is num) {
+    return value != 0;
+  }
+  final text = _stringValue(value).toLowerCase();
+  return text == '1' || text == 'true' || text == 'yes';
 }

@@ -9,7 +9,7 @@ use support\Request;
 use support\Response;
 
 /**
- * HelpSupport 登录与推送配置控制器
+ * HelpSupport 运行配置控制器
  */
 class HelpRuntimeConfigController extends BaseController
 {
@@ -20,18 +20,18 @@ class HelpRuntimeConfigController extends BaseController
     }
 
     /**
-     * 读取登录与推送配置
+     * 读取运行配置
      */
-    #[Permission('登录推送配置读取', 'help:config:runtime:read')]
+    #[Permission('运行配置读取', 'help:config:runtime:read')]
     public function read(Request $request): Response
     {
         return $this->success($this->logic->read());
     }
 
     /**
-     * 更新登录与推送配置
+     * 更新运行配置
      */
-    #[Permission('登录推送配置更新', 'help:config:runtime:update')]
+    #[Permission('运行配置更新', 'help:config:runtime:update')]
     public function update(Request $request): Response
     {
         $configs = $request->post('configs', []);

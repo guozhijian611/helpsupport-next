@@ -70,6 +70,7 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
     final palette = _AppointmentDoctorDetailPalette.of(context);
     final apiClient = ref.watch(apiClientProvider);
     final avatarUrl = apiClient.resolveUrl(doctor.avatar);
+    final pointsCost = _minPointsCost(slots);
     final minPrice = slots.isEmpty
         ? null
         : slots.map((item) => item.price).reduce(math.min);
@@ -133,7 +134,7 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
                                 ),
                               ),
                             ),
-                            if (minPrice != null)
+                            if (pointsCost != null || minPrice != null)
                               Padding(
                                 padding: const EdgeInsets.only(top: 6),
                                 child: RichText(
@@ -145,10 +146,18 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
                                     ),
                                     children: [
                                       TextSpan(
-                                        text: _t(context, '起价 ', 'From '),
+                                        text: pointsCost != null
+                                            ? _t(context, '积分预约 ', 'Points ')
+                                            : _t(context, '起价 ', 'From '),
                                       ),
                                       TextSpan(
-                                        text: _formatPrice(minPrice, slots),
+                                        text: pointsCost != null
+                                            ? _t(
+                                                context,
+                                                '$pointsCost积分',
+                                                '$pointsCost pts',
+                                              )
+                                            : _formatPrice(minPrice!, slots),
                                         style: const TextStyle(
                                           color: Color(0xFFFF9585),
                                           fontSize: 18,
@@ -176,6 +185,10 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
                         ),
                         const SizedBox(height: 20),
                         _DoctorInfoStrip(doctor: doctor, slots: slots),
+                        if (pointsCost != null) ...[
+                          const SizedBox(height: 14),
+                          _PointsBookingNotice(pointsCost: pointsCost),
+                        ],
                         const SizedBox(height: 24),
                         _SectionHeader(title: _t(context, '个人简介', 'Profile')),
                         const SizedBox(height: 12),
@@ -349,11 +362,77 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
     );
   }
 
+  static int? _minPointsCost(List<AppointmentSlot> slots) {
+    final costs = slots
+        .where((item) => item.isPointsAppointment)
+        .map((item) => item.pointsCost)
+        .where((item) => item > 0)
+        .toList(growable: false);
+    if (costs.isEmpty) {
+      return null;
+    }
+
+    return costs.reduce(math.min);
+  }
+
   String _formatPrice(double price, List<AppointmentSlot> slots) {
     final currency = slots.first.currency.isEmpty
         ? 'USD'
         : slots.first.currency;
     return '$currency ${price.toStringAsFixed(price.truncateToDouble() == price ? 0 : 2)}';
+  }
+}
+
+class _PointsBookingNotice extends StatelessWidget {
+  const _PointsBookingNotice({required this.pointsCost});
+
+  final int pointsCost;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _AppointmentDoctorDetailPalette.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFFFDAD2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFF1EE),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.add_card_rounded,
+              color: Color(0xFFFF9585),
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _t(
+                context,
+                '$pointsCost积分可预约医生，提交预约时自动扣减。',
+                '$pointsCost points can be used for this booking and will be deducted on submit.',
+              ),
+              style: TextStyle(
+                color: palette.bodyText,
+                fontSize: 14,
+                height: 1.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -751,6 +830,17 @@ class _AppointmentSlotSheetState extends ConsumerState<_AppointmentSlotSheet> {
             ),
             const SizedBox(height: 10),
             _ConfirmRow(label: _t(context, '时间', 'Time'), value: slot.timeSlot),
+            if (slot.isPointsAppointment) ...[
+              const SizedBox(height: 10),
+              _ConfirmRow(
+                label: _t(context, '积分', 'Points'),
+                value: _t(
+                  context,
+                  '${slot.pointsCost}积分',
+                  '${slot.pointsCost} pts',
+                ),
+              ),
+            ],
           ],
         ),
         actions: [
@@ -819,8 +909,12 @@ class _AppointmentSlotSheetState extends ConsumerState<_AppointmentSlotSheet> {
               Text(
                 _t(
                   context,
-                  '已提交预约申请，你可以在“我的预约”里查看状态。',
-                  'Your booking request has been submitted. You can track it in My bookings.',
+                  slot.isPointsAppointment
+                      ? '已扣减${slot.pointsCost}积分并提交预约申请，你可以在“我的预约”里查看状态。'
+                      : '已提交预约申请，你可以在“我的预约”里查看状态。',
+                  slot.isPointsAppointment
+                      ? '${slot.pointsCost} points were deducted and your booking request has been submitted. You can track it in My bookings.'
+                      : 'Your booking request has been submitted. You can track it in My bookings.',
                 ),
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -938,15 +1032,38 @@ class _SlotDayBlock extends StatelessWidget {
                               : palette.outline,
                         ),
                       ),
-                      child: Text(
-                        slot.timeSlot.replaceAll('-', '\n'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: selected ? Colors.white : palette.bodyText,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          height: 1.35,
-                        ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            slot.timeSlot.replaceAll('-', '\n'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: selected ? Colors.white : palette.bodyText,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              height: 1.35,
+                            ),
+                          ),
+                          if (slot.isPointsAppointment) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              _t(
+                                context,
+                                '${slot.pointsCost}积分',
+                                '${slot.pointsCost} pts',
+                              ),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: selected
+                                    ? Colors.white
+                                    : const Color(0xFFFF9585),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   );

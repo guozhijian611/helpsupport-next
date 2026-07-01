@@ -84,6 +84,54 @@
       width: 80
     },
     {
+      prop: 'payment_method',
+      label: '支付方式',
+      form: true,
+      search: true,
+      editReadonly: true,
+      options: [
+        {
+          label: '现金',
+          value: 'cash',
+          tagType: 'info'
+        },
+        {
+          label: '积分',
+          value: 'points',
+          tagType: 'success'
+        }
+      ],
+      default: 'cash',
+      width: 100
+    },
+    {
+      prop: 'points_cost',
+      label: '消耗积分',
+      type: 'number',
+      form: true,
+      default: 0,
+      editReadonly: true,
+      width: 100
+    },
+    {
+      prop: 'points_log_id',
+      label: '扣减流水ID',
+      type: 'number',
+      form: true,
+      default: 0,
+      editReadonly: true,
+      table: false
+    },
+    {
+      prop: 'points_refund_log_id',
+      label: '退回流水ID',
+      type: 'number',
+      form: true,
+      default: 0,
+      editReadonly: true,
+      table: false
+    },
+    {
       prop: 'status',
       label: '状态',
       form: false,
@@ -221,7 +269,12 @@
       method: 'cancel',
       type: 'warning',
       permission: 'help:appointment:doctorAppointment:cancel',
-      prompt: { field: 'cancel_reason', label: '请输入取消原因', inputType: 'textarea', required: true },
+      prompt: {
+        field: 'cancel_reason',
+        label: '请输入取消原因',
+        inputType: 'textarea',
+        required: true
+      },
       visible: (row: Record<string, any>) => [0, 1].includes(Number(row.status)),
       payload: (row: Record<string, any>, value?: string) => ({
         id: row.id,
@@ -234,7 +287,12 @@
       method: 'reject',
       type: 'danger',
       permission: 'help:appointment:doctorAppointment:reject',
-      prompt: { field: 'confirm_remark', label: '请输入拒绝原因', inputType: 'textarea', required: true },
+      prompt: {
+        field: 'confirm_remark',
+        label: '请输入拒绝原因',
+        inputType: 'textarea',
+        required: true
+      },
       visible: (row: Record<string, any>) => Number(row.status) === 0,
       payload: (row: Record<string, any>, value?: string) => ({
         id: row.id,

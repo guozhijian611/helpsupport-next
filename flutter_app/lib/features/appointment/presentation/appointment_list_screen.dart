@@ -198,7 +198,7 @@ class _AppointmentRecordCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${_meetTypeLabel(context, record.meetType)} · ${_displayPrice(record)}',
+                      '${_meetTypeLabel(context, record.meetType)} · ${_displayPrice(context, record)}',
                       style: const TextStyle(
                         color: Color(0xFFFF9585),
                         fontSize: 14,
@@ -282,7 +282,10 @@ class _AppointmentRecordCard extends ConsumerWidget {
     );
   }
 
-  String _displayPrice(AppointmentRecord record) {
+  String _displayPrice(BuildContext context, AppointmentRecord record) {
+    if (record.isPointsAppointment) {
+      return _t(context, '${record.pointsCost}积分', '${record.pointsCost} pts');
+    }
     final formatted = record.price.toStringAsFixed(
       record.price.truncateToDouble() == record.price ? 0 : 2,
     );

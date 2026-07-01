@@ -40,6 +40,9 @@ class AppointmentController extends BaseController
     #[Apidoc\Query('doctor_id', type: 'int', require: true, desc: '医生会员ID')]
     #[Apidoc\Query('date', type: 'string', require: false, desc: '预约日期 YYYY-MM-DD')]
     #[Apidoc\Returned('list', type: 'array', desc: '可预约时段列表')]
+    #[Apidoc\Returned('list[].payment_method', type: 'string', desc: '预约支付方式 cash/points')]
+    #[Apidoc\Returned('list[].can_use_points', type: 'bool', desc: '是否可使用积分预约')]
+    #[Apidoc\Returned('list[].points_cost', type: 'int', desc: '本时段预约消耗积分')]
     public function slots(Request $request): Response
     {
         return ok($this->service->appointmentSlots($request->get()));
@@ -70,6 +73,9 @@ class AppointmentController extends BaseController
     #[Apidoc\Param('remark', type: 'string', require: false, desc: '预约备注')]
     #[Apidoc\Returned('id', type: 'int', desc: '预约ID')]
     #[Apidoc\Returned('status', type: 'int', desc: '预约状态')]
+    #[Apidoc\Returned('payment_method', type: 'string', desc: '预约支付方式 cash/points')]
+    #[Apidoc\Returned('points_cost', type: 'int', desc: '积分预约消耗积分')]
+    #[Apidoc\Returned('points_log_id', type: 'int', desc: '积分扣减流水ID')]
     public function create(Request $request): Response
     {
         return ok($this->service->createAppointment($this->memberId, $request->post()));
