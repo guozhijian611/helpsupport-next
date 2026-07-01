@@ -28,7 +28,7 @@
   import chatSessionApi from '@/views/plugin/help/api/chat/session'
   import postApi from '@/views/plugin/help/api/community/post'
   import reportApi from '@/views/plugin/help/api/community/report'
-  import materialApi from '@/views/plugin/help/api/material/content'
+  import memberApi from '@/views/plugin/saiuser/api/member/member'
 
   interface StatCard {
     label: string
@@ -66,12 +66,12 @@
       icon: 'ri:chat-smile-3-line'
     },
     {
-      label: '教育素材',
+      label: '社区用户',
       value: 0,
-      caption: '内容运营资产',
-      trend: '可展示',
+      caption: '会员社区规模',
+      trend: '用户池',
       trendClass: 'text-theme',
-      icon: 'ri:book-open-line'
+      icon: 'ri:user-community-line'
     }
   ])
 
@@ -89,7 +89,7 @@
       getTotal(postApi.list),
       getTotal(reportApi.list, { handle_status: 0 }),
       getTotal(chatSessionApi.list),
-      getTotal(materialApi.list, { audit_status: 2, status: 1 })
+      getTotal(memberApi.list)
     ])
 
     statCards.value = statCards.value.map((item, index) => ({

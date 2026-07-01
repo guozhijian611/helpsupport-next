@@ -91,9 +91,10 @@
   import { useSaiAdmin } from '@/composables/useSaiAdmin'
   import api from '@/api/system/menu'
   import TableSearch from './modules/table-search.vue'
-  import EditDialog from './modules/edit-dialog.vue'
-  import { h } from 'vue'
+  import { defineAsyncComponent, h } from 'vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
+
+  const EditDialog = defineAsyncComponent(() => import('./modules/edit-dialog.vue'))
 
   // 状态管理
   const isExpanded = ref(false)
