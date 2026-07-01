@@ -57,10 +57,13 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   Timer? _callDebugTicker;
   Timer? _callAudioWatchdogTimer;
   Timer? _callTurnCommitTimer;
+  Timer? _callTurnMaxCommitTimer;
+  Timer? _callResponseTimeoutTimer;
   Duration _recordingElapsed = Duration.zero;
   DateTime? _recordingStartedAt;
   DateTime? _callStartedAt;
   DateTime? _callLastVideoFrameAt;
+  DateTime? _callPendingAudioTurnStartedAt;
   WebSocket? _callSocket;
   CameraController? _cameraController;
   List<CameraDescription> _availableCameras = const <CameraDescription>[];
@@ -113,6 +116,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     _recordingTicker?.cancel();
     _stopCallDebugTicker();
     _stopCallAudioWatchdog();
+    _stopCallResponseTimeoutTimer();
     unawaited(_disposeCallCamera());
     unawaited(_callRecorder.dispose());
     unawaited(_callAudioPlayer.dispose());
@@ -532,6 +536,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       _callSentVideoFrames = 0;
       _callAudioReadyForFrame = false;
       _callPendingAudioTurn = false;
+      _callPendingAudioTurnStartedAt = null;
       _callResponseActive = false;
       _callLastVideoFrameAt = null;
     });
@@ -571,10 +576,13 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
           if (!mounted) {
             return;
           }
+          _stopCallTurnTimers();
+          _stopCallResponseTimeoutTimer();
           setState(() {
             _callConnected = false;
             _callUpstreamReady = false;
             _callRecording = false;
+            _callResponseActive = false;
             _callLastRealtimeEvent = 'socket.done';
             if (_callActive) {
               _callStatusMessage = _t(
@@ -623,7 +631,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     _stopCallPingTimer();
     await _stopCallImageStream();
     _stopCallAudioWatchdog();
-    _stopCallTurnCommitTimer();
+    _stopCallTurnTimers();
+    _stopCallResponseTimeoutTimer();
     await _stopCallAudio();
     final socket = _callSocket;
     _callSocket = null;
@@ -637,6 +646,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     _callPendingAudioTurn = false;
     _callResponseActive = false;
     _callLastVideoFrameAt = null;
+    _callPendingAudioTurnStartedAt = null;
     if (mounted) {
       setState(() {
         _callConnecting = false;
@@ -670,6 +680,29 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     _callDebugTicker = null;
   }
 
+  void _startCallResponseTimeoutTimer() {
+    _stopCallResponseTimeoutTimer();
+    _callResponseTimeoutTimer = Timer(const Duration(seconds: 12), () {
+      if (!mounted || !_callActive || !_callResponseActive) {
+        return;
+      }
+      setState(() {
+        _callResponseActive = false;
+        _callLastRealtimeError = 'response timeout';
+        _callStatusMessage = _t(
+          context,
+          'AI 响应超时，请再说一次',
+          'AI response timed out. Please try again.',
+        );
+      });
+    });
+  }
+
+  void _stopCallResponseTimeoutTimer() {
+    _callResponseTimeoutTimer?.cancel();
+    _callResponseTimeoutTimer = null;
+  }
+
   List<String> _callDebugLines() {
     final cameraValue = _cameraController?.value;
     final cameraReady = cameraValue?.isInitialized == true;
@@ -680,9 +713,12 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     final lastFrameAge = _callLastVideoFrameAt == null
         ? '-'
         : '${DateTime.now().difference(_callLastVideoFrameAt!).inSeconds}s';
+    final turnAge = _callPendingAudioTurnStartedAt == null
+        ? '-'
+        : '${DateTime.now().difference(_callPendingAudioTurnStartedAt!).inMilliseconds}ms';
     return <String>[
       'ws connecting=${_callFlag(_callConnecting)} connected=${_callFlag(_callConnected)} upstream=${_callFlag(_callUpstreamReady)} age=${connectedForMs}ms',
-      'mic recording=${_callFlag(_callRecording)} muted=${_callFlag(_callMuted)} chunks=$_callSentAudioChunks pending=${_callFlag(_callPendingAudioTurn)} response=${_callFlag(_callResponseActive)}',
+      'mic recording=${_callFlag(_callRecording)} muted=${_callFlag(_callMuted)} chunks=$_callSentAudioChunks pending=${_callFlag(_callPendingAudioTurn)} turnAge=$turnAge response=${_callFlag(_callResponseActive)}',
       'cam enabled=${_callFlag(_callVideoEnabled)} init=${_callFlag(cameraReady)} stream=${_callFlag(imageStreaming)} frames=$_callSentVideoFrames capturing=${_callFlag(_callCapturingFrame)} last=$lastFrameAge',
       'out pcm=${_callOutputPcmChunks.length} playing=${_callFlag(_callAudioPlayer.playing)} text=${_callAssistantText.length} userSaved=${_callSavedUserTranscriptIds.length}',
       'event=${_callLastRealtimeEvent.isEmpty ? '-' : _callLastRealtimeEvent}',
@@ -740,6 +776,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     }
 
     if (type == 'response.started') {
+      _startCallResponseTimeoutTimer();
       setState(() {
         _callStatusMessage = _t(context, 'AI 正在回答', 'AI is responding');
         _callAssistantText = '';
@@ -800,6 +837,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     }
 
     if (type == 'response.done') {
+      _stopCallResponseTimeoutTimer();
       final hasOutputAudio = _callOutputPcmChunks.isNotEmpty;
       final finalTranscript = (payload['transcript'] ?? '').toString().trim();
       if (_callAssistantText.trim().isEmpty && finalTranscript.isNotEmpty) {
@@ -807,9 +845,11 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       }
       _callAudioReadyForFrame = false;
       _callPendingAudioTurn = false;
+      _callPendingAudioTurnStartedAt = null;
       _callResponseActive = false;
       _callLastVideoFrameAt = null;
       setState(() {
+        _callResponseActive = false;
         _callStatusMessage = _t(context, '你可以继续说话', 'You can continue talking');
       });
       unawaited(_playRealtimeAudio());
@@ -818,6 +858,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     }
 
     if (type == 'error') {
+      _stopCallResponseTimeoutTimer();
       final error = payload['error'];
       final message = error is Map
           ? (error['message'] ?? '').toString()
@@ -831,6 +872,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       setState(() {
         _callLastRealtimeError = message;
         _callStatusMessage = message;
+        _callResponseActive = false;
         if (error is Map && error['fatal'] == true) {
           _callUpstreamReady = false;
         }
@@ -885,6 +927,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         if (_callMuted ||
             !_callConnected ||
             !_callUpstreamReady ||
+            _callResponseActive ||
             chunk.isEmpty) {
           return;
         }
@@ -897,8 +940,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         _callLastRealtimeEvent = 'client.audio.append';
         _callSentAudioChunks++;
         _callAudioReadyForFrame = true;
-        _callPendingAudioTurn = true;
-        _scheduleCallTurnCommit();
+        _markCallAudioTurnPending();
+        _scheduleCallSilenceCommit();
       },
       onError: (Object error) {
         _stopCallAudioWatchdog();
@@ -961,20 +1004,46 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     _callAudioWatchdogTimer = null;
   }
 
-  void _scheduleCallTurnCommit() {
-    _stopCallTurnCommitTimer();
+  void _markCallAudioTurnPending() {
+    if (_callPendingAudioTurn) {
+      return;
+    }
+    _callPendingAudioTurn = true;
+    _callPendingAudioTurnStartedAt = DateTime.now();
+    _scheduleCallMaxCommit();
+  }
+
+  void _scheduleCallSilenceCommit() {
+    _stopCallSilenceCommitTimer();
     _callTurnCommitTimer = Timer(const Duration(milliseconds: 1200), () {
       _commitCallAudioTurn();
     });
   }
 
-  void _stopCallTurnCommitTimer() {
+  void _scheduleCallMaxCommit() {
+    _stopCallMaxCommitTimer();
+    _callTurnMaxCommitTimer = Timer(const Duration(seconds: 3), () {
+      _commitCallAudioTurn();
+    });
+  }
+
+  void _stopCallTurnTimers() {
+    _stopCallSilenceCommitTimer();
+    _stopCallMaxCommitTimer();
+  }
+
+  void _stopCallSilenceCommitTimer() {
     _callTurnCommitTimer?.cancel();
     _callTurnCommitTimer = null;
   }
 
+  void _stopCallMaxCommitTimer() {
+    _callTurnMaxCommitTimer?.cancel();
+    _callTurnMaxCommitTimer = null;
+  }
+
   void _commitCallAudioTurn() {
-    _stopCallTurnCommitTimer();
+    _stopCallTurnTimers();
     if (!_callPendingAudioTurn ||
         !_callConnected ||
         !_callUpstreamReady ||
@@ -982,7 +1051,10 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       return;
     }
     _callPendingAudioTurn = false;
+    _callPendingAudioTurnStartedAt = null;
+    _callResponseActive = true;
     _callLastRealtimeEvent = 'client.response.create';
+    _startCallResponseTimeoutTimer();
     _sendRealtimeJson({
       'type': 'input_audio_buffer.commit',
       'event_id': _realtimeEventId('commit'),
