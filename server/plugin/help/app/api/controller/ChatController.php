@@ -159,7 +159,7 @@ class ChatController extends BaseController
     {
         $connection = $request->connection;
         $connection->send(new Response(200, [
-            'Content-Type' => 'text/event-stream; charset=utf-8',
+            'Content-Type' => 'text/event-stream',
             'Cache-Control' => 'no-cache',
             'Connection' => 'keep-alive',
             'X-Accel-Buffering' => 'no',

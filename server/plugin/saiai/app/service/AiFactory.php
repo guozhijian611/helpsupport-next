@@ -89,20 +89,11 @@ class AiFactory
 
     public static function chatOnce(string $message, array $history = [], ?string $model = null): array
     {
-        $content = '';
-        $resolvedModel = $model ?: self::DEFAULT_CHAT_MODEL;
-        foreach (self::chatStream($message, $history, $model) as $chunk) {
-            $resolvedModel = (string) ($chunk['model'] ?? $resolvedModel);
-            if (($chunk['type'] ?? '') === 'content') {
-                $content .= (string) ($chunk['content'] ?? '');
-            }
-        }
-
-        return [
-            'content' => $content,
-            'model' => $resolvedModel,
-            'type' => self::DEFAULT_CHAT_TYPE,
-        ];
+        return self::chatOnceWithResolved(
+            self::resolveConfig(self::DEFAULT_CHAT_TYPE, $model),
+            $message,
+            $history
+        );
     }
 
     public static function chatOnceByConfigId(string $message, array $history = [], int $configId = 0): array
@@ -111,21 +102,8 @@ class AiFactory
             return self::chatOnce($message, $history);
         }
 
-        $content = '';
         $resolved = self::resolveConfigById($configId);
-        $resolvedModel = (string) $resolved['model'];
-        foreach (self::chatStreamWithResolved($resolved, $message, $history) as $chunk) {
-            $resolvedModel = (string) ($chunk['model'] ?? $resolvedModel);
-            if (($chunk['type'] ?? '') === 'content') {
-                $content .= (string) ($chunk['content'] ?? '');
-            }
-        }
-
-        return [
-            'content' => $content,
-            'model' => $resolvedModel,
-            'type' => (string) $resolved['platformType'],
-        ];
+        return self::chatOnceWithResolved($resolved, $message, $history);
     }
 
     public static function chatStream(string $message, array $history = [], ?string $model = null): \Generator
@@ -161,9 +139,11 @@ class AiFactory
             throw new ApiException(self::formatThrowableError($e, 'AI 对话服务调用失败'));
         }
 
+        $hasContent = false;
         foreach ($response->getContent() as $content) {
             $text = self::normalizeTextResult($content);
             if ($text !== '') {
+                $hasContent = true;
                 yield [
                     'type' => 'content',
                     'content' => $text,
@@ -173,10 +153,46 @@ class AiFactory
             }
         }
 
+        if (!$hasContent) {
+            $fallback = self::chatOnceWithResolved($resolved, $message, $history);
+            $fallbackContent = (string) ($fallback['content'] ?? '');
+            if ($fallbackContent !== '') {
+                yield [
+                    'type' => 'content',
+                    'content' => $fallbackContent,
+                    'model' => (string) ($fallback['model'] ?? $resolvedModel),
+                    'platform_type' => (string) $resolved['platformType'],
+                ];
+            }
+        }
+
         yield [
             'type' => 'done',
             'model' => $resolvedModel,
             'platform_type' => (string) $resolved['platformType'],
+        ];
+    }
+
+    protected static function chatOnceWithResolved(array $resolved, string $message, array $history = []): array
+    {
+        $resolvedModel = (string) $resolved['model'];
+        $agent = self::createAgentFromResolved($resolved, false);
+        $messages = self::buildChatMessages($message, $history);
+
+        try {
+            $response = $agent->call($messages, [
+                'temperature' => 0.7,
+            ]);
+        } catch (ApiException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw new ApiException(self::formatThrowableError($e, 'AI 对话服务调用失败'));
+        }
+
+        return [
+            'content' => self::normalizeTextResult($response->getContent()),
+            'model' => $resolvedModel,
+            'type' => (string) $resolved['platformType'],
         ];
     }
 
