@@ -1,4 +1,5 @@
 import Flutter
+import AVFoundation
 import UIKit
 import UserNotifications
 
@@ -39,8 +40,35 @@ import UserNotifications
       result(TimeZone.current.identifier)
     case "getNotificationDiagnostics":
       readNotificationDiagnostics(result: result)
+    case "setCallSpeakerEnabled":
+      setCallSpeakerEnabled(call: call, result: result)
     default:
       result(FlutterMethodNotImplemented)
+    }
+  }
+
+  private func setCallSpeakerEnabled(call: FlutterMethodCall, result: @escaping FlutterResult) {
+    let enabled = (call.arguments as? [String: Any])?["enabled"] as? Bool ?? true
+    let session = AVAudioSession.sharedInstance()
+    do {
+      if enabled {
+        try session.setCategory(
+          .playAndRecord,
+          mode: .videoChat,
+          options: [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP]
+        )
+        try session.setActive(true)
+        try session.overrideOutputAudioPort(.speaker)
+      } else {
+        try session.overrideOutputAudioPort(.none)
+      }
+      result(true)
+    } catch {
+      result(FlutterError(
+        code: "CALL_SPEAKER_ROUTE_FAILED",
+        message: error.localizedDescription,
+        details: nil
+      ))
     }
   }
 

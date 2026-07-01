@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.os.Build
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -22,8 +23,24 @@ class MainActivity : FlutterActivity() {
                 "getTimeZone" -> result.success(TimeZone.getDefault().id)
                 "getNotificationDiagnostics" -> result.success(notificationDiagnostics())
                 "getLocalLlmDiagnostics" -> result.success(localLlmDiagnostics())
+                "setCallSpeakerEnabled" -> {
+                    val enabled = call.argument<Boolean>("enabled") ?: true
+                    setCallSpeakerEnabled(enabled)
+                    result.success(true)
+                }
                 else -> result.notImplemented()
             }
+        }
+    }
+
+    private fun setCallSpeakerEnabled(enabled: Boolean) {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        if (enabled) {
+            audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+            audioManager.isSpeakerphoneOn = true
+        } else {
+            audioManager.isSpeakerphoneOn = false
+            audioManager.mode = AudioManager.MODE_NORMAL
         }
     }
 

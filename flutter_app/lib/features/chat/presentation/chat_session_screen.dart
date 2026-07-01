@@ -46,6 +46,10 @@ class ChatSessionScreen extends ConsumerStatefulWidget {
 
 class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     with WidgetsBindingObserver {
+  static const _developerToolsChannel = MethodChannel(
+    'helpsupport/developer_tools',
+  );
+
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _callRecorder = AudioRecorder();
@@ -655,6 +659,24 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     );
     await session.setActive(true);
     await _callAudioPlayer.setVolume(1);
+    await _setCallSpeakerEnabled(true);
+  }
+
+  Future<void> _setCallSpeakerEnabled(bool enabled) async {
+    try {
+      await _developerToolsChannel.invokeMethod<bool>(
+        'setCallSpeakerEnabled',
+        <String, Object?>{'enabled': enabled},
+      );
+    } on PlatformException catch (error) {
+      if (mounted && _callActive) {
+        setState(() {
+          _callLastRealtimeError = error.message ?? error.code;
+        });
+      }
+    } on MissingPluginException {
+      // Desktop/test runners do not provide the mobile speaker route channel.
+    }
   }
 
   Future<void> _stopRealtimeCall() async {
@@ -672,6 +694,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     }
     await _callAudioPlayer.stop();
     _callPlayingRealtimeAudio = false;
+    await _setCallSpeakerEnabled(false);
     _callOutputPcmChunks.clear();
     _callAudioPlaybackQueue.clear();
     _callSavedUserTranscriptIds.clear();
@@ -966,6 +989,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         streamBufferSize: 4096,
       ),
     );
+    await _setCallSpeakerEnabled(true);
     _callAudioSubscription = stream.listen(
       (chunk) {
         if (_callMuted ||
@@ -1400,6 +1424,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     if (chunks.isEmpty) {
       return;
     }
+    await _setCallSpeakerEnabled(true);
     final wavBytes = _buildPcm16Wav(chunks, sampleRate: 24000);
 
     final dir = await getTemporaryDirectory();
