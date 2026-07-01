@@ -1220,7 +1220,8 @@ class _SummaryLoadingCard extends StatelessWidget {
 
 String _taskSource(BuildContext context, String source) {
   return switch (source) {
-    'chat' || 'doctor' || 'ai' => _t(context, 'AI 心理医生', 'AI doctor'),
+    'doctor' => _t(context, '医生(治疗计划)', 'Doctor treatment plan'),
+    'ai' || 'chat' => _t(context, 'AI 添加', 'Added by AI'),
     'assessment' => _t(context, '评估量表', 'Assessment'),
     'material' => _t(context, '教育素材', 'Material'),
     _ => _t(context, '治疗计划', 'Treatment plan'),

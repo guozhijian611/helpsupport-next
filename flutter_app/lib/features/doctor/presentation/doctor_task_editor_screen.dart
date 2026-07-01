@@ -543,7 +543,7 @@ class _DoctorTaskEditorScreenState
     try {
       final source = _selectedAssessmentScale != null
           ? 'assessment'
-          : (_selectedTaskTemplate != null ? 'template' : 'manual');
+          : (_selectedTaskTemplate != null ? 'template' : 'doctor');
       final sourceId =
           _selectedAssessmentScale?.id ?? _selectedTaskTemplate?.id ?? '';
       await ref

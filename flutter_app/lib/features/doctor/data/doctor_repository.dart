@@ -247,7 +247,7 @@ class DoctorRepository {
     required String title,
     String description = '',
     String taskType = 'daily',
-    String source = 'manual',
+    String source = 'doctor',
     String sourceId = '',
     List<String> attachments = const [],
     int pointsReward = 10,

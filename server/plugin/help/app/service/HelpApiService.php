@@ -41,6 +41,86 @@ class HelpApiService
         'entertainment' => ['书籍', '电影', '音乐', '游戏'],
         'private' => ['私人素材'],
     ];
+    private const AI_PLAN_TASK_POOL = [
+        'doctor' => [
+            [
+                'title' => '记录今天最明显的情绪波动',
+                'description' => '用 3 句话写下触发点、身体感受和你采取的应对方式。',
+                'task_type' => 'checkin',
+                'points_reward' => 15,
+                'requires_feedback' => 1,
+                'feedback_prompt' => '写下触发点、感受和本次应对是否有效。',
+            ],
+            [
+                'title' => '完成一次 5 分钟呼吸练习',
+                'description' => '找一个安静位置，按 4 秒吸气、6 秒呼气重复练习。',
+                'task_type' => 'daily',
+                'points_reward' => 10,
+                'requires_feedback' => 0,
+                'feedback_prompt' => '',
+            ],
+            [
+                'title' => '整理下次问诊的 3 个问题',
+                'description' => '把你最想让医生了解或解释的问题列出来。',
+                'task_type' => 'daily',
+                'points_reward' => 15,
+                'requires_feedback' => 1,
+                'feedback_prompt' => '记录你准备带给医生的 3 个问题。',
+            ],
+        ],
+        'companion' => [
+            [
+                'title' => '给今天的自己打一个情绪分',
+                'description' => '从 1 到 10 评估今天的情绪稳定度，并写下原因。',
+                'task_type' => 'checkin',
+                'points_reward' => 10,
+                'requires_feedback' => 1,
+                'feedback_prompt' => '写下分数和影响这个分数的主要原因。',
+            ],
+            [
+                'title' => '安排一次短暂放松',
+                'description' => '选择散步、拉伸、听音乐或闭眼休息中的一种，坚持 10 分钟。',
+                'task_type' => 'daily',
+                'points_reward' => 10,
+                'requires_feedback' => 0,
+                'feedback_prompt' => '',
+            ],
+            [
+                'title' => '写下一件可控的小事',
+                'description' => '找到今天你能控制并愿意完成的一件小事。',
+                'task_type' => 'daily',
+                'points_reward' => 10,
+                'requires_feedback' => 1,
+                'feedback_prompt' => '写下这件小事以及完成后的感受。',
+            ],
+        ],
+        'patient' => [
+            [
+                'title' => '补充一条症状变化',
+                'description' => '记录今天症状出现的时间、强度和持续时长。',
+                'task_type' => 'checkin',
+                'points_reward' => 15,
+                'requires_feedback' => 1,
+                'feedback_prompt' => '写下症状时间、强度和持续时长。',
+            ],
+            [
+                'title' => '整理最近一次用药反馈',
+                'description' => '记录是否按时用药、是否有不适，以及想反馈给医生的内容。',
+                'task_type' => 'daily',
+                'points_reward' => 15,
+                'requires_feedback' => 1,
+                'feedback_prompt' => '记录用药执行情况和需要医生了解的反馈。',
+            ],
+            [
+                'title' => '准备一段就诊描述',
+                'description' => '用简短文字说明最近最困扰你的问题。',
+                'task_type' => 'daily',
+                'points_reward' => 10,
+                'requires_feedback' => 1,
+                'feedback_prompt' => '写下最近最困扰你的问题。',
+            ],
+        ],
+    ];
 
     public function appConfig(): array
     {
@@ -1197,6 +1277,57 @@ class HelpApiService
         });
 
         return Db::table('sa_member_chat_record')->where('id', $id)->find() ?: [];
+    }
+
+    public function assignChatPlanTask(int $memberId, array $data): array
+    {
+        $sessionId = (int) ($data['session_id'] ?? 0);
+        if ($sessionId > 0) {
+            $session = $this->assertChatSession($memberId, $sessionId);
+            $chatMode = (string) ($session['chat_mode'] ?? 'companion');
+        } else {
+            $rawChatMode = trim((string) ($data['chat_mode'] ?? ''));
+            $chatMode = $rawChatMode === '' ? 'companion' : $this->chatMode($rawChatMode);
+        }
+        if (!isset(self::AI_PLAN_TASK_POOL[$chatMode])) {
+            $chatMode = 'companion';
+        }
+
+        $pool = self::AI_PLAN_TASK_POOL[$chatMode];
+        $template = $pool[random_int(0, count($pool) - 1)];
+        $taskDate = trim((string) ($data['task_date'] ?? ''));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $taskDate)) {
+            $taskDate = date('Y-m-d');
+        }
+
+        $payload = [
+            'member_id' => $memberId,
+            'plan_id' => 0,
+            'stage_id' => 0,
+            'task_date' => $taskDate,
+            'start_time' => null,
+            'end_time' => null,
+            'title' => (string) $template['title'],
+            'description' => (string) $template['description'],
+            'task_type' => (string) $template['task_type'],
+            'source' => 'ai',
+            'source_id' => 'chat:' . $sessionId . ':' . uniqid(),
+            'reminders' => null,
+            'attachments' => null,
+            'points_reward' => (int) $template['points_reward'],
+            'requires_feedback' => (int) $template['requires_feedback'],
+            'feedback_prompt' => (string) $template['feedback_prompt'],
+            'status' => 0,
+            'remark' => 'AI 对话计划卡片随机派发',
+        ];
+
+        $id = $this->saveRow('sa_daily_task', $payload, $memberId);
+        $task = Db::table('sa_daily_task')->where('id', $id)->find() ?: [];
+
+        return [
+            'task' => $task,
+            'message' => 'AI 已添加计划任务',
+        ];
     }
 
     public function sendChatMessage(int $memberId, array $data): array
@@ -3593,7 +3724,7 @@ class HelpApiService
             : 'daily';
         $payload['source'] = trim((string) ($payload['source'] ?? '')) !== ''
             ? (string) $payload['source']
-            : 'manual';
+            : 'doctor';
         $payload['requires_feedback'] = isset($payload['requires_feedback']) && $payload['requires_feedback'] !== ''
             ? $this->intIn($payload['requires_feedback'], [0, 1], '反馈设置参数错误')
             : 0;

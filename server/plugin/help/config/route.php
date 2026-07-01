@@ -89,6 +89,7 @@ Route::group('/app/help', function () {
     Route::post('/chat/realtime/assistant-record', [ChatController::class, 'saveRealtimeAssistantRecord']);
     Route::post('/chat/send', [ChatController::class, 'send']);
     Route::post('/chat/send/stream', [ChatController::class, 'sendStream']);
+    Route::post('/chat/plan-task', [ChatController::class, 'assignPlanTask']);
 
     Route::get('/community/tags', [CommunityController::class, 'tags']);
     Route::get('/community/posts', [CommunityController::class, 'posts']);

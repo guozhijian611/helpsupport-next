@@ -211,6 +211,17 @@ class ChatController extends BaseController
         return ok($this->service->saveRealtimeAssistantChatRecord($this->memberId, $request->post()));
     }
 
+    #[Apidoc\Title('AI派发计划任务')]
+    #[Apidoc\Url('/app/help/chat/plan-task')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('session_id', type: 'int', require: false, desc: '聊天会话ID')]
+    #[Apidoc\Param('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient')]
+    #[Apidoc\Returned('task', type: 'object', desc: '已添加到我的计划的每日任务')]
+    public function assignPlanTask(Request $request): Response
+    {
+        return ok($this->service->assignChatPlanTask($this->memberId, $request->post()));
+    }
+
     #[Apidoc\Title('发送在线AI消息')]
     #[Apidoc\Url('/app/help/chat/send')]
     #[Apidoc\Method('POST')]

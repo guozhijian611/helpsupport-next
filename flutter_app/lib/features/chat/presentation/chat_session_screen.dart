@@ -25,6 +25,7 @@ import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/data/auth_models.dart';
+import '../../plan/application/plan_controller.dart';
 import '../application/chat_controller.dart';
 import '../data/chat_models.dart';
 import 'chat_prompt_config_sheet.dart';
@@ -75,6 +76,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   bool _cameraInitializing = false;
   String? _cameraErrorMessage;
   bool _sending = false;
+  bool _assigningPlanTask = false;
   bool _voiceComposer = false;
   bool _recording = false;
   bool _callActive = false;
@@ -314,6 +316,10 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                             ),
                           ),
                         ),
+                      _AiPlanTaskCard(
+                        assigning: _assigningPlanTask,
+                        onTap: _assignPlanTask,
+                      ),
                       Expanded(
                         child: records.when(
                           data: (page) => _RecordList(
@@ -1928,6 +1934,38 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         );
   }
 
+  Future<void> _assignPlanTask() async {
+    if (_assigningPlanTask) {
+      return;
+    }
+    setState(() => _assigningPlanTask = true);
+    try {
+      final task = await ref
+          .read(chatRepositoryProvider)
+          .assignPlanTask(
+            sessionId: widget.sessionId,
+            chatMode: widget.chatMode,
+          );
+      ref.invalidate(dailyTasksProvider);
+      if (task.taskDate.trim().isNotEmpty) {
+        ref.invalidate(dailyTasksByDateProvider(task.taskDate));
+      }
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(_t(context, '已添加到我的计划', 'Added to My Plan'));
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      context.showCenteredNotice(error.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _assigningPlanTask = false);
+      }
+    }
+  }
+
   List<ChatRecord> _visibleRecords(List<ChatRecord> records) {
     if (_streamingRecords.isEmpty) {
       return records;
@@ -2280,6 +2318,102 @@ class _TopModeButton extends StatelessWidget {
             : palette.primaryText,
       ),
       icon: Icon(icon),
+    );
+  }
+}
+
+class _AiPlanTaskCard extends StatelessWidget {
+  const _AiPlanTaskCard({required this.assigning, required this.onTap});
+
+  final bool assigning;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _ChatSessionPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+        decoration: BoxDecoration(
+          color: palette.cardBackground,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: palette.outline),
+          boxShadow: [
+            BoxShadow(
+              color: palette.shadowColor,
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: palette.softSurface,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: const Icon(
+                Icons.assignment_turned_in_outlined,
+                color: Color(0xFFFF9585),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _t(context, 'AI 计划卡片', 'AI plan card'),
+                    style: TextStyle(
+                      color: palette.primaryText,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _t(context, '随机派发一项今日任务', 'Add one random task for today'),
+                    style: TextStyle(
+                      color: palette.secondaryText,
+                      fontSize: 13,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            FilledButton(
+              onPressed: assigning ? null : onTap,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(84, 40),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                backgroundColor: const Color(0xFFFF9585),
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: palette.softSurface,
+                disabledForegroundColor: palette.secondaryText,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: assigning
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(
+                      _t(context, '添加', 'Add'),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

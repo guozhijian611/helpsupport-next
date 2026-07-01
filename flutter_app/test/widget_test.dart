@@ -180,6 +180,94 @@ void main() {
     expect(find.byKey(const Key('plan-week-strip')), findsNothing);
   });
 
+  testWidgets('plan screen separates doctor and ai task sources', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authControllerProvider.overrideWith(_TestAuthController.new),
+          currentPlansProvider.overrideWith((ref) async => const []),
+          dailyTasksByDateProvider.overrideWith(
+            (ref, date) async => const PlanPage<DailyTask>(
+              list: [
+                DailyTask(
+                  id: 1,
+                  planId: 1,
+                  stageId: 1,
+                  taskDate: '2026-07-02',
+                  startTime: '',
+                  endTime: '',
+                  title: '医生任务',
+                  description: '',
+                  taskType: 'daily',
+                  source: 'doctor',
+                  sourceId: '',
+                  reminders: [],
+                  attachments: [],
+                  pointsReward: 10,
+                  completedTime: '',
+                  completionNote: '',
+                  requiresFeedback: false,
+                  feedbackPrompt: '',
+                  feedbackContent: '',
+                  feedbackTime: '',
+                  status: 0,
+                ),
+                DailyTask(
+                  id: 2,
+                  planId: 0,
+                  stageId: 0,
+                  taskDate: '2026-07-02',
+                  startTime: '',
+                  endTime: '',
+                  title: 'AI 任务',
+                  description: '',
+                  taskType: 'daily',
+                  source: 'ai',
+                  sourceId: '',
+                  reminders: [],
+                  attachments: [],
+                  pointsReward: 10,
+                  completedTime: '',
+                  completionNote: '',
+                  requiresFeedback: false,
+                  feedbackPrompt: '',
+                  feedbackContent: '',
+                  feedbackTime: '',
+                  status: 0,
+                ),
+              ],
+              total: 2,
+              page: 1,
+              pageSize: 50,
+            ),
+          ),
+          assessmentResultsProvider.overrideWith(
+            (ref) async => const PlanPage<AssessmentResult>(
+              list: [],
+              total: 0,
+              page: 1,
+              pageSize: 10,
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const PlanScreen(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('医生(治疗计划)'), findsOneWidget);
+    expect(find.text('AI 添加'), findsOneWidget);
+  });
+
   testWidgets('me screen renders json trigger tags as plain text', (
     tester,
   ) async {

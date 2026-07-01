@@ -583,15 +583,15 @@ String _taskTypeLabel(BuildContext context, String value) {
 String _sourceLabel(BuildContext context, DailyTask task) {
   switch (task.source) {
     case 'chat':
-      return _t(context, 'AI 医生对话', 'AI doctor chat');
+      return _t(context, 'AI 添加', 'Added by AI');
     case 'doctor':
-      return _t(context, '医生安排', 'Doctor assignment');
+      return _t(context, '医生(治疗计划)', 'Doctor treatment plan');
     case 'assessment':
       return _t(context, '评估量表', 'Assessment scale');
     case 'material':
       return _t(context, '素材学习', 'Material learning');
     case 'ai':
-      return _t(context, 'AI 心理医生', 'AI doctor');
+      return _t(context, 'AI 添加', 'Added by AI');
     default:
       return _t(context, '治疗计划', 'Treatment plan');
   }

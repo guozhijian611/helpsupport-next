@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../plan/data/plan_models.dart';
 import 'chat_models.dart';
 
 class ChatRepository {
@@ -243,6 +244,30 @@ class ChatRepository {
       data: {'id': sessionId},
       decode: (_) => true,
     );
+  }
+
+  Future<DailyTask> assignPlanTask({
+    required int sessionId,
+    required String chatMode,
+  }) async {
+    final result = await _apiClient.postApi<DailyTask>(
+      '/app/help/chat/plan-task',
+      data: {'session_id': sessionId, 'chat_mode': chatMode},
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          final task = value['task'];
+          if (task is Map<String, dynamic>) {
+            return DailyTask.fromJson(task);
+          }
+        }
+        throw const FormatException('Unexpected plan task shape');
+      },
+    );
+    final task = result.data;
+    if (task == null || task.id <= 0) {
+      throw const FormatException('计划任务添加失败');
+    }
+    return task;
   }
 }
 
