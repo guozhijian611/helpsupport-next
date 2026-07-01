@@ -14,7 +14,6 @@ import '../../chat/data/chat_models.dart';
 import '../../chat/presentation/chat_launch_sheet.dart';
 import '../../chat/presentation/chat_prompt_config_sheet.dart';
 import '../../message/application/message_controller.dart';
-import '../../plan/application/plan_controller.dart';
 
 class HomeDashboardScreen extends ConsumerWidget {
   const HomeDashboardScreen({super.key});
@@ -25,12 +24,7 @@ class HomeDashboardScreen extends ConsumerWidget {
     final metrics = AppTabShellMetrics.of(context);
     final authState = ref.watch(authControllerProvider);
     final overview = ref.watch(chatOverviewProvider);
-    final plans = ref.watch(currentPlansProvider);
     final unreadCount = ref.watch(unreadMessageCountProvider);
-    final plansData = switch (plans) {
-      AsyncData(:final value) => value,
-      _ => null,
-    };
     final session = switch (authState) {
       AsyncData(:final value) => value,
       _ => null,
@@ -58,11 +52,9 @@ class HomeDashboardScreen extends ConsumerWidget {
       child: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(chatOverviewProvider);
-          ref.invalidate(currentPlansProvider);
           ref.invalidate(unreadMessageCountProvider);
           await Future.wait([
             ref.read(chatOverviewProvider.future),
-            ref.read(currentPlansProvider.future),
             ref.read(unreadMessageCountProvider.future),
           ]);
         },
@@ -144,16 +136,7 @@ class HomeDashboardScreen extends ConsumerWidget {
                       ),
                     ),
                   const SizedBox(height: 10),
-                  _SectionTitle(
-                    title: context.l10n.recentConversations,
-                    trailing: Text(
-                      _planSummaryText(context, plansData),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: palette.secondaryText,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+                  _SectionTitle(title: context.l10n.recentConversations),
                   if (data.recentSessions.isEmpty)
                     _EmptyConversationCard(
                       text: _t(
@@ -1143,16 +1126,6 @@ String _conversationSubtitle(BuildContext context, ChatSession session) {
     return lastTime;
   }
   return _modeTitle(context, session.chatMode);
-}
-
-String _planSummaryText(BuildContext context, List<dynamic>? plans) {
-  if (plans == null) {
-    return '';
-  }
-  if (plans.isEmpty) {
-    return _t(context, '暂无计划', 'No plans');
-  }
-  return _t(context, '共 ${plans.length} 个阶段', '${plans.length} active plan(s)');
 }
 
 void _openSession(BuildContext context, ChatSession session) {
