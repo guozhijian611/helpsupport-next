@@ -103,6 +103,41 @@ class AliyunQwenRealtimeAdapter implements RealtimeProviderAdapterInterface
             ]];
         }
 
+        if ($type === 'input_audio_buffer.speech_started') {
+            return [[
+                'type' => 'input_audio_buffer.speech_started',
+                'event_id' => $eventId,
+                'audio_start_ms' => (int) ($event['audio_start_ms'] ?? 0),
+                'item_id' => (string) ($event['item_id'] ?? ''),
+            ]];
+        }
+
+        if ($type === 'input_audio_buffer.speech_stopped') {
+            return [[
+                'type' => 'input_audio_buffer.speech_stopped',
+                'event_id' => $eventId,
+                'audio_end_ms' => (int) ($event['audio_end_ms'] ?? 0),
+                'item_id' => (string) ($event['item_id'] ?? ''),
+            ]];
+        }
+
+        if ($type === 'input_audio_buffer.committed') {
+            $state->turnIndex++;
+            return [[
+                'type' => 'input_audio_buffer.committed',
+                'event_id' => $eventId,
+                'item_id' => (string) ($event['item_id'] ?? ''),
+            ]];
+        }
+
+        if ($type === 'conversation.item.created') {
+            return [[
+                'type' => 'conversation.item.created',
+                'event_id' => $eventId,
+                'item' => (array) ($event['item'] ?? []),
+            ]];
+        }
+
         if ($type === 'conversation.item.input_audio_transcription.delta') {
             return [[
                 'type' => 'conversation.item.input_audio_transcription.delta',

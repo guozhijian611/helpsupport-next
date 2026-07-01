@@ -25,7 +25,8 @@ class MainActivity : FlutterActivity() {
                 "getLocalLlmDiagnostics" -> result.success(localLlmDiagnostics())
                 "setCallSpeakerEnabled" -> {
                     val enabled = call.argument<Boolean>("enabled") ?: true
-                    setCallSpeakerEnabled(enabled)
+                    val active = call.argument<Boolean>("active") ?: true
+                    setCallSpeakerEnabled(enabled, active)
                     result.success(true)
                 }
                 else -> result.notImplemented()
@@ -33,11 +34,11 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun setCallSpeakerEnabled(enabled: Boolean) {
+    private fun setCallSpeakerEnabled(enabled: Boolean, active: Boolean) {
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        if (enabled) {
+        if (active) {
             audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-            audioManager.isSpeakerphoneOn = true
+            audioManager.isSpeakerphoneOn = enabled
         } else {
             audioManager.isSpeakerphoneOn = false
             audioManager.mode = AudioManager.MODE_NORMAL

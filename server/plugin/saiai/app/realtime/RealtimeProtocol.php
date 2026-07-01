@@ -18,6 +18,10 @@ class RealtimeProtocol
     public const SERVER_EVENTS = [
         'session.created',
         'session.updated',
+        'input_audio_buffer.speech_started',
+        'input_audio_buffer.speech_stopped',
+        'input_audio_buffer.committed',
+        'conversation.item.created',
         'conversation.item.input_audio_transcription.delta',
         'conversation.item.input_audio_transcription.completed',
         'conversation.item.input_audio_transcription.failed',

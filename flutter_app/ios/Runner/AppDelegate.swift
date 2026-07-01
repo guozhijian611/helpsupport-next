@@ -48,16 +48,23 @@ import UserNotifications
   }
 
   private func setCallSpeakerEnabled(call: FlutterMethodCall, result: @escaping FlutterResult) {
-    let enabled = (call.arguments as? [String: Any])?["enabled"] as? Bool ?? true
+    let arguments = call.arguments as? [String: Any]
+    let enabled = arguments?["enabled"] as? Bool ?? true
+    let active = arguments?["active"] as? Bool ?? true
     let session = AVAudioSession.sharedInstance()
     do {
-      if enabled {
+      if active {
+        let options: AVAudioSession.CategoryOptions = enabled
+          ? [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP]
+          : [.allowBluetooth, .allowBluetoothA2DP]
         try session.setCategory(
           .playAndRecord,
           mode: .videoChat,
-          options: [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP]
+          options: options
         )
         try session.setActive(true)
+      }
+      if enabled {
         try session.overrideOutputAudioPort(.speaker)
       } else {
         try session.overrideOutputAudioPort(.none)
