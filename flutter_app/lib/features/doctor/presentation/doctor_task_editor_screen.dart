@@ -42,6 +42,7 @@ class _DoctorTaskEditorScreenState
   DoctorTaskTemplate? _selectedTaskTemplate;
   DoctorAssessmentScale? _selectedAssessmentScale;
   List<MaterialItem> _selectedLearningMaterials = const [];
+  List<DailyTaskAttachment> _templateLearningMaterials = const [];
   bool _requiresFeedback = false;
   bool _saving = false;
 
@@ -185,6 +186,7 @@ class _DoctorTaskEditorScreenState
                       value: _learningMaterialSummary(
                         context,
                         _selectedLearningMaterials,
+                        _templateLearningMaterials,
                       ),
                       onTap: _pickLearningMaterials,
                     ),
@@ -249,7 +251,10 @@ class _DoctorTaskEditorScreenState
       ),
     );
     if (selected != null && mounted) {
-      setState(() => _selectedLearningMaterials = selected);
+      setState(() {
+        _selectedLearningMaterials = selected;
+        _templateLearningMaterials = const [];
+      });
     }
   }
 
@@ -362,6 +367,9 @@ class _DoctorTaskEditorScreenState
       }
       if (_taskType != 'material') {
         _selectedLearningMaterials = const [];
+        _templateLearningMaterials = const [];
+      } else {
+        _templateLearningMaterials = template.attachments;
       }
     });
   }
@@ -429,6 +437,7 @@ class _DoctorTaskEditorScreenState
         }
         if (value != 'material') {
           _selectedLearningMaterials = const [];
+          _templateLearningMaterials = const [];
         }
       });
     }
@@ -510,6 +519,7 @@ class _DoctorTaskEditorScreenState
         _selectedTaskTemplate = null;
         _taskType = 'assessment';
         _selectedLearningMaterials = const [];
+        _templateLearningMaterials = const [];
         _requiresFeedback = false;
         _feedbackPromptController.clear();
         if (_titleController.text.trim().isEmpty) {
@@ -538,7 +548,9 @@ class _DoctorTaskEditorScreenState
       );
       return;
     }
-    if (_taskType == 'material' && _selectedLearningMaterials.isEmpty) {
+    if (_taskType == 'material' &&
+        _selectedLearningMaterials.isEmpty &&
+        _templateLearningMaterials.isEmpty) {
       context.showCenteredNotice(
         _t(context, '请先选择学习素材', 'Please choose learning material'),
       );
@@ -567,9 +579,10 @@ class _DoctorTaskEditorScreenState
             source: source,
             sourceId: sourceId,
             attachments: _taskType == 'material'
-                ? _selectedLearningMaterials
-                      .map(_learningMaterialPayload)
-                      .toList(growable: false)
+                ? _learningMaterialPayloads(
+                    _selectedLearningMaterials,
+                    _templateLearningMaterials,
+                  )
                 : const [],
             pointsReward: int.tryParse(_rewardController.text.trim()) ?? 20,
             requiresFeedback: _taskType != 'assessment' && _requiresFeedback,
@@ -1193,12 +1206,48 @@ Map<String, dynamic> _learningMaterialPayload(MaterialItem item) {
   };
 }
 
+Map<String, dynamic> _templateLearningMaterialPayload(
+  DailyTaskAttachment item,
+) {
+  return {
+    'material_id': item.materialId,
+    'title': item.displayTitle,
+    'media_type': item.mediaType,
+  };
+}
+
+List<Map<String, dynamic>> _learningMaterialPayloads(
+  List<MaterialItem> selectedMaterials,
+  List<DailyTaskAttachment> templateMaterials,
+) {
+  if (selectedMaterials.isNotEmpty) {
+    return selectedMaterials
+        .map(_learningMaterialPayload)
+        .toList(growable: false);
+  }
+  return templateMaterials
+      .where((item) => item.materialId > 0 || item.displayTitle.isNotEmpty)
+      .map(_templateLearningMaterialPayload)
+      .toList(growable: false);
+}
+
 String _learningMaterialSummary(
   BuildContext context,
   List<MaterialItem> materials,
+  List<DailyTaskAttachment> templateMaterials,
 ) {
   if (materials.isEmpty) {
-    return _t(context, '无', 'None');
+    if (templateMaterials.isEmpty) {
+      return _t(context, '无', 'None');
+    }
+    if (templateMaterials.length == 1) {
+      return templateMaterials.first.displayTitle;
+    }
+    return _t(
+      context,
+      '${templateMaterials.first.displayTitle} 等${templateMaterials.length}项',
+      '${templateMaterials.length} selected',
+    );
   }
   if (materials.length == 1) {
     return materials.first.title;

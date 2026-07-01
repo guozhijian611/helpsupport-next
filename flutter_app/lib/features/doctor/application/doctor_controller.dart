@@ -46,6 +46,20 @@ final doctorDailyTasksProvider = FutureProvider.autoDispose
           );
     });
 
+final doctorAssessmentResultsProvider = FutureProvider.autoDispose
+    .family<PlanPage<AssessmentResult>, DoctorAssessmentResultsQuery>((
+      ref,
+      query,
+    ) {
+      return ref
+          .watch(doctorRepositoryProvider)
+          .fetchAssessmentResults(
+            memberId: query.memberId,
+            page: query.page,
+            pageSize: query.pageSize,
+          );
+    });
+
 final doctorPatientPlansProvider = FutureProvider.autoDispose
     .family<List<TreatmentPlan>, DoctorPatientPlansQuery>((ref, query) {
       return ref

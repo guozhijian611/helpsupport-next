@@ -236,6 +236,24 @@ class DoctorRepository {
         const PlanPage(list: [], total: 0, page: 1, pageSize: 100);
   }
 
+  Future<PlanPage<AssessmentResult>> fetchAssessmentResults({
+    required int memberId,
+    int page = 1,
+    int pageSize = 10,
+  }) async {
+    final result = await _apiClient.getApi<PlanPage<AssessmentResult>>(
+      '/app/help/doctor/assessment-results',
+      queryParameters: {
+        'member_id': memberId,
+        'page': page,
+        'page_size': pageSize,
+      },
+      decode: (value) => PlanPage.fromJson(value, AssessmentResult.fromJson),
+    );
+    return result.data ??
+        const PlanPage(list: [], total: 0, page: 1, pageSize: 10);
+  }
+
   Future<DailyTask> saveDailyTask({
     required int memberId,
     int id = 0,

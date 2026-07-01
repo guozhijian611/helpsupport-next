@@ -185,6 +185,7 @@ Route::group('/app/help', function () {
     Route::post('/doctor/treatment-stage', [DoctorController::class, 'saveTreatmentStage']);
     Route::get('/doctor/daily-tasks', [DoctorController::class, 'dailyTasks']);
     Route::post('/doctor/daily-task', [DoctorController::class, 'saveDailyTask']);
+    Route::get('/doctor/assessment-results', [DoctorController::class, 'assessmentResults']);
     Route::get('/doctor/task-template-folders', [DoctorController::class, 'taskTemplateFolders']);
     Route::post('/doctor/task-template-folder', [DoctorController::class, 'saveTaskTemplateFolder']);
     Route::post('/doctor/task-template-folder/delete', [DoctorController::class, 'deleteTaskTemplateFolder']);

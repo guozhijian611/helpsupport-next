@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class PlanPage<T> {
   const PlanPage({
     required this.list,
@@ -486,6 +488,10 @@ List<T> _mapList<T>(
 }
 
 List<DailyTaskAttachment> _taskAttachments(Object? value) {
+  if (value is String) {
+    final decoded = _jsonValue(value);
+    return decoded == value ? const [] : _taskAttachments(decoded);
+  }
   if (value is List) {
     return value
         .map(DailyTaskAttachment.fromJson)
@@ -500,11 +506,29 @@ List<DailyTaskAttachment> _taskAttachments(Object? value) {
 }
 
 List<String> _stringList(Object? value) {
+  if (value is String) {
+    final decoded = _jsonValue(value);
+    if (decoded is List) {
+      return _stringList(decoded);
+    }
+  }
   if (value is! List) {
     return const [];
   }
 
   return value.map((item) => item.toString()).toList(growable: false);
+}
+
+Object? _jsonValue(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) {
+    return null;
+  }
+  try {
+    return jsonDecode(trimmed);
+  } on FormatException {
+    return value;
+  }
 }
 
 int _intValue(Object? value, {int fallback = 0}) {

@@ -149,6 +149,18 @@ class DoctorController extends BaseController
         return ok($this->service->doctorDailyTasks($this->memberId, $request->get()));
     }
 
+    #[Apidoc\Title('患者评估结果')]
+    #[Apidoc\Url('/app/help/doctor/assessment-results')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('member_id', type: 'int', require: true, desc: '患者会员ID')]
+    #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
+    #[Apidoc\Query('page_size', type: 'int', require: false, default: 10, desc: '每页数量')]
+    #[Apidoc\Returned('list', type: 'array', desc: '评估结果列表')]
+    public function assessmentResults(Request $request): Response
+    {
+        return ok($this->service->doctorAssessmentResults($this->memberId, $request->get()));
+    }
+
     #[Apidoc\Title('保存患者每日任务')]
     #[Apidoc\Url('/app/help/doctor/daily-task')]
     #[Apidoc\Method('POST')]

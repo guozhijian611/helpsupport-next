@@ -210,6 +210,7 @@ class DoctorTaskTemplate {
     required this.endTime,
     required this.frequency,
     required this.rewardScore,
+    required this.attachments,
     required this.color,
     required this.status,
     required this.createTime,
@@ -229,6 +230,7 @@ class DoctorTaskTemplate {
       endTime: _stringValue(json['end_time']),
       frequency: _stringValue(json['frequency']),
       rewardScore: _intValue(json['reward_score']),
+      attachments: _dailyTaskAttachments(json['attachments']),
       color: _stringValue(json['color'], fallback: '#5E8FE6'),
       status: _intValue(json['status'], fallback: 1),
       createTime: _stringValue(json['create_time']),
@@ -247,6 +249,7 @@ class DoctorTaskTemplate {
   final String endTime;
   final String frequency;
   final int rewardScore;
+  final List<DailyTaskAttachment> attachments;
   final String color;
   final int status;
   final String createTime;
@@ -477,6 +480,29 @@ class DoctorDailyTasksQuery {
   int get hashCode => Object.hash(memberId, date, planId);
 }
 
+class DoctorAssessmentResultsQuery {
+  const DoctorAssessmentResultsQuery({
+    required this.memberId,
+    this.page = 1,
+    this.pageSize = 10,
+  });
+
+  final int memberId;
+  final int page;
+  final int pageSize;
+
+  @override
+  bool operator ==(Object other) {
+    return other is DoctorAssessmentResultsQuery &&
+        other.memberId == memberId &&
+        other.page == page &&
+        other.pageSize == pageSize;
+  }
+
+  @override
+  int get hashCode => Object.hash(memberId, page, pageSize);
+}
+
 class DoctorPatientPlansQuery {
   const DoctorPatientPlansQuery({required this.memberId, this.status});
 
@@ -604,6 +630,31 @@ List<String> _stringListValue(Object? value) {
         .map((item) => item.trim())
         .where((item) => item.isNotEmpty)
         .toList(growable: false);
+  }
+  return const [];
+}
+
+List<DailyTaskAttachment> _dailyTaskAttachments(Object? value) {
+  if (value is String) {
+    final normalized = value.trim();
+    if (normalized.startsWith('[') || normalized.startsWith('{')) {
+      try {
+        return _dailyTaskAttachments(jsonDecode(normalized));
+      } on FormatException {
+        return const [];
+      }
+    }
+    return const [];
+  }
+  if (value is List) {
+    return value
+        .map(DailyTaskAttachment.fromJson)
+        .where((item) => item.displayTitle.isNotEmpty)
+        .toList(growable: false);
+  }
+  if (value is Map) {
+    final attachment = DailyTaskAttachment.fromJson(value);
+    return attachment.displayTitle.isEmpty ? const [] : [attachment];
   }
   return const [];
 }

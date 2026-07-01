@@ -2968,7 +2968,7 @@ class HelpApiService
 
     public function dailyTasks(int $memberId, array $params): array
     {
-        return $this->paginate(function () use ($memberId, $params) {
+        $page = $this->paginate(function () use ($memberId, $params) {
             $query = Db::table('sa_daily_task')
                 ->where('member_id', $memberId)
                 ->whereNull('delete_time');
@@ -2981,6 +2981,8 @@ class HelpApiService
 
             return $query->order('task_date', 'desc')->order('start_time', 'asc')->order('id', 'asc');
         }, $params);
+        $page['list'] = $this->normalizeDailyTaskRows($page['list']);
+        return $page;
     }
 
     public function saveTaskStatus(int $memberId, array $data): array
@@ -3069,6 +3071,14 @@ class HelpApiService
             ->where('member_id', $memberId)
             ->whereNull('delete_time')
             ->order('id', 'desc'), $params);
+    }
+
+    public function doctorAssessmentResults(int $doctorId, array $params): array
+    {
+        $memberId = (int) ($params['member_id'] ?? 0);
+        $this->assertDoctorPatient($doctorId, $memberId);
+
+        return $this->assessmentResults($memberId, $params);
     }
 
     public function assessmentTaskDetail(int $memberId, int $taskId): array
@@ -3637,7 +3647,7 @@ class HelpApiService
         $doctorPlanIds = $planId > 0 ? [$planId] : $this->doctorPlanIds($doctorId, $memberId);
         $doctorStageIds = $this->doctorStageIds($doctorPlanIds);
 
-        return $this->paginate(function () use ($memberId, $params, $planId, $doctorId, $doctorPlanIds, $doctorStageIds) {
+        $page = $this->paginate(function () use ($memberId, $params, $planId, $doctorId, $doctorPlanIds, $doctorStageIds) {
             $query = Db::table('sa_daily_task')
                 ->where('member_id', $memberId)
                 ->whereNull('delete_time');
@@ -3663,6 +3673,8 @@ class HelpApiService
 
             return $query->order('task_date', 'desc')->order('start_time', 'asc')->order('id', 'asc');
         }, $params);
+        $page['list'] = $this->normalizeDailyTaskRows($page['list']);
+        return $page;
     }
 
     public function saveDoctorDailyTask(int $doctorId, array $data): array
@@ -3756,7 +3768,8 @@ class HelpApiService
             : 0;
 
         $id = $this->saveRow('sa_daily_task', $payload, $doctorId, $taskId);
-        return Db::table('sa_daily_task')->where('id', $id)->find() ?: [];
+        $row = Db::table('sa_daily_task')->where('id', $id)->find() ?: [];
+        return $this->normalizeDailyTaskRow($row);
     }
 
     public function doctorTaskTemplateFolders(int $doctorId, array $params): array
@@ -3901,7 +3914,14 @@ class HelpApiService
             $query->where('status', 1);
         }
 
-        return $query->order('doctor_id', 'asc')->order('sort', 'asc')->order('id', 'asc')->select()->toArray();
+        $items = $query->order('doctor_id', 'asc')->order('sort', 'asc')->order('id', 'asc')->select()->toArray();
+        foreach ($items as &$item) {
+            $item['reminder_rule'] = $this->decodeJsonArray($item['reminder_rule'] ?? null);
+            $item['attachments'] = $this->decodeJsonArray($item['attachments'] ?? null);
+        }
+        unset($item);
+
+        return $items;
     }
 
     public function saveDoctorTaskTemplate(int $doctorId, array $data): array
@@ -6237,6 +6257,18 @@ class HelpApiService
 
         $decoded = json_decode($value, true);
         return is_array($decoded) ? $decoded : [];
+    }
+
+    private function normalizeDailyTaskRow(array $row): array
+    {
+        $row['reminders'] = $this->decodeJsonArray($row['reminders'] ?? null);
+        $row['attachments'] = $this->decodeJsonArray($row['attachments'] ?? null);
+        return $row;
+    }
+
+    private function normalizeDailyTaskRows(array $rows): array
+    {
+        return array_map(fn (array $row): array => $this->normalizeDailyTaskRow($row), $rows);
     }
 
     /**

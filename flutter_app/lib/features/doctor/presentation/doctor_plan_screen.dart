@@ -111,6 +111,15 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
         : const AsyncValue<PlanPage<DailyTask>>.data(
             PlanPage(list: [], total: 0, page: 1, pageSize: 100),
           );
+    final assessmentResults = _selectedMemberId > 0
+        ? ref.watch(
+            doctorAssessmentResultsProvider(
+              DoctorAssessmentResultsQuery(memberId: _selectedMemberId),
+            ),
+          )
+        : const AsyncValue<PlanPage<AssessmentResult>>.data(
+            PlanPage(list: [], total: 0, page: 1, pageSize: 10),
+          );
 
     return DefaultTextStyle.merge(
       style: const TextStyle(decoration: TextDecoration.none),
@@ -125,6 +134,7 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
               ref.invalidate(doctorPatientsProvider(patientsQuery));
               if (_selectedMemberId > 0) {
                 ref.invalidate(doctorDailyTasksProvider);
+                ref.invalidate(doctorAssessmentResultsProvider);
               }
               await ref.read(doctorPatientsProvider(patientsQuery).future);
             },
@@ -212,6 +222,10 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
                                 children: [
                                   summaryGrid,
                                   const SizedBox(height: 18),
+                                  _DoctorAssessmentHistorySection(
+                                    results: assessmentResults,
+                                  ),
+                                  const SizedBox(height: 18),
                                   _PlanOverviewCard(
                                     title: _t(
                                       context,
@@ -274,6 +288,7 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
                                     activePlan,
                                     isAssessment: true,
                                   ),
+                                  assessmentResults: assessmentResults,
                                 ),
                               ],
                             );
@@ -1299,6 +1314,7 @@ class _ActivePlanSchedule extends StatelessWidget {
     required this.onOpenTreatmentPlan,
     required this.onQuickAddTask,
     required this.onQuickAddAssessment,
+    required this.assessmentResults,
   });
 
   final TreatmentPlan activePlan;
@@ -1313,6 +1329,7 @@ class _ActivePlanSchedule extends StatelessWidget {
   final VoidCallback onOpenTreatmentPlan;
   final VoidCallback onQuickAddTask;
   final VoidCallback onQuickAddAssessment;
+  final AsyncValue<PlanPage<AssessmentResult>> assessmentResults;
 
   @override
   Widget build(BuildContext context) {
@@ -1368,6 +1385,8 @@ class _ActivePlanSchedule extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: 18),
+        _DoctorAssessmentHistorySection(results: assessmentResults),
         const SizedBox(height: 18),
         _PlanSectionTitle(
           title: _t(context, '当日患者任务', 'Patient tasks'),
@@ -1790,6 +1809,154 @@ class _DoctorPlanEmptyState extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _DoctorAssessmentHistorySection extends StatelessWidget {
+  const _DoctorAssessmentHistorySection({required this.results});
+
+  final AsyncValue<PlanPage<AssessmentResult>> results;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _PlanSectionTitle(
+          title: _t(context, '历史评估', 'Assessment history'),
+          actions: const [],
+        ),
+        const SizedBox(height: 12),
+        results.when(
+          data: (page) => page.list.isEmpty
+              ? _TaskEmptyCard(
+                  text: _t(
+                    context,
+                    '该患者还没有提交过评估量表。',
+                    'No assessment results have been submitted yet.',
+                  ),
+                )
+              : Column(
+                  children: [
+                    for (final result in page.list.take(3))
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _DoctorAssessmentResultCard(result: result),
+                      ),
+                  ],
+                ),
+          error: (error, _) => _TaskEmptyCard(text: error.toString()),
+          loading: () => const _DoctorAssessmentHistorySkeleton(),
+        ),
+      ],
+    );
+  }
+}
+
+class _DoctorAssessmentResultCard extends StatelessWidget {
+  const _DoctorAssessmentResultCard({required this.result});
+
+  final AssessmentResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            result.assessmentTitle,
+            style: TextStyle(
+              color: palette.primaryText,
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _DoctorAssessmentChip(
+                label: '${result.achievedScore}/${result.totalScore}',
+              ),
+              if (result.resultLevel.trim().isNotEmpty)
+                _DoctorAssessmentChip(
+                  label: _t(
+                    context,
+                    '等级 ${result.resultLevel}',
+                    'Level ${result.resultLevel}',
+                  ),
+                ),
+              if (result.assessedAt.trim().isNotEmpty)
+                _DoctorAssessmentChip(label: result.assessedAt),
+            ],
+          ),
+          if (result.suggestions.trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              result.suggestions,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: palette.secondaryText,
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DoctorAssessmentChip extends StatelessWidget {
+  const _DoctorAssessmentChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: palette.softBackground,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: palette.primaryText,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _DoctorAssessmentHistorySkeleton extends StatelessWidget {
+  const _DoctorAssessmentHistorySkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    return Container(
+      height: 118,
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: const Center(child: CircularProgressIndicator()),
     );
   }
 }
