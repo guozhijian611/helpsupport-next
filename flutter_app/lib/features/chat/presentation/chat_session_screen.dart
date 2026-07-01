@@ -82,6 +82,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   bool _callVideoEnabled = false;
   bool _callMuted = false;
   bool _callSubtitlesEnabled = false;
+  bool _callSpeakerEnabled = true;
   bool _callFlashEnabled = false;
   bool _callUsingFrontCamera = true;
   bool _callConnecting = false;
@@ -250,6 +251,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                   debugExpanded: _callDebugOverlayExpanded,
                   flashEnabled: _callFlashEnabled,
                   usingFrontCamera: _callUsingFrontCamera,
+                  speakerEnabled: _callSpeakerEnabled,
                   onBackToMessages: _dismissCallView,
                   onEndCall: _confirmEndCall,
                   onToggleVideo: () => unawaited(_toggleCallVideo()),
@@ -261,6 +263,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                     () =>
                         _callDebugOverlayExpanded = !_callDebugOverlayExpanded,
                   ),
+                  onToggleSpeaker: () => unawaited(_toggleCallSpeaker()),
                   onToggleFlash: () => unawaited(_toggleCallFlash()),
                   onFlipCamera: () => unawaited(_flipCallCamera()),
                 )
@@ -380,6 +383,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       _callVideoEnabled = false;
       _callMuted = false;
       _callSubtitlesEnabled = false;
+      _callSpeakerEnabled = true;
       _callFlashEnabled = false;
       _callUsingFrontCamera = true;
       _callConnecting = false;
@@ -415,6 +419,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         _callVideoEnabled = true;
         _callMuted = false;
         _callSubtitlesEnabled = true;
+        _callSpeakerEnabled = true;
         _callFlashEnabled = false;
         _callUsingFrontCamera = true;
         _cameraErrorMessage = null;
@@ -448,6 +453,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         _callVideoEnabled = false;
         _callMuted = false;
         _callSubtitlesEnabled = false;
+        _callSpeakerEnabled = true;
         _callFlashEnabled = false;
         _callUsingFrontCamera = true;
         _callConnecting = false;
@@ -524,6 +530,17 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
           ? _t(context, '麦克风已静音', 'Microphone muted')
           : _t(context, '你可以开始说话', 'You can start talking');
     });
+  }
+
+  Future<void> _toggleCallSpeaker() async {
+    final nextState = !_callSpeakerEnabled;
+    setState(() {
+      _callSpeakerEnabled = nextState;
+      _callStatusMessage = nextState
+          ? _t(context, '已切换到扬声器', 'Speaker enabled')
+          : _t(context, '已切换到听筒', 'Receiver enabled');
+    });
+    await _configureCallAudioSession();
   }
 
   Future<void> _startRealtimeCall() async {
@@ -641,13 +658,16 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
 
   Future<void> _configureCallAudioSession() async {
     final session = await AudioSession.instance;
+    final iosOptions =
+        AVAudioSessionCategoryOptions.allowBluetooth |
+        AVAudioSessionCategoryOptions.allowBluetoothA2dp |
+        (_callSpeakerEnabled
+            ? AVAudioSessionCategoryOptions.defaultToSpeaker
+            : AVAudioSessionCategoryOptions.none);
     await session.configure(
       AudioSessionConfiguration(
         avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
-        avAudioSessionCategoryOptions:
-            AVAudioSessionCategoryOptions.defaultToSpeaker |
-            AVAudioSessionCategoryOptions.allowBluetooth |
-            AVAudioSessionCategoryOptions.allowBluetoothA2dp,
+        avAudioSessionCategoryOptions: iosOptions,
         avAudioSessionMode: AVAudioSessionMode.videoChat,
         androidAudioAttributes: const AndroidAudioAttributes(
           contentType: AndroidAudioContentType.speech,
@@ -659,7 +679,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     );
     await session.setActive(true);
     await _callAudioPlayer.setVolume(1);
-    await _setCallSpeakerEnabled(true);
+    await _setCallSpeakerEnabled(_callSpeakerEnabled);
   }
 
   Future<void> _setCallSpeakerEnabled(bool enabled) async {
@@ -782,7 +802,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       'ws connecting=${_callFlag(_callConnecting)} connected=${_callFlag(_callConnected)} upstream=${_callFlag(_callUpstreamReady)} age=${connectedForMs}ms',
       'mic recording=${_callFlag(_callRecording)} muted=${_callFlag(_callMuted)} chunks=$_callSentAudioChunks pending=${_callFlag(_callPendingAudioTurn)} turnAge=$turnAge response=${_callFlag(_callResponseActive)}',
       'cam enabled=${_callFlag(_callVideoEnabled)} init=${_callFlag(cameraReady)} stream=${_callFlag(imageStreaming)} frames=$_callSentVideoFrames capturing=${_callFlag(_callCapturingFrame)} last=$lastFrameAge',
-      'out pcm=${_callOutputPcmChunks.length} queue=${_callAudioPlaybackQueue.length} played=$_callPlayedAudioSegments playing=${_callFlag(_callAudioPlayer.playing || _callPlayingRealtimeAudio)} text=${_callAssistantText.length} userSaved=${_callSavedUserTranscriptIds.length}',
+      'out pcm=${_callOutputPcmChunks.length} queue=${_callAudioPlaybackQueue.length} played=$_callPlayedAudioSegments playing=${_callFlag(_callAudioPlayer.playing || _callPlayingRealtimeAudio)} speaker=${_callFlag(_callSpeakerEnabled)} text=${_callAssistantText.length} userSaved=${_callSavedUserTranscriptIds.length}',
       'event=${_callLastRealtimeEvent.isEmpty ? '-' : _callLastRealtimeEvent}',
       if ((_cameraErrorMessage ?? '').trim().isNotEmpty)
         'camErr=${_cameraErrorMessage!.trim()}',
@@ -989,7 +1009,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         streamBufferSize: 4096,
       ),
     );
-    await _setCallSpeakerEnabled(true);
+    await _setCallSpeakerEnabled(_callSpeakerEnabled);
     _callAudioSubscription = stream.listen(
       (chunk) {
         if (_callMuted ||
@@ -1424,7 +1444,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     if (chunks.isEmpty) {
       return;
     }
-    await _setCallSpeakerEnabled(true);
+    await _setCallSpeakerEnabled(_callSpeakerEnabled);
     final wavBytes = _buildPcm16Wav(chunks, sampleRate: 24000);
 
     final dir = await getTemporaryDirectory();
@@ -2831,12 +2851,14 @@ class _DoctorCallView extends StatelessWidget {
     required this.debugExpanded,
     required this.flashEnabled,
     required this.usingFrontCamera,
+    required this.speakerEnabled,
     required this.onBackToMessages,
     required this.onEndCall,
     required this.onToggleVideo,
     required this.onToggleMute,
     required this.onToggleSubtitles,
     required this.onToggleDebug,
+    required this.onToggleSpeaker,
     required this.onToggleFlash,
     required this.onFlipCamera,
   });
@@ -2857,12 +2879,14 @@ class _DoctorCallView extends StatelessWidget {
   final bool debugExpanded;
   final bool flashEnabled;
   final bool usingFrontCamera;
+  final bool speakerEnabled;
   final VoidCallback onBackToMessages;
   final VoidCallback onEndCall;
   final VoidCallback onToggleVideo;
   final VoidCallback onToggleMute;
   final VoidCallback onToggleSubtitles;
   final VoidCallback onToggleDebug;
+  final VoidCallback onToggleSpeaker;
   final VoidCallback onToggleFlash;
   final VoidCallback onFlipCamera;
 
@@ -2951,6 +2975,15 @@ class _DoctorCallView extends StatelessWidget {
                     foregroundColor: foreground,
                     selected: subtitlesEnabled,
                     onTap: onToggleSubtitles,
+                  ),
+                  const SizedBox(width: 8),
+                  _CallTopIconButton(
+                    icon: speakerEnabled
+                        ? Icons.volume_up_rounded
+                        : Icons.hearing_rounded,
+                    foregroundColor: foreground,
+                    selected: speakerEnabled,
+                    onTap: onToggleSpeaker,
                   ),
                 ],
               ),
