@@ -18,6 +18,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/api/api_client.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/cache/cached_remote_image.dart';
 import '../../../core/notifications/centered_notice.dart';
@@ -247,7 +248,10 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                   recording: _callRecording,
                   statusMessage: _callStatusMessage,
                   assistantText: _callAssistantText,
-                  debugLines: _callDebugLines(),
+                  debugEnabled: ApiClient.aiCallDebugOverlayEnabled,
+                  debugLines: ApiClient.aiCallDebugOverlayEnabled
+                      ? _callDebugLines()
+                      : const <String>[],
                   debugExpanded: _callDebugOverlayExpanded,
                   flashEnabled: _callFlashEnabled,
                   usingFrontCamera: _callUsingFrontCamera,
@@ -748,6 +752,9 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   }
 
   void _startCallDebugTicker() {
+    if (!ApiClient.aiCallDebugOverlayEnabled) {
+      return;
+    }
     _stopCallDebugTicker();
     _callDebugTicker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || !_callActive) {
@@ -2865,6 +2872,7 @@ class _DoctorCallView extends StatelessWidget {
     required this.recording,
     required this.statusMessage,
     required this.assistantText,
+    required this.debugEnabled,
     required this.debugLines,
     required this.debugExpanded,
     required this.flashEnabled,
@@ -2893,6 +2901,7 @@ class _DoctorCallView extends StatelessWidget {
   final bool recording;
   final String statusMessage;
   final String assistantText;
+  final bool debugEnabled;
   final List<String> debugLines;
   final bool debugExpanded;
   final bool flashEnabled;
@@ -3022,16 +3031,17 @@ class _DoctorCallView extends StatelessWidget {
                 ),
               ),
             ),
-            Positioned(
-              top: 64,
-              left: 12,
-              right: 12,
-              child: _CallDebugOverlay(
-                lines: debugLines,
-                expanded: debugExpanded,
-                onToggle: onToggleDebug,
+            if (debugEnabled)
+              Positioned(
+                top: 64,
+                left: 12,
+                right: 12,
+                child: _CallDebugOverlay(
+                  lines: debugLines,
+                  expanded: debugExpanded,
+                  onToggle: onToggleDebug,
+                ),
               ),
-            ),
             if (subtitlesEnabled && subtitle.isNotEmpty)
               Positioned(
                 left: 18,
