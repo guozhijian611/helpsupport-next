@@ -36,11 +36,17 @@ class ApiClient {
   }
 
   static const apiBaseUrl = 'http://10.0.0.6:8787';
+  static const _refreshPath = '/app/help/auth/refresh';
+  static const _authPublicPrefixes = <String>[
+    '/app/help/auth',
+    '/app/help/common',
+  ];
 
   final DiagnosticLogService? _diagnosticLogService;
   final SessionInvalidationNotifier _sessionInvalidationNotifier;
   final SecureTokenStorage _tokenStorage;
   final Dio dio;
+  Future<void>? _sessionRefreshFuture;
 
   String resolveUrl(String value) {
     final trimmed = value.trim();
@@ -68,16 +74,11 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     required T Function(Object? value) decode,
   }) async {
-    try {
-      final response = await dio.get<Object?>(
-        path,
-        queryParameters: queryParameters,
-      );
-      return _decode(response.data, decode, path: path);
-    } on DioException catch (error) {
-      await _handleTransportAuthFailure(error);
-      rethrow;
-    }
+    return _sendWithSessionRefresh(
+      path: path,
+      request: () => dio.get<Object?>(path, queryParameters: queryParameters),
+      decode: decode,
+    );
   }
 
   Future<ApiResult<T>> postApi<T>(
@@ -87,18 +88,16 @@ class ApiClient {
     ProgressCallback? onSendProgress,
     required T Function(Object? value) decode,
   }) async {
-    try {
-      final response = await dio.post<Object?>(
+    return _sendWithSessionRefresh(
+      path: path,
+      request: () => dio.post<Object?>(
         path,
         data: data,
         options: options,
         onSendProgress: onSendProgress,
-      );
-      return _decode(response.data, decode, path: path);
-    } on DioException catch (error) {
-      await _handleTransportAuthFailure(error);
-      rethrow;
-    }
+      ),
+      decode: decode,
+    );
   }
 
   Future<ApiResult<T>> putApi<T>(
@@ -106,11 +105,73 @@ class ApiClient {
     Object? data,
     required T Function(Object? value) decode,
   }) async {
+    return _sendWithSessionRefresh(
+      path: path,
+      request: () => dio.put<Object?>(path, data: data),
+      decode: decode,
+    );
+  }
+
+  Future<ApiResult<T>> _sendWithSessionRefresh<T>({
+    required String path,
+    required Future<Response<Object?>> Function() request,
+    required T Function(Object? value) decode,
+  }) async {
     try {
-      final response = await dio.put<Object?>(path, data: data);
+      final response = await request();
       return _decode(response.data, decode, path: path);
+    } on ApiException catch (error, stackTrace) {
+      if (!_isSessionExpired(error.code, error.message) ||
+          !_shouldAttemptRefresh(path)) {
+        rethrow;
+      }
+      return _refreshAndRetry(
+        path: path,
+        request: request,
+        decode: decode,
+        originalError: error,
+        originalStackTrace: stackTrace,
+      );
     } on DioException catch (error) {
-      await _handleTransportAuthFailure(error);
+      if (!_isTransportAuthFailure(error) || !_shouldAttemptRefresh(path)) {
+        rethrow;
+      }
+      return _refreshAndRetry(
+        path: path,
+        request: request,
+        decode: decode,
+        originalError: error,
+        originalStackTrace: error.stackTrace,
+      );
+    }
+  }
+
+  Future<ApiResult<T>> _refreshAndRetry<T>({
+    required String path,
+    required Future<Response<Object?>> Function() request,
+    required T Function(Object? value) decode,
+    required Object originalError,
+    required StackTrace originalStackTrace,
+  }) async {
+    try {
+      await _refreshSessionOnce();
+    } on Object {
+      await _invalidateSession();
+      Error.throwWithStackTrace(originalError, originalStackTrace);
+    }
+
+    try {
+      final response = await request();
+      return _decode(response.data, decode, path: path);
+    } on ApiException catch (error) {
+      if (_isSessionExpired(error.code, error.message)) {
+        await _invalidateSession();
+      }
+      rethrow;
+    } on DioException catch (error) {
+      if (_isTransportAuthFailure(error)) {
+        await _invalidateSession();
+      }
       rethrow;
     }
   }
@@ -134,9 +195,6 @@ class ApiClient {
       );
       if (future != null) {
         unawaited(future.catchError((_) {}));
-      }
-      if (_isSessionExpired(result.code, result.message)) {
-        unawaited(_invalidateSession());
       }
       throw ApiException(
         code: result.code,
@@ -167,11 +225,89 @@ class ApiClient {
     return authMarkers.any(normalized.contains);
   }
 
-  Future<void> _handleTransportAuthFailure(DioException error) async {
+  bool _isTransportAuthFailure(DioException error) {
     final statusCode = error.response?.statusCode;
-    if (statusCode == 401 || statusCode == 403) {
-      await _invalidateSession();
+    return statusCode == 401 || statusCode == 403;
+  }
+
+  bool _shouldAttemptRefresh(String path) {
+    final normalized = _pathOnly(path);
+    if (normalized == _refreshPath) {
+      return false;
     }
+    for (final prefix in _authPublicPrefixes) {
+      if (normalized == prefix || normalized.startsWith('$prefix/')) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  String _pathOnly(String rawPath) {
+    final trimmed = rawPath.trim();
+    if (trimmed.isEmpty) {
+      return '';
+    }
+    return Uri.tryParse(trimmed)?.path ?? trimmed;
+  }
+
+  Future<void> _refreshSessionOnce() {
+    final pending = _sessionRefreshFuture;
+    if (pending != null) {
+      return pending;
+    }
+
+    final refreshFuture = _performSessionRefresh();
+    _sessionRefreshFuture = refreshFuture;
+    return refreshFuture.whenComplete(() {
+      if (identical(_sessionRefreshFuture, refreshFuture)) {
+        _sessionRefreshFuture = null;
+      }
+    });
+  }
+
+  Future<void> _performSessionRefresh() async {
+    final refreshToken = await _tokenStorage.readRefreshToken();
+    if (refreshToken == null || refreshToken.isEmpty) {
+      throw StateError('Refresh token 不存在');
+    }
+
+    final response = await dio.post<Object?>(
+      _refreshPath,
+      data: const <String, dynamic>{},
+      options: Options(headers: {'Authorization': 'Bearer $refreshToken'}),
+    );
+    final result = _decode<Map<String, dynamic>>(response.data, (value) {
+      if (value is Map<String, dynamic>) {
+        return value;
+      }
+      throw const FormatException('Unexpected auth refresh response');
+    }, path: _refreshPath);
+    final session = result.data;
+    if (session == null) {
+      throw const FormatException('刷新登录响应缺少 data');
+    }
+
+    final token = session['token'];
+    if (token is! Map<String, dynamic>) {
+      throw const FormatException('刷新登录响应缺少 token');
+    }
+
+    final accessToken = (token['access_token'] ?? '').toString().trim();
+    final nextRefreshToken = (token['refresh_token'] ?? '').toString().trim();
+    final member = session['member'];
+    final memberId = member is Map<String, dynamic>
+        ? (member['id'] ?? '').toString().trim()
+        : '';
+    if (accessToken.isEmpty || nextRefreshToken.isEmpty || memberId.isEmpty) {
+      throw const FormatException('刷新登录响应缺少必要凭证');
+    }
+
+    await _tokenStorage.saveSession(
+      accessToken: accessToken,
+      refreshToken: nextRefreshToken,
+      memberId: memberId,
+    );
   }
 
   Future<void> _invalidateSession() async {
