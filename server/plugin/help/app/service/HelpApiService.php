@@ -2619,11 +2619,23 @@ class HelpApiService
             throw new ApiException('任务不存在或无权操作', 404);
         }
 
+        $feedbackContent = trim((string) ($data['feedback_content'] ?? $data['completion_note'] ?? ''));
+        if ($status === 1 && (int) ($task['requires_feedback'] ?? 0) === 1 && $feedbackContent === '') {
+            throw new ApiException('请先填写任务反馈内容', 400);
+        }
+
         $payload = [
             'status' => $status,
             'completion_note' => (string) ($data['completion_note'] ?? ''),
             'completed_time' => $status === 1 ? date('Y-m-d H:i:s') : null,
         ];
+        if ($status === 1 && $feedbackContent !== '') {
+            $payload['feedback_content'] = $feedbackContent;
+            $payload['feedback_time'] = date('Y-m-d H:i:s');
+            if ($payload['completion_note'] === '') {
+                $payload['completion_note'] = $feedbackContent;
+            }
+        }
         $shouldReward = (int) ($task['status'] ?? 0) !== 1 && $status === 1;
         Db::transaction(function () use ($memberId, $taskId, $payload, $task, $shouldReward) {
             $this->saveRow('sa_daily_task', $payload, $memberId, $taskId);
@@ -3317,6 +3329,10 @@ class HelpApiService
             'attachments',
             'points_reward',
             'completion_note',
+            'requires_feedback',
+            'feedback_prompt',
+            'feedback_content',
+            'feedback_time',
             'status',
             'remark',
         ]);
@@ -3329,6 +3345,7 @@ class HelpApiService
             'plan_id' => 0,
             'stage_id' => 0,
             'points_reward' => 10,
+            'requires_feedback' => 0,
         ] as $field => $default) {
             if (array_key_exists($field, $payload) && $payload[$field] === '') {
                 $payload[$field] = $default;
@@ -3351,6 +3368,9 @@ class HelpApiService
         $payload['source'] = trim((string) ($payload['source'] ?? '')) !== ''
             ? (string) $payload['source']
             : 'manual';
+        $payload['requires_feedback'] = isset($payload['requires_feedback']) && $payload['requires_feedback'] !== ''
+            ? $this->intIn($payload['requires_feedback'], [0, 1], '反馈设置参数错误')
+            : 0;
         $payload['status'] = isset($payload['status']) && $payload['status'] !== ''
             ? $this->intIn($payload['status'], [0, 1, 2, 3], '任务状态参数错误')
             : 0;

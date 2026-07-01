@@ -251,6 +251,8 @@ class DoctorRepository {
     String sourceId = '',
     List<String> attachments = const [],
     int pointsReward = 10,
+    bool requiresFeedback = false,
+    String feedbackPrompt = '',
     int status = 0,
   }) async {
     final result = await _apiClient.postApi<DailyTask>(
@@ -270,6 +272,9 @@ class DoctorRepository {
         if (sourceId.trim().isNotEmpty) 'source_id': sourceId.trim(),
         if (attachments.isNotEmpty) 'attachments': attachments,
         'points_reward': pointsReward,
+        'requires_feedback': requiresFeedback ? 1 : 0,
+        if (feedbackPrompt.trim().isNotEmpty)
+          'feedback_prompt': feedbackPrompt.trim(),
         'status': status,
       },
       decode: (value) {

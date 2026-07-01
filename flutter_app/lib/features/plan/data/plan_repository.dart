@@ -39,6 +39,7 @@ class PlanRepository {
     required int taskId,
     required int status,
     String completionNote = '',
+    String feedbackContent = '',
   }) async {
     final result = await _apiClient.putApi<DailyTask>(
       '/app/help/plan/task/status',
@@ -46,6 +47,7 @@ class PlanRepository {
         'task_id': taskId,
         'status': status,
         if (completionNote.isNotEmpty) 'completion_note': completionNote,
+        if (feedbackContent.isNotEmpty) 'feedback_content': feedbackContent,
       },
       decode: (value) {
         if (value is Map<String, dynamic>) {

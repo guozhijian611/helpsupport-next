@@ -158,6 +158,8 @@ class DoctorController extends BaseController
     #[Apidoc\Param('title', type: 'string', require: true, desc: '任务标题')]
     #[Apidoc\Param('task_type', type: 'string', require: false, desc: '任务类型')]
     #[Apidoc\Param('reminders', type: 'array', require: false, desc: '提醒规则')]
+    #[Apidoc\Param('requires_feedback', type: 'int', require: false, desc: '是否需要患者反馈')]
+    #[Apidoc\Param('feedback_prompt', type: 'string', require: false, desc: '患者反馈填写提示')]
     #[Apidoc\Returned('id', type: 'int', desc: '任务ID')]
     public function saveDailyTask(Request $request): Response
     {

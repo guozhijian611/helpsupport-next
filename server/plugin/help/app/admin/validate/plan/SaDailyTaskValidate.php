@@ -16,8 +16,9 @@ class SaDailyTaskValidate extends BaseValidate
         'task_date' => 'require',
         'title' => 'require|max:160',
         'task_type' => 'require|in:daily,assessment,material,checkin',
-        'source' => 'require|in:chat,timeline,manual,template',
+        'source' => 'require|in:chat,timeline,manual,template,assessment,material,doctor,ai',
         'points_reward' => 'integer',
+        'requires_feedback' => 'in:0,1',
         'status' => 'require|in:0,1,2,3',
     ];
 
@@ -34,12 +35,13 @@ class SaDailyTaskValidate extends BaseValidate
         'source.require' => '任务来源必须填写',
         'source.in' => '任务来源参数错误',
         'points_reward.integer' => '奖励积分必须为整数',
+        'requires_feedback.in' => '反馈设置参数错误',
         'status.require' => '状态必须填写',
         'status.in' => '状态参数错误',
     ];
 
     protected $scene = [
-        'save' => ['member_id', 'plan_id', 'stage_id', 'task_date', 'title', 'task_type', 'source', 'points_reward', 'status'],
-        'update' => ['member_id', 'plan_id', 'stage_id', 'task_date', 'title', 'task_type', 'source', 'points_reward', 'status'],
+        'save' => ['member_id', 'plan_id', 'stage_id', 'task_date', 'title', 'task_type', 'source', 'points_reward', 'requires_feedback', 'status'],
+        'update' => ['member_id', 'plan_id', 'stage_id', 'task_date', 'title', 'task_type', 'source', 'points_reward', 'requires_feedback', 'status'],
     ];
 }

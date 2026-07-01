@@ -116,6 +116,26 @@ class _PlanTaskDetailScreenState extends ConsumerState<PlanTaskDetailScreen> {
                     label: _t(context, '奖励分数', 'Reward'),
                     value: '${task.pointsReward}',
                   ),
+                  if (task.requiresFeedback) ...[
+                    _divider(context),
+                    _DetailTextBlock(
+                      label: _t(context, '反馈要求', 'Feedback prompt'),
+                      value: task.feedbackPrompt.trim().isEmpty
+                          ? _t(
+                              context,
+                              '完成任务时请填写你的反馈内容。',
+                              'Please enter feedback when completing this task.',
+                            )
+                          : task.feedbackPrompt,
+                    ),
+                  ],
+                  if (task.feedbackContent.trim().isNotEmpty) ...[
+                    _divider(context),
+                    _DetailTextBlock(
+                      label: _t(context, '我的反馈', 'My feedback'),
+                      value: task.feedbackContent,
+                    ),
+                  ],
                   if (task.reminders.isNotEmpty) ...[
                     _divider(context),
                     _DetailWrapRow(
@@ -141,7 +161,7 @@ class _PlanTaskDetailScreenState extends ConsumerState<PlanTaskDetailScreen> {
             if (!task.isDone && !task.isSkipped) ...[
               const SizedBox(height: 22),
               FilledButton(
-                onPressed: _submitting ? null : () => _updateStatus(task, 1),
+                onPressed: _submitting ? null : () => _completeTask(task),
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(56),
                   backgroundColor: const Color(0xFF5A81DA),
@@ -170,7 +190,121 @@ class _PlanTaskDetailScreenState extends ConsumerState<PlanTaskDetailScreen> {
     );
   }
 
-  Future<void> _updateStatus(DailyTask task, int status) async {
+  Future<void> _completeTask(DailyTask task) async {
+    String feedbackContent = '';
+    if (task.requiresFeedback) {
+      final value = await _showFeedbackInput(task);
+      if (!mounted || value == null) {
+        return;
+      }
+      feedbackContent = value.trim();
+      if (feedbackContent.isEmpty) {
+        context.showCenteredNotice(
+          _t(context, '请先填写反馈内容', 'Please enter feedback first'),
+        );
+        return;
+      }
+    }
+    await _updateStatus(task, 1, feedbackContent: feedbackContent);
+  }
+
+  Future<String?> _showFeedbackInput(DailyTask task) async {
+    final controller = TextEditingController();
+    final palette = _PlanTaskDetailPalette.of(context);
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: palette.cardBackground,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      _t(context, '填写任务反馈', 'Task feedback'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: palette.primaryText,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      task.feedbackPrompt.trim().isEmpty
+                          ? _t(
+                              context,
+                              '请记录这次任务后的感受、结果或需要医生了解的内容。',
+                              'Record feelings, results, or anything your doctor should know.',
+                            )
+                          : task.feedbackPrompt,
+                      style: TextStyle(
+                        color: palette.mutedText,
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: controller,
+                      autofocus: true,
+                      minLines: 4,
+                      maxLines: 6,
+                      decoration: InputDecoration(
+                        hintText: _t(context, '请输入反馈内容', 'Enter feedback'),
+                        filled: true,
+                        fillColor: palette.softBackground,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: () =>
+                          Navigator.of(sheetContext).pop(controller.text),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52),
+                        backgroundColor: const Color(0xFFFF9585),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
+                      child: Text(_t(context, '提交并完成', 'Submit and complete')),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    controller.dispose();
+    return result;
+  }
+
+  Future<void> _updateStatus(
+    DailyTask task,
+    int status, {
+    String feedbackContent = '',
+  }) async {
     if (_submitting) {
       return;
     }
@@ -178,7 +312,11 @@ class _PlanTaskDetailScreenState extends ConsumerState<PlanTaskDetailScreen> {
     try {
       await ref
           .read(planRepositoryProvider)
-          .updateTaskStatus(taskId: task.id, status: status);
+          .updateTaskStatus(
+            taskId: task.id,
+            status: status,
+            feedbackContent: feedbackContent,
+          );
       ref.invalidate(dailyTasksProvider);
       ref.invalidate(dailyTasksByDateProvider(task.taskDate));
       ref.invalidate(assessmentResultsProvider);
@@ -299,6 +437,40 @@ class _DetailWrapRow extends StatelessWidget {
                   ),
                 ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailTextBlock extends StatelessWidget {
+  const _DetailTextBlock({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _PlanTaskDetailPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(color: palette.secondaryText, fontSize: 15),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: TextStyle(
+              color: palette.primaryText,
+              fontSize: 16,
+              height: 1.55,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

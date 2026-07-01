@@ -34,6 +34,7 @@ class _DoctorTaskEditorScreenState
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _rewardController;
+  late final TextEditingController _feedbackPromptController;
   late DateTime _taskDate;
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
@@ -41,6 +42,7 @@ class _DoctorTaskEditorScreenState
   DoctorTaskTemplate? _selectedTaskTemplate;
   DoctorAssessmentScale? _selectedAssessmentScale;
   List<String> _selectedAttachments = const [];
+  bool _requiresFeedback = false;
   bool _saving = false;
 
   @override
@@ -49,6 +51,7 @@ class _DoctorTaskEditorScreenState
     _titleController = TextEditingController();
     _descriptionController = TextEditingController();
     _rewardController = TextEditingController(text: '20');
+    _feedbackPromptController = TextEditingController();
     _taskDate = _parseDate(widget.initialDate) ?? DateTime.now();
     final normalizedTaskType = widget.initialTaskType.trim();
     if (normalizedTaskType.isNotEmpty) {
@@ -61,6 +64,7 @@ class _DoctorTaskEditorScreenState
     _titleController.dispose();
     _descriptionController.dispose();
     _rewardController.dispose();
+    _feedbackPromptController.dispose();
     super.dispose();
   }
 
@@ -126,6 +130,29 @@ class _DoctorTaskEditorScreenState
                     value: _taskTypeLabel(context, _taskType),
                     onTap: _pickTaskType,
                   ),
+                  _editorDivider(context),
+                  if (_taskType != 'assessment') ...[
+                    _EditorSwitchRow(
+                      label: _t(context, '患者反馈', 'Patient feedback'),
+                      value: _requiresFeedback,
+                      onChanged: (value) =>
+                          setState(() => _requiresFeedback = value),
+                    ),
+                  ],
+                  if (_taskType != 'assessment' && _requiresFeedback) ...[
+                    _editorDivider(context),
+                    _EditorTextRow(
+                      label: _t(context, '反馈提示', 'Prompt'),
+                      controller: _feedbackPromptController,
+                      hintText: _t(
+                        context,
+                        '例如：写下今天的情绪、压力和身体感受',
+                        'Example: Record mood, stress, and body feelings',
+                      ),
+                      minLines: 2,
+                      maxLines: 3,
+                    ),
+                  ],
                   _editorDivider(context),
                   _EditorActionRow(
                     label: _t(context, '日期选择', 'Task date'),
@@ -336,6 +363,10 @@ class _DoctorTaskEditorScreenState
         _rewardController.text = '${template.rewardScore}';
       }
       _selectedAssessmentScale = null;
+      if (_taskType == 'assessment') {
+        _requiresFeedback = false;
+        _feedbackPromptController.clear();
+      }
     });
   }
 
@@ -396,6 +427,9 @@ class _DoctorTaskEditorScreenState
         _taskType = value;
         if (value != 'assessment') {
           _selectedAssessmentScale = null;
+        } else {
+          _requiresFeedback = false;
+          _feedbackPromptController.clear();
         }
       });
     }
@@ -476,6 +510,8 @@ class _DoctorTaskEditorScreenState
         _selectedAssessmentScale = selected;
         _selectedTaskTemplate = null;
         _taskType = 'assessment';
+        _requiresFeedback = false;
+        _feedbackPromptController.clear();
         if (_titleController.text.trim().isEmpty) {
           _titleController.text = selected.title;
         }
@@ -526,6 +562,10 @@ class _DoctorTaskEditorScreenState
             sourceId: sourceId,
             attachments: _selectedAttachments,
             pointsReward: int.tryParse(_rewardController.text.trim()) ?? 20,
+            requiresFeedback: _taskType != 'assessment' && _requiresFeedback,
+            feedbackPrompt: _taskType != 'assessment'
+                ? _feedbackPromptController.text
+                : '',
           );
       if (!mounted) {
         return;
@@ -825,6 +865,41 @@ class _EditorActionRow extends StatelessWidget {
             Icon(Icons.chevron_right_rounded, color: palette.outline),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _EditorSwitchRow extends StatelessWidget {
+  const _EditorSwitchRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorTaskEditorPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(color: palette.secondaryText, fontSize: 16),
+            ),
+          ),
+          Switch(
+            value: value,
+            activeThumbColor: const Color(0xFFFF9585),
+            onChanged: onChanged,
+          ),
+        ],
       ),
     );
   }

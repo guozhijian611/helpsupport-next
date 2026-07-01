@@ -1099,19 +1099,63 @@ class _PlanActionButton extends StatelessWidget {
 }
 
 class _PlanSectionTitle extends StatelessWidget {
-  const _PlanSectionTitle({required this.title});
+  const _PlanSectionTitle({required this.title, this.actions = const []});
 
   final String title;
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
     final palette = _DoctorPlanPalette.of(context);
-    return Text(
-      title,
-      style: TextStyle(
-        color: palette.primaryText,
-        fontSize: 21,
-        fontWeight: FontWeight.w800,
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: TextStyle(
+              color: palette.primaryText,
+              fontSize: 21,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        if (actions.isNotEmpty) ...[
+          const SizedBox(width: 10),
+          for (final action in actions) ...[action, const SizedBox(width: 8)],
+        ],
+      ],
+    );
+  }
+}
+
+class _PlanSectionIconButton extends StatelessWidget {
+  const _PlanSectionIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorPlanPalette.of(context);
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: palette.cardBackground,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: SizedBox(
+            width: 36,
+            height: 36,
+            child: Icon(icon, color: const Color(0xFFFF9585), size: 20),
+          ),
+        ),
       ),
     );
   }
@@ -1325,7 +1369,21 @@ class _ActivePlanSchedule extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 18),
-        _PlanSectionTitle(title: _t(context, '当日患者任务', 'Patient tasks')),
+        _PlanSectionTitle(
+          title: _t(context, '当日患者任务', 'Patient tasks'),
+          actions: [
+            _PlanSectionIconButton(
+              tooltip: _t(context, '快速添加任务', 'Add task'),
+              icon: Icons.add_task_rounded,
+              onTap: onQuickAddTask,
+            ),
+            _PlanSectionIconButton(
+              tooltip: _t(context, '添加评估量表', 'Add assessment'),
+              icon: Icons.fact_check_rounded,
+              onTap: onQuickAddAssessment,
+            ),
+          ],
+        ),
         const SizedBox(height: 12),
         tasks.when(
           data: (taskPage) => taskPage.list.isEmpty
@@ -1642,6 +1700,12 @@ class _DoctorTaskCard extends StatelessWidget {
                   'Score ${task.pointsReward}',
                 ),
               ),
+              if (task.requiresFeedback)
+                _TaskPill(
+                  label: task.feedbackContent.trim().isEmpty
+                      ? _t(context, '需反馈', 'Feedback required')
+                      : _t(context, '已反馈', 'Feedback received'),
+                ),
             ],
           ),
         ],

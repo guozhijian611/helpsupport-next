@@ -50,9 +50,11 @@ class PlanController extends BaseController
     #[Apidoc\Param('task_id', type: 'int', require: true, desc: '任务ID')]
     #[Apidoc\Param('status', type: 'int', require: true, desc: '状态 0待办 1完成 2跳过 3延期')]
     #[Apidoc\Param('completion_note', type: 'string', require: false, desc: '完成备注')]
+    #[Apidoc\Param('feedback_content', type: 'string', require: false, desc: '患者反馈内容')]
     #[Apidoc\Returned('id', type: 'int', desc: '任务ID')]
     #[Apidoc\Returned('status', type: 'int', desc: '更新后的任务状态')]
     #[Apidoc\Returned('completed_time', type: 'datetime', desc: '完成时间')]
+    #[Apidoc\Returned('feedback_content', type: 'string', desc: '患者反馈内容')]
     public function saveTaskStatus(Request $request): Response
     {
         return ok($this->service->saveTaskStatus($this->memberId, $request->all()));

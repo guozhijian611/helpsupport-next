@@ -119,6 +119,10 @@ class DailyTask {
     required this.pointsReward,
     required this.completedTime,
     required this.completionNote,
+    required this.requiresFeedback,
+    required this.feedbackPrompt,
+    required this.feedbackContent,
+    required this.feedbackTime,
     required this.status,
   });
 
@@ -138,6 +142,10 @@ class DailyTask {
   final int pointsReward;
   final String completedTime;
   final String completionNote;
+  final bool requiresFeedback;
+  final String feedbackPrompt;
+  final String feedbackContent;
+  final String feedbackTime;
   final int status;
 
   bool get isDone => status == 1;
@@ -161,6 +169,10 @@ class DailyTask {
       pointsReward: _intValue(json['points_reward']),
       completedTime: _stringValue(json['completed_time']),
       completionNote: _stringValue(json['completion_note']),
+      requiresFeedback: _boolValue(json['requires_feedback']),
+      feedbackPrompt: _stringValue(json['feedback_prompt']),
+      feedbackContent: _stringValue(json['feedback_content']),
+      feedbackTime: _stringValue(json['feedback_time']),
       status: _intValue(json['status']),
     );
   }
@@ -439,6 +451,19 @@ int _intValue(Object? value, {int fallback = 0}) {
     return int.tryParse(value) ?? fallback;
   }
   return fallback;
+}
+
+bool _boolValue(Object? value) {
+  if (value is bool) {
+    return value;
+  }
+  if (value is num) {
+    return value != 0;
+  }
+  if (value is String) {
+    return value == '1' || value.toLowerCase() == 'true';
+  }
+  return false;
 }
 
 String _stringValue(Object? value, {String fallback = ''}) {

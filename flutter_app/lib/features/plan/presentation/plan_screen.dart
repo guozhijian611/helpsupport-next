@@ -192,6 +192,17 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
   }
 
   Future<void> _completeTask(DailyTask task) async {
+    if (task.requiresFeedback) {
+      final changed = await context.push<bool>(
+        '/plan/task/${task.id}',
+        extra: task,
+      );
+      if (changed == true) {
+        ref.invalidate(dailyTasksByDateProvider(_selectedKey));
+        ref.invalidate(dailyTasksProvider);
+      }
+      return;
+    }
     try {
       await ref
           .read(planRepositoryProvider)
@@ -211,6 +222,10 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
   }
 
   void _openTask(BuildContext context, DailyTask task) {
+    if (task.requiresFeedback) {
+      context.push('/plan/task/${task.id}', extra: task);
+      return;
+    }
     if (task.taskType == 'assessment' || task.source == 'assessment') {
       context.push('/plan/assessment/${task.id}');
       return;
@@ -900,6 +915,16 @@ class _TaskScheduleCard extends StatelessWidget {
                         label: _t(context, '分数', 'Points'),
                         value: '${task.pointsReward}',
                       ),
+                      if (task.requiresFeedback) ...[
+                        SizedBox(height: metrics.size(10)),
+                        _TaskMetaRow(
+                          label: _t(context, '反馈', 'Feedback'),
+                          value: task.feedbackContent.trim().isEmpty
+                              ? _t(context, '待填写', 'Required')
+                              : _t(context, '已填写', 'Submitted'),
+                          valueColor: const Color(0xFFFF9585),
+                        ),
+                      ],
                     ],
                   ),
                 ),
