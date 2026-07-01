@@ -307,6 +307,7 @@ class HelpApiService
             'gender',
             'birthday',
             'bio',
+            'profile_background',
             'recovery_goal',
             'trigger_tags',
             'locale',
@@ -368,6 +369,25 @@ class HelpApiService
                 'avatar' => $avatar,
                 'update_time' => date('Y-m-d H:i:s'),
             ]);
+
+        return $this->profile($memberId, $this->member($memberId));
+    }
+
+    public function updateProfileBackground(int $memberId, Request $request): array
+    {
+        if ($request->file() === []) {
+            throw new ApiException('主页背景图片必须上传', 400);
+        }
+
+        $upload = (new SystemAttachmentLogic())->uploadBase('image');
+        $background = trim((string) ($upload['url'] ?? ''));
+        if ($background === '') {
+            throw new ApiException('主页背景上传失败，请稍后重试', 500);
+        }
+
+        $this->upsertByMember('sa_help_member_profile', $memberId, [
+            'profile_background' => $background,
+        ]);
 
         return $this->profile($memberId, $this->member($memberId));
     }
@@ -5869,6 +5889,7 @@ class HelpApiService
             'display_name' => $displayName,
             'avatar' => (string) ($member['avatar'] ?? ''),
             'bio' => $canShowSignature ? $bio : '',
+            'profile_background' => (string) ($profile['profile_background'] ?? ''),
             'recovery_goal' => $canShowRecoveryStage ? (string) ($profile['recovery_goal'] ?? '') : '',
             'member_role' => $this->currentRole($profile, $doctorProfile),
             'is_doctor' => $this->isDoctorApproved($doctorProfile),

@@ -53,6 +53,7 @@ class _CommunityMemberProfileScreenState
                 _ProfileHero(
                   profile: member,
                   avatarUrl: apiClient.resolveUrl(member.avatar),
+                  backgroundUrl: apiClient.resolveUrl(member.profileBackground),
                   followBusy: _followingSubmitting,
                   showSignature: !member.isSelf || privacy.showSignature,
                   onBack: () => Navigator.of(context).maybePop(),
@@ -181,6 +182,7 @@ class _ProfileHero extends StatelessWidget {
   const _ProfileHero({
     required this.profile,
     required this.avatarUrl,
+    required this.backgroundUrl,
     required this.followBusy,
     required this.showSignature,
     required this.onBack,
@@ -189,6 +191,7 @@ class _ProfileHero extends StatelessWidget {
 
   final CommunityMemberProfile profile;
   final String avatarUrl;
+  final String backgroundUrl;
   final bool followBusy;
   final bool showSignature;
   final VoidCallback onBack;
@@ -201,22 +204,7 @@ class _ProfileHero extends StatelessWidget {
       height: 330,
       child: Stack(
         children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF113754),
-                    Color(0xFF375E7A),
-                    Color(0xFF8B7A69),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-              child: CustomPaint(painter: _ProfileBackdropPainter()),
-            ),
-          ),
+          Positioned.fill(child: _ProfileHeroBackground(url: backgroundUrl)),
           Positioned(
             top: 10,
             left: 14,
@@ -326,6 +314,49 @@ class _ProfileHero extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ProfileHeroBackground extends StatelessWidget {
+  const _ProfileHeroBackground({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF113754), Color(0xFF375E7A), Color(0xFF8B7A69)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: CustomPaint(painter: _ProfileBackdropPainter()),
+        ),
+        if (url.isNotEmpty)
+          CachedRemoteImage(
+            url,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+          ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.black.withValues(alpha: url.isEmpty ? 0 : 0.18),
+                Colors.black.withValues(alpha: url.isEmpty ? 0 : 0.24),
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

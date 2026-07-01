@@ -40,6 +40,7 @@ class MeController extends BaseController
     #[Apidoc\Param('gender', type: 'int', require: false, desc: '性别 1男 2女 3保密')]
     #[Apidoc\Param('birthday', type: 'string', require: false, desc: '生日 YYYY-MM-DD')]
     #[Apidoc\Param('bio', type: 'string', require: false, desc: '个人简介')]
+    #[Apidoc\Param('profile_background', type: 'string', require: false, desc: '个人主页背景图，传空字符串可恢复默认背景')]
     #[Apidoc\Param('recovery_goal', type: 'string', require: false, desc: '康复目标')]
     #[Apidoc\Param('trigger_tags', type: 'array', require: false, desc: '重点触发因素')]
     #[Apidoc\Param('locale', type: 'string', require: false, desc: '语言')]
@@ -101,6 +102,20 @@ class MeController extends BaseController
     public function updateAvatar(Request $request): Response
     {
         return ok($this->service->updateProfileAvatar($this->memberId, $request));
+    }
+
+    #[Apidoc\Title('上传或更换主页背景')]
+    #[Apidoc\Url('/app/help/me/profile/background')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('file', type: 'file', require: true, desc: '个人主页背景图片文件')]
+    #[Apidoc\Returned('member', type: 'object', desc: '父框架会员资料')]
+    #[Apidoc\Returned('profile', type: 'object', desc: 'HelpSupport会员扩展资料')]
+    #[Apidoc\Returned('doctor_profile', type: 'object', desc: '医生资质资料')]
+    #[Apidoc\Returned('current_role', type: 'string', desc: '当前生效身份 patient/doctor')]
+    #[Apidoc\Returned('role_flags', type: 'object', desc: '身份标记 profile_role/is_patient/is_doctor/doctor_profile_submitted/doctor_approved')]
+    public function updateProfileBackground(Request $request): Response
+    {
+        return ok($this->service->updateProfileBackground($this->memberId, $request));
     }
 
     #[Apidoc\Title('账号安全概览')]

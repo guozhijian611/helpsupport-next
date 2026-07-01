@@ -82,6 +82,27 @@ class MeSettingsRepository {
     return data;
   }
 
+  Future<MeProfileBundle> uploadProfileBackground({
+    required XFile file,
+    ProgressCallback? onSendProgress,
+  }) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(file.path, filename: file.name),
+    });
+    final result = await _apiClient.postApi<MeProfileBundle>(
+      '/app/help/me/profile/background',
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
+      onSendProgress: onSendProgress,
+      decode: MeProfileBundle.fromJson,
+    );
+    final data = result.data;
+    if (data == null) {
+      throw const FormatException('主页背景上传响应缺少 data');
+    }
+    return data;
+  }
+
   Future<SecurityOverview> fetchSecurityOverview() async {
     final result = await _apiClient.getApi<SecurityOverview>(
       '/app/help/me/security',

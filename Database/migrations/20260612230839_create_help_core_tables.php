@@ -68,6 +68,7 @@ final class CreateHelpCoreTables extends AbstractMigration
                 `gender` tinyint(1) NOT NULL DEFAULT 3 COMMENT '性别 1男 2女 3保密',
                 `birthday` date DEFAULT NULL COMMENT '生日',
                 `bio` varchar(500) NOT NULL DEFAULT '' COMMENT '个人简介',
+                `profile_background` varchar(500) NOT NULL DEFAULT '' COMMENT '个人主页背景图',
                 `recovery_goal` varchar(500) NOT NULL DEFAULT '' COMMENT '康复目标',
                 `trigger_tags` json DEFAULT NULL COMMENT '重点触发因素',
                 `locale` varchar(20) NOT NULL DEFAULT 'en-US' COMMENT '当前语言',

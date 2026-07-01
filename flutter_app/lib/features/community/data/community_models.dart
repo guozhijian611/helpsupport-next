@@ -201,6 +201,7 @@ class CommunityMemberProfile {
     required this.displayName,
     required this.avatar,
     required this.bio,
+    required this.profileBackground,
     required this.recoveryGoal,
     required this.memberRole,
     required this.isDoctor,
@@ -221,6 +222,7 @@ class CommunityMemberProfile {
   final String displayName;
   final String avatar;
   final String bio;
+  final String profileBackground;
   final String recoveryGoal;
   final String memberRole;
   final bool isDoctor;
@@ -242,6 +244,7 @@ class CommunityMemberProfile {
       displayName: _stringValue(json['display_name'], fallback: 'Member'),
       avatar: _stringValue(json['avatar']),
       bio: _stringValue(json['bio']),
+      profileBackground: _stringValue(json['profile_background']),
       recoveryGoal: _stringValue(json['recovery_goal']),
       memberRole: _stringValue(json['member_role'], fallback: 'patient'),
       isDoctor: _boolValue(json['is_doctor']),

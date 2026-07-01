@@ -52,6 +52,8 @@ class MeProfileBundle {
 
   String get bio => _firstText([profile['bio']]);
 
+  String get profileBackground => _firstText([profile['profile_background']]);
+
   List<String> get triggerTags {
     final value = profile['trigger_tags'];
     if (value is List) {

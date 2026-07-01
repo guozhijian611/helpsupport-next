@@ -50,8 +50,8 @@ class SettingsScreen extends ConsumerWidget {
                   title: _t(context, '个人资料设置', 'Profile settings'),
                   subtitle: _t(
                     context,
-                    '头像、昵称、性别、生日、康复目标',
-                    'Avatar, name, gender, birthday, recovery goal',
+                    '头像、背景、昵称、签名、康复目标',
+                    'Avatar, cover, name, signature, recovery goal',
                   ),
                   onTap: () =>
                       _openDetail(context, SettingsSectionType.profile),
@@ -217,12 +217,14 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   bool _permissionRefreshing = false;
   bool _remoteLoading = false;
   bool _avatarUploading = false;
+  bool _profileBackgroundUploading = false;
   bool _cacheInspecting = false;
   bool _cacheClearing = false;
   Set<LocalCacheCategory> _selectedCacheCategories = {
     for (final category in LocalCacheCategory.values) category,
   };
   double? _avatarUploadProgress;
+  double? _profileBackgroundUploadProgress;
   String? _remoteError;
   int _developerTapCount = 0;
   DateTime? _lastDeveloperTapAt;
@@ -646,6 +648,15 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     final avatarSubtitle = _avatarUploading
         ? _avatarUploadingText(context, _avatarUploadProgress)
         : avatarValue;
+    final backgroundValue = bundle.profileBackground.isEmpty
+        ? _t(context, '默认背景', 'Default')
+        : _t(context, '已设置', 'Set');
+    final backgroundSubtitle = _profileBackgroundUploading
+        ? _profileBackgroundUploadingText(
+            context,
+            _profileBackgroundUploadProgress,
+          )
+        : backgroundValue;
     final genderValue = _genderLabel(bundle.gender, context);
     final birthdayValue = bundle.birthday.isEmpty
         ? _t(context, '未设置', 'Not set')
@@ -667,9 +678,31 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
                 : () => _previewAvatar(bundle.avatarUrl),
           ),
           _SettingsNavRow(
+            title: _t(context, '主页背景', 'Profile background'),
+            subtitle: backgroundSubtitle,
+            trailing: _ProfileBackgroundPreview(
+              url: bundle.profileBackground,
+              isUploading: _profileBackgroundUploading,
+              progress: _profileBackgroundUploadProgress,
+            ),
+            onTap: _profileBackgroundUploading
+                ? null
+                : () => _previewProfileBackground(bundle.profileBackground),
+          ),
+          _SettingsNavRow(
             title: _t(context, '昵称', 'Nickname'),
             value: bundle.nickname,
             onTap: () => _editNickname(bundle),
+          ),
+          _SettingsNavRow(
+            title: _t(context, '个性签名', 'Signature'),
+            value: _summaryOrFallback(
+              bundle.bio,
+              context,
+              emptyZh: '待补充',
+              emptyEn: 'To complete',
+            ),
+            onTap: () => _editBio(bundle),
           ),
           _SettingsNavRow(
             title: _t(context, '性别', 'Gender'),
@@ -713,16 +746,6 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
                   ? _t(context, '待补充', 'To complete')
                   : bundle.triggerTags.join(' / '),
               onTap: () => _editTriggerTags(bundle),
-            ),
-            _SettingsNavRow(
-              title: _t(context, '专属回忆录资料', 'Memory profile'),
-              value: _summaryOrFallback(
-                bundle.bio,
-                context,
-                emptyZh: '待补充',
-                emptyEn: 'To complete',
-              ),
-              onTap: () => _editBio(bundle),
             ),
           ],
         ),
@@ -2171,7 +2194,10 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         barrierColor: Colors.black.withValues(alpha: 0.45),
         builder: (dialogContext) {
           uploadDialogContext = dialogContext;
-          return _AvatarUploadProgressDialog(progress: progressNotifier);
+          return _ImageUploadProgressDialog(
+            title: _t(context, '正在上传头像', 'Uploading avatar'),
+            progress: progressNotifier,
+          );
         },
       );
       unawaited(uploadDialogFuture);
@@ -2220,6 +2246,187 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         setState(() {
           _avatarUploading = false;
           _avatarUploadProgress = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _previewProfileBackground(String backgroundUrl) async {
+    if (_profileBackgroundUploading) {
+      return;
+    }
+    final previewUrl = backgroundUrl.isEmpty
+        ? ''
+        : ref.read(apiClientProvider).resolveUrl(backgroundUrl);
+    final action = await showDialog<String>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      builder: (dialogContext) {
+        final palette = _SettingsPalette.of(dialogContext);
+        final theme = Theme.of(dialogContext);
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _t(context, '主页背景', 'Profile background'),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: palette.primaryText,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _ProfileBackgroundPreviewSurface(url: previewUrl),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => Navigator.of(dialogContext).pop('change'),
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: Text(_t(context, '更换背景', 'Change background')),
+                  ),
+                ),
+                if (backgroundUrl.trim().isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.of(dialogContext).pop('clear'),
+                      icon: const Icon(Icons.restart_alt_rounded),
+                      label: Text(
+                        _t(context, '恢复默认背景', 'Restore default background'),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (!mounted) {
+      return;
+    }
+    if (action == 'change') {
+      await _pickProfileBackground();
+    } else if (action == 'clear') {
+      await _saveProfilePayload({
+        'profile_background': '',
+      }, successMessage: _t(context, '主页背景已恢复默认', 'Background restored'));
+    }
+  }
+
+  Future<void> _pickProfileBackground() async {
+    if (_profileBackgroundUploading) {
+      return;
+    }
+    final permission = await ref
+        .read(permissionServiceProvider)
+        .requestMediaLibrary();
+    final granted =
+        permission == PermissionStatus.granted ||
+        permission == PermissionStatus.limited;
+    if (!granted) {
+      if (mounted) {
+        context.showCenteredNotice(
+          _t(
+            context,
+            '需要开启相册权限后才能更换主页背景',
+            'Photo permission is required to change your background',
+          ),
+        );
+      }
+      return;
+    }
+
+    final file = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 92,
+      maxWidth: 1800,
+    );
+    if (file == null) {
+      return;
+    }
+
+    final progressNotifier = ValueNotifier<double?>(0);
+    BuildContext? uploadDialogContext;
+    Future<void>? uploadDialogFuture;
+    if (mounted) {
+      setState(() {
+        _profileBackgroundUploading = true;
+        _profileBackgroundUploadProgress = 0;
+      });
+      uploadDialogFuture = showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        barrierColor: Colors.black.withValues(alpha: 0.45),
+        builder: (dialogContext) {
+          uploadDialogContext = dialogContext;
+          return _ImageUploadProgressDialog(
+            title: _t(context, '正在上传背景', 'Uploading background'),
+            progress: progressNotifier,
+          );
+        },
+      );
+      unawaited(uploadDialogFuture);
+      await WidgetsBinding.instance.endOfFrame;
+    }
+
+    try {
+      final bundle = await ref
+          .read(meSettingsRepositoryProvider)
+          .uploadProfileBackground(
+            file: file,
+            onSendProgress: (sent, total) {
+              if (total <= 0) {
+                return;
+              }
+              final progress = (sent / total).clamp(0, 1).toDouble();
+              progressNotifier.value = progress;
+              if (mounted) {
+                setState(() => _profileBackgroundUploadProgress = progress);
+              }
+            },
+          );
+      progressNotifier.value = 1;
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _profileBundle = bundle;
+        _profileBackgroundUploadProgress = 1;
+      });
+      context.showCenteredNotice(_t(context, '主页背景已更新', 'Background updated'));
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(_errorText(context, error));
+      }
+    } finally {
+      if (uploadDialogContext != null) {
+        Navigator.of(uploadDialogContext!).pop();
+      }
+      if (uploadDialogFuture != null && uploadDialogContext != null) {
+        await uploadDialogFuture;
+      }
+      progressNotifier.dispose();
+      if (mounted) {
+        setState(() {
+          _profileBackgroundUploading = false;
+          _profileBackgroundUploadProgress = null;
         });
       }
     }
@@ -2340,9 +2547,13 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
   Future<void> _editBio(MeProfileBundle bundle) async {
     final nextValue = await _showTextInputDialog(
       context: context,
-      title: _t(context, '编辑专属回忆录资料', 'Edit memory profile'),
+      title: _t(context, '编辑个性签名', 'Edit signature'),
       initialValue: bundle.bio,
-      hintText: _t(context, '写一点希望沉淀下来的资料', 'Write a short profile'),
+      hintText: _t(
+        context,
+        '写一句想展示在个人主页上的签名',
+        'Write a signature for your profile',
+      ),
       maxLines: 5,
     );
     if (!mounted) {
@@ -2353,7 +2564,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     }
     await _saveProfilePayload({
       'bio': nextValue.trim(),
-    }, successMessage: _t(context, '回忆录资料已更新', 'Memory profile updated'));
+    }, successMessage: _t(context, '个性签名已更新', 'Signature updated'));
   }
 
   Future<void> _bindMobile() async {
@@ -2901,6 +3112,17 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     return _t(context, '正在上传 $percent%', 'Uploading $percent%');
   }
 
+  String _profileBackgroundUploadingText(
+    BuildContext context,
+    double? progress,
+  ) {
+    if (progress == null) {
+      return _t(context, '正在上传背景...', 'Uploading background...');
+    }
+    final percent = (progress.clamp(0, 1) * 100).round();
+    return _t(context, '正在上传 $percent%', 'Uploading $percent%');
+  }
+
   String _errorText(BuildContext context, Object error) {
     final text = error.toString();
     if (text.contains('message: ')) {
@@ -2953,9 +3175,13 @@ enum SettingsSectionType {
   }
 }
 
-class _AvatarUploadProgressDialog extends StatelessWidget {
-  const _AvatarUploadProgressDialog({required this.progress});
+class _ImageUploadProgressDialog extends StatelessWidget {
+  const _ImageUploadProgressDialog({
+    required this.title,
+    required this.progress,
+  });
 
+  final String title;
   final ValueListenable<double?> progress;
 
   @override
@@ -2995,7 +3221,7 @@ class _AvatarUploadProgressDialog extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        _t(context, '正在上传头像', 'Uploading avatar') + percent,
+                        title + percent,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleMedium?.copyWith(
@@ -3105,6 +3331,86 @@ class _AvatarPreview extends ConsumerWidget {
   }
 }
 
+class _ProfileBackgroundPreview extends ConsumerWidget {
+  const _ProfileBackgroundPreview({
+    required this.url,
+    this.isUploading = false,
+    this.progress,
+  });
+
+  final String url;
+  final bool isUploading;
+  final double? progress;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _SettingsPalette.of(context);
+    final resolved = url.isEmpty
+        ? ''
+        : ref.read(apiClientProvider).resolveUrl(url);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        width: 64,
+        height: 40,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF113754), Color(0xFFFCB08E)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: resolved.isEmpty
+                  ? Icon(
+                      Icons.landscape_rounded,
+                      color: Colors.white.withValues(alpha: 0.84),
+                      size: 20,
+                    )
+                  : CachedRemoteImage(
+                      resolved,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Icon(
+                        Icons.landscape_rounded,
+                        color: Colors.white.withValues(alpha: 0.84),
+                        size: 20,
+                      ),
+                    ),
+            ),
+            if (isUploading) ...[
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.38),
+                ),
+              ),
+              Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    value: progress?.clamp(0, 1).toDouble(),
+                    strokeWidth: 2.4,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+            DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border.all(color: palette.cardBorder),
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _AvatarPreviewSurface extends StatelessWidget {
   const _AvatarPreviewSurface({required this.url});
 
@@ -3152,6 +3458,72 @@ class _AvatarPreviewSurface extends StatelessWidget {
                     ),
                   ),
                 ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileBackgroundPreviewSurface extends StatelessWidget {
+  const _ProfileBackgroundPreviewSurface({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _SettingsPalette.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.pageBackground,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: palette.cardBorder),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              DecoratedBox(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFF113754),
+                      Color(0xFF375E7A),
+                      Color(0xFFFCB08E),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+              ),
+              if (url.isNotEmpty)
+                CachedRemoteImage(
+                  url,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => Center(
+                    child: Text(
+                      _t(context, '背景加载失败', 'Failed to load background'),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Center(
+                  child: Text(
+                    _t(context, '当前使用默认背景', 'Default background is active'),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
