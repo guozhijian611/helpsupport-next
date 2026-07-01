@@ -800,7 +800,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         : '${DateTime.now().difference(_callPendingAudioTurnStartedAt!).inMilliseconds}ms';
     return <String>[
       'ws connecting=${_callFlag(_callConnecting)} connected=${_callFlag(_callConnected)} upstream=${_callFlag(_callUpstreamReady)} age=${connectedForMs}ms',
-      'mic recording=${_callFlag(_callRecording)} muted=${_callFlag(_callMuted)} chunks=$_callSentAudioChunks pending=${_callFlag(_callPendingAudioTurn)} turnAge=$turnAge response=${_callFlag(_callResponseActive)}',
+      'mic recording=${_callFlag(_callRecording)} muted=${_callFlag(_callMuted)} hold=${_callFlag(_callPlaybackBlocksMic)} chunks=$_callSentAudioChunks pending=${_callFlag(_callPendingAudioTurn)} turnAge=$turnAge response=${_callFlag(_callResponseActive)}',
       'cam enabled=${_callFlag(_callVideoEnabled)} init=${_callFlag(cameraReady)} stream=${_callFlag(imageStreaming)} frames=$_callSentVideoFrames capturing=${_callFlag(_callCapturingFrame)} last=$lastFrameAge',
       'out pcm=${_callOutputPcmChunks.length} queue=${_callAudioPlaybackQueue.length} played=$_callPlayedAudioSegments playing=${_callFlag(_callAudioPlayer.playing || _callPlayingRealtimeAudio)} speaker=${_callFlag(_callSpeakerEnabled)} text=${_callAssistantText.length} userSaved=${_callSavedUserTranscriptIds.length}',
       'event=${_callLastRealtimeEvent.isEmpty ? '-' : _callLastRealtimeEvent}',
@@ -813,6 +813,11 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   }
 
   String _callFlag(bool value) => value ? '1' : '0';
+
+  bool get _callPlaybackBlocksMic =>
+      _callPlayingRealtimeAudio ||
+      _callAudioPlaybackQueue.isNotEmpty ||
+      _callAudioPlayer.playing;
 
   void _handleRealtimeMessage(dynamic raw) {
     if (raw is! String) {
@@ -937,7 +942,9 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       _callLastVideoFrameAt = null;
       setState(() {
         _callResponseActive = false;
-        _callStatusMessage = _t(context, '你可以继续说话', 'You can continue talking');
+        _callStatusMessage = hasOutputAudio
+            ? _t(context, 'AI 正在播放', 'AI is speaking')
+            : _t(context, '你可以继续说话', 'You can continue talking');
       });
       _queueRealtimeAudioPlayback(flush: true);
       unawaited(_saveRealtimeAssistantText(hasOutputAudio: hasOutputAudio));
@@ -1016,6 +1023,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
             !_callConnected ||
             !_callUpstreamReady ||
             _callResponseActive ||
+            _callPlaybackBlocksMic ||
             chunk.isEmpty) {
           return;
         }
@@ -1412,6 +1420,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       return;
     }
     _callPlayingRealtimeAudio = true;
+    var playbackFailed = false;
     try {
       while (_callAudioPlaybackQueue.isNotEmpty) {
         final chunks = _callAudioPlaybackQueue.removeFirst();
@@ -1422,6 +1431,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         }
       }
     } on Object catch (error) {
+      playbackFailed = true;
       if (mounted && _callActive) {
         setState(() {
           _callLastRealtimeError = error.toString();
@@ -1435,7 +1445,15 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     } finally {
       _callPlayingRealtimeAudio = false;
       if (mounted && _callActive) {
-        setState(() {});
+        setState(() {
+          if (!playbackFailed) {
+            _callStatusMessage = _t(
+              context,
+              '你可以继续说话',
+              'You can continue talking',
+            );
+          }
+        });
       }
     }
   }
