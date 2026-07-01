@@ -28,6 +28,11 @@ class SaMemberMemoirConfig extends BaseModel
         $query->where('generation_cycle', (string) $value);
     }
 
+    public function searchTriggerModeAttr($query, $value): void
+    {
+        $query->where('trigger_mode', (string) $value);
+    }
+
     public function searchStatusAttr($query, $value): void
     {
         $query->where('status', (int) $value);

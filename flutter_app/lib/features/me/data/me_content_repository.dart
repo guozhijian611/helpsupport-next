@@ -118,6 +118,27 @@ class MeContentRepository {
     return result.data ?? const [];
   }
 
+  Future<MemoirItem> generateMemoir({int? configId}) async {
+    final result = await _apiClient.postApi<MemoirItem>(
+      '/app/help/me/memoir/generate',
+      data: {if (configId != null && configId > 0) 'config_id': configId},
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          final memoir = value['memoir'];
+          if (memoir is Map<String, dynamic>) {
+            return MemoirItem.fromJson(memoir);
+          }
+        }
+        throw const FormatException('Unexpected memoir generation shape');
+      },
+    );
+    final item = result.data;
+    if (item == null || item.id <= 0) {
+      throw const FormatException('回忆录生成失败');
+    }
+    return item;
+  }
+
   Future<MePage<MemberBadge>> fetchBadges({
     int status = 1,
     int page = 1,

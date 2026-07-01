@@ -38,34 +38,54 @@ class MemoirScreen extends ConsumerWidget {
           },
           child: memoirs.when(
             data: (page) {
+              final configPanel = configs.when(
+                data: (items) =>
+                    page.list.isEmpty || items.any((item) => item.canGenerate)
+                    ? _MemoirConfigPanel(configs: items)
+                    : const SizedBox.shrink(),
+                error: (error, _) => page.list.isEmpty
+                    ? _EmptyPanel(
+                        title: _t(context, '还没有回忆录', 'No memoirs yet'),
+                        subtitle: error.toString(),
+                      )
+                    : const SizedBox.shrink(),
+                loading: () => page.list.isEmpty
+                    ? const _PanelSkeleton(height: 180)
+                    : const SizedBox.shrink(),
+              );
               if (page.list.isEmpty) {
                 return ListView(
                   padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
                   children: [
                     const _MemoirHeroCard(),
                     const SizedBox(height: 16),
-                    configs.when(
-                      data: (items) => _MemoirConfigPanel(configs: items),
-                      error: (error, _) => _EmptyPanel(
-                        title: _t(context, '还没有回忆录', 'No memoirs yet'),
-                        subtitle: error.toString(),
-                      ),
-                      loading: () => const _PanelSkeleton(height: 180),
-                    ),
+                    configPanel,
                   ],
                 );
               }
-              return GridView.builder(
-                padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 14,
-                  childAspectRatio: 0.68,
-                ),
-                itemCount: page.list.length,
-                itemBuilder: (context, index) =>
-                    _MemoirCard(item: page.list[index]),
+              return CustomScrollView(
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                    sliver: SliverToBoxAdapter(child: configPanel),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 28),
+                    sliver: SliverGrid.builder(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 14,
+                            mainAxisSpacing: 14,
+                            childAspectRatio: 0.68,
+                          ),
+                      itemCount: page.list.length,
+                      itemBuilder: (context, index) =>
+                          _MemoirCard(item: page.list[index]),
+                    ),
+                  ),
+                ],
               );
             },
             error: (error, _) => ListView(
@@ -165,6 +185,10 @@ class MemoirDetailScreen extends ConsumerWidget {
                         height: 1.7,
                       ),
                     ),
+                    if (item.sourceMaterials.isNotEmpty) ...[
+                      const SizedBox(height: 18),
+                      _SourceMaterialsPanel(item: item),
+                    ],
                     if (item.videoUrl.trim().isNotEmpty) ...[
                       const SizedBox(height: 18),
                       FilledButton.tonalIcon(
@@ -378,14 +402,22 @@ class _MemoirCoverPlaceholder extends StatelessWidget {
   }
 }
 
-class _MemoirConfigPanel extends StatelessWidget {
+class _MemoirConfigPanel extends ConsumerStatefulWidget {
   const _MemoirConfigPanel({required this.configs});
 
   final List<MemoirConfig> configs;
 
   @override
+  ConsumerState<_MemoirConfigPanel> createState() => _MemoirConfigPanelState();
+}
+
+class _MemoirConfigPanelState extends ConsumerState<_MemoirConfigPanel> {
+  int? _generatingConfigId;
+
+  @override
   Widget build(BuildContext context) {
     final palette = _MemoirPalette.of(context);
+    final configs = widget.configs;
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
@@ -408,8 +440,8 @@ class _MemoirConfigPanel extends StatelessWidget {
             Text(
               _t(
                 context,
-                '当累计的日记和任务达到条件后，系统会自动生成回忆录。',
-                'A memoir will be generated automatically once your journals and tasks meet the rule.',
+                '每次等级达到配置条件后，系统会给你一次生成专属回忆录的机会。',
+                'Each eligible level milestone gives you a chance to generate a dedicated memoir.',
               ),
               style: TextStyle(color: palette.secondaryText, height: 1.6),
             )
@@ -430,13 +462,47 @@ class _MemoirConfigPanel extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        _t(
-                          context,
-                          '${item.name}：至少 ${item.minJournalCount} 篇日记，${_cycleLabel(context, item.generationCycle)}生成',
-                          '${item.name}: at least ${item.minJournalCount} journals, ${_cycleLabel(context, item.generationCycle)} generation',
-                        ),
-                        style: TextStyle(color: palette.bodyText, height: 1.55),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _ruleText(context, item),
+                            style: TextStyle(
+                              color: palette.bodyText,
+                              height: 1.55,
+                            ),
+                          ),
+                          if (item.canGenerate) ...[
+                            const SizedBox(height: 10),
+                            FilledButton.icon(
+                              onPressed: _generatingConfigId == null
+                                  ? () => _generate(context, item)
+                                  : null,
+                              icon: _generatingConfigId == item.id
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.auto_awesome_rounded),
+                              label: Text(
+                                _t(context, '生成回忆录', 'Generate memoir'),
+                              ),
+                            ),
+                          ] else if (item.reason.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              item.reason,
+                              style: TextStyle(
+                                color: palette.secondaryText,
+                                fontSize: 12,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
@@ -447,6 +513,130 @@ class _MemoirConfigPanel extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _generate(BuildContext context, MemoirConfig config) async {
+    setState(() => _generatingConfigId = config.id);
+    try {
+      final item = await ref
+          .read(meContentRepositoryProvider)
+          .generateMemoir(configId: config.id);
+      ref.invalidate(memoirItemsProvider);
+      ref.invalidate(memoirConfigsProvider);
+      if (!context.mounted) {
+        return;
+      }
+      context.showCenteredNotice(_t(context, '回忆录已生成', 'Memoir generated'));
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => MemoirDetailScreen(id: item.id)),
+      );
+    } catch (error) {
+      if (context.mounted) {
+        context.showCenteredNotice(error.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _generatingConfigId = null);
+      }
+    }
+  }
+}
+
+class _SourceMaterialsPanel extends StatelessWidget {
+  const _SourceMaterialsPanel({required this.item});
+
+  final MemoirItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _MemoirPalette.of(context);
+    final groups = <_SourceMaterialGroup>[
+      _SourceMaterialGroup(
+        title: _t(context, '日记素材', 'Journal sources'),
+        rows: _sourceRows(item.sourceMaterials['journals']),
+      ),
+      _SourceMaterialGroup(
+        title: _t(context, '任务素材', 'Task sources'),
+        rows: _sourceRows(item.sourceMaterials['tasks']),
+      ),
+      _SourceMaterialGroup(
+        title: _t(context, '学习记录', 'Learning history'),
+        rows: _sourceRows(item.sourceMaterials['material_history']),
+      ),
+      _SourceMaterialGroup(
+        title: _t(context, '收藏素材', 'Saved materials'),
+        rows: _sourceRows(item.sourceMaterials['material_collect']),
+      ),
+      _SourceMaterialGroup(
+        title: _t(context, '私人素材', 'Private materials'),
+        rows: _sourceRows(item.sourceMaterials['private_materials']),
+      ),
+    ].where((group) => group.rows.isNotEmpty).toList(growable: false);
+    if (groups.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: palette.softBackground,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _t(context, '使用素材', 'Used sources'),
+            style: TextStyle(
+              color: palette.primaryText,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ...groups.map(
+            (group) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${group.title} · ${group.rows.length}',
+                    style: TextStyle(
+                      color: palette.secondaryText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  ...group.rows
+                      .take(3)
+                      .map(
+                        (row) => Text(
+                          '· ${_sourceTitle(context, row)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: palette.bodyText,
+                            fontSize: 13,
+                            height: 1.45,
+                          ),
+                        ),
+                      ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SourceMaterialGroup {
+  const _SourceMaterialGroup({required this.title, required this.rows});
+
+  final String title;
+  final List<Map<String, dynamic>> rows;
 }
 
 class _MetaChip extends StatelessWidget {
@@ -561,6 +751,78 @@ String _cycleLabel(BuildContext context, String value) {
     'quarterly' => _t(context, '每季度', 'quarterly'),
     _ => _t(context, '每月', 'monthly'),
   };
+}
+
+String _ruleText(BuildContext context, MemoirConfig item) {
+  final levelText = switch (item.triggerMode) {
+    'level_interval' => _t(
+      context,
+      '每升 ${item.levelStep <= 1 ? 1 : item.levelStep} 级',
+      'every ${item.levelStep <= 1 ? 1 : item.levelStep} levels',
+    ),
+    'cycle' => _cycleLabel(context, item.generationCycle),
+    'manual' => _t(context, '后台手动', 'manual'),
+    _ => _t(context, '每升一级', 'each level'),
+  };
+  final sourceText = _sourceLabels(context, item.materialSources).join('、');
+  final target = item.targetLevelName.isEmpty
+      ? ''
+      : _t(
+          context,
+          '，当前机会：${item.targetLevelName}',
+          ', current: ${item.targetLevelName}',
+        );
+
+  return _t(
+    context,
+    '${item.name}：$levelText 可生成，素材来自 $sourceText$target',
+    '${item.name}: $levelText generation, sources: $sourceText$target',
+  );
+}
+
+List<String> _sourceLabels(BuildContext context, List<String> values) {
+  final sourceValues = values.isEmpty
+      ? const [
+          'journal',
+          'task',
+          'material_history',
+          'material_collect',
+          'private_material',
+        ]
+      : values;
+  return sourceValues
+      .map(
+        (value) => switch (value) {
+          'task' => _t(context, '任务', 'tasks'),
+          'material_history' => _t(context, '学习记录', 'learning history'),
+          'material_collect' => _t(context, '收藏素材', 'saved materials'),
+          'private_material' => _t(context, '私人素材', 'private materials'),
+          _ => _t(context, '日记', 'journals'),
+        },
+      )
+      .toList(growable: false);
+}
+
+List<Map<String, dynamic>> _sourceRows(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return value
+      .whereType<Map>()
+      .map((row) => row.map((key, item) => MapEntry(key.toString(), item)))
+      .toList(growable: false);
+}
+
+String _sourceTitle(BuildContext context, Map<String, dynamic> row) {
+  final title = (row['title'] ?? '').toString().trim();
+  if (title.isNotEmpty) {
+    return title;
+  }
+  final date = (row['entry_date'] ?? row['task_date'] ?? row['viewed_at'] ?? '')
+      .toString()
+      .trim();
+  return date.isEmpty ? _t(context, '未命名素材', 'Untitled') : date;
 }
 
 String _t(BuildContext context, String zh, String en) {

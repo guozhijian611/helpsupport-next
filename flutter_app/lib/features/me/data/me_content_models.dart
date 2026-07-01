@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class MePage<T> {
   const MePage({
     required this.list,
@@ -92,6 +94,8 @@ class MemoirItem {
     required this.videoUrl,
     required this.sourceMonth,
     required this.journalCount,
+    required this.materialCount,
+    required this.sourceMaterials,
     required this.createTime,
   });
 
@@ -106,6 +110,8 @@ class MemoirItem {
   final String videoUrl;
   final String sourceMonth;
   final int journalCount;
+  final int materialCount;
+  final Map<String, dynamic> sourceMaterials;
   final String createTime;
 
   factory MemoirItem.fromJson(Map<String, dynamic> json) {
@@ -121,6 +127,8 @@ class MemoirItem {
       videoUrl: _stringValue(json['video_url']),
       sourceMonth: _stringValue(json['source_month']),
       journalCount: _intValue(json['journal_count']),
+      materialCount: _intValue(json['material_count']),
+      sourceMaterials: _jsonMap(json['source_materials']),
       createTime: _stringValue(json['create_time']),
     );
   }
@@ -131,35 +139,62 @@ class MemoirConfig {
     required this.id,
     required this.name,
     required this.code,
+    required this.triggerMode,
+    required this.levelStep,
     required this.generationCycle,
     required this.sourceType,
+    required this.materialSources,
     required this.promptTemplate,
     required this.minJournalCount,
+    required this.minMaterialCount,
     required this.startDay,
     required this.sort,
+    required this.canGenerate,
+    required this.reason,
+    required this.targetLevelName,
+    required this.existingMemoirId,
+    required this.materialCount,
   });
 
   final int id;
   final String name;
   final String code;
+  final String triggerMode;
+  final int levelStep;
   final String generationCycle;
   final String sourceType;
+  final List<String> materialSources;
   final String promptTemplate;
   final int minJournalCount;
+  final int minMaterialCount;
   final int startDay;
   final int sort;
+  final bool canGenerate;
+  final String reason;
+  final String targetLevelName;
+  final int existingMemoirId;
+  final int materialCount;
 
   factory MemoirConfig.fromJson(Map<String, dynamic> json) {
     return MemoirConfig(
       id: _intValue(json['id']),
       name: _stringValue(json['name']),
       code: _stringValue(json['code']),
+      triggerMode: _stringValue(json['trigger_mode'], fallback: 'level_up'),
+      levelStep: _intValue(json['level_step'], fallback: 1),
       generationCycle: _stringValue(json['generation_cycle']),
       sourceType: _stringValue(json['source_type']),
+      materialSources: _stringList(json['material_sources']),
       promptTemplate: _stringValue(json['prompt_template']),
       minJournalCount: _intValue(json['min_journal_count']),
+      minMaterialCount: _intValue(json['min_material_count']),
       startDay: _intValue(json['start_day']),
       sort: _intValue(json['sort']),
+      canGenerate: _boolValue(json['can_generate']),
+      reason: _stringValue(json['reason']),
+      targetLevelName: _stringValue(_jsonMap(json['target_level'])['name']),
+      existingMemoirId: _intValue(json['existing_memoir_id']),
+      materialCount: _intValue(json['material_count']),
     );
   }
 }
@@ -312,17 +347,41 @@ List<String> _stringList(Object? value) {
   }
   if (value is String && value.trim().isNotEmpty) {
     final normalized = value.trim();
-    if (normalized.startsWith('[') && normalized.endsWith(']')) {
-      return normalized
-          .substring(1, normalized.length - 1)
-          .split(',')
-          .map((item) => item.trim().replaceAll('"', '').replaceAll("'", ''))
-          .where((item) => item.isNotEmpty)
-          .toList(growable: false);
+    final decoded = _jsonValue(normalized);
+    if (decoded is List) {
+      return decoded.map((item) => item.toString()).toList(growable: false);
     }
     return [normalized];
   }
   return const [];
+}
+
+Map<String, dynamic> _jsonMap(Object? value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+  if (value is Map) {
+    return value.map((key, item) => MapEntry(key.toString(), item));
+  }
+  final decoded = _jsonValue(value);
+  if (decoded is Map<String, dynamic>) {
+    return decoded;
+  }
+  if (decoded is Map) {
+    return decoded.map((key, item) => MapEntry(key.toString(), item));
+  }
+  return const {};
+}
+
+Object? _jsonValue(Object? value) {
+  if (value is! String || value.trim().isEmpty) {
+    return null;
+  }
+  try {
+    return jsonDecode(value);
+  } catch (_) {
+    return null;
+  }
 }
 
 String _stringValue(Object? value, {String fallback = ''}) {

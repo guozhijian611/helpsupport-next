@@ -132,6 +132,7 @@ Route::group('/app/help', function () {
     Route::get('/me/memoirs', [MeController::class, 'memoirs']);
     Route::get('/me/memoir', [MeController::class, 'memoirDetail']);
     Route::get('/me/memoir-configs', [MeController::class, 'memoirConfigs']);
+    Route::post('/me/memoir/generate', [MeController::class, 'generateMemoir']);
     Route::get('/me/badges', [MeController::class, 'badges']);
     Route::get('/me/points', [MeController::class, 'points']);
     Route::get('/me/recovery-goals', [MeController::class, 'recoveryGoals']);

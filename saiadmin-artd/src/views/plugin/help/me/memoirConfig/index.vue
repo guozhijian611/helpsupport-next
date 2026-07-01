@@ -26,6 +26,13 @@
     { label: '每季度', value: 'quarterly' }
   ]
 
+  const triggerOptions = [
+    { label: '每升一级', value: 'level_up', tagType: 'success' as const },
+    { label: '按等级间隔', value: 'level_interval', tagType: 'primary' as const },
+    { label: '按周期', value: 'cycle', tagType: 'warning' as const },
+    { label: '仅手动', value: 'manual', tagType: 'info' as const }
+  ]
+
   const sourceOptions = [
     { label: '日记', value: 'journal' },
     { label: '任务', value: 'task' },
@@ -60,6 +67,25 @@
     { prop: 'name', label: '配置名称', search: true, form: true, required: true, minWidth: 150 },
     { prop: 'code', label: '配置编码', search: true, form: true, required: true, minWidth: 150 },
     {
+      prop: 'trigger_mode',
+      label: '触发模式',
+      search: true,
+      form: true,
+      required: true,
+      default: 'level_up',
+      options: triggerOptions,
+      width: 120
+    },
+    {
+      prop: 'level_step',
+      label: '等级间隔',
+      type: 'number',
+      form: true,
+      default: 1,
+      min: 1,
+      width: 110
+    },
+    {
       prop: 'generation_cycle',
       label: '生成周期',
       search: true,
@@ -79,6 +105,17 @@
       width: 110
     },
     {
+      prop: 'material_sources',
+      label: '素材来源',
+      type: 'json',
+      form: true,
+      detail: true,
+      rows: 4,
+      default: '["journal","task","material_history","material_collect","private_material"]',
+      placeholder: '例如 ["journal","task","material_history","material_collect","private_material"]',
+      minWidth: 220
+    },
+    {
       prop: 'prompt_template',
       label: '提示词模板',
       type: 'textarea',
@@ -91,7 +128,15 @@
       label: '最少日记数',
       type: 'number',
       form: true,
-      default: 3,
+      default: 0,
+      width: 120
+    },
+    {
+      prop: 'min_material_count',
+      label: '最少素材数',
+      type: 'number',
+      form: true,
+      default: 0,
       width: 120
     },
     { prop: 'start_day', label: '周期开始日', type: 'number', form: true, default: 1, width: 120 },

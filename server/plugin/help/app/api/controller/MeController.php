@@ -335,12 +335,25 @@ class MeController extends BaseController
     #[Apidoc\Url('/app/help/me/memoir-configs')]
     #[Apidoc\Method('GET')]
     #[Apidoc\Query('code', type: 'string', require: false, desc: '配置编码')]
+    #[Apidoc\Query('trigger_mode', type: 'string', require: false, desc: '触发模式 level_up/level_interval/cycle/manual')]
     #[Apidoc\Query('generation_cycle', type: 'string', require: false, desc: '生成周期 weekly/monthly/quarterly')]
     #[Apidoc\Query('source_type', type: 'string', require: false, desc: '来源类型 journal/task/mixed')]
+    #[Apidoc\Query('source_month', type: 'string', require: false, desc: '判定月份 YYYY-MM')]
     #[Apidoc\Returned('list', type: 'array', desc: '启用的回忆录生成配置')]
     public function memoirConfigs(Request $request): Response
     {
-        return ok($this->service->memoirConfigs($request->get()));
+        return ok($this->service->memoirConfigs($this->memberId, $request->get()));
+    }
+
+    #[Apidoc\Title('生成我的回忆录')]
+    #[Apidoc\Url('/app/help/me/memoir/generate')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('config_id', type: 'int', require: false, desc: '回忆录配置ID，留空使用第一条可用配置')]
+    #[Apidoc\Param('source_month', type: 'string', require: false, desc: '来源月份 YYYY-MM')]
+    #[Apidoc\Returned('memoir', type: 'object', desc: '生成后的回忆录')]
+    public function generateMemoir(Request $request): Response
+    {
+        return ok($this->service->generateMemoir($this->memberId, $request->post()));
     }
 
     #[Apidoc\Title('我的荣誉徽章')]

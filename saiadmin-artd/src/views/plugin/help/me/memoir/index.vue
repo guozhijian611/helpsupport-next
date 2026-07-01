@@ -55,6 +55,16 @@
     },
     { prop: 'grant_level_name', label: '等级名称', form: true, table: false },
     { prop: 'journal_count', label: '日记数', type: 'number', form: true, default: 0, width: 90 },
+    { prop: 'material_count', label: '素材数', type: 'number', form: true, default: 0, width: 90 },
+    {
+      prop: 'source_materials',
+      label: '素材快照',
+      type: 'json',
+      form: true,
+      detail: true,
+      table: false,
+      rows: 8
+    },
     {
       prop: 'status',
       label: '状态',

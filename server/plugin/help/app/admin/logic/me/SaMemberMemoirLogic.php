@@ -29,7 +29,7 @@ class SaMemberMemoirLogic extends BaseLogic
 
     private function normalizeFields(array $data): array
     {
-        foreach (['grant_level_id' => 0, 'grant_level_rank' => 0, 'journal_count' => 0, 'status' => 1] as $field => $default) {
+        foreach (['grant_level_id' => 0, 'grant_level_rank' => 0, 'journal_count' => 0, 'material_count' => 0, 'status' => 1] as $field => $default) {
             if (!array_key_exists($field, $data) || $data[$field] === '') {
                 $data[$field] = $default;
             }

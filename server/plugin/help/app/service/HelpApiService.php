@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace plugin\help\app\service;
 
+use plugin\help\app\admin\logic\me\SaMemberMemoirConfigLogic;
 use plugin\saiadmin\app\logic\system\SystemAttachmentLogic;
 use plugin\saiai\app\service\AiFactory;
 use plugin\saiadmin\exception\ApiException;
@@ -4303,15 +4304,18 @@ class HelpApiService
         return $memoir;
     }
 
-    public function memoirConfigs(array $params): array
+    public function memoirConfigs(int $memberId, array $params): array
     {
         $query = Db::table('sa_member_memoir_config')
             ->where('status', 1)
             ->whereNull('delete_time')
-            ->field('id, name, code, generation_cycle, source_type, prompt_template, min_journal_count, start_day, sort');
+            ->field('id, name, code, trigger_mode, level_step, generation_cycle, source_type, material_sources, prompt_template, min_journal_count, min_material_count, start_day, sort, status');
 
         if (!empty($params['code'])) {
             $query->where('code', trim((string) $params['code']));
+        }
+        if (!empty($params['trigger_mode'])) {
+            $query->where('trigger_mode', trim((string) $params['trigger_mode']));
         }
         if (!empty($params['generation_cycle'])) {
             $query->where('generation_cycle', trim((string) $params['generation_cycle']));
@@ -4320,12 +4324,57 @@ class HelpApiService
             $query->where('source_type', trim((string) $params['source_type']));
         }
 
+        $logic = new SaMemberMemoirConfigLogic();
+        $rows = $query
+            ->order('sort', 'asc')
+            ->order('id', 'asc')
+            ->select()
+            ->toArray();
+
         return [
-            'list' => $query
-                ->order('sort', 'asc')
-                ->order('id', 'asc')
-                ->select()
-                ->toArray(),
+            'list' => array_map(function (array $row) use ($logic, $memberId, $params): array {
+                return array_merge($row, $logic->generationOpportunity(
+                    $row,
+                    $memberId,
+                    trim((string) ($params['source_month'] ?? ''))
+                ));
+            }, $rows),
+        ];
+    }
+
+    public function generateMemoir(int $memberId, array $data): array
+    {
+        $configId = (int) ($data['config_id'] ?? $data['id'] ?? 0);
+        $sourceMonth = trim((string) ($data['source_month'] ?? ''));
+        $configQuery = Db::table('sa_member_memoir_config')
+            ->where('status', 1)
+            ->whereNull('delete_time');
+        if ($configId > 0) {
+            $configQuery->where('id', $configId);
+        }
+        $config = $configQuery
+            ->order('sort', 'asc')
+            ->order('id', 'asc')
+            ->find();
+        if (!$config) {
+            throw new ApiException('回忆录生成配置不存在', 404);
+        }
+
+        $logic = new SaMemberMemoirConfigLogic();
+        $opportunity = $logic->generationOpportunity($config, $memberId, $sourceMonth);
+        if (!$opportunity['can_generate']) {
+            throw new ApiException((string) ($opportunity['reason'] ?? '暂未获得回忆录生成机会'), 400);
+        }
+
+        $result = $logic->generate((int) $config['id'], $memberId, $sourceMonth);
+        $memoirId = (int) ($result['memoir_ids'][0] ?? 0);
+        if ($memoirId <= 0) {
+            throw new ApiException('回忆录生成失败', 500);
+        }
+
+        return [
+            'result' => $result,
+            'memoir' => $this->memoirDetail($memberId, $memoirId),
         ];
     }
 
