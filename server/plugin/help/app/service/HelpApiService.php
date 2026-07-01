@@ -1015,19 +1015,37 @@ class HelpApiService
             $sessionName = 'Conversation ' . ($count + 1);
         }
 
-        $id = Db::table('sa_member_chat_session')->insertGetId([
-            'member_id' => $memberId,
-            'chat_mode' => $chatMode,
-            'session_name' => $sessionName,
-            'last_message' => '',
-            'last_message_time' => null,
-            'is_pinned' => $isPinned,
-            'status' => 1,
-            'created_by' => $memberId,
-            'updated_by' => $memberId,
-            'create_time' => $now,
-            'update_time' => $now,
-        ]);
+        $locale = trim((string) ($data['locale'] ?? ''));
+        $greeting = $this->chatGreetingMessage($chatMode, $locale);
+
+        $id = Db::transaction(function () use ($memberId, $chatMode, $sessionName, $isPinned, $now, $greeting) {
+            $sessionId = (int) Db::table('sa_member_chat_session')->insertGetId([
+                'member_id' => $memberId,
+                'chat_mode' => $chatMode,
+                'session_name' => $sessionName,
+                'last_message' => $this->chatSummary($greeting),
+                'last_message_time' => $now,
+                'is_pinned' => $isPinned,
+                'status' => 1,
+                'created_by' => $memberId,
+                'updated_by' => $memberId,
+                'create_time' => $now,
+                'update_time' => $now,
+            ]);
+
+            $this->insertChatRecord(
+                $memberId,
+                $sessionId,
+                $chatMode,
+                'assistant',
+                $greeting,
+                'text',
+                $this->jsonValue(['source' => 'session_greeting']),
+                $now
+            );
+
+            return $sessionId;
+        });
 
         return Db::table('sa_member_chat_session')->where('id', $id)->find() ?: [];
     }
@@ -1062,7 +1080,8 @@ class HelpApiService
     {
         $sessionId = (int) ($params['session_id'] ?? 0);
         if ($sessionId > 0) {
-            $this->assertChatSession($memberId, $sessionId);
+            $session = $this->assertChatSession($memberId, $sessionId);
+            $this->ensureChatSessionGreeting($memberId, $session, (string) ($params['locale'] ?? ''));
         }
 
         return $this->paginate(function () use ($memberId, $params, $sessionId) {
@@ -6479,6 +6498,111 @@ class HelpApiService
         ]);
 
         return Db::table('sa_member_chat_record')->where('id', $id)->find() ?: [];
+    }
+
+    private function ensureChatSessionGreeting(int $memberId, array $session, string $locale = ''): void
+    {
+        $sessionId = (int) ($session['id'] ?? 0);
+        $chatMode = (string) ($session['chat_mode'] ?? '');
+        if ($sessionId <= 0 || !in_array($chatMode, $this->chatModes(), true)) {
+            return;
+        }
+
+        $exists = Db::table('sa_member_chat_record')
+            ->where('member_id', $memberId)
+            ->where('session_id', $sessionId)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->count();
+        if ((int) $exists > 0) {
+            return;
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $greeting = $this->chatGreetingMessage($chatMode, $locale);
+        Db::transaction(function () use ($memberId, $sessionId, $chatMode, $greeting, $now) {
+            $this->insertChatRecord(
+                $memberId,
+                $sessionId,
+                $chatMode,
+                'assistant',
+                $greeting,
+                'text',
+                $this->jsonValue(['source' => 'session_greeting']),
+                $now
+            );
+
+            Db::table('sa_member_chat_session')->where('id', $sessionId)->update([
+                'last_message' => $this->chatSummary($greeting),
+                'last_message_time' => $now,
+                'updated_by' => $memberId,
+                'update_time' => $now,
+            ]);
+        });
+    }
+
+    private function chatGreetingMessage(string $chatMode, string $locale = ''): string
+    {
+        $fallbacks = [
+            'doctor' => [
+                'zh' => '告诉我你想为就诊准备什么，我会帮你整理清楚。',
+                'en-US' => 'Tell me what you want to prepare for your clinician, and I will help organize it clearly.',
+            ],
+            'companion' => [
+                'zh' => '我在这里陪你。现在最想聊的是什么？',
+                'en-US' => 'I am here with you. What feels most important to talk through right now?',
+            ],
+            'patient' => [
+                'zh' => '今天你在情绪、身体或想法上注意到了什么？',
+                'en-US' => 'What did you notice about your mood, body, or thoughts today?',
+            ],
+        ];
+        $chatMode = in_array($chatMode, $this->chatModes(), true) ? $chatMode : 'companion';
+        $localeCandidates = $this->chatGreetingLocaleCandidates($locale);
+
+        if ($this->tableExists('sa_local_model_prompt')) {
+            $rows = Db::table('sa_local_model_prompt')
+                ->where('chat_mode', $chatMode)
+                ->where('status', 1)
+                ->whereNull('delete_time')
+                ->whereIn('locale', $localeCandidates)
+                ->field('locale, first_message')
+                ->order('id', 'asc')
+                ->select()
+                ->toArray();
+
+            foreach ($localeCandidates as $candidate) {
+                foreach ($rows as $row) {
+                    $message = trim((string) ($row['first_message'] ?? ''));
+                    if ((string) ($row['locale'] ?? '') === $candidate && $message !== '') {
+                        return $message;
+                    }
+                }
+            }
+        }
+
+        foreach ($localeCandidates as $candidate) {
+            if (isset($fallbacks[$chatMode][$candidate])) {
+                return $fallbacks[$chatMode][$candidate];
+            }
+        }
+
+        return $fallbacks[$chatMode]['zh'];
+    }
+
+    private function chatGreetingLocaleCandidates(string $locale): array
+    {
+        $locale = str_replace('_', '-', trim($locale));
+        $language = strtolower(strtok($locale, '-') ?: $locale);
+
+        if ($language === 'zh') {
+            return ['zh', 'zh-CN', 'en-US'];
+        }
+        if ($language === 'en') {
+            return ['en-US', 'en', 'zh'];
+        }
+
+        return ['zh', 'en-US'];
     }
 
     private function chatSummary(string $content, string $contentType = 'text'): string

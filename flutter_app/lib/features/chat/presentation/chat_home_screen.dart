@@ -169,7 +169,10 @@ class ChatHomeScreen extends ConsumerWidget {
     try {
       final session = await ref
           .read(chatRepositoryProvider)
-          .createSession(chatMode);
+          .createSession(
+            chatMode,
+            locale: Localizations.localeOf(context).toLanguageTag(),
+          );
       ref.invalidate(chatOverviewProvider);
       if (!context.mounted) {
         return;

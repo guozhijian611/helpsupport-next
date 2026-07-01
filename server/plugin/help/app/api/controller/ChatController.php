@@ -86,6 +86,7 @@ class ChatController extends BaseController
     #[Apidoc\Param('chat_mode', type: 'string', require: true, desc: '聊天模式 doctor/companion/patient')]
     #[Apidoc\Param('session_name', type: 'string', require: false, desc: '会话名称')]
     #[Apidoc\Param('is_pinned', type: 'int', require: false, default: 2, desc: '是否置顶 1是 2否')]
+    #[Apidoc\Param('locale', type: 'string', require: false, desc: '客户端语言，用于生成默认 AI 开场白')]
     #[Apidoc\Returned('id', type: 'int', desc: '会话ID')]
     #[Apidoc\Returned('session_name', type: 'string', desc: '会话名称')]
     public function saveSession(Request $request): Response

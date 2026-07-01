@@ -74,10 +74,17 @@ class ChatRepository {
         const ChatPage(list: [], total: 0, page: 1, pageSize: 20);
   }
 
-  Future<ChatSession> createSession(String chatMode) async {
+  Future<ChatSession> createSession(
+    String chatMode, {
+    String locale = '',
+  }) async {
     final result = await _apiClient.postApi<ChatSession>(
       '/app/help/chat/session',
-      data: {'chat_mode': chatMode, 'is_pinned': 2},
+      data: {
+        'chat_mode': chatMode,
+        'is_pinned': 2,
+        if (locale.isNotEmpty) 'locale': locale,
+      },
       decode: (value) {
         if (value is Map<String, dynamic>) {
           return ChatSession.fromJson(value);
