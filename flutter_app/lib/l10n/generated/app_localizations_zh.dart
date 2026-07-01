@@ -663,6 +663,34 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String meHonorRuleTaskCount(Object count) {
+    return '完成 $count 个任务';
+  }
+
+  @override
+  String meHonorRuleCheckinStreak(Object count) {
+    return '连续打卡 $count 天';
+  }
+
+  @override
+  String meHonorRuleJournalCount(Object count) {
+    return '记录 $count 篇日记';
+  }
+
+  @override
+  String meHonorRuleMaterialLearn(Object count) {
+    return '学习 $count 个素材';
+  }
+
+  @override
+  String meHonorRuleAppointmentDone(Object count) {
+    return '完成 $count 次预约';
+  }
+
+  @override
+  String get meHonorRuleManual => '后台手动发放';
+
+  @override
   String get meCommonFunctions => '常用功能';
 
   @override

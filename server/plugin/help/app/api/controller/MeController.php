@@ -350,6 +350,8 @@ class MeController extends BaseController
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
     #[Apidoc\Returned('list', type: 'array', desc: '徽章列表')]
+    #[Apidoc\Returned('list.*.badge_icon', type: 'string', desc: '徽章规则图片')]
+    #[Apidoc\Returned('list.*.badge_description', type: 'string', desc: '徽章规则说明')]
     #[Apidoc\Returned('total', type: 'int', desc: '总数')]
     public function badges(Request $request): Response
     {

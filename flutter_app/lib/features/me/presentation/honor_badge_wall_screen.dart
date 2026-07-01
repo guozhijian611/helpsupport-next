@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cache/cached_remote_image.dart';
 import '../../../core/i18n/l10n_extensions.dart';
+import '../../../core/providers/app_providers.dart';
 import '../application/me_content_controller.dart';
 import '../data/me_content_models.dart';
 import 'honor_badges_support.dart';
@@ -12,6 +14,7 @@ class HonorBadgeWallScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = _BadgeWallPalette.of(context);
+    final apiClient = ref.watch(apiClientProvider);
     final badgesState = ref.watch(memberBadgeWallProvider);
     final badges = switch (badgesState) {
       AsyncData(:final value) => latestDistinctBadges(value.list),
@@ -66,10 +69,13 @@ class HonorBadgeWallScreen extends ConsumerWidget {
                           crossAxisCount: 2,
                           mainAxisSpacing: 12,
                           crossAxisSpacing: 12,
-                          childAspectRatio: 0.92,
+                          childAspectRatio: 0.78,
                         ),
                     delegate: SliverChildBuilderDelegate((context, index) {
-                      return _BadgeWallCard(badge: badges[index]);
+                      return _BadgeWallCard(
+                        badge: badges[index],
+                        resolveUrl: apiClient.resolveUrl,
+                      );
                     }, childCount: badges.length),
                   ),
                 ),
@@ -152,13 +158,18 @@ class _BadgeWallSummary extends StatelessWidget {
 }
 
 class _BadgeWallCard extends StatelessWidget {
-  const _BadgeWallCard({required this.badge});
+  const _BadgeWallCard({required this.badge, required this.resolveUrl});
 
   final MemberBadge badge;
+  final String Function(String value) resolveUrl;
 
   @override
   Widget build(BuildContext context) {
     final palette = _BadgeWallPalette.of(context);
+    final ruleText = _badgeRuleText(context, badge);
+    final iconUrl = badge.badgeIcon.trim().isEmpty
+        ? ''
+        : resolveUrl(badge.badgeIcon);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: palette.cardBackground,
@@ -170,23 +181,7 @@ class _BadgeWallCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: palette.medalBackground,
-                border: Border.all(
-                  color: const Color(0xFFFF9585).withValues(alpha: 0.42),
-                  width: 2,
-                ),
-              ),
-              child: const Icon(
-                Icons.military_tech_rounded,
-                color: Color(0xFFFF9585),
-                size: 38,
-              ),
-            ),
+            _BadgeIcon(iconUrl: iconUrl),
             const SizedBox(height: 14),
             Text(
               badge.badgeName,
@@ -200,6 +195,21 @@ class _BadgeWallCard extends StatelessWidget {
                 height: 1.2,
               ),
             ),
+            if (ruleText.isNotEmpty) ...[
+              const SizedBox(height: 7),
+              Text(
+                ruleText,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: palette.secondaryText,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  height: 1.25,
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             Text(
               context.l10n.meHonorBadgeAwardedAt(_formatDate(badge.awardTime)),
@@ -217,6 +227,64 @@ class _BadgeWallCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _BadgeIcon extends StatelessWidget {
+  const _BadgeIcon({required this.iconUrl});
+
+  final String iconUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _BadgeWallPalette.of(context);
+    return Container(
+      width: 70,
+      height: 70,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: palette.medalBackground,
+        border: Border.all(
+          color: const Color(0xFFFF9585).withValues(alpha: 0.42),
+          width: 2,
+        ),
+      ),
+      child: ClipOval(
+        child: iconUrl.trim().isEmpty
+            ? const Icon(
+                Icons.military_tech_rounded,
+                color: Color(0xFFFF9585),
+                size: 38,
+              )
+            : CachedRemoteImage(
+                iconUrl,
+                fit: BoxFit.cover,
+                placeholder: ColoredBox(color: palette.medalBackground),
+                errorWidget: const Icon(
+                  Icons.military_tech_rounded,
+                  color: Color(0xFFFF9585),
+                  size: 38,
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+String _badgeRuleText(BuildContext context, MemberBadge badge) {
+  final description = badge.badgeDescription.trim();
+  if (description.isNotEmpty) {
+    return description;
+  }
+  final value = badge.ruleTriggerValue;
+  return switch (badge.ruleTriggerType) {
+    'task_count' => context.l10n.meHonorRuleTaskCount(value),
+    'checkin_streak' => context.l10n.meHonorRuleCheckinStreak(value),
+    'journal_count' => context.l10n.meHonorRuleJournalCount(value),
+    'material_learn' => context.l10n.meHonorRuleMaterialLearn(value),
+    'appointment_done' => context.l10n.meHonorRuleAppointmentDone(value),
+    'manual' => context.l10n.meHonorRuleManual,
+    _ => '',
+  };
 }
 
 String _formatDate(String value) {

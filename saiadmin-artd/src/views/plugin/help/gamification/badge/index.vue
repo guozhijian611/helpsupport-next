@@ -19,6 +19,15 @@
     { label: '撤销', value: 2, tagType: 'info' as const }
   ]
 
+  const sourceOptions = [
+    { label: '后台手动', value: 'manual' },
+    { label: '每日任务', value: 'daily_task' },
+    { label: '日记', value: 'journal' },
+    { label: '素材学习', value: 'material_history' },
+    { label: '医生预约', value: 'appointment' },
+    { label: '演示数据', value: 'demo_seed' }
+  ]
+
   const fields: HelpCrudField[] = [
     { prop: 'id', label: 'ID', table: true, detail: true, width: 80, readonly: true },
     {
@@ -30,13 +39,22 @@
       required: true,
       width: 100
     },
-    { prop: 'rule_id', label: '规则ID', type: 'number', form: true, default: 0, width: 90 },
+    {
+      prop: 'rule_id',
+      label: '规则ID',
+      type: 'number',
+      form: true,
+      default: 0,
+      placeholder: '填写规则ID后自动带出编码、名称、图片和说明',
+      width: 90
+    },
+    { prop: 'badge_icon', label: '徽章图片', type: 'image', table: true, detail: true, width: 110 },
     {
       prop: 'badge_code',
       label: '徽章编码',
       search: true,
       form: true,
-      required: true,
+      placeholder: '规则唯一编码，用于去重；填写规则ID后自动生成',
       minWidth: 150
     },
     {
@@ -44,10 +62,26 @@
       label: '徽章名称',
       search: true,
       form: true,
-      required: true,
+      placeholder: '填写规则ID后自动生成',
       minWidth: 150
     },
-    { prop: 'source_type', label: '来源类型', search: true, form: true, minWidth: 120 },
+    {
+      prop: 'rule_description',
+      label: '规则说明',
+      type: 'textarea',
+      table: false,
+      detail: true,
+      rows: 3
+    },
+    {
+      prop: 'source_type',
+      label: '发放来源',
+      search: true,
+      form: true,
+      options: sourceOptions,
+      default: 'manual',
+      minWidth: 120
+    },
     { prop: 'source_id', label: '来源ID', type: 'number', form: true, default: 0, width: 90 },
     { prop: 'award_time', label: '获得时间', type: 'datetime', form: true, width: 170 },
     {

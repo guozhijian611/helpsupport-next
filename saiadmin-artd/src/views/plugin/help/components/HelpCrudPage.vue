@@ -105,6 +105,7 @@
             :url="row[field.prop]"
             :field-prop="field.prop"
           />
+          <ImagePreview v-else-if="field.type === 'image'" :url="row[field.prop]" />
           <ElTooltip
             v-else-if="isLongValue(field, row[field.prop])"
             :content="formatValue(field, row[field.prop])"
@@ -270,6 +271,7 @@
             :field-prop="field.prop"
             detail
           />
+          <ImagePreview v-else-if="field.type === 'image'" :url="detailData[field.prop]" detail />
           <span v-else>{{ formatValue(field, detailData[field.prop]) }}</span>
         </ElDescriptionsItem>
       </ElDescriptions>
@@ -706,6 +708,23 @@
       },
       () => (props.row.media_type === 'link' ? '打开外链' : shortUrl(url))
     )
+  }
+
+  const ImagePreview = (props: { url: unknown; detail?: boolean }) => {
+    const urls = parseUrlList(props.url).filter((url) =>
+      imageExtensions.includes(fileExtension(url))
+    )
+    const url = urls[0] || String(props.url || '').trim()
+    if (!url) {
+      return h('span', '-')
+    }
+    return h(ElImage, {
+      src: url,
+      previewSrcList: [url],
+      previewTeleported: true,
+      fit: 'cover',
+      class: props.detail ? 'help-material-image is-detail' : 'help-material-image'
+    })
   }
 
   const shortUrl = (url: string) => {

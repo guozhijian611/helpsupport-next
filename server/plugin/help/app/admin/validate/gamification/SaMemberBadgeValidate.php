@@ -12,8 +12,8 @@ class SaMemberBadgeValidate extends BaseValidate
     protected $rule = [
         'member_id' => 'require|integer',
         'rule_id' => 'integer',
-        'badge_code' => 'require|max:80',
-        'badge_name' => 'require|max:100',
+        'badge_code' => 'max:80',
+        'badge_name' => 'max:100',
         'source_type' => 'max:40',
         'source_id' => 'integer',
         'status' => 'require|in:1,2',
@@ -21,8 +21,6 @@ class SaMemberBadgeValidate extends BaseValidate
 
     protected $message = [
         'member_id.require' => '会员ID必须填写',
-        'badge_code.require' => '徽章编码必须填写',
-        'badge_name.require' => '徽章名称必须填写',
         'status.require' => '状态必须填写',
     ];
 

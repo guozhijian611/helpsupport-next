@@ -49,7 +49,7 @@ class SaMemberBadgeController extends BaseController
     #[Permission('会员徽章记录添加', 'help:gamification:badge:save')]
     public function save(Request $request): Response
     {
-        $data = $request->post();
+        $data = $this->logic->prepareAwardData($request->post());
         $this->validate('save', $data);
         $result = $this->logic->add($data);
 
@@ -59,7 +59,7 @@ class SaMemberBadgeController extends BaseController
     #[Permission('会员徽章记录修改', 'help:gamification:badge:update')]
     public function update(Request $request): Response
     {
-        $data = $request->post();
+        $data = $this->logic->prepareAwardData($request->post());
         $this->validate('update', $data);
         $result = $this->logic->edit($data['id'], $data);
 

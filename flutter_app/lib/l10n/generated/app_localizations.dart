@@ -1370,6 +1370,42 @@ abstract class AppLocalizations {
   /// **'Source {source}'**
   String meHonorPointSource(Object source);
 
+  /// No description provided for @meHonorRuleTaskCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete {count} tasks'**
+  String meHonorRuleTaskCount(Object count);
+
+  /// No description provided for @meHonorRuleCheckinStreak.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}-day check-in streak'**
+  String meHonorRuleCheckinStreak(Object count);
+
+  /// No description provided for @meHonorRuleJournalCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Write {count} journals'**
+  String meHonorRuleJournalCount(Object count);
+
+  /// No description provided for @meHonorRuleMaterialLearn.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn {count} materials'**
+  String meHonorRuleMaterialLearn(Object count);
+
+  /// No description provided for @meHonorRuleAppointmentDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete {count} appointments'**
+  String meHonorRuleAppointmentDone(Object count);
+
+  /// No description provided for @meHonorRuleManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Granted by admin'**
+  String get meHonorRuleManual;
+
   /// No description provided for @meCommonFunctions.
   ///
   /// In en, this message translates to:

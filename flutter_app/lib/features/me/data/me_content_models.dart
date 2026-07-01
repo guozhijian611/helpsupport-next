@@ -171,9 +171,14 @@ class MemberBadge {
     required this.ruleId,
     required this.badgeCode,
     required this.badgeName,
+    required this.badgeIcon,
+    required this.badgeDescription,
     required this.sourceType,
     required this.sourceId,
     required this.awardTime,
+    required this.ruleTriggerType,
+    required this.ruleTriggerValue,
+    required this.rulePointsReward,
     required this.status,
   });
 
@@ -182,9 +187,14 @@ class MemberBadge {
   final int ruleId;
   final String badgeCode;
   final String badgeName;
+  final String badgeIcon;
+  final String badgeDescription;
   final String sourceType;
   final int sourceId;
   final String awardTime;
+  final String ruleTriggerType;
+  final int ruleTriggerValue;
+  final int rulePointsReward;
   final int status;
 
   factory MemberBadge.fromJson(Map<String, dynamic> json) {
@@ -194,9 +204,14 @@ class MemberBadge {
       ruleId: _intValue(json['rule_id']),
       badgeCode: _stringValue(json['badge_code']),
       badgeName: _stringValue(json['badge_name']),
+      badgeIcon: _stringValue(json['badge_icon']),
+      badgeDescription: _stringValue(json['badge_description']),
       sourceType: _stringValue(json['source_type']),
       sourceId: _intValue(json['source_id']),
       awardTime: _stringValue(json['award_time']),
+      ruleTriggerType: _stringValue(json['rule_trigger_type']),
+      ruleTriggerValue: _intValue(json['rule_trigger_value']),
+      rulePointsReward: _intValue(json['rule_points_reward']),
       status: _intValue(json['status'], fallback: 1),
     );
   }

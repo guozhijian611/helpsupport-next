@@ -31,9 +31,25 @@
   const fields: HelpCrudField[] = [
     { prop: 'id', label: 'ID', table: true, detail: true, width: 80, readonly: true },
     { prop: 'name', label: '徽章名称', search: true, form: true, required: true, minWidth: 150 },
-    { prop: 'code', label: '徽章编码', search: true, form: true, required: true, minWidth: 150 },
-    { prop: 'description', label: '说明', type: 'textarea', form: true, rows: 3, minWidth: 180 },
-    { prop: 'icon', label: '图标', form: true, table: false },
+    {
+      prop: 'code',
+      label: '徽章编码',
+      search: true,
+      form: true,
+      required: true,
+      minWidth: 150,
+      placeholder: '用于系统去重和前台识别，例如 sleep_streak_7'
+    },
+    {
+      prop: 'description',
+      label: '规则说明',
+      type: 'textarea',
+      form: true,
+      rows: 3,
+      minWidth: 180,
+      placeholder: '说明这个徽章的获得条件，会展示给前台用户'
+    },
+    { prop: 'icon', label: '徽章图片', type: 'image', form: true, table: true, width: 110 },
     {
       prop: 'trigger_type',
       label: '触发类型',
@@ -41,7 +57,7 @@
       form: true,
       required: true,
       options: triggerOptions,
-      width: 120
+      width: 130
     },
     {
       prop: 'trigger_value',
@@ -50,6 +66,7 @@
       form: true,
       required: true,
       default: 1,
+      placeholder: '达到该次数/数量后自动发放；手动发放填 1',
       width: 100
     },
     {

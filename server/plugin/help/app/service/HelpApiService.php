@@ -3028,15 +3028,18 @@ class HelpApiService
     {
         return $this->paginate(function () use ($memberId, $params) {
             $query = Db::table('sa_member_badge')
-                ->where('member_id', $memberId)
-                ->whereNull('delete_time');
+                ->alias('b')
+                ->leftJoin('sa_member_badge_rule r', 'r.id = b.rule_id AND r.delete_time IS NULL')
+                ->field('b.*, r.icon AS badge_icon, r.description AS badge_description, r.trigger_type AS rule_trigger_type, r.trigger_value AS rule_trigger_value, r.points_reward AS rule_points_reward')
+                ->where('b.member_id', $memberId)
+                ->whereNull('b.delete_time');
             if (isset($params['status']) && $params['status'] !== '') {
-                $query->where('status', (int) $params['status']);
+                $query->where('b.status', (int) $params['status']);
             } else {
-                $query->where('status', 1);
+                $query->where('b.status', 1);
             }
 
-            return $query->order('award_time', 'desc')->order('id', 'desc');
+            return $query->order('b.award_time', 'desc')->order('b.id', 'desc');
         }, $params);
     }
 

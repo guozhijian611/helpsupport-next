@@ -258,6 +258,37 @@
       "source": {}
     }
   },
+  "meHonorRuleTaskCount": "完成 {count} 个任务",
+  "@meHonorRuleTaskCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "meHonorRuleCheckinStreak": "连续打卡 {count} 天",
+  "@meHonorRuleCheckinStreak": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "meHonorRuleJournalCount": "记录 {count} 篇日记",
+  "@meHonorRuleJournalCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "meHonorRuleMaterialLearn": "学习 {count} 个素材",
+  "@meHonorRuleMaterialLearn": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "meHonorRuleAppointmentDone": "完成 {count} 次预约",
+  "@meHonorRuleAppointmentDone": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "meHonorRuleManual": "后台手动发放",
   "meCommonFunctions": "常用功能",
   "meFollowing": "我的关注",
   "meCollection": "我的收藏",

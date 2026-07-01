@@ -258,6 +258,37 @@
       "source": {}
     }
   },
+  "meHonorRuleTaskCount": "Complete {count} tasks",
+  "@meHonorRuleTaskCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "meHonorRuleCheckinStreak": "{count}-day check-in streak",
+  "@meHonorRuleCheckinStreak": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "meHonorRuleJournalCount": "Write {count} journals",
+  "@meHonorRuleJournalCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "meHonorRuleMaterialLearn": "Learn {count} materials",
+  "@meHonorRuleMaterialLearn": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "meHonorRuleAppointmentDone": "Complete {count} appointments",
+  "@meHonorRuleAppointmentDone": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "meHonorRuleManual": "Granted by admin",
   "meCommonFunctions": "Common actions",
   "meFollowing": "Following",
   "meCollection": "Saved",

@@ -683,6 +683,34 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String meHonorRuleTaskCount(Object count) {
+    return 'Complete $count tasks';
+  }
+
+  @override
+  String meHonorRuleCheckinStreak(Object count) {
+    return '$count-day check-in streak';
+  }
+
+  @override
+  String meHonorRuleJournalCount(Object count) {
+    return 'Write $count journals';
+  }
+
+  @override
+  String meHonorRuleMaterialLearn(Object count) {
+    return 'Learn $count materials';
+  }
+
+  @override
+  String meHonorRuleAppointmentDone(Object count) {
+    return 'Complete $count appointments';
+  }
+
+  @override
+  String get meHonorRuleManual => 'Granted by admin';
+
+  @override
   String get meCommonFunctions => 'Common actions';
 
   @override
