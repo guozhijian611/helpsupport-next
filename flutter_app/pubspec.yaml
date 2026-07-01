@@ -61,6 +61,7 @@ dependencies:
   pdfrx: ^2.4.4
   video_player: ^2.11.1
   just_audio: ^0.10.5
+  audio_session: ^0.2.4
   archive: ^4.0.9
   xml: ^7.0.1
   record: ^7.1.0

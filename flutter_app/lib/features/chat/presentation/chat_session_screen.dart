@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:audio_session/audio_session.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -93,11 +95,15 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   String _callLastRealtimeError = '';
   String _callAssistantText = '';
   final List<Uint8List> _callOutputPcmChunks = <Uint8List>[];
+  final Queue<List<Uint8List>> _callAudioPlaybackQueue =
+      Queue<List<Uint8List>>();
   final Set<String> _callSavedUserTranscriptIds = <String>{};
   List<ChatRecord> _streamingRecords = const <ChatRecord>[];
   int _sendGeneration = 0;
   int _callSentAudioChunks = 0;
   int _callSentVideoFrames = 0;
+  int _callPlayedAudioSegments = 0;
+  bool _callPlayingRealtimeAudio = false;
 
   bool get _supportsDoctorCall => widget.chatMode == 'doctor';
 
@@ -532,8 +538,10 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       _callLastRealtimeError = '';
       _callSavedUserTranscriptIds.clear();
       _callOutputPcmChunks.clear();
+      _callAudioPlaybackQueue.clear();
       _callSentAudioChunks = 0;
       _callSentVideoFrames = 0;
+      _callPlayedAudioSegments = 0;
       _callAudioReadyForFrame = false;
       _callPendingAudioTurn = false;
       _callPendingAudioTurnStartedAt = null;
@@ -542,6 +550,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     });
 
     try {
+      await _configureCallAudioSession();
       final repository = ref.read(chatRepositoryProvider);
       final config = await repository.fetchRealtimeConfig();
       final token = await repository.readAccessToken();
@@ -626,6 +635,28 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     return baseUri.replace(queryParameters: query);
   }
 
+  Future<void> _configureCallAudioSession() async {
+    final session = await AudioSession.instance;
+    await session.configure(
+      const AudioSessionConfiguration(
+        avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
+        avAudioSessionCategoryOptions:
+            AVAudioSessionCategoryOptions.defaultToSpeaker |
+            AVAudioSessionCategoryOptions.allowBluetooth |
+            AVAudioSessionCategoryOptions.allowBluetoothA2dp,
+        avAudioSessionMode: AVAudioSessionMode.videoChat,
+        androidAudioAttributes: AndroidAudioAttributes(
+          contentType: AndroidAudioContentType.speech,
+          usage: AndroidAudioUsage.voiceCommunication,
+        ),
+        androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+        androidWillPauseWhenDucked: false,
+      ),
+    );
+    await session.setActive(true);
+    await _callAudioPlayer.setVolume(1);
+  }
+
   Future<void> _stopRealtimeCall() async {
     _stopCallDebugTicker();
     _stopCallPingTimer();
@@ -640,7 +671,9 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       await socket.close();
     }
     await _callAudioPlayer.stop();
+    _callPlayingRealtimeAudio = false;
     _callOutputPcmChunks.clear();
+    _callAudioPlaybackQueue.clear();
     _callSavedUserTranscriptIds.clear();
     _callAudioReadyForFrame = false;
     _callPendingAudioTurn = false;
@@ -662,6 +695,12 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       _callUpstreamReady = false;
       _callRecording = false;
       _callLastRealtimeEvent = 'client.stop';
+    }
+    try {
+      final session = await AudioSession.instance;
+      await session.setActive(false);
+    } on Object {
+      // Ignore audio-session teardown failures while closing the call.
     }
   }
 
@@ -720,7 +759,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       'ws connecting=${_callFlag(_callConnecting)} connected=${_callFlag(_callConnected)} upstream=${_callFlag(_callUpstreamReady)} age=${connectedForMs}ms',
       'mic recording=${_callFlag(_callRecording)} muted=${_callFlag(_callMuted)} chunks=$_callSentAudioChunks pending=${_callFlag(_callPendingAudioTurn)} turnAge=$turnAge response=${_callFlag(_callResponseActive)}',
       'cam enabled=${_callFlag(_callVideoEnabled)} init=${_callFlag(cameraReady)} stream=${_callFlag(imageStreaming)} frames=$_callSentVideoFrames capturing=${_callFlag(_callCapturingFrame)} last=$lastFrameAge',
-      'out pcm=${_callOutputPcmChunks.length} playing=${_callFlag(_callAudioPlayer.playing)} text=${_callAssistantText.length} userSaved=${_callSavedUserTranscriptIds.length}',
+      'out pcm=${_callOutputPcmChunks.length} queue=${_callAudioPlaybackQueue.length} played=$_callPlayedAudioSegments playing=${_callFlag(_callAudioPlayer.playing || _callPlayingRealtimeAudio)} text=${_callAssistantText.length} userSaved=${_callSavedUserTranscriptIds.length}',
       'event=${_callLastRealtimeEvent.isEmpty ? '-' : _callLastRealtimeEvent}',
       if ((_cameraErrorMessage ?? '').trim().isNotEmpty)
         'camErr=${_cameraErrorMessage!.trim()}',
@@ -784,6 +823,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       });
       _callResponseActive = true;
       _callOutputPcmChunks.clear();
+      _callAudioPlaybackQueue.clear();
       return;
     }
 
@@ -832,13 +872,17 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       final delta = (payload['delta'] ?? '').toString();
       if (delta.isNotEmpty) {
         _callOutputPcmChunks.add(base64Decode(delta));
+        _queueRealtimeAudioPlayback();
       }
       return;
     }
 
     if (type == 'response.done') {
       _stopCallResponseTimeoutTimer();
-      final hasOutputAudio = _callOutputPcmChunks.isNotEmpty;
+      final hasOutputAudio =
+          _callOutputPcmChunks.isNotEmpty ||
+          _callAudioPlaybackQueue.isNotEmpty ||
+          _callPlayingRealtimeAudio;
       final finalTranscript = (payload['transcript'] ?? '').toString().trim();
       if (_callAssistantText.trim().isEmpty && finalTranscript.isNotEmpty) {
         _callAssistantText = finalTranscript;
@@ -852,7 +896,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         _callResponseActive = false;
         _callStatusMessage = _t(context, '你可以继续说话', 'You can continue talking');
       });
-      unawaited(_playRealtimeAudio());
+      _queueRealtimeAudioPlayback(flush: true);
       unawaited(_saveRealtimeAssistantText(hasOutputAudio: hasOutputAudio));
       return;
     }
@@ -1174,16 +1218,15 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         !_callVideoEnabled ||
         !_callConnected ||
         !_callUpstreamReady ||
-        !_callAudioReadyForFrame) {
+        _callSentAudioChunks <= 0) {
       return;
     }
     final lastFrameAt = _callLastVideoFrameAt;
     if (lastFrameAt != null &&
-        DateTime.now().difference(lastFrameAt) < const Duration(seconds: 8)) {
+        DateTime.now().difference(lastFrameAt) < const Duration(seconds: 2)) {
       return;
     }
     _callCapturingFrame = true;
-    _callAudioReadyForFrame = false;
     _callLastVideoFrameAt = DateTime.now();
     unawaited(_sendCallVideoFrame(frame));
   }
@@ -1308,12 +1351,56 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     return '${prefix}_${DateTime.now().microsecondsSinceEpoch}_${math.Random().nextInt(0x7fffffff)}';
   }
 
-  Future<void> _playRealtimeAudio() async {
+  void _queueRealtimeAudioPlayback({bool flush = false}) {
     if (_callOutputPcmChunks.isEmpty) {
       return;
     }
-    final wavBytes = _buildPcm16Wav(_callOutputPcmChunks, sampleRate: 24000);
+    if (!flush && _callOutputPcmChunks.length < 8) {
+      return;
+    }
+    _callAudioPlaybackQueue.add(List<Uint8List>.from(_callOutputPcmChunks));
     _callOutputPcmChunks.clear();
+    unawaited(_drainRealtimeAudioQueue());
+  }
+
+  Future<void> _drainRealtimeAudioQueue() async {
+    if (_callPlayingRealtimeAudio) {
+      return;
+    }
+    _callPlayingRealtimeAudio = true;
+    try {
+      while (_callAudioPlaybackQueue.isNotEmpty) {
+        final chunks = _callAudioPlaybackQueue.removeFirst();
+        await _playRealtimeAudioChunks(chunks);
+        _callPlayedAudioSegments++;
+        if (mounted && _callActive) {
+          setState(() {});
+        }
+      }
+    } on Object catch (error) {
+      if (mounted && _callActive) {
+        setState(() {
+          _callLastRealtimeError = error.toString();
+          _callStatusMessage = _t(
+            context,
+            'AI 声音播放失败',
+            'AI audio playback failed',
+          );
+        });
+      }
+    } finally {
+      _callPlayingRealtimeAudio = false;
+      if (mounted && _callActive) {
+        setState(() {});
+      }
+    }
+  }
+
+  Future<void> _playRealtimeAudioChunks(List<Uint8List> chunks) async {
+    if (chunks.isEmpty) {
+      return;
+    }
+    final wavBytes = _buildPcm16Wav(chunks, sampleRate: 24000);
 
     final dir = await getTemporaryDirectory();
     final file = File(
@@ -2843,20 +2930,6 @@ class _DoctorCallView extends StatelessWidget {
                 ],
               ),
             ),
-            if (subtitlesEnabled)
-              Positioned(
-                top: 64,
-                left: 24,
-                right: 24,
-                child: Center(
-                  child: _CallGlassChip(
-                    label: subtitle,
-                    icon: Icons.subtitles_rounded,
-                    darkBackdrop: videoEnabled,
-                    maxLines: 3,
-                  ),
-                ),
-              ),
             Positioned.fill(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(24, 92, 24, 194),
@@ -2875,8 +2948,22 @@ class _DoctorCallView extends StatelessWidget {
                 ),
               ),
             ),
+            if (subtitlesEnabled)
+              Positioned(
+                top: 62,
+                left: 24,
+                right: 24,
+                child: Center(
+                  child: _CallGlassChip(
+                    label: subtitle,
+                    icon: Icons.subtitles_rounded,
+                    darkBackdrop: videoEnabled,
+                    maxLines: 2,
+                  ),
+                ),
+              ),
             Positioned(
-              top: subtitlesEnabled ? 124 : 64,
+              top: subtitlesEnabled ? 148 : 64,
               left: 12,
               right: 12,
               child: _CallDebugOverlay(
