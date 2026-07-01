@@ -40,6 +40,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final Set<int> _expandedVoiceTextIds = <int>{};
+  StreamSubscription<ChatStreamEvent>? _streamSubscription;
+  Timer? _streamSyncTimer;
   Timer? _recordingTicker;
   Duration _recordingElapsed = Duration.zero;
   DateTime? _recordingStartedAt;
@@ -58,6 +60,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   bool _callUsingFrontCamera = true;
   bool _promptGateShown = false;
   List<ChatRecord> _streamingRecords = const <ChatRecord>[];
+  int _sendGeneration = 0;
 
   bool get _supportsDoctorCall => widget.chatMode == 'doctor';
 
@@ -70,6 +73,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _streamSyncTimer?.cancel();
+    unawaited(_streamSubscription?.cancel() ?? Future<void>.value());
     _recordingTicker?.cancel();
     unawaited(_cameraController?.dispose() ?? Future<void>.value());
     _scrollController.dispose();
@@ -725,6 +730,10 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
 
     final now = _localMessageTime();
     final tempUserId = -DateTime.now().microsecondsSinceEpoch;
+    final baseRecordId = _currentMaxRecordId();
+    final generation = ++_sendGeneration;
+    _streamSyncTimer?.cancel();
+    unawaited(_streamSubscription?.cancel() ?? Future<void>.value());
     setState(() {
       _sending = true;
       _streamingRecords = [
@@ -749,33 +758,53 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       ];
     });
     _scrollToLatest();
-    try {
-      _controller.clear();
-      await for (final event
-          in ref
-              .read(chatRepositoryProvider)
-              .sendMessageStream(
-                sessionId: widget.sessionId,
-                chatMode: widget.chatMode,
-                content: content,
-              )) {
-        if (!mounted) {
-          return;
-        }
-        _applyStreamEvent(event);
-      }
-      ref.invalidate(chatRecordsProvider(widget.sessionId));
-      ref.invalidate(chatOverviewProvider);
-    } on Object catch (error) {
-      if (mounted) {
-        setState(() => _streamingRecords = const <ChatRecord>[]);
-        context.showCenteredNotice(error.toString());
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _sending = false);
-      }
-    }
+    _controller.clear();
+    _startStreamRecordSync(generation, baseRecordId);
+
+    _streamSubscription = ref
+        .read(chatRepositoryProvider)
+        .sendMessageStream(
+          sessionId: widget.sessionId,
+          chatMode: widget.chatMode,
+          content: content,
+        )
+        .listen(
+          (event) {
+            if (!mounted || generation != _sendGeneration) {
+              return;
+            }
+            _applyStreamEvent(event);
+            if (event.type == 'done' || event.type == 'error') {
+              _completeStreamingSend(generation);
+            }
+          },
+          onError: (Object error) {
+            unawaited(
+              _syncRecordsAfterSend(
+                generation: generation,
+                baseRecordId: baseRecordId,
+                finishWhenAssistantExists: true,
+              ).then((synced) {
+                if (!mounted || generation != _sendGeneration || synced) {
+                  return;
+                }
+                setState(() => _streamingRecords = const <ChatRecord>[]);
+                context.showCenteredNotice(error.toString());
+                _completeStreamingSend(generation);
+              }),
+            );
+          },
+          onDone: () {
+            unawaited(
+              _syncRecordsAfterSend(
+                generation: generation,
+                baseRecordId: baseRecordId,
+                finishWhenAssistantExists: false,
+              ).whenComplete(() => _completeStreamingSend(generation)),
+            );
+          },
+          cancelOnError: false,
+        );
   }
 
   List<ChatRecord> _visibleRecords(List<ChatRecord> records) {
@@ -787,6 +816,18 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       ...records,
       ..._streamingRecords.where((record) => !existingIds.contains(record.id)),
     ];
+  }
+
+  int _currentMaxRecordId() {
+    final page = ref.read(chatRecordsProvider(widget.sessionId)).asData?.value;
+    final records = page?.list ?? const <ChatRecord>[];
+    var maxId = 0;
+    for (final record in records) {
+      if (record.id > maxId) {
+        maxId = record.id;
+      }
+    }
+    return maxId;
   }
 
   void _applyStreamEvent(ChatStreamEvent event) {
@@ -851,6 +892,76 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       default:
         return;
     }
+  }
+
+  void _startStreamRecordSync(int generation, int baseRecordId) {
+    _streamSyncTimer?.cancel();
+    _streamSyncTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      unawaited(
+        _syncRecordsAfterSend(
+          generation: generation,
+          baseRecordId: baseRecordId,
+          finishWhenAssistantExists: true,
+        ),
+      );
+    });
+  }
+
+  Future<bool> _syncRecordsAfterSend({
+    required int generation,
+    required int baseRecordId,
+    required bool finishWhenAssistantExists,
+  }) async {
+    if (!mounted || generation != _sendGeneration) {
+      return false;
+    }
+
+    try {
+      final page = await ref
+          .read(chatRepositoryProvider)
+          .fetchRecords(widget.sessionId);
+      if (!mounted || generation != _sendGeneration) {
+        return false;
+      }
+
+      final newRecords = page.list
+          .where((record) => record.id > baseRecordId)
+          .toList(growable: false);
+      if (newRecords.isEmpty) {
+        return false;
+      }
+
+      final hasAssistant = newRecords.any(
+        (record) => !record.isUser && record.content.trim().isNotEmpty,
+      );
+      final nextRecords = hasAssistant
+          ? newRecords
+          : [
+              ...newRecords,
+              ..._streamingRecords.where((record) => !record.isUser),
+            ];
+      setState(() => _streamingRecords = nextRecords);
+      _scrollToLatest();
+      if (hasAssistant && finishWhenAssistantExists) {
+        _completeStreamingSend(generation);
+      }
+      return hasAssistant;
+    } on Object {
+      return false;
+    }
+  }
+
+  void _completeStreamingSend(int generation) {
+    if (!mounted || generation != _sendGeneration) {
+      return;
+    }
+    _streamSyncTimer?.cancel();
+    _streamSyncTimer = null;
+    unawaited(_streamSubscription?.cancel() ?? Future<void>.value());
+    _streamSubscription = null;
+    setState(() => _sending = false);
+    ref.invalidate(chatRecordsProvider(widget.sessionId));
+    ref.invalidate(chatOverviewProvider);
   }
 
   void _scrollToLatest() {
