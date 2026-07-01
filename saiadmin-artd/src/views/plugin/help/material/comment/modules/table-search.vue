@@ -16,8 +16,12 @@
       </ElFormItem>
     </ElCol>
     <ElCol v-bind="setSpan(6)">
-      <ElFormItem label="素材ID" prop="material_id">
-        <ElInput v-model="formData.material_id" placeholder="请输入素材ID" clearable />
+      <ElFormItem label="素材" prop="material_id">
+        <HelpRelationSelect
+          v-model="formData.material_id"
+          relation="contentMaterial"
+          placeholder="请选择素材"
+        />
       </ElFormItem>
     </ElCol>
     <ElCol v-bind="setSpan(6)">
@@ -26,8 +30,12 @@
       </ElFormItem>
     </ElCol>
     <ElCol v-bind="setSpan(6)">
-      <ElFormItem label="会员ID" prop="member_id">
-        <ElInput v-model="formData.member_id" placeholder="请输入会员ID" clearable />
+      <ElFormItem label="会员" prop="member_id">
+        <HelpRelationSelect
+          v-model="formData.member_id"
+          relation="member"
+          placeholder="请选择会员"
+        />
       </ElFormItem>
     </ElCol>
     <ElCol v-bind="setSpan(6)">
@@ -57,6 +65,8 @@
 </template>
 
 <script setup lang="ts">
+  import HelpRelationSelect from '../../../components/HelpRelationSelect.vue'
+
   interface Props {
     modelValue: Record<string, any>
   }

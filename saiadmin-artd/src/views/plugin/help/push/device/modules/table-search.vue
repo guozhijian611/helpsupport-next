@@ -9,8 +9,12 @@
     @expand="handleExpand"
   >
     <template #default>
-      <ElFormItem label="会员ID" prop="member_id">
-        <ElInput v-model="formData.member_id" placeholder="请输入会员ID" clearable />
+      <ElFormItem label="会员" prop="member_id">
+        <HelpRelationSelect
+          v-model="formData.member_id"
+          relation="member"
+          placeholder="请选择会员"
+        />
       </ElFormItem>
       <ElFormItem label="设备标识" prop="device_id">
         <ElInput v-model="formData.device_id" placeholder="请输入设备标识" clearable />
@@ -29,6 +33,8 @@
 </template>
 
 <script setup lang="ts">
+  import HelpRelationSelect from '../../../components/HelpRelationSelect.vue'
+
   interface Props {
     modelValue: Record<string, any>
   }
@@ -65,5 +71,4 @@
   function handleExpand(expanded: boolean) {
     isExpanded.value = expanded
   }
-
 </script>

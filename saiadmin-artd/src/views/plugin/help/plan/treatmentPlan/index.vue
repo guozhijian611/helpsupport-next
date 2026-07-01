@@ -43,6 +43,12 @@
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       >
+        <template #member_id="{ row }">
+          <HelpRelationText relation="member" :value="row.member_id" />
+        </template>
+        <template #doctor_id="{ row }">
+          <HelpRelationText relation="doctor" :value="row.doctor_id" />
+        </template>
         <template #source_type="{ row }">
           <ElTag>{{ sourceTypeText(row.source_type) }}</ElTag>
         </template>
@@ -86,6 +92,7 @@
   import TableSearch from './modules/table-search.vue'
   import EditDialog from './modules/edit-dialog.vue'
   import ViewDialog from './modules/view-dialog.vue'
+  import HelpRelationText from '../../components/HelpRelationText.vue'
 
   const searchForm = ref({
     member_id: undefined,
@@ -119,8 +126,8 @@
       columnsFactory: () => [
         { type: 'selection' },
         { prop: 'id', label: 'ID', width: 80 },
-        { prop: 'member_id', label: '患者ID', width: 100 },
-        { prop: 'doctor_id', label: '医生ID', width: 100 },
+        { prop: 'member_id', label: '患者', minWidth: 160, useSlot: true },
+        { prop: 'doctor_id', label: '医生', minWidth: 160, useSlot: true },
         { prop: 'title', label: '计划标题', minWidth: 180 },
         { prop: 'start_date', label: '开始日期', width: 120 },
         { prop: 'end_date', label: '结束日期', width: 120 },

@@ -35,6 +35,23 @@ export interface HelpCrudField {
   default?: unknown
   placeholder?: string
   options?: HelpCrudOption[]
+  relation?:
+    | false
+    | 'member'
+    | 'doctor'
+    | 'doctorSchedule'
+    | 'treatmentPlan'
+    | 'treatmentStage'
+    | 'dailyTask'
+    | 'assessmentScale'
+    | 'contentCategory'
+    | 'contentMaterial'
+    | 'communityPost'
+    | 'chatSession'
+    | 'localModelCatalog'
+    | 'taskTemplateFolder'
+    | 'badgeRule'
+    | 'memberLevel'
   accept?: string
   acceptHint?: string
   maxSize?: number

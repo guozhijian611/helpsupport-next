@@ -43,6 +43,9 @@
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       >
+        <template #member_id="{ row }">
+          <HelpRelationText relation="member" :value="row.member_id" />
+        </template>
         <template #target_type="{ row }">
           <ElTag>{{ targetTypeText(row.target_type) }}</ElTag>
         </template>
@@ -98,7 +101,9 @@
     <ElDrawer v-model="detailVisible" size="60%" title="素材举报详情">
       <ElDescriptions :column="1" border>
         <ElDescriptionsItem label="举报ID">{{ detail.id }}</ElDescriptionsItem>
-        <ElDescriptionsItem label="举报会员">{{ detail.member_id }}</ElDescriptionsItem>
+        <ElDescriptionsItem label="举报会员">
+          <HelpRelationText relation="member" :value="detail.member_id" />
+        </ElDescriptionsItem>
         <ElDescriptionsItem label="举报目标">
           {{ targetTypeText(detail.target_type) }} #{{ detail.target_id }}
         </ElDescriptionsItem>
@@ -129,6 +134,7 @@
   import { useTable } from '@/hooks/core/useTable'
   import { useSaiAdmin } from '@/composables/useSaiAdmin'
   import AuditLogTimeline from '../../components/AuditLogTimeline.vue'
+  import HelpRelationText from '../../components/HelpRelationText.vue'
   import api from '../../api/material/report'
   import TableSearch from './modules/table-search.vue'
   import EditDialog from './modules/edit-dialog.vue'
@@ -168,7 +174,7 @@
       columnsFactory: () => [
         { type: 'selection' },
         { prop: 'id', label: 'ID', width: 80 },
-        { prop: 'member_id', label: '举报会员', width: 100 },
+        { prop: 'member_id', label: '举报会员', minWidth: 160, useSlot: true },
         { prop: 'target_type', label: '目标类型', width: 100, useSlot: true },
         { prop: 'target_id', label: '目标ID', width: 100 },
         { prop: 'reason', label: '原因', width: 150 },

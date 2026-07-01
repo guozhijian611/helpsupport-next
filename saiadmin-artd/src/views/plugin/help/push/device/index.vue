@@ -42,6 +42,9 @@
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       >
+        <template #member_id="{ row }">
+          <HelpRelationText relation="member" :value="row.member_id" />
+        </template>
         <!-- 操作列 -->
         <template #operation="{ row }">
           <div class="flex gap-2">
@@ -81,10 +84,10 @@
   import TableSearch from './modules/table-search.vue'
   import EditDialog from './modules/edit-dialog.vue'
   import ViewDialog from './modules/view-dialog.vue'
+  import HelpRelationText from '../../components/HelpRelationText.vue'
 
   // 搜索表单
-  const searchForm = ref({
-  })
+  const searchForm = ref({})
 
   // 搜索处理
   const handleSearch = (params: Record<string, any>) => {
@@ -111,7 +114,7 @@
       apiFn: api.list,
       columnsFactory: () => [
         { type: 'selection' },
-        { prop: 'member_id', label: '会员ID', width: 100 },
+        { prop: 'member_id', label: '会员', minWidth: 160, useSlot: true },
         { prop: 'device_id', label: '设备标识', minWidth: 180 },
         { prop: 'platform', label: '平台', width: 100 },
         { prop: 'fcm_token', label: 'FCM Token', minWidth: 220 },
@@ -144,5 +147,4 @@
     dialogVisible: viewDialogVisible,
     dialogData: viewDialogData
   } = useSaiAdmin()
-
 </script>

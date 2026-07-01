@@ -10,13 +10,11 @@
     <el-form ref="formRef" :model="formData" :rules="rules" label-width="120px">
       <el-row :gutter="20">
         <el-col :span="24">
-          <el-form-item label="医生会员ID" prop="member_id">
-            <el-input-number
+          <el-form-item label="医生会员" prop="member_id">
+            <HelpRelationSelect
               v-model="formData.member_id"
-              :min="1"
-              :precision="0"
-              placeholder="请输入医生会员ID"
-              class="w-full"
+              relation="member"
+              placeholder="请选择医生对应会员"
             />
             <div class="relation-hint">
               关联会员：{{ formData.member_display || memberFallbackText }}
@@ -94,6 +92,7 @@
   import api from '../../../api/audit/profile'
   import { ElMessage } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
+  import HelpRelationSelect from '../../../components/HelpRelationSelect.vue'
 
   interface Props {
     modelValue: boolean

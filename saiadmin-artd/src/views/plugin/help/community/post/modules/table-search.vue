@@ -9,8 +9,12 @@
     @expand="handleExpand"
   >
     <el-col v-bind="setSpan(6)">
-      <el-form-item label="会员ID" prop="member_id">
-        <el-input v-model="formData.member_id" placeholder="请输入会员ID" clearable />
+      <el-form-item label="会员" prop="member_id">
+        <HelpRelationSelect
+          v-model="formData.member_id"
+          relation="member"
+          placeholder="请选择会员"
+        />
       </el-form-item>
     </el-col>
     <el-col v-bind="setSpan(6)">
@@ -41,6 +45,8 @@
 </template>
 
 <script setup lang="ts">
+  import HelpRelationSelect from '../../../components/HelpRelationSelect.vue'
+
   interface Props {
     modelValue: Record<string, any>
   }

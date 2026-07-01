@@ -1,8 +1,12 @@
 <template>
   <el-drawer v-model="visible" size="60%" title="治疗计划详情" :footer="false">
     <el-descriptions :column="1" label-width="110px" border>
-      <el-descriptions-item label="患者ID">{{ formData.member_id }}</el-descriptions-item>
-      <el-descriptions-item label="医生ID">{{ formData.doctor_id }}</el-descriptions-item>
+      <el-descriptions-item label="患者">
+        <HelpRelationText relation="member" :value="formData.member_id" />
+      </el-descriptions-item>
+      <el-descriptions-item label="医生">
+        <HelpRelationText relation="doctor" :value="formData.doctor_id" />
+      </el-descriptions-item>
       <el-descriptions-item label="计划标题">{{ formData.title }}</el-descriptions-item>
       <el-descriptions-item label="计划说明">{{
         formData.description || '暂无'
@@ -29,6 +33,7 @@
 
 <script setup lang="ts">
   import api from '../../../api/plan/treatmentPlan'
+  import HelpRelationText from '../../../components/HelpRelationText.vue'
 
   interface Props {
     modelValue: boolean

@@ -43,6 +43,15 @@
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       >
+        <template #member_id="{ row }">
+          <HelpRelationText relation="member" :value="row.member_id" />
+        </template>
+        <template #doctor_id="{ row }">
+          <HelpRelationText relation="doctor" :value="row.doctor_id" />
+        </template>
+        <template #assessment_id="{ row }">
+          <HelpRelationText relation="assessmentScale" :value="row.assessment_id" />
+        </template>
         <template #score="{ row }">
           <span>{{ row.achieved_score }} / {{ row.total_score }}</span>
         </template>
@@ -81,6 +90,7 @@
   import TableSearch from './modules/table-search.vue'
   import EditDialog from './modules/edit-dialog.vue'
   import ViewDialog from './modules/view-dialog.vue'
+  import HelpRelationText from '../../components/HelpRelationText.vue'
 
   const searchForm = ref({
     member_id: undefined,
@@ -114,9 +124,9 @@
       columnsFactory: () => [
         { type: 'selection' },
         { prop: 'id', label: 'ID', width: 80 },
-        { prop: 'member_id', label: '患者ID', width: 100 },
-        { prop: 'doctor_id', label: '医生ID', width: 100 },
-        { prop: 'assessment_id', label: '量表ID', width: 130 },
+        { prop: 'member_id', label: '患者', minWidth: 160, useSlot: true },
+        { prop: 'doctor_id', label: '医生', minWidth: 160, useSlot: true },
+        { prop: 'assessment_id', label: '量表', minWidth: 160, useSlot: true },
         { prop: 'assessment_title', label: '量表名称', minWidth: 180 },
         { prop: 'task_title', label: '任务标题', minWidth: 160 },
         { prop: 'score', label: '得分', width: 100, useSlot: true },

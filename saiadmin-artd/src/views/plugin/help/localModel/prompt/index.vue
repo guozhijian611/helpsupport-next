@@ -8,7 +8,11 @@
       <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData">
         <template #left>
           <ElSpace wrap>
-            <ElButton v-permission="'help:localModel:prompt:save'" @click="showDialog('add')" v-ripple>
+            <ElButton
+              v-permission="'help:localModel:prompt:save'"
+              @click="showDialog('add')"
+              v-ripple
+            >
               <template #icon>
                 <ArtSvgIcon icon="ri:add-fill" />
               </template>
@@ -42,6 +46,9 @@
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       >
+        <template #model_id="{ row }">
+          <HelpRelationText relation="localModelCatalog" :value="row.model_id || 0" />
+        </template>
         <!-- 操作列 -->
         <template #operation="{ row }">
           <div class="flex gap-2">
@@ -81,13 +88,14 @@
   import TableSearch from './modules/table-search.vue'
   import EditDialog from './modules/edit-dialog.vue'
   import ViewDialog from './modules/view-dialog.vue'
+  import HelpRelationText from '../../components/HelpRelationText.vue'
 
   // 搜索表单
   const searchForm = ref({
     chat_mode: undefined,
     locale: undefined,
     title: undefined,
-    status: undefined,
+    status: undefined
   })
 
   // 搜索处理
@@ -115,7 +123,7 @@
       apiFn: api.list,
       columnsFactory: () => [
         { type: 'selection' },
-        { prop: 'model_id', label: '模型ID', width: 100 },
+        { prop: 'model_id', label: '关联模型', minWidth: 160, useSlot: true },
         { prop: 'chat_mode', label: '聊天模式', width: 120 },
         { prop: 'locale', label: '语言', width: 100 },
         { prop: 'title', label: '提示词标题', minWidth: 180 },
@@ -144,5 +152,4 @@
     dialogVisible: viewDialogVisible,
     dialogData: viewDialogData
   } = useSaiAdmin()
-
 </script>

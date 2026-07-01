@@ -1,9 +1,15 @@
 <template>
   <el-drawer v-model="visible" size="70%" title="评估结果详情" :footer="false">
     <el-descriptions :column="1" label-width="110px" border>
-      <el-descriptions-item label="患者ID">{{ formData.member_id }}</el-descriptions-item>
-      <el-descriptions-item label="医生ID">{{ formData.doctor_id }}</el-descriptions-item>
-      <el-descriptions-item label="任务ID">{{ formData.task_id }}</el-descriptions-item>
+      <el-descriptions-item label="患者">
+        <HelpRelationText relation="member" :value="formData.member_id" />
+      </el-descriptions-item>
+      <el-descriptions-item label="医生">
+        <HelpRelationText relation="doctor" :value="formData.doctor_id" />
+      </el-descriptions-item>
+      <el-descriptions-item label="关联任务">
+        <HelpRelationText relation="dailyTask" :value="formData.task_id" />
+      </el-descriptions-item>
       <el-descriptions-item label="量表ID">{{
         formData.assessment_id || '暂无'
       }}</el-descriptions-item>
@@ -39,6 +45,7 @@
 
 <script setup lang="ts">
   import api from '../../../api/plan/assessmentResult'
+  import HelpRelationText from '../../../components/HelpRelationText.vue'
 
   interface Props {
     modelValue: boolean

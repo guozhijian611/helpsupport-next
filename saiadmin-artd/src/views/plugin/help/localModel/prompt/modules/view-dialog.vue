@@ -3,8 +3,8 @@
     <!-- 详情 start -->
     <div>
       <el-descriptions :column="1" label-width="100px" border>
-        <el-descriptions-item label="关联模型ID">
-          <div v-text="formData?.model_id || '通用'"></div>
+        <el-descriptions-item label="关联模型">
+          <HelpRelationText relation="localModelCatalog" :value="formData?.model_id || 0" />
         </el-descriptions-item>
         <el-descriptions-item label="聊天模式">
           <div v-text="formData?.chat_mode"></div>
@@ -35,6 +35,7 @@
 
 <script setup lang="ts">
   import api from '../../../api/localModel/prompt'
+  import HelpRelationText from '../../../components/HelpRelationText.vue'
 
   interface Props {
     modelValue: boolean
@@ -75,7 +76,7 @@
     system_prompt: '',
     first_message: '',
     safety_prompt: '',
-    status: 1,
+    status: 1
   }
 
   /**

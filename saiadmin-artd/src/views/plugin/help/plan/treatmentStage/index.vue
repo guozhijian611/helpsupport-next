@@ -43,6 +43,12 @@
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       >
+        <template #plan_id="{ row }">
+          <HelpRelationText relation="treatmentPlan" :value="row.plan_id" />
+        </template>
+        <template #member_id="{ row }">
+          <HelpRelationText relation="member" :value="row.member_id" />
+        </template>
         <template #status="{ row }">
           <ElTag :type="stageStatusType(row.status)">
             {{ stageStatusText(row.status) }}
@@ -83,6 +89,7 @@
   import TableSearch from './modules/table-search.vue'
   import EditDialog from './modules/edit-dialog.vue'
   import ViewDialog from './modules/view-dialog.vue'
+  import HelpRelationText from '../../components/HelpRelationText.vue'
 
   const searchForm = ref({
     plan_id: undefined,
@@ -116,8 +123,8 @@
       columnsFactory: () => [
         { type: 'selection' },
         { prop: 'id', label: 'ID', width: 80 },
-        { prop: 'plan_id', label: '计划ID', width: 100 },
-        { prop: 'member_id', label: '患者ID', width: 100 },
+        { prop: 'plan_id', label: '计划', minWidth: 170, useSlot: true },
+        { prop: 'member_id', label: '患者', minWidth: 160, useSlot: true },
         { prop: 'stage_key', label: '阶段标识', width: 120 },
         { prop: 'stage_name', label: '阶段名称', minWidth: 160 },
         { prop: 'start_date', label: '开始日期', width: 120 },

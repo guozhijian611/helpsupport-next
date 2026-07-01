@@ -39,6 +39,15 @@
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       >
+        <template #member_id="{ row }">
+          <HelpRelationText relation="member" :value="row.member_id" />
+        </template>
+        <template #plan_id="{ row }">
+          <HelpRelationText relation="treatmentPlan" :value="row.plan_id" />
+        </template>
+        <template #stage_id="{ row }">
+          <HelpRelationText relation="treatmentStage" :value="row.stage_id" />
+        </template>
         <template #task_type="{ row }">
           <ElTag>{{ taskTypeText(row.task_type) }}</ElTag>
         </template>
@@ -82,6 +91,7 @@
   import TableSearch from './modules/table-search.vue'
   import EditDialog from './modules/edit-dialog.vue'
   import ViewDialog from './modules/view-dialog.vue'
+  import HelpRelationText from '../../components/HelpRelationText.vue'
 
   const searchForm = ref({
     member_id: undefined,
@@ -117,9 +127,9 @@
       columnsFactory: () => [
         { type: 'selection' },
         { prop: 'id', label: 'ID', width: 80 },
-        { prop: 'member_id', label: '患者ID', width: 100 },
-        { prop: 'plan_id', label: '计划ID', width: 100 },
-        { prop: 'stage_id', label: '阶段ID', width: 100 },
+        { prop: 'member_id', label: '患者', minWidth: 160, useSlot: true },
+        { prop: 'plan_id', label: '计划', minWidth: 170, useSlot: true },
+        { prop: 'stage_id', label: '阶段', minWidth: 150, useSlot: true },
         { prop: 'task_date', label: '任务日期', width: 120 },
         { prop: 'title', label: '任务标题', minWidth: 180 },
         { prop: 'task_type', label: '类型', width: 100, useSlot: true },

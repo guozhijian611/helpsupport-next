@@ -1,8 +1,12 @@
 <template>
   <el-drawer v-model="visible" size="60%" title="治疗阶段详情" :footer="false">
     <el-descriptions :column="1" label-width="110px" border>
-      <el-descriptions-item label="计划ID">{{ formData.plan_id }}</el-descriptions-item>
-      <el-descriptions-item label="患者ID">{{ formData.member_id }}</el-descriptions-item>
+      <el-descriptions-item label="计划">
+        <HelpRelationText relation="treatmentPlan" :value="formData.plan_id" />
+      </el-descriptions-item>
+      <el-descriptions-item label="患者">
+        <HelpRelationText relation="member" :value="formData.member_id" />
+      </el-descriptions-item>
       <el-descriptions-item label="阶段标识">{{
         formData.stage_key || '暂无'
       }}</el-descriptions-item>
@@ -24,6 +28,7 @@
 
 <script setup lang="ts">
   import api from '../../../api/plan/treatmentStage'
+  import HelpRelationText from '../../../components/HelpRelationText.vue'
 
   interface Props {
     modelValue: boolean

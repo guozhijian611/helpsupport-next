@@ -3,6 +3,9 @@
     <!-- 详情 start -->
     <div>
       <el-descriptions :column="1" label-width="100px" border>
+        <el-descriptions-item label="会员">
+          <HelpRelationText relation="member" :value="formData?.member_id" />
+        </el-descriptions-item>
         <el-descriptions-item label="帖子内容">
           <div v-html="formData?.content"></div>
         </el-descriptions-item>
@@ -61,6 +64,7 @@
   import { computed } from 'vue'
   import AuditLogTimeline from '../../../components/AuditLogTimeline.vue'
   import api from '../../../api/community/post'
+  import HelpRelationText from '../../../components/HelpRelationText.vue'
 
   interface Props {
     modelValue: boolean
@@ -94,6 +98,7 @@
    */
   const initialFormData = {
     id: null,
+    member_id: null,
     content: '',
     images: '',
     link_url: '',

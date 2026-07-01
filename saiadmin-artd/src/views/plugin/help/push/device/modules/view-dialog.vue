@@ -3,8 +3,8 @@
     <!-- 详情 start -->
     <div>
       <el-descriptions :column="1" label-width="100px" border>
-        <el-descriptions-item label="会员ID">
-          <div v-text="formData?.member_id"></div>
+        <el-descriptions-item label="会员">
+          <HelpRelationText relation="member" :value="formData?.member_id" />
         </el-descriptions-item>
         <el-descriptions-item label="设备标识">
           <div v-text="formData?.device_id"></div>
@@ -44,6 +44,7 @@
 
 <script setup lang="ts">
   import api from '../../../api/push/device'
+  import HelpRelationText from '../../../components/HelpRelationText.vue'
 
   interface Props {
     modelValue: boolean
@@ -87,7 +88,7 @@
     timezone: '',
     is_active: 1,
     last_active_time: '',
-    logout_time: '',
+    logout_time: ''
   }
 
   /**

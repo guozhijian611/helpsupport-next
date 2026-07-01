@@ -10,18 +10,32 @@
     <el-form ref="formRef" :model="formData" :rules="rules" label-width="110px">
       <el-row :gutter="20">
         <el-col :span="8">
-          <el-form-item label="患者ID" prop="member_id">
-            <el-input-number v-model="formData.member_id" :min="1" controls-position="right" />
+          <el-form-item label="患者" prop="member_id">
+            <HelpRelationSelect
+              v-model="formData.member_id"
+              relation="member"
+              placeholder="请选择患者"
+            />
           </el-form-item>
         </el-col>
         <el-col :span="8">
-          <el-form-item label="计划ID" prop="plan_id">
-            <el-input-number v-model="formData.plan_id" :min="0" controls-position="right" />
+          <el-form-item label="计划" prop="plan_id">
+            <HelpRelationSelect
+              v-model="formData.plan_id"
+              relation="treatmentPlan"
+              placeholder="请选择计划"
+              include-zero
+            />
           </el-form-item>
         </el-col>
         <el-col :span="8">
-          <el-form-item label="阶段ID" prop="stage_id">
-            <el-input-number v-model="formData.stage_id" :min="0" controls-position="right" />
+          <el-form-item label="阶段" prop="stage_id">
+            <HelpRelationSelect
+              v-model="formData.stage_id"
+              relation="treatmentStage"
+              placeholder="请选择阶段"
+              include-zero
+            />
           </el-form-item>
         </el-col>
         <el-col :span="8">
@@ -167,6 +181,7 @@
   import api from '../../../api/plan/dailyTask'
   import { ElMessage } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
+  import HelpRelationSelect from '../../../components/HelpRelationSelect.vue'
 
   interface Props {
     modelValue: boolean

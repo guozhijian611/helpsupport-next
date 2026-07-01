@@ -10,13 +10,11 @@
     <el-form ref="formRef" :model="formData" :rules="rules" label-width="120px">
       <el-row :gutter="20">
         <el-col :span="24">
-          <el-form-item label="会员ID" prop="member_id">
-            <el-input-number
+          <el-form-item label="会员" prop="member_id">
+            <HelpRelationSelect
               v-model="formData.member_id"
-              :min="1"
-              controls-position="right"
-              class="w-full"
-              placeholder="请输入会员ID"
+              relation="member"
+              placeholder="请选择会员"
             />
           </el-form-item>
         </el-col>
@@ -108,6 +106,7 @@
   import api from '../../../api/push/device'
   import { ElMessage } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
+  import HelpRelationSelect from '../../../components/HelpRelationSelect.vue'
 
   interface Props {
     modelValue: boolean
@@ -149,7 +148,7 @@
     app_version: [{ required: true, message: 'App版本必需填写', trigger: 'blur' }],
     locale: [{ required: true, message: '当前语言必需填写', trigger: 'blur' }],
     timezone: [{ required: true, message: '当前时区必需填写', trigger: 'blur' }],
-    is_active: [{ required: true, message: '是否有效 1是 2否必需填写', trigger: 'blur' }],
+    is_active: [{ required: true, message: '是否有效 1是 2否必需填写', trigger: 'blur' }]
   })
 
   /**
@@ -167,7 +166,7 @@
     timezone: '',
     is_active: 1,
     last_active_time: '',
-    logout_time: '',
+    logout_time: ''
   }
 
   /**

@@ -3,8 +3,8 @@
     <!-- 详情 start -->
     <div>
       <el-descriptions :column="1" label-width="100px" border>
-        <el-descriptions-item label="会员ID">
-          <div v-text="formData?.member_id"></div>
+        <el-descriptions-item label="会员">
+          <HelpRelationText relation="member" :value="formData?.member_id" />
         </el-descriptions-item>
         <el-descriptions-item label="模式">
           <div v-text="formData?.chat_mode"></div>
@@ -20,6 +20,7 @@
 
 <script setup lang="ts">
   import api from '../../../api/chat/config'
+  import HelpRelationText from '../../../components/HelpRelationText.vue'
 
   interface Props {
     modelValue: boolean
@@ -55,7 +56,7 @@
     id: null,
     member_id: null,
     chat_mode: '',
-    prompt_text: '',
+    prompt_text: ''
   }
 
   /**

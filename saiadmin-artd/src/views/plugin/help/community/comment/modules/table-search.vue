@@ -8,13 +8,21 @@
     @search="handleSearch"
   >
     <ElCol v-bind="setSpan(6)">
-      <ElFormItem label="帖子ID" prop="post_id">
-        <ElInput v-model="formData.post_id" placeholder="请输入帖子ID" clearable />
+      <ElFormItem label="帖子" prop="post_id">
+        <HelpRelationSelect
+          v-model="formData.post_id"
+          relation="communityPost"
+          placeholder="请选择帖子"
+        />
       </ElFormItem>
     </ElCol>
     <ElCol v-bind="setSpan(6)">
-      <ElFormItem label="会员ID" prop="member_id">
-        <ElInput v-model="formData.member_id" placeholder="请输入会员ID" clearable />
+      <ElFormItem label="会员" prop="member_id">
+        <HelpRelationSelect
+          v-model="formData.member_id"
+          relation="member"
+          placeholder="请选择会员"
+        />
       </ElFormItem>
     </ElCol>
     <ElCol v-bind="setSpan(6)">
@@ -36,6 +44,8 @@
 </template>
 
 <script setup lang="ts">
+  import HelpRelationSelect from '../../../components/HelpRelationSelect.vue'
+
   interface Props {
     modelValue: Record<string, any>
   }

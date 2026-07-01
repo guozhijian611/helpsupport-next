@@ -10,13 +10,11 @@
     <el-form ref="formRef" :model="formData" :rules="rules" label-width="120px">
       <el-row :gutter="20">
         <el-col :span="24">
-          <el-form-item label="会员ID" prop="member_id">
-            <el-input-number
+          <el-form-item label="会员" prop="member_id">
+            <HelpRelationSelect
               v-model="formData.member_id"
-              :min="1"
-              controls-position="right"
-              class="w-full"
-              placeholder="请输入会员ID"
+              relation="member"
+              placeholder="请选择会员"
             />
           </el-form-item>
         </el-col>
@@ -47,6 +45,7 @@
   import api from '../../../api/chat/config'
   import { ElMessage } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
+  import HelpRelationSelect from '../../../components/HelpRelationSelect.vue'
 
   interface Props {
     modelValue: boolean
@@ -82,7 +81,7 @@
    */
   const rules = reactive<FormRules>({
     member_id: [{ required: true, message: '会员ID必需填写', trigger: 'blur' }],
-    chat_mode: [{ required: true, message: '模式必需选择', trigger: 'change' }],
+    chat_mode: [{ required: true, message: '模式必需选择', trigger: 'change' }]
   })
 
   /**
@@ -92,7 +91,7 @@
     id: null,
     member_id: null,
     chat_mode: '',
-    prompt_text: '',
+    prompt_text: ''
   }
 
   /**

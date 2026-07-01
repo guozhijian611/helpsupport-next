@@ -10,13 +10,23 @@
     <el-form ref="formRef" :model="formData" :rules="rules" label-width="110px">
       <el-row :gutter="20">
         <el-col :span="12">
-          <el-form-item label="患者ID" prop="member_id">
-            <el-input-number v-model="formData.member_id" :min="1" controls-position="right" />
+          <el-form-item label="患者" prop="member_id">
+            <HelpRelationSelect
+              v-model="formData.member_id"
+              relation="member"
+              placeholder="请选择患者"
+            />
           </el-form-item>
         </el-col>
         <el-col :span="12">
-          <el-form-item label="医生ID" prop="doctor_id">
-            <el-input-number v-model="formData.doctor_id" :min="0" controls-position="right" />
+          <el-form-item label="医生" prop="doctor_id">
+            <HelpRelationSelect
+              v-model="formData.doctor_id"
+              relation="doctor"
+              placeholder="请选择医生"
+              include-zero
+              zero-label="#0 未指定医生"
+            />
           </el-form-item>
         </el-col>
         <el-col :span="24">
@@ -92,6 +102,7 @@
   import api from '../../../api/plan/treatmentPlan'
   import { ElMessage } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
+  import HelpRelationSelect from '../../../components/HelpRelationSelect.vue'
 
   interface Props {
     modelValue: boolean

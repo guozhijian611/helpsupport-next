@@ -33,6 +33,9 @@
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       >
+        <template #member_id="{ row }">
+          <HelpRelationText relation="member" :value="row.member_id" />
+        </template>
         <template #content="{ row }">
           <ElTooltip :content="plainText(row.content)" placement="top">
             <span>{{ plainText(row.content).slice(0, 64) }}</span>
@@ -90,6 +93,7 @@
   import api from '../../api/community/post'
   import TableSearch from './modules/table-search.vue'
   import ViewDialog from './modules/view-dialog.vue'
+  import HelpRelationText from '../../components/HelpRelationText.vue'
 
   const searchForm = ref({
     member_id: undefined,
@@ -122,7 +126,7 @@
       columnsFactory: () => [
         { type: 'selection' },
         { prop: 'id', label: 'ID', width: 80 },
-        { prop: 'member_id', label: '会员ID', width: 100 },
+        { prop: 'member_id', label: '会员', minWidth: 160, useSlot: true },
         { prop: 'content', label: '帖子内容', minWidth: 260, useSlot: true },
         { prop: 'view_count', label: '浏览', width: 80 },
         { prop: 'like_count', label: '点赞', width: 80 },

@@ -10,13 +10,13 @@
     <el-form ref="formRef" :model="formData" :rules="rules" label-width="120px">
       <el-row :gutter="20">
         <el-col :span="24">
-          <el-form-item label="关联模型ID" prop="model_id">
-            <el-input-number
+          <el-form-item label="关联模型" prop="model_id">
+            <HelpRelationSelect
               v-model="formData.model_id"
-              :min="0"
-              controls-position="right"
-              class="w-full"
-              placeholder="留空表示通用提示词"
+              relation="localModelCatalog"
+              placeholder="请选择关联模型"
+              include-zero
+              zero-label="#0 通用提示词"
             />
           </el-form-item>
         </el-col>
@@ -72,6 +72,7 @@
   import api from '../../../api/localModel/prompt'
   import { ElMessage } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
+  import HelpRelationSelect from '../../../components/HelpRelationSelect.vue'
 
   interface Props {
     modelValue: boolean
@@ -110,7 +111,7 @@
     locale: [{ required: true, message: '语言必需填写', trigger: 'blur' }],
     title: [{ required: true, message: '提示词标题必需填写', trigger: 'blur' }],
     first_message: [{ required: true, message: '默认开场白必需填写', trigger: 'blur' }],
-    status: [{ required: true, message: '状态 1启用 2禁用必需填写', trigger: 'blur' }],
+    status: [{ required: true, message: '状态 1启用 2禁用必需填写', trigger: 'blur' }]
   })
 
   /**
@@ -125,7 +126,7 @@
     system_prompt: '',
     first_message: '',
     safety_prompt: '',
-    status: 1,
+    status: 1
   }
 
   /**

@@ -9,7 +9,11 @@
   >
     <ElCol v-bind="setSpan(6)">
       <ElFormItem label="举报会员" prop="member_id">
-        <ElInput v-model="formData.member_id" placeholder="请输入会员ID" clearable />
+        <HelpRelationSelect
+          v-model="formData.member_id"
+          relation="member"
+          placeholder="请选择举报会员"
+        />
       </ElFormItem>
     </ElCol>
     <ElCol v-bind="setSpan(6)">
@@ -43,6 +47,8 @@
 </template>
 
 <script setup lang="ts">
+  import HelpRelationSelect from '../../../components/HelpRelationSelect.vue'
+
   interface Props {
     modelValue: Record<string, any>
   }

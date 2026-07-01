@@ -286,6 +286,8 @@
   import { useTable } from '@/hooks/core/useTable'
   import { useSaiAdmin } from '@/composables/useSaiAdmin'
   import type { CrudApi, HelpCrudAction, HelpCrudField } from './helpCrudTypes'
+  import { inferRelationType, loadRelationOptions } from './relationOptions'
+  import type { HelpRelationType } from './relationOptions'
 
   const props = withDefaults(
     defineProps<{
@@ -308,14 +310,33 @@
     }
   )
 
+  const relationOptions = reactive<Partial<Record<HelpRelationType, any[]>>>({})
+  const relationTypeOf = (field: HelpCrudField) => inferRelationType(field)
+  const resolvedFields = computed(() =>
+    props.fields.map((field) => {
+      const relationType = relationTypeOf(field)
+      if (!relationType || field.options) {
+        return field
+      }
+      const options = relationOptions[relationType] || []
+      const zeroOption = zeroRelationOption(field)
+      return {
+        ...field,
+        options: zeroOption ? [zeroOption, ...options] : options
+      }
+    })
+  )
+
   const searchFields = computed(() =>
-    props.fields.filter((field) => field.search !== false && field.search === true)
+    resolvedFields.value.filter((field) => field.search !== false && field.search === true)
   )
-  const tableFields = computed(() => props.fields.filter((field) => field.table !== false))
+  const tableFields = computed(() => resolvedFields.value.filter((field) => field.table !== false))
   const formFields = computed(() =>
-    props.fields.filter((field) => field.form === true && !field.readonly)
+    resolvedFields.value.filter((field) => field.form === true && !field.readonly)
   )
-  const detailFields = computed(() => props.fields.filter((field) => field.detail !== false))
+  const detailFields = computed(() =>
+    resolvedFields.value.filter((field) => field.detail !== false)
+  )
 
   const searchForm = reactive<Record<string, any>>({})
   searchFields.value.forEach((field) => {
@@ -374,6 +395,17 @@
 
   const { deleteRow, deleteSelectedRows, handleSelectionChange, selectedRows } = useSaiAdmin()
   const tableData = computed(() => data.value as Record<string, any>[])
+
+  onMounted(async () => {
+    const relationTypes = Array.from(
+      new Set(props.fields.map((field) => relationTypeOf(field)).filter(Boolean))
+    ) as HelpRelationType[]
+    await Promise.all(
+      relationTypes.map(async (relationType) => {
+        relationOptions[relationType] = await loadRelationOptions(relationType)
+      })
+    )
+  })
 
   const formRef = ref<FormInstance>()
   const formVisible = ref(false)
@@ -511,6 +543,24 @@
 
   const optionOf = (field: HelpCrudField, value: unknown) => {
     return field.options?.find((option) => String(option.value) === String(value))
+  }
+
+  const zeroRelationOption = (field: HelpCrudField) => {
+    if (field.default !== 0 && field.required) {
+      return null
+    }
+    if (
+      !['member_id', 'doctor_id', 'category_id', 'folder_id', 'plan_id', 'stage_id'].includes(
+        field.prop
+      )
+    ) {
+      return null
+    }
+    return {
+      label:
+        field.prop === 'member_id' || field.prop === 'doctor_id' ? '#0 系统/未指定' : '#0 未关联',
+      value: 0
+    }
   }
 
   const formatValue = (field: HelpCrudField, value: unknown) => {
