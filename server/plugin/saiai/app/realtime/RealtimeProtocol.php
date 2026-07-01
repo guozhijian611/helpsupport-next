@@ -18,6 +18,9 @@ class RealtimeProtocol
     public const SERVER_EVENTS = [
         'session.created',
         'session.updated',
+        'conversation.item.input_audio_transcription.delta',
+        'conversation.item.input_audio_transcription.completed',
+        'conversation.item.input_audio_transcription.failed',
         'response.started',
         'response.text.delta',
         'response.audio.delta',

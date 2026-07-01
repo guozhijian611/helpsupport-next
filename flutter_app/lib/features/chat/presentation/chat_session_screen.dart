@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image/image.dart' as image_lib;
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -52,7 +53,6 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   StreamSubscription<Uint8List>? _callAudioSubscription;
   Timer? _streamSyncTimer;
   Timer? _recordingTicker;
-  Timer? _callFrameTimer;
   Timer? _callPingTimer;
   Timer? _callAudioWatchdogTimer;
   Timer? _callTurnCommitTimer;
@@ -86,6 +86,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   String _callStatusMessage = '';
   String _callAssistantText = '';
   final List<Uint8List> _callOutputPcmChunks = <Uint8List>[];
+  final Set<String> _callSavedUserTranscriptIds = <String>{};
   List<ChatRecord> _streamingRecords = const <ChatRecord>[];
   int _sendGeneration = 0;
   int _callSentAudioChunks = 0;
@@ -107,7 +108,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     unawaited(_stopRealtimeCall());
     _recordingTicker?.cancel();
     _stopCallAudioWatchdog();
-    unawaited(_cameraController?.dispose() ?? Future<void>.value());
+    unawaited(_disposeCallCamera());
     unawaited(_callRecorder.dispose());
     unawaited(_callAudioPlayer.dispose());
     _scrollController.dispose();
@@ -444,7 +445,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         _callFlashEnabled = false;
         _cameraErrorMessage = null;
       });
-      _stopCallFrameTimer();
+      await _stopCallImageStream();
       return;
     }
     setState(() {
@@ -452,6 +453,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       _cameraErrorMessage = null;
     });
     await _ensureCallCameraReady();
+    await _startCallImageStream();
   }
 
   Future<void> _toggleCallFlash() async {
@@ -504,6 +506,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         'Connecting to realtime AI',
       );
       _callAssistantText = '';
+      _callSavedUserTranscriptIds.clear();
       _callOutputPcmChunks.clear();
       _callSentAudioChunks = 0;
       _callSentVideoFrames = 0;
@@ -559,7 +562,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
               );
             }
           });
-          _stopCallFrameTimer();
+          unawaited(_stopCallImageStream());
           unawaited(_stopCallAudio());
         },
         cancelOnError: true,
@@ -594,7 +597,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
 
   Future<void> _stopRealtimeCall() async {
     _stopCallPingTimer();
-    _stopCallFrameTimer();
+    await _stopCallImageStream();
     _stopCallAudioWatchdog();
     _stopCallTurnCommitTimer();
     await _stopCallAudio();
@@ -605,6 +608,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     }
     await _callAudioPlayer.stop();
     _callOutputPcmChunks.clear();
+    _callSavedUserTranscriptIds.clear();
     _callAudioReadyForFrame = false;
     _callPendingAudioTurn = false;
     _callResponseActive = false;
@@ -655,6 +659,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         'session': _buildRealtimeSession(payload['session']),
       });
       unawaited(_startCallAudio());
+      unawaited(_startCallImageStream());
       return;
     }
 
@@ -672,6 +677,38 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       });
       _callResponseActive = true;
       _callOutputPcmChunks.clear();
+      return;
+    }
+
+    if (type == 'conversation.item.input_audio_transcription.delta') {
+      final text = (payload['text'] ?? '').toString();
+      final stash = (payload['stash'] ?? '').toString();
+      final preview = (text + stash).trim();
+      if (preview.isNotEmpty) {
+        setState(() {
+          _callStatusMessage = preview;
+        });
+      }
+      return;
+    }
+
+    if (type == 'conversation.item.input_audio_transcription.completed') {
+      final itemId = (payload['item_id'] ?? '').toString();
+      final transcript = (payload['transcript'] ?? '').toString().trim();
+      if (transcript.isNotEmpty) {
+        unawaited(_saveRealtimeUserText(transcript, itemId: itemId));
+      }
+      return;
+    }
+
+    if (type == 'conversation.item.input_audio_transcription.failed') {
+      setState(() {
+        _callStatusMessage = _t(
+          context,
+          '语音转文字失败，请再说一次',
+          'Speech transcription failed. Please try again.',
+        );
+      });
       return;
     }
 
@@ -693,6 +730,10 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
 
     if (type == 'response.done') {
       final hasOutputAudio = _callOutputPcmChunks.isNotEmpty;
+      final finalTranscript = (payload['transcript'] ?? '').toString().trim();
+      if (_callAssistantText.trim().isEmpty && finalTranscript.isNotEmpty) {
+        _callAssistantText = finalTranscript;
+      }
       _callAudioReadyForFrame = false;
       _callPendingAudioTurn = false;
       _callResponseActive = false;
@@ -713,7 +754,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       final code = error is Map ? (error['code'] ?? '').toString() : '';
       if (message.contains('append image before append audio') ||
           code.contains('image')) {
-        _stopCallFrameTimer();
+        unawaited(_stopCallImageStream());
         _callAudioReadyForFrame = false;
       }
       setState(() {
@@ -912,31 +953,71 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     }
   }
 
-  void _startCallFrameTimer() {
-    _stopCallFrameTimer();
-    if (!_callVideoEnabled || !_callConnected || !_callUpstreamReady) {
+  Future<void> _saveRealtimeUserText(
+    String content, {
+    required String itemId,
+  }) async {
+    final key = itemId.trim().isEmpty ? content : itemId.trim();
+    if (_callSavedUserTranscriptIds.contains(key)) {
       return;
     }
-    _callFrameTimer = Timer.periodic(const Duration(seconds: 8), (_) {
-      unawaited(_sendCallVideoFrame());
-    });
+    _callSavedUserTranscriptIds.add(key);
+    try {
+      await ref
+          .read(chatRepositoryProvider)
+          .saveUserRecord(sessionId: widget.sessionId, content: content);
+      ref.invalidate(chatRecordsProvider(widget.sessionId));
+      ref.invalidate(chatOverviewProvider);
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(error.toString());
+      }
+    }
   }
 
-  void _stopCallFrameTimer() {
-    _callFrameTimer?.cancel();
-    _callFrameTimer = null;
-  }
-
-  Future<void> _sendCallVideoFrame() async {
+  Future<void> _startCallImageStream() async {
     final controller = _cameraController;
+    if (!_callVideoEnabled ||
+        !_callConnected ||
+        !_callUpstreamReady ||
+        controller == null ||
+        !controller.value.isInitialized ||
+        controller.value.isStreamingImages) {
+      return;
+    }
+    try {
+      await controller.startImageStream(_handleCallCameraImage);
+    } on CameraException catch (error) {
+      if (mounted) {
+        setState(() => _cameraErrorMessage = _describeCameraException(error));
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        setState(() => _cameraErrorMessage = error.toString());
+      }
+    }
+  }
+
+  Future<void> _stopCallImageStream() async {
+    final controller = _cameraController;
+    if (controller == null ||
+        !controller.value.isInitialized ||
+        !controller.value.isStreamingImages) {
+      return;
+    }
+    try {
+      await controller.stopImageStream();
+    } on CameraException {
+      // Ignore teardown failures while closing or switching the call camera.
+    }
+  }
+
+  void _handleCallCameraImage(CameraImage frame) {
     if (_callCapturingFrame ||
         !_callVideoEnabled ||
         !_callConnected ||
         !_callUpstreamReady ||
-        !_callAudioReadyForFrame ||
-        controller == null ||
-        !controller.value.isInitialized ||
-        controller.value.isTakingPicture) {
+        !_callAudioReadyForFrame) {
       return;
     }
     final lastFrameAt = _callLastVideoFrameAt;
@@ -946,9 +1027,16 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     }
     _callCapturingFrame = true;
     _callAudioReadyForFrame = false;
+    _callLastVideoFrameAt = DateTime.now();
+    unawaited(_sendCallVideoFrame(frame));
+  }
+
+  Future<void> _sendCallVideoFrame(CameraImage frame) async {
     try {
-      final picture = await controller.takePicture();
-      final bytes = await picture.readAsBytes();
+      final bytes = _encodeCameraImageAsJpeg(frame);
+      if (bytes == null || bytes.isEmpty) {
+        return;
+      }
       _sendRealtimeJson({
         'type': 'input_image.append',
         'event_id': _realtimeEventId('frame'),
@@ -959,13 +1047,84 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
             : DateTime.now().difference(_callStartedAt!).inMilliseconds,
       });
       _callSentVideoFrames++;
-      _callLastVideoFrameAt = DateTime.now();
     } on Object {
       // Frame upload is best-effort; keep the call alive.
     } finally {
       _callCapturingFrame = false;
     }
   }
+
+  Uint8List? _encodeCameraImageAsJpeg(CameraImage frame) {
+    final image = switch (frame.format.group) {
+      ImageFormatGroup.yuv420 => _convertYuv420ToImage(frame),
+      ImageFormatGroup.bgra8888 => _convertBgra8888ToImage(frame),
+      _ => null,
+    };
+    if (image == null) {
+      return null;
+    }
+    final resized = image.width > 480
+        ? image_lib.copyResize(image, width: 480)
+        : image;
+    return Uint8List.fromList(image_lib.encodeJpg(resized, quality: 70));
+  }
+
+  image_lib.Image? _convertYuv420ToImage(CameraImage frame) {
+    if (frame.planes.length < 3) {
+      return null;
+    }
+    final width = frame.width;
+    final height = frame.height;
+    final yPlane = frame.planes[0];
+    final uPlane = frame.planes[1];
+    final vPlane = frame.planes[2];
+    final uPixelStride = uPlane.bytesPerPixel ?? 1;
+    final vPixelStride = vPlane.bytesPerPixel ?? 1;
+    final image = image_lib.Image(width: width, height: height);
+
+    for (var y = 0; y < height; y++) {
+      final yRow = yPlane.bytesPerRow * y;
+      final uRow = uPlane.bytesPerRow * (y >> 1);
+      final vRow = vPlane.bytesPerRow * (y >> 1);
+      for (var x = 0; x < width; x++) {
+        final yValue = yPlane.bytes[yRow + x];
+        final uIndex = uRow + (x >> 1) * uPixelStride;
+        final vIndex = vRow + (x >> 1) * vPixelStride;
+        final uValue = uPlane.bytes[uIndex];
+        final vValue = vPlane.bytes[vIndex];
+        final r = (yValue + 1.402 * (vValue - 128)).round();
+        final g =
+            (yValue - 0.344136 * (uValue - 128) - 0.714136 * (vValue - 128))
+                .round();
+        final b = (yValue + 1.772 * (uValue - 128)).round();
+        image.setPixelRgb(x, y, _clampColor(r), _clampColor(g), _clampColor(b));
+      }
+    }
+    return image;
+  }
+
+  image_lib.Image? _convertBgra8888ToImage(CameraImage frame) {
+    if (frame.planes.isEmpty) {
+      return null;
+    }
+    final width = frame.width;
+    final height = frame.height;
+    final plane = frame.planes.first;
+    final image = image_lib.Image(width: width, height: height);
+    for (var y = 0; y < height; y++) {
+      final rowOffset = y * plane.bytesPerRow;
+      for (var x = 0; x < width; x++) {
+        final offset = rowOffset + x * 4;
+        final b = plane.bytes[offset];
+        final g = plane.bytes[offset + 1];
+        final r = plane.bytes[offset + 2];
+        image.setPixelRgb(x, y, r, g, b);
+      }
+    }
+    return image;
+  }
+
+  int _clampColor(int value) => value.clamp(0, 255).toInt();
 
   void _startCallPingTimer() {
     _stopCallPingTimer();
@@ -1117,10 +1276,22 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         description,
         ResolutionPreset.medium,
         enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.jpeg,
+        imageFormatGroup: Platform.isIOS
+            ? ImageFormatGroup.bgra8888
+            : ImageFormatGroup.yuv420,
       );
       _cameraController = nextController;
-      await previousController?.dispose();
+      if (previousController != null) {
+        if (previousController.value.isInitialized &&
+            previousController.value.isStreamingImages) {
+          try {
+            await previousController.stopImageStream();
+          } on CameraException {
+            // Ignore teardown failures while switching cameras.
+          }
+        }
+        await previousController.dispose();
+      }
       await nextController.initialize();
 
       try {
@@ -1152,6 +1323,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         _callFlashEnabled = false;
         _cameraErrorMessage = null;
       });
+      await _startCallImageStream();
     } on CameraException catch (error) {
       await _disposeCallCamera();
       if (!mounted) {
@@ -1196,6 +1368,14 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     final controller = _cameraController;
     _cameraController = null;
     if (controller != null) {
+      if (controller.value.isInitialized &&
+          controller.value.isStreamingImages) {
+        try {
+          await controller.stopImageStream();
+        } on CameraException {
+          // Ignore teardown failures while closing the call camera.
+        }
+      }
       await controller.dispose();
     }
   }

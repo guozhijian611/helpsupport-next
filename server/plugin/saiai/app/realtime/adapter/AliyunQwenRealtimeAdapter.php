@@ -103,6 +103,39 @@ class AliyunQwenRealtimeAdapter implements RealtimeProviderAdapterInterface
             ]];
         }
 
+        if ($type === 'conversation.item.input_audio_transcription.delta') {
+            return [[
+                'type' => 'conversation.item.input_audio_transcription.delta',
+                'event_id' => $eventId,
+                'item_id' => (string) ($event['item_id'] ?? ''),
+                'content_index' => (int) ($event['content_index'] ?? 0),
+                'text' => (string) ($event['text'] ?? ''),
+                'stash' => (string) ($event['stash'] ?? ''),
+                'language' => (string) ($event['language'] ?? ''),
+                'emotion' => (string) ($event['emotion'] ?? ''),
+            ]];
+        }
+
+        if ($type === 'conversation.item.input_audio_transcription.completed') {
+            return [[
+                'type' => 'conversation.item.input_audio_transcription.completed',
+                'event_id' => $eventId,
+                'item_id' => (string) ($event['item_id'] ?? ''),
+                'content_index' => (int) ($event['content_index'] ?? 0),
+                'transcript' => (string) ($event['transcript'] ?? ''),
+            ]];
+        }
+
+        if ($type === 'conversation.item.input_audio_transcription.failed') {
+            return [[
+                'type' => 'conversation.item.input_audio_transcription.failed',
+                'event_id' => $eventId,
+                'item_id' => (string) ($event['item_id'] ?? ''),
+                'content_index' => (int) ($event['content_index'] ?? 0),
+                'error' => (array) ($event['error'] ?? []),
+            ]];
+        }
+
         if (in_array($type, ['response.text.delta', 'response.output_text.delta', 'response.audio_transcript.delta', 'response.output_audio_transcript.delta'], true)) {
             $delta = (string) ($event['delta'] ?? $event['text'] ?? '');
             return $delta === '' ? [] : [[
@@ -134,6 +167,7 @@ class AliyunQwenRealtimeAdapter implements RealtimeProviderAdapterInterface
                 'event_id' => $eventId,
                 'response_id' => $responseId,
                 'status' => (string) ($event['response']['status'] ?? 'completed'),
+                'transcript' => $this->extractResponseTranscript((array) ($event['response'] ?? [])),
             ]];
         }
 
@@ -246,5 +280,20 @@ class AliyunQwenRealtimeAdapter implements RealtimeProviderAdapterInterface
         }
 
         return $value;
+    }
+
+    private function extractResponseTranscript(array $response): string
+    {
+        $parts = [];
+        foreach ((array) ($response['output'] ?? []) as $item) {
+            foreach ((array) ($item['content'] ?? []) as $content) {
+                $text = trim((string) ($content['transcript'] ?? $content['text'] ?? ''));
+                if ($text !== '') {
+                    $parts[] = $text;
+                }
+            }
+        }
+
+        return trim(implode("\n", $parts));
     }
 }
