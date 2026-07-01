@@ -41,87 +41,6 @@ class HelpApiService
         'entertainment' => ['书籍', '电影', '音乐', '游戏'],
         'private' => ['私人素材'],
     ];
-    private const AI_PLAN_TASK_POOL = [
-        'doctor' => [
-            [
-                'title' => '记录今天最明显的情绪波动',
-                'description' => '用 3 句话写下触发点、身体感受和你采取的应对方式。',
-                'task_type' => 'checkin',
-                'points_reward' => 15,
-                'requires_feedback' => 1,
-                'feedback_prompt' => '写下触发点、感受和本次应对是否有效。',
-            ],
-            [
-                'title' => '完成一次 5 分钟呼吸练习',
-                'description' => '找一个安静位置，按 4 秒吸气、6 秒呼气重复练习。',
-                'task_type' => 'daily',
-                'points_reward' => 10,
-                'requires_feedback' => 0,
-                'feedback_prompt' => '',
-            ],
-            [
-                'title' => '整理下次问诊的 3 个问题',
-                'description' => '把你最想让医生了解或解释的问题列出来。',
-                'task_type' => 'daily',
-                'points_reward' => 15,
-                'requires_feedback' => 1,
-                'feedback_prompt' => '记录你准备带给医生的 3 个问题。',
-            ],
-        ],
-        'companion' => [
-            [
-                'title' => '给今天的自己打一个情绪分',
-                'description' => '从 1 到 10 评估今天的情绪稳定度，并写下原因。',
-                'task_type' => 'checkin',
-                'points_reward' => 10,
-                'requires_feedback' => 1,
-                'feedback_prompt' => '写下分数和影响这个分数的主要原因。',
-            ],
-            [
-                'title' => '安排一次短暂放松',
-                'description' => '选择散步、拉伸、听音乐或闭眼休息中的一种，坚持 10 分钟。',
-                'task_type' => 'daily',
-                'points_reward' => 10,
-                'requires_feedback' => 0,
-                'feedback_prompt' => '',
-            ],
-            [
-                'title' => '写下一件可控的小事',
-                'description' => '找到今天你能控制并愿意完成的一件小事。',
-                'task_type' => 'daily',
-                'points_reward' => 10,
-                'requires_feedback' => 1,
-                'feedback_prompt' => '写下这件小事以及完成后的感受。',
-            ],
-        ],
-        'patient' => [
-            [
-                'title' => '补充一条症状变化',
-                'description' => '记录今天症状出现的时间、强度和持续时长。',
-                'task_type' => 'checkin',
-                'points_reward' => 15,
-                'requires_feedback' => 1,
-                'feedback_prompt' => '写下症状时间、强度和持续时长。',
-            ],
-            [
-                'title' => '整理最近一次用药反馈',
-                'description' => '记录是否按时用药、是否有不适，以及想反馈给医生的内容。',
-                'task_type' => 'daily',
-                'points_reward' => 15,
-                'requires_feedback' => 1,
-                'feedback_prompt' => '记录用药执行情况和需要医生了解的反馈。',
-            ],
-            [
-                'title' => '准备一段就诊描述',
-                'description' => '用简短文字说明最近最困扰你的问题。',
-                'task_type' => 'daily',
-                'points_reward' => 10,
-                'requires_feedback' => 1,
-                'feedback_prompt' => '写下最近最困扰你的问题。',
-            ],
-        ],
-    ];
-
     public function appConfig(): array
     {
         $groups = $this->configGroups([
@@ -1301,20 +1220,42 @@ class HelpApiService
 
     public function assignChatPlanTask(int $memberId, array $data): array
     {
-        $sessionId = (int) ($data['session_id'] ?? 0);
-        if ($sessionId > 0) {
-            $session = $this->assertChatSession($memberId, $sessionId);
-            $chatMode = (string) ($session['chat_mode'] ?? 'companion');
-        } else {
-            $rawChatMode = trim((string) ($data['chat_mode'] ?? ''));
-            $chatMode = $rawChatMode === '' ? 'companion' : $this->chatMode($rawChatMode);
-        }
-        if (!isset(self::AI_PLAN_TASK_POOL[$chatMode])) {
-            $chatMode = 'companion';
+        $recordId = (int) ($data['record_id'] ?? 0);
+        $taskIndex = (int) ($data['task_index'] ?? 0);
+        $record = Db::table('sa_member_chat_record')
+            ->where('id', $recordId)
+            ->where('member_id', $memberId)
+            ->where('role', 'assistant')
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$record) {
+            throw new ApiException('AI计划卡片不存在或无权操作', 404);
         }
 
-        $pool = self::AI_PLAN_TASK_POOL[$chatMode];
-        $template = $pool[random_int(0, count($pool) - 1)];
+        $ext = $this->decodeJsonArray($record['ext'] ?? null);
+        $tasks = $ext['plan_tasks'] ?? [];
+        if (!is_array($tasks) || !isset($tasks[$taskIndex]) || !is_array($tasks[$taskIndex])) {
+            throw new ApiException('AI计划任务不存在', 404);
+        }
+        $template = $this->normalizeAssistantPlanTask($tasks[$taskIndex]);
+        if ($template === null) {
+            throw new ApiException('AI计划任务格式无效', 400);
+        }
+        if ((int) ($template['daily_task_id'] ?? 0) > 0) {
+            $task = Db::table('sa_daily_task')
+                ->where('id', (int) $template['daily_task_id'])
+                ->where('member_id', $memberId)
+                ->whereNull('delete_time')
+                ->find();
+            if ($task) {
+                return [
+                    'task' => $this->normalizeDailyTaskRow($task),
+                    'message' => '计划任务已存在',
+                ];
+            }
+        }
+
         $taskDate = trim((string) ($data['task_date'] ?? ''));
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $taskDate)) {
             $taskDate = date('Y-m-d');
@@ -1331,21 +1272,29 @@ class HelpApiService
             'description' => (string) $template['description'],
             'task_type' => (string) $template['task_type'],
             'source' => 'ai',
-            'source_id' => 'chat:' . $sessionId . ':' . uniqid(),
+            'source_id' => 'chat_record:' . $recordId . ':' . $taskIndex,
             'reminders' => null,
             'attachments' => null,
             'points_reward' => (int) $template['points_reward'],
             'requires_feedback' => (int) $template['requires_feedback'],
             'feedback_prompt' => (string) $template['feedback_prompt'],
             'status' => 0,
-            'remark' => 'AI 对话计划卡片随机派发',
+            'remark' => 'AI 对话计划卡片确认加入',
         ];
 
         $id = $this->saveRow('sa_daily_task', $payload, $memberId);
         $task = Db::table('sa_daily_task')->where('id', $id)->find() ?: [];
+        $tasks[$taskIndex]['daily_task_id'] = $id;
+        $tasks[$taskIndex]['assigned_at'] = date('Y-m-d H:i:s');
+        $ext['plan_tasks'] = $tasks;
+        Db::table('sa_member_chat_record')->where('id', $recordId)->update([
+            'ext' => $this->jsonValue($ext),
+            'updated_by' => $memberId,
+            'update_time' => date('Y-m-d H:i:s'),
+        ]);
 
         return [
-            'task' => $task,
+            'task' => $this->normalizeDailyTaskRow($task),
             'message' => 'AI 已添加计划任务',
         ];
     }
@@ -1386,9 +1335,10 @@ class HelpApiService
         if ($assistantContent === '') {
             throw new ApiException('AI 未返回有效内容', 502);
         }
+        $assistantPayload = $this->extractAssistantPlanTasks($assistantContent);
 
         $now = date('Y-m-d H:i:s');
-        return Db::transaction(function () use ($memberId, $session, $sessionId, $chatMode, $content, $contentType, $assistantContent, $aiResult, $configId, $now) {
+        return Db::transaction(function () use ($memberId, $session, $sessionId, $chatMode, $content, $contentType, $assistantPayload, $aiResult, $configId, $now) {
             $activeSession = $session;
             if ($sessionId <= 0) {
                 $count = (int) Db::table('sa_member_chat_session')
@@ -1428,18 +1378,19 @@ class HelpApiService
                 $activeSessionId,
                 $chatMode,
                 'assistant',
-                $assistantContent,
+                $assistantPayload['content'],
                 'text',
                 $this->jsonValue([
                     'ai_model' => (string) ($aiResult['model'] ?? ''),
                     'ai_type' => (string) ($aiResult['type'] ?? ''),
                     'config_id' => $configId,
+                    'plan_tasks' => $assistantPayload['plan_tasks'],
                 ]),
                 $now
             );
 
             Db::table('sa_member_chat_session')->where('id', $activeSessionId)->update([
-                'last_message' => $this->chatSummary($assistantContent),
+                'last_message' => $this->chatSummary($assistantPayload['content']),
                 'last_message_time' => $now,
                 'updated_by' => $memberId,
                 'update_time' => $now,
@@ -1552,6 +1503,7 @@ class HelpApiService
         if ($assistantContent === '') {
             throw new ApiException('AI 未返回有效内容', 502);
         }
+        $assistantPayload = $this->extractAssistantPlanTasks($assistantContent);
 
         $session = (array) ($context['session'] ?? []);
         $userRecord = (array) ($context['user_record'] ?? []);
@@ -1565,24 +1517,25 @@ class HelpApiService
         $configId = (int) ($context['config_id'] ?? 0);
         $now = date('Y-m-d H:i:s');
 
-        return Db::transaction(function () use ($memberId, $activeSessionId, $chatMode, $assistantContent, $aiMeta, $configId, $now, $userRecord) {
+        return Db::transaction(function () use ($memberId, $activeSessionId, $chatMode, $assistantPayload, $aiMeta, $configId, $now, $userRecord) {
             $assistantRecord = $this->insertChatRecord(
                 $memberId,
                 $activeSessionId,
                 $chatMode,
                 'assistant',
-                $assistantContent,
+                $assistantPayload['content'],
                 'text',
                 $this->jsonValue([
                     'ai_model' => (string) ($aiMeta['model'] ?? ''),
                     'ai_type' => (string) ($aiMeta['type'] ?? ''),
                     'config_id' => $configId,
+                    'plan_tasks' => $assistantPayload['plan_tasks'],
                 ]),
                 $now
             );
 
             Db::table('sa_member_chat_session')->where('id', $activeSessionId)->update([
-                'last_message' => $this->chatSummary($assistantContent),
+                'last_message' => $this->chatSummary($assistantPayload['content']),
                 'last_message_time' => $now,
                 'updated_by' => $memberId,
                 'update_time' => $now,
@@ -6691,6 +6644,12 @@ class HelpApiService
             $prompt .= "\n\n用户额外要求：\n" . $customPrompt;
         }
 
+        $prompt .= "\n\n当你认为本轮对话适合给用户一个可执行计划任务时，先用自然语言解释建议，再在回复末尾追加一个独立代码块：\n"
+            . "```helpsupport_plan_tasks\n"
+            . "[{\"title\":\"任务标题\",\"description\":\"执行说明\",\"task_type\":\"daily\",\"points_reward\":10,\"requires_feedback\":false,\"feedback_prompt\":\"\"}]\n"
+            . "```\n"
+            . "任务字段要求：title 不超过 30 个汉字，description 具体可执行，task_type 只能是 daily 或 checkin，points_reward 只能是 5 到 30 的整数，requires_feedback 为布尔值。一次最多给 2 个任务。不要告诉用户你已经加入计划，只能说可由用户确认加入。";
+
         return $prompt;
     }
 
@@ -6700,6 +6659,72 @@ class HelpApiService
             . $systemPrompt
             . "\n\n用户消息：\n"
             . $content;
+    }
+
+    /**
+     * @return array{content:string,plan_tasks:array<int,array<string,mixed>>}
+     */
+    private function extractAssistantPlanTasks(string $content): array
+    {
+        $tasks = [];
+        $cleanContent = preg_replace_callback(
+            '/```helpsupport_plan_tasks\s*(.*?)```/su',
+            function (array $matches) use (&$tasks): string {
+                $decoded = json_decode(trim((string) ($matches[1] ?? '')), true);
+                if (is_array($decoded)) {
+                    foreach ($decoded as $item) {
+                        if (!is_array($item)) {
+                            continue;
+                        }
+                        $task = $this->normalizeAssistantPlanTask($item);
+                        if ($task !== null) {
+                            $tasks[] = $task;
+                        }
+                        if (count($tasks) >= 2) {
+                            break;
+                        }
+                    }
+                }
+
+                return '';
+            },
+            $content
+        );
+        $cleanContent = trim((string) $cleanContent);
+        if ($cleanContent === '') {
+            $cleanContent = trim($content);
+        }
+
+        return [
+            'content' => $cleanContent,
+            'plan_tasks' => array_slice($tasks, 0, 2),
+        ];
+    }
+
+    private function normalizeAssistantPlanTask(array $item): ?array
+    {
+        $title = mb_substr(trim((string) ($item['title'] ?? '')), 0, 160);
+        if ($title === '') {
+            return null;
+        }
+        $taskType = trim((string) ($item['task_type'] ?? 'daily'));
+        if (!in_array($taskType, ['daily', 'checkin'], true)) {
+            $taskType = 'daily';
+        }
+        $pointsReward = (int) ($item['points_reward'] ?? 10);
+        $pointsReward = max(5, min(30, $pointsReward));
+        $requiresFeedback = filter_var($item['requires_feedback'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+        $feedbackPrompt = mb_substr(trim((string) ($item['feedback_prompt'] ?? '')), 0, 255);
+
+        return [
+            'title' => $title,
+            'description' => mb_substr(trim((string) ($item['description'] ?? '')), 0, 500),
+            'task_type' => $taskType,
+            'points_reward' => $pointsReward,
+            'requires_feedback' => $requiresFeedback,
+            'feedback_prompt' => $feedbackPrompt,
+            'daily_task_id' => max(0, (int) ($item['daily_task_id'] ?? 0)),
+        ];
     }
 
     private function insertChatRecord(

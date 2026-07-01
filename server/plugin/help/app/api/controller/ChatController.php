@@ -214,8 +214,9 @@ class ChatController extends BaseController
     #[Apidoc\Title('AI派发计划任务')]
     #[Apidoc\Url('/app/help/chat/plan-task')]
     #[Apidoc\Method('POST')]
-    #[Apidoc\Param('session_id', type: 'int', require: false, desc: '聊天会话ID')]
-    #[Apidoc\Param('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient')]
+    #[Apidoc\Param('record_id', type: 'int', require: true, desc: '包含计划卡片的AI消息ID')]
+    #[Apidoc\Param('task_index', type: 'int', require: true, desc: '计划卡片索引，从0开始')]
+    #[Apidoc\Param('task_date', type: 'string', require: false, desc: '任务日期 YYYY-MM-DD，默认今天')]
     #[Apidoc\Returned('task', type: 'object', desc: '已添加到我的计划的每日任务')]
     public function assignPlanTask(Request $request): Response
     {

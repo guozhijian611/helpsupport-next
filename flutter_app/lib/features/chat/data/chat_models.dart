@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class ChatOverview {
   const ChatOverview({required this.modes, required this.recentSessions});
 
@@ -233,6 +235,7 @@ class ChatRecord {
     required this.role,
     required this.content,
     required this.contentType,
+    this.planTasks = const [],
     this.messageTime,
   });
 
@@ -242,6 +245,7 @@ class ChatRecord {
   final String role;
   final String content;
   final String contentType;
+  final List<ChatPlanTaskSuggestion> planTasks;
   final String? messageTime;
 
   bool get isUser => role == 'user';
@@ -253,6 +257,7 @@ class ChatRecord {
     String? role,
     String? content,
     String? contentType,
+    List<ChatPlanTaskSuggestion>? planTasks,
     String? messageTime,
   }) {
     return ChatRecord(
@@ -262,11 +267,13 @@ class ChatRecord {
       role: role ?? this.role,
       content: content ?? this.content,
       contentType: contentType ?? this.contentType,
+      planTasks: planTasks ?? this.planTasks,
       messageTime: messageTime ?? this.messageTime,
     );
   }
 
   factory ChatRecord.fromJson(Map<String, dynamic> json) {
+    final ext = _decodeExt(json['ext']);
     return ChatRecord(
       id: (json['id'] as num?)?.toInt() ?? 0,
       sessionId: (json['session_id'] as num?)?.toInt() ?? 0,
@@ -274,7 +281,44 @@ class ChatRecord {
       role: (json['role'] as String?) ?? 'user',
       content: (json['content'] as String?) ?? '',
       contentType: (json['content_type'] as String?) ?? 'text',
+      planTasks: _list(ext['plan_tasks'], ChatPlanTaskSuggestion.fromJson),
       messageTime: json['message_time'] as String?,
+    );
+  }
+}
+
+class ChatPlanTaskSuggestion {
+  const ChatPlanTaskSuggestion({
+    required this.title,
+    required this.description,
+    required this.taskType,
+    required this.pointsReward,
+    required this.requiresFeedback,
+    required this.feedbackPrompt,
+    required this.dailyTaskId,
+  });
+
+  final String title;
+  final String description;
+  final String taskType;
+  final int pointsReward;
+  final bool requiresFeedback;
+  final String feedbackPrompt;
+  final int dailyTaskId;
+
+  bool get isAssigned => dailyTaskId > 0;
+
+  factory ChatPlanTaskSuggestion.fromJson(Map<String, dynamic> json) {
+    return ChatPlanTaskSuggestion(
+      title: (json['title'] ?? '').toString(),
+      description: (json['description'] ?? '').toString(),
+      taskType: (json['task_type'] ?? 'daily').toString(),
+      pointsReward: (json['points_reward'] as num?)?.toInt() ?? 10,
+      requiresFeedback:
+          json['requires_feedback'] == true ||
+          (json['requires_feedback'] as num?)?.toInt() == 1,
+      feedbackPrompt: (json['feedback_prompt'] ?? '').toString(),
+      dailyTaskId: (json['daily_task_id'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -383,6 +427,23 @@ class ChatPage<T> {
 Map<String, dynamic> _map(Object? value) {
   if (value is Map<String, dynamic>) {
     return value;
+  }
+  return const {};
+}
+
+Map<String, dynamic> _decodeExt(Object? value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+  if (value is String && value.trim().isNotEmpty) {
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+    } on FormatException {
+      return const {};
+    }
   }
   return const {};
 }

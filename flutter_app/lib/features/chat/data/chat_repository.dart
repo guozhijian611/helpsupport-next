@@ -247,12 +247,12 @@ class ChatRepository {
   }
 
   Future<DailyTask> assignPlanTask({
-    required int sessionId,
-    required String chatMode,
+    required int recordId,
+    required int taskIndex,
   }) async {
     final result = await _apiClient.postApi<DailyTask>(
       '/app/help/chat/plan-task',
-      data: {'session_id': sessionId, 'chat_mode': chatMode},
+      data: {'record_id': recordId, 'task_index': taskIndex},
       decode: (value) {
         if (value is Map<String, dynamic>) {
           final task = value['task'];

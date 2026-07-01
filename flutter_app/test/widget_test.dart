@@ -20,6 +20,23 @@ import 'package:helpsupport_app/l10n/generated/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  test('chat record parses ai plan task suggestions from ext', () {
+    final record = ChatRecord.fromJson(const {
+      'id': 10,
+      'session_id': 3,
+      'chat_mode': 'doctor',
+      'role': 'assistant',
+      'content': '建议你今天先完成一个小任务。',
+      'content_type': 'text',
+      'ext':
+          '{"plan_tasks":[{"title":"记录情绪波动","description":"写下触发点和应对方式","task_type":"checkin","points_reward":15,"requires_feedback":1,"feedback_prompt":"记录本次应对是否有效"}]}',
+    });
+
+    expect(record.planTasks, hasLength(1));
+    expect(record.planTasks.first.title, '记录情绪波动');
+    expect(record.planTasks.first.requiresFeedback, isTrue);
+  });
+
   testWidgets('home shell renders bottom navigation', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final sharedPreferences = await SharedPreferences.getInstance();

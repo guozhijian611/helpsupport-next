@@ -76,7 +76,6 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   bool _cameraInitializing = false;
   String? _cameraErrorMessage;
   bool _sending = false;
-  bool _assigningPlanTask = false;
   bool _voiceComposer = false;
   bool _recording = false;
   bool _callActive = false;
@@ -104,6 +103,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   final Queue<List<Uint8List>> _callAudioPlaybackQueue =
       Queue<List<Uint8List>>();
   final Set<String> _callSavedUserTranscriptIds = <String>{};
+  final Set<String> _assigningPlanTaskKeys = <String>{};
   List<ChatRecord> _streamingRecords = const <ChatRecord>[];
   int _sendGeneration = 0;
   int _callSentAudioChunks = 0;
@@ -316,10 +316,6 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                             ),
                           ),
                         ),
-                      _AiPlanTaskCard(
-                        assigning: _assigningPlanTask,
-                        onTap: _assignPlanTask,
-                      ),
                       Expanded(
                         child: records.when(
                           data: (page) => _RecordList(
@@ -331,6 +327,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                             expandedVoiceTextIds: _expandedVoiceTextIds,
                             onToggleTranscript: _toggleTranscript,
                             onRecordActions: _openRecordActions,
+                            assigningPlanTaskKeys: _assigningPlanTaskKeys,
+                            onAssignPlanTask: _assignPlanTask,
                           ),
                           error: (error, _) =>
                               Center(child: Text(error.toString())),
@@ -1934,19 +1932,18 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         );
   }
 
-  Future<void> _assignPlanTask() async {
-    if (_assigningPlanTask) {
+  Future<void> _assignPlanTask(ChatRecord record, int taskIndex) async {
+    final key = '${record.id}:$taskIndex';
+    if (_assigningPlanTaskKeys.contains(key)) {
       return;
     }
-    setState(() => _assigningPlanTask = true);
+    setState(() => _assigningPlanTaskKeys.add(key));
     try {
       final task = await ref
           .read(chatRepositoryProvider)
-          .assignPlanTask(
-            sessionId: widget.sessionId,
-            chatMode: widget.chatMode,
-          );
+          .assignPlanTask(recordId: record.id, taskIndex: taskIndex);
       ref.invalidate(dailyTasksProvider);
+      ref.invalidate(chatRecordsProvider(widget.sessionId));
       if (task.taskDate.trim().isNotEmpty) {
         ref.invalidate(dailyTasksByDateProvider(task.taskDate));
       }
@@ -1961,7 +1958,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       context.showCenteredNotice(error.toString());
     } finally {
       if (mounted) {
-        setState(() => _assigningPlanTask = false);
+        setState(() => _assigningPlanTaskKeys.remove(key));
       }
     }
   }
@@ -2323,8 +2320,13 @@ class _TopModeButton extends StatelessWidget {
 }
 
 class _AiPlanTaskCard extends StatelessWidget {
-  const _AiPlanTaskCard({required this.assigning, required this.onTap});
+  const _AiPlanTaskCard({
+    required this.task,
+    required this.assigning,
+    required this.onTap,
+  });
 
+  final ChatPlanTaskSuggestion task;
   final bool assigning;
   final VoidCallback onTap;
 
@@ -2334,85 +2336,147 @@ class _AiPlanTaskCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
-        decoration: BoxDecoration(
-          color: palette.cardBackground,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: palette.outline),
-          boxShadow: [
-            BoxShadow(
-              color: palette.shadowColor,
-              blurRadius: 16,
-              offset: const Offset(0, 8),
-            ),
-          ],
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.76,
         ),
-        child: Row(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        decoration: BoxDecoration(
+          color: palette.softSurface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: palette.outline),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: palette.softSurface,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: const Icon(
-                Icons.assignment_turned_in_outlined,
-                color: Color(0xFFFF9585),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _t(context, 'AI 计划卡片', 'AI plan card'),
-                    style: TextStyle(
-                      color: palette.primaryText,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                    ),
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFE8E3),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _t(context, '随机派发一项今日任务', 'Add one random task for today'),
+                  child: const Icon(
+                    Icons.assignment_turned_in_outlined,
+                    color: Color(0xFFFF9585),
+                    size: 19,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _t(context, 'AI 建议任务', 'AI suggested task'),
                     style: TextStyle(
                       color: palette.secondaryText,
                       fontSize: 13,
-                      height: 1.35,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                ],
+                ),
+                _PlanTaskChip(
+                  label: '${task.pointsReward}',
+                  icon: Icons.stars_rounded,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              task.title,
+              style: TextStyle(
+                color: palette.primaryText,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                height: 1.35,
               ),
             ),
-            const SizedBox(width: 12),
-            FilledButton(
-              onPressed: assigning ? null : onTap,
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(84, 40),
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                backgroundColor: const Color(0xFFFF9585),
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: palette.softSurface,
-                disabledForegroundColor: palette.secondaryText,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+            if (task.description.trim().isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                task.description,
+                style: TextStyle(
+                  color: palette.secondaryText,
+                  fontSize: 14,
+                  height: 1.45,
                 ),
               ),
-              child: assigning
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(
-                      _t(context, '添加', 'Add'),
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _PlanTaskChip(
+                  label: task.requiresFeedback
+                      ? _t(context, '需反馈', 'Feedback')
+                      : _t(context, '日常', 'Daily'),
+                  icon: task.requiresFeedback
+                      ? Icons.rate_review_outlined
+                      : Icons.today_outlined,
+                ),
+                const Spacer(),
+                FilledButton(
+                  onPressed: assigning || task.isAssigned ? null : onTap,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(84, 38),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    backgroundColor: const Color(0xFFFF9585),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: palette.cardBackground,
+                    disabledForegroundColor: palette.secondaryText,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
+                  ),
+                  child: assigning
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(
+                          task.isAssigned
+                              ? _t(context, '已加入', 'Added')
+                              : _t(context, '加入计划', 'Add'),
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                ),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PlanTaskChip extends StatelessWidget {
+  const _PlanTaskChip({required this.label, required this.icon});
+
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _ChatSessionPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: const Color(0xFFFF9585)),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: palette.primaryText,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2428,6 +2492,8 @@ class _RecordList extends StatelessWidget {
     required this.expandedVoiceTextIds,
     required this.onToggleTranscript,
     required this.onRecordActions,
+    required this.assigningPlanTaskKeys,
+    required this.onAssignPlanTask,
   });
 
   final List<ChatRecord> records;
@@ -2438,6 +2504,8 @@ class _RecordList extends StatelessWidget {
   final Set<int> expandedVoiceTextIds;
   final ValueChanged<ChatRecord> onToggleTranscript;
   final ValueChanged<ChatRecord> onRecordActions;
+  final Set<String> assigningPlanTaskKeys;
+  final void Function(ChatRecord record, int taskIndex) onAssignPlanTask;
 
   @override
   Widget build(BuildContext context) {
@@ -2461,6 +2529,8 @@ class _RecordList extends StatelessWidget {
             transcriptExpanded: expandedVoiceTextIds.contains(record.id),
             onToggleTranscript: () => onToggleTranscript(record),
             onLongPress: () => onRecordActions(record),
+            assigningPlanTaskKeys: assigningPlanTaskKeys,
+            onAssignPlanTask: onAssignPlanTask,
           ),
         );
       },
@@ -2477,6 +2547,8 @@ class _MessageBubble extends StatelessWidget {
     required this.transcriptExpanded,
     required this.onToggleTranscript,
     required this.onLongPress,
+    required this.assigningPlanTaskKeys,
+    required this.onAssignPlanTask,
   });
 
   final ChatRecord record;
@@ -2486,6 +2558,8 @@ class _MessageBubble extends StatelessWidget {
   final bool transcriptExpanded;
   final VoidCallback onToggleTranscript;
   final VoidCallback onLongPress;
+  final Set<String> assigningPlanTaskKeys;
+  final void Function(ChatRecord record, int taskIndex) onAssignPlanTask;
 
   @override
   Widget build(BuildContext context) {
@@ -2610,6 +2684,26 @@ class _MessageBubble extends StatelessWidget {
                         ),
                       ),
                     ),
+                  ],
+                  if (!record.isUser && record.planTasks.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    for (
+                      var index = 0;
+                      index < record.planTasks.length;
+                      index++
+                    )
+                      Padding(
+                        padding: EdgeInsets.only(
+                          bottom: index == record.planTasks.length - 1 ? 0 : 10,
+                        ),
+                        child: _AiPlanTaskCard(
+                          task: record.planTasks[index],
+                          assigning: assigningPlanTaskKeys.contains(
+                            '${record.id}:$index',
+                          ),
+                          onTap: () => onAssignPlanTask(record, index),
+                        ),
+                      ),
                   ],
                 ],
               ),
