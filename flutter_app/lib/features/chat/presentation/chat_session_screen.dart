@@ -808,7 +808,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       'ws connecting=${_callFlag(_callConnecting)} connected=${_callFlag(_callConnected)} upstream=${_callFlag(_callUpstreamReady)} age=${connectedForMs}ms',
       'mic recording=${_callFlag(_callRecording)} muted=${_callFlag(_callMuted)} hold=${_callFlag(_callPlaybackBlocksMic)} chunks=$_callSentAudioChunks pending=${_callFlag(_callPendingAudioTurn)} turnAge=$turnAge response=${_callFlag(_callResponseActive)}',
       'cam enabled=${_callFlag(_callVideoEnabled)} init=${_callFlag(cameraReady)} stream=${_callFlag(imageStreaming)} frames=$_callSentVideoFrames capturing=${_callFlag(_callCapturingFrame)} last=$lastFrameAge',
-      'out pcm=${_callOutputPcmChunks.length} queue=${_callAudioPlaybackQueue.length} played=$_callPlayedAudioSegments playing=${_callFlag(_callAudioPlayer.playing || _callPlayingRealtimeAudio)} speaker=${_callFlag(_callSpeakerEnabled)} text=${_callAssistantText.length} userSaved=${_callSavedUserTranscriptIds.length}',
+      'out pcm=${_callOutputPcmChunks.length} queue=${_callAudioPlaybackQueue.length} played=$_callPlayedAudioSegments playing=${_callFlag(_callAudioPlayerActivelyPlaying || _callPlayingRealtimeAudio)} state=${_callAudioPlayer.processingState.name} speaker=${_callFlag(_callSpeakerEnabled)} text=${_callAssistantText.length} userSaved=${_callSavedUserTranscriptIds.length}',
       'event=${_callLastRealtimeEvent.isEmpty ? '-' : _callLastRealtimeEvent}',
       if ((_cameraErrorMessage ?? '').trim().isNotEmpty)
         'camErr=${_cameraErrorMessage!.trim()}',
@@ -823,7 +823,12 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   bool get _callPlaybackBlocksMic =>
       _callPlayingRealtimeAudio ||
       _callAudioPlaybackQueue.isNotEmpty ||
-      _callAudioPlayer.playing;
+      _callAudioPlayerActivelyPlaying;
+
+  bool get _callAudioPlayerActivelyPlaying =>
+      _callAudioPlayer.playing &&
+      _callAudioPlayer.processingState != ProcessingState.idle &&
+      _callAudioPlayer.processingState != ProcessingState.completed;
 
   void _handleRealtimeMessage(dynamic raw) {
     if (raw is! String) {
@@ -1467,7 +1472,11 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     );
     await file.writeAsBytes(wavBytes, flush: true);
     await _callAudioPlayer.setFilePath(file.path);
-    await _callAudioPlayer.play();
+    try {
+      await _callAudioPlayer.play();
+    } finally {
+      await _callAudioPlayer.stop();
+    }
   }
 
   Uint8List _buildPcm16Wav(List<Uint8List> chunks, {required int sampleRate}) {
