@@ -797,10 +797,25 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
           onDone: () {
             unawaited(
               _syncRecordsAfterSend(
-                generation: generation,
-                baseRecordId: baseRecordId,
-                finishWhenAssistantExists: false,
-              ).whenComplete(() => _completeStreamingSend(generation)),
+                    generation: generation,
+                    baseRecordId: baseRecordId,
+                    finishWhenAssistantExists: false,
+                  )
+                  .then((synced) {
+                    if (!mounted || generation != _sendGeneration || synced) {
+                      return;
+                    }
+                    if (!_hasStreamingAssistantContent()) {
+                      context.showCenteredNotice(
+                        _t(
+                          context,
+                          'AI 未返回有效内容，请稍后重试',
+                          'AI did not return valid content. Try again later.',
+                        ),
+                      );
+                    }
+                  })
+                  .whenComplete(() => _completeStreamingSend(generation)),
             );
           },
           cancelOnError: false,
@@ -934,12 +949,16 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       final hasAssistant = newRecords.any(
         (record) => !record.isUser && record.content.trim().isNotEmpty,
       );
-      final nextRecords = hasAssistant
+      final temporaryAssistantRecords = _streamingRecords
+          .where(
+            (record) =>
+                !record.isUser &&
+                (finishWhenAssistantExists || record.content.trim().isNotEmpty),
+          )
+          .toList(growable: false);
+      final nextRecords = hasAssistant || temporaryAssistantRecords.isEmpty
           ? newRecords
-          : [
-              ...newRecords,
-              ..._streamingRecords.where((record) => !record.isUser),
-            ];
+          : [...newRecords, ...temporaryAssistantRecords];
       setState(() => _streamingRecords = nextRecords);
       _scrollToLatest();
       if (hasAssistant && finishWhenAssistantExists) {
@@ -949,6 +968,12 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     } on Object {
       return false;
     }
+  }
+
+  bool _hasStreamingAssistantContent() {
+    return _streamingRecords.any(
+      (record) => !record.isUser && record.content.trim().isNotEmpty,
+    );
   }
 
   void _completeStreamingSend(int generation) {

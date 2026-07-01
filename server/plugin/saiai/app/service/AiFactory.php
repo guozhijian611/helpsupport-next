@@ -390,13 +390,26 @@ class AiFactory
             return $content->getContent();
         }
 
+        if (is_object($content) && method_exists($content, 'getDeltas')) {
+            $text = '';
+            foreach ($content->getDeltas() as $delta) {
+                $text .= self::normalizeTextResult($delta);
+            }
+
+            return $text;
+        }
+
+        if (is_object($content) && method_exists($content, 'getText')) {
+            return (string) $content->getText();
+        }
+
         if ($content instanceof \Stringable) {
             return (string) $content;
         }
 
         if (is_object($content) && method_exists($content, 'getContent')) {
             $value = $content->getContent();
-            return is_string($value) ? $value : '';
+            return is_string($value) ? $value : self::normalizeTextResult($value);
         }
 
         return '';
