@@ -33,12 +33,10 @@
     { prop: 'name', label: '徽章名称', search: true, form: true, required: true, minWidth: 150 },
     {
       prop: 'code',
-      label: '徽章编码',
-      search: true,
-      form: true,
-      required: true,
-      minWidth: 150,
-      placeholder: '用于系统去重和前台识别，例如 sleep_streak_7'
+      label: '系统标识',
+      table: false,
+      detail: true,
+      readonly: true
     },
     {
       prop: 'description',

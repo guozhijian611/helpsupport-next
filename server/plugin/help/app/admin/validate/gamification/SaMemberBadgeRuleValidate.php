@@ -11,7 +11,7 @@ class SaMemberBadgeRuleValidate extends BaseValidate
 {
     protected $rule = [
         'name' => 'require|max:100',
-        'code' => 'require|alphaDash|max:80',
+        'code' => 'alphaDash|max:80',
         'trigger_type' => 'require|in:task_count,checkin_streak,journal_count,material_learn,appointment_done,manual',
         'trigger_value' => 'integer',
         'points_reward' => 'integer',
@@ -22,7 +22,6 @@ class SaMemberBadgeRuleValidate extends BaseValidate
     protected $message = [
         'name.require' => '徽章名称必须填写',
         'name.max' => '徽章名称不能超过100个字符',
-        'code.require' => '徽章编码必须填写',
         'code.alphaDash' => '徽章编码只能包含字母、数字、下划线和横线',
         'code.max' => '徽章编码不能超过80个字符',
         'trigger_type.require' => '触发类型必须填写',
@@ -35,7 +34,7 @@ class SaMemberBadgeRuleValidate extends BaseValidate
     ];
 
     protected $scene = [
-        'save' => ['name', 'code', 'trigger_type', 'trigger_value', 'points_reward', 'sort', 'status'],
-        'update' => ['name', 'code', 'trigger_type', 'trigger_value', 'points_reward', 'sort', 'status'],
+        'save' => ['name', 'trigger_type', 'trigger_value', 'points_reward', 'sort', 'status'],
+        'update' => ['name', 'trigger_type', 'trigger_value', 'points_reward', 'sort', 'status'],
     ];
 }
