@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
@@ -145,9 +146,10 @@ class _PlanTaskDetailScreenState extends ConsumerState<PlanTaskDetailScreen> {
                   ],
                   if (task.attachments.isNotEmpty) ...[
                     _divider(context),
-                    _DetailWrapRow(
-                      label: _t(context, '附件', 'Attachments'),
+                    _DetailMaterialRow(
+                      label: _t(context, '学习素材', 'Learning materials'),
                       values: task.attachments,
+                      onTap: _openMaterialAttachment,
                     ),
                   ],
                 ],
@@ -339,6 +341,13 @@ class _PlanTaskDetailScreenState extends ConsumerState<PlanTaskDetailScreen> {
       }
     }
   }
+
+  void _openMaterialAttachment(DailyTaskAttachment attachment) {
+    if (attachment.materialId <= 0) {
+      return;
+    }
+    context.push('/materials/detail/${attachment.materialId}');
+  }
 }
 
 class _DetailCard extends StatelessWidget {
@@ -433,6 +442,83 @@ class _DetailWrapRow extends StatelessWidget {
                       color: palette.primaryText,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailMaterialRow extends StatelessWidget {
+  const _DetailMaterialRow({
+    required this.label,
+    required this.values,
+    required this.onTap,
+  });
+
+  final String label;
+  final List<DailyTaskAttachment> values;
+  final ValueChanged<DailyTaskAttachment> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _PlanTaskDetailPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(color: palette.secondaryText, fontSize: 15),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (final value in values)
+                InkWell(
+                  borderRadius: BorderRadius.circular(999),
+                  onTap: value.materialId > 0 ? () => onTap(value) : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: palette.softBackground,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _materialIcon(value.mediaType),
+                          size: 16,
+                          color: value.materialId > 0
+                              ? const Color(0xFFFF9585)
+                              : palette.secondaryText,
+                        ),
+                        const SizedBox(width: 6),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 220),
+                          child: Text(
+                            value.displayTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: palette.primaryText,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -577,6 +663,20 @@ String _taskTypeLabel(BuildContext context, String value) {
       return _t(context, '打卡记录', 'Check-in');
     default:
       return _t(context, '日常任务', 'Daily task');
+  }
+}
+
+IconData _materialIcon(String mediaType) {
+  switch (mediaType) {
+    case 'video':
+      return Icons.play_circle_fill_rounded;
+    case 'audio':
+      return Icons.headphones_rounded;
+    case 'pdf':
+    case 'document':
+      return Icons.description_rounded;
+    default:
+      return Icons.menu_book_rounded;
   }
 }
 

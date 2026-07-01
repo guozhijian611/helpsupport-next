@@ -138,7 +138,7 @@ class DailyTask {
   final String source;
   final String sourceId;
   final List<String> reminders;
-  final List<String> attachments;
+  final List<DailyTaskAttachment> attachments;
   final int pointsReward;
   final String completedTime;
   final String completionNote;
@@ -165,7 +165,7 @@ class DailyTask {
       source: _stringValue(json['source'], fallback: 'manual'),
       sourceId: _stringValue(json['source_id']),
       reminders: _stringList(json['reminders']),
-      attachments: _stringList(json['attachments']),
+      attachments: _taskAttachments(json['attachments']),
       pointsReward: _intValue(json['points_reward']),
       completedTime: _stringValue(json['completed_time']),
       completionNote: _stringValue(json['completion_note']),
@@ -174,6 +174,56 @@ class DailyTask {
       feedbackContent: _stringValue(json['feedback_content']),
       feedbackTime: _stringValue(json['feedback_time']),
       status: _intValue(json['status']),
+    );
+  }
+}
+
+class DailyTaskAttachment {
+  const DailyTaskAttachment({
+    required this.materialId,
+    required this.title,
+    required this.mediaType,
+  });
+
+  final int materialId;
+  final String title;
+  final String mediaType;
+
+  String get displayTitle {
+    if (title.trim().isNotEmpty) {
+      return title.trim();
+    }
+    if (materialId > 0) {
+      return '素材 #$materialId';
+    }
+    return '';
+  }
+
+  factory DailyTaskAttachment.fromJson(Object? value) {
+    if (value is Map<String, dynamic>) {
+      return DailyTaskAttachment(
+        materialId: _intValue(
+          value['material_id'],
+          fallback: _intValue(value['id']),
+        ),
+        title: _stringValue(value['title']),
+        mediaType: _stringValue(value['media_type']),
+      );
+    }
+    if (value is Map) {
+      return DailyTaskAttachment(
+        materialId: _intValue(
+          value['material_id'],
+          fallback: _intValue(value['id']),
+        ),
+        title: _stringValue(value['title']),
+        mediaType: _stringValue(value['media_type']),
+      );
+    }
+    return DailyTaskAttachment(
+      materialId: 0,
+      title: value?.toString() ?? '',
+      mediaType: '',
     );
   }
 }
@@ -433,6 +483,20 @@ List<T> _mapList<T>(
       .map((item) => item.map((key, value) => MapEntry(key.toString(), value)))
       .map(decode)
       .toList(growable: false);
+}
+
+List<DailyTaskAttachment> _taskAttachments(Object? value) {
+  if (value is List) {
+    return value
+        .map(DailyTaskAttachment.fromJson)
+        .where((item) => item.displayTitle.isNotEmpty)
+        .toList(growable: false);
+  }
+  if (value is Map) {
+    final attachment = DailyTaskAttachment.fromJson(value);
+    return attachment.displayTitle.isEmpty ? const [] : [attachment];
+  }
+  return const [];
 }
 
 List<String> _stringList(Object? value) {

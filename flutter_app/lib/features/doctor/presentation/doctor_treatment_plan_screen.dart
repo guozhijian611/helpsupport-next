@@ -846,8 +846,10 @@ class _DoctorTreatmentPlanScreenState
                   ),
                 if (task.attachments.isNotEmpty)
                   _TaskSummaryRow(
-                    label: _t(context, '附件', 'Attachments'),
-                    value: task.attachments.join('、'),
+                    label: _t(context, '学习素材', 'Learning materials'),
+                    value: task.attachments
+                        .map((item) => item.displayTitle)
+                        .join('、'),
                     multiline: true,
                   ),
               ],

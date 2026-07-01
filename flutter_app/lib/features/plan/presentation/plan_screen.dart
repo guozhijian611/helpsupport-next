@@ -231,6 +231,17 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
       return;
     }
     if (task.taskType == 'material' || task.source == 'material') {
+      final materials = task.attachments
+          .where((item) => item.materialId > 0)
+          .toList(growable: false);
+      if (materials.length == 1) {
+        context.push('/materials/detail/${materials.first.materialId}');
+        return;
+      }
+      if (materials.length > 1) {
+        context.push('/plan/task/${task.id}', extra: task);
+        return;
+      }
       context.push('/materials?type=education');
       return;
     }

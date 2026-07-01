@@ -41,7 +41,7 @@ class _DoctorTaskEditorScreenState
   String _taskType = 'daily';
   DoctorTaskTemplate? _selectedTaskTemplate;
   DoctorAssessmentScale? _selectedAssessmentScale;
-  List<String> _selectedAttachments = const [];
+  List<MaterialItem> _selectedLearningMaterials = const [];
   bool _requiresFeedback = false;
   bool _saving = false;
 
@@ -178,12 +178,17 @@ class _DoctorTaskEditorScreenState
                     hintText: '20',
                     keyboardType: TextInputType.number,
                   ),
-                  _editorDivider(context),
-                  _EditorActionRow(
-                    label: _t(context, '附件选择', 'Attachments'),
-                    value: _attachmentSummary(context, _selectedAttachments),
-                    onTap: _pickAttachments,
-                  ),
+                  if (_taskType == 'material') ...[
+                    _editorDivider(context),
+                    _EditorActionRow(
+                      label: _t(context, '学习素材', 'Learning material'),
+                      value: _learningMaterialSummary(
+                        context,
+                        _selectedLearningMaterials,
+                      ),
+                      onTap: _pickLearningMaterials,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -233,7 +238,7 @@ class _DoctorTaskEditorScreenState
     }
   }
 
-  Future<void> _pickAttachments() async {
+  Future<void> _pickLearningMaterials() async {
     try {
       final page = await ref
           .read(materialRepositoryProvider)
@@ -241,17 +246,17 @@ class _DoctorTaskEditorScreenState
       if (!mounted) {
         return;
       }
-      final selected = await showModalBottomSheet<List<String>>(
+      final selected = await showModalBottomSheet<List<MaterialItem>>(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (context) => _AttachmentSelectionSheet(
           items: page.list,
-          selectedTitles: _selectedAttachments,
+          selectedItems: _selectedLearningMaterials,
         ),
       );
       if (selected != null && mounted) {
-        setState(() => _selectedAttachments = selected);
+        setState(() => _selectedLearningMaterials = selected);
       }
     } on Object catch (error) {
       if (mounted) {
@@ -367,6 +372,9 @@ class _DoctorTaskEditorScreenState
         _requiresFeedback = false;
         _feedbackPromptController.clear();
       }
+      if (_taskType != 'material') {
+        _selectedLearningMaterials = const [];
+      }
     });
   }
 
@@ -430,6 +438,9 @@ class _DoctorTaskEditorScreenState
         } else {
           _requiresFeedback = false;
           _feedbackPromptController.clear();
+        }
+        if (value != 'material') {
+          _selectedLearningMaterials = const [];
         }
       });
     }
@@ -510,6 +521,7 @@ class _DoctorTaskEditorScreenState
         _selectedAssessmentScale = selected;
         _selectedTaskTemplate = null;
         _taskType = 'assessment';
+        _selectedLearningMaterials = const [];
         _requiresFeedback = false;
         _feedbackPromptController.clear();
         if (_titleController.text.trim().isEmpty) {
@@ -538,6 +550,12 @@ class _DoctorTaskEditorScreenState
       );
       return;
     }
+    if (_taskType == 'material' && _selectedLearningMaterials.isEmpty) {
+      context.showCenteredNotice(
+        _t(context, '请先选择学习素材', 'Please choose learning material'),
+      );
+      return;
+    }
 
     setState(() => _saving = true);
     try {
@@ -560,7 +578,11 @@ class _DoctorTaskEditorScreenState
             taskType: _taskType,
             source: source,
             sourceId: sourceId,
-            attachments: _selectedAttachments,
+            attachments: _taskType == 'material'
+                ? _selectedLearningMaterials
+                      .map(_learningMaterialPayload)
+                      .toList(growable: false)
+                : const [],
             pointsReward: int.tryParse(_rewardController.text.trim()) ?? 20,
             requiresFeedback: _taskType != 'assessment' && _requiresFeedback,
             feedbackPrompt: _taskType != 'assessment'
@@ -588,11 +610,11 @@ class _DoctorTaskEditorScreenState
 class _AttachmentSelectionSheet extends StatefulWidget {
   const _AttachmentSelectionSheet({
     required this.items,
-    required this.selectedTitles,
+    required this.selectedItems,
   });
 
   final List<MaterialItem> items;
-  final List<String> selectedTitles;
+  final List<MaterialItem> selectedItems;
 
   @override
   State<_AttachmentSelectionSheet> createState() =>
@@ -600,12 +622,12 @@ class _AttachmentSelectionSheet extends StatefulWidget {
 }
 
 class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
-  late final Set<String> _selectedTitles;
+  late final Set<int> _selectedIds;
 
   @override
   void initState() {
     super.initState();
-    _selectedTitles = widget.selectedTitles.toSet();
+    _selectedIds = widget.selectedItems.map((item) => item.id).toSet();
   }
 
   @override
@@ -624,7 +646,7 @@ class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                _t(context, '附件选择', 'Attachments'),
+                _t(context, '学习素材', 'Learning material'),
                 style: TextStyle(
                   color: palette.primaryText,
                   fontSize: 22,
@@ -658,15 +680,15 @@ class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final item = widget.items[index];
-                      final selected = _selectedTitles.contains(item.title);
+                      final selected = _selectedIds.contains(item.id);
                       return InkWell(
                         borderRadius: BorderRadius.circular(20),
                         onTap: () {
                           setState(() {
                             if (selected) {
-                              _selectedTitles.remove(item.title);
+                              _selectedIds.remove(item.id);
                             } else {
-                              _selectedTitles.add(item.title);
+                              _selectedIds.add(item.id);
                             }
                           });
                         },
@@ -683,13 +705,17 @@ class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
                               Container(
                                 width: 40,
                                 height: 40,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFEAF7E7),
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? const Color(0xFFFFE8E3)
+                                      : const Color(0xFFEAF1FF),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
                                   _materialIcon(item.mediaType),
-                                  color: const Color(0xFF69CB69),
+                                  color: selected
+                                      ? const Color(0xFFFF9585)
+                                      : const Color(0xFF5A81DA),
                                 ),
                               ),
                               const SizedBox(width: 14),
@@ -711,7 +737,7 @@ class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
                                     ? Icons.check_circle_rounded
                                     : Icons.circle_outlined,
                                 color: selected
-                                    ? const Color(0xFF68C140)
+                                    ? const Color(0xFFFF9585)
                                     : palette.outline,
                               ),
                             ],
@@ -723,9 +749,11 @@ class _AttachmentSelectionSheetState extends State<_AttachmentSelectionSheet> {
                 ),
               const SizedBox(height: 18),
               FilledButton(
-                onPressed: () => Navigator.of(
-                  context,
-                ).pop(_selectedTitles.toList(growable: false)),
+                onPressed: () => Navigator.of(context).pop(
+                  widget.items
+                      .where((item) => _selectedIds.contains(item.id))
+                      .toList(growable: false),
+                ),
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(56),
                   backgroundColor: const Color(0xFF5A81DA),
@@ -959,17 +987,28 @@ TimeOfDay? _parseClockTime(String value) {
   return TimeOfDay(hour: hour, minute: minute);
 }
 
-String _attachmentSummary(BuildContext context, List<String> attachments) {
-  if (attachments.isEmpty) {
+Map<String, dynamic> _learningMaterialPayload(MaterialItem item) {
+  return {
+    'material_id': item.id,
+    'title': item.title,
+    'media_type': item.mediaType,
+  };
+}
+
+String _learningMaterialSummary(
+  BuildContext context,
+  List<MaterialItem> materials,
+) {
+  if (materials.isEmpty) {
     return _t(context, '无', 'None');
   }
-  if (attachments.length == 1) {
-    return attachments.first;
+  if (materials.length == 1) {
+    return materials.first.title;
   }
   return _t(
     context,
-    '${attachments.first} 等${attachments.length}项',
-    '${attachments.length} selected',
+    '${materials.first.title} 等${materials.length}项',
+    '${materials.length} selected',
   );
 }
 

@@ -249,7 +249,7 @@ class DoctorRepository {
     String taskType = 'daily',
     String source = 'doctor',
     String sourceId = '',
-    List<String> attachments = const [],
+    List<Map<String, dynamic>> attachments = const [],
     int pointsReward = 10,
     bool requiresFeedback = false,
     String feedbackPrompt = '',
