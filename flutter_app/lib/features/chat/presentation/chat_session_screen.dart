@@ -55,6 +55,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   Timer? _callFrameTimer;
   Timer? _callPingTimer;
   Timer? _callAudioWatchdogTimer;
+  Timer? _callTurnCommitTimer;
   Duration _recordingElapsed = Duration.zero;
   DateTime? _recordingStartedAt;
   DateTime? _callStartedAt;
@@ -79,6 +80,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   bool _callRecording = false;
   bool _callCapturingFrame = false;
   bool _callAudioReadyForFrame = false;
+  bool _callPendingAudioTurn = false;
+  bool _callResponseActive = false;
   bool _promptGateShown = false;
   String _callStatusMessage = '';
   String _callAssistantText = '';
@@ -357,6 +360,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       _callConnected = false;
       _callUpstreamReady = false;
       _callRecording = false;
+      _callResponseActive = false;
       _callStatusMessage = '';
       _callAssistantText = '';
       _cameraInitializing = false;
@@ -420,6 +424,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         _callConnected = false;
         _callUpstreamReady = false;
         _callRecording = false;
+        _callResponseActive = false;
         _callStatusMessage = '';
         _callAssistantText = '';
         _cameraInitializing = false;
@@ -447,7 +452,6 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       _cameraErrorMessage = null;
     });
     await _ensureCallCameraReady();
-    _startCallFrameTimer();
   }
 
   Future<void> _toggleCallFlash() async {
@@ -504,6 +508,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       _callSentAudioChunks = 0;
       _callSentVideoFrames = 0;
       _callAudioReadyForFrame = false;
+      _callPendingAudioTurn = false;
+      _callResponseActive = false;
       _callLastVideoFrameAt = null;
     });
 
@@ -590,6 +596,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     _stopCallPingTimer();
     _stopCallFrameTimer();
     _stopCallAudioWatchdog();
+    _stopCallTurnCommitTimer();
     await _stopCallAudio();
     final socket = _callSocket;
     _callSocket = null;
@@ -599,6 +606,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     await _callAudioPlayer.stop();
     _callOutputPcmChunks.clear();
     _callAudioReadyForFrame = false;
+    _callPendingAudioTurn = false;
+    _callResponseActive = false;
     _callLastVideoFrameAt = null;
     if (mounted) {
       setState(() {
@@ -606,6 +615,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         _callConnected = false;
         _callUpstreamReady = false;
         _callRecording = false;
+        _callResponseActive = false;
       });
     } else {
       _callConnecting = false;
@@ -645,7 +655,6 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         'session': _buildRealtimeSession(payload['session']),
       });
       unawaited(_startCallAudio());
-      _startCallFrameTimer();
       return;
     }
 
@@ -659,7 +668,9 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     if (type == 'response.started') {
       setState(() {
         _callStatusMessage = _t(context, 'AI 正在回答', 'AI is responding');
+        _callAssistantText = '';
       });
+      _callResponseActive = true;
       _callOutputPcmChunks.clear();
       return;
     }
@@ -681,12 +692,16 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     }
 
     if (type == 'response.done') {
+      final hasOutputAudio = _callOutputPcmChunks.isNotEmpty;
       _callAudioReadyForFrame = false;
+      _callPendingAudioTurn = false;
+      _callResponseActive = false;
       _callLastVideoFrameAt = null;
       setState(() {
         _callStatusMessage = _t(context, '你可以继续说话', 'You can continue talking');
       });
       unawaited(_playRealtimeAudio());
+      unawaited(_saveRealtimeAssistantText(hasOutputAudio: hasOutputAudio));
       return;
     }
 
@@ -724,11 +739,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
           '${_modeDescription(context, widget.chatMode)}\n'
           '请以 HelpSupport 的 AI 心理医生身份进行实时对话，回答要简洁、温和、可执行。'
           '如果用户表达自伤、自杀、伤人或失控风险，立即建议联系家属、当地急救电话或线下精神心理专科。',
-      'turn_detection': {
-        'type': 'server_vad',
-        'threshold': 0.5,
-        'silence_duration_ms': 800,
-      },
+      'turn_detection': {'type': 'manual'},
       'temperature': 0.8,
       'tools': const <Object>[],
     };
@@ -772,7 +783,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         });
         _callSentAudioChunks++;
         _callAudioReadyForFrame = true;
-        unawaited(_sendCallVideoFrame());
+        _callPendingAudioTurn = true;
+        _scheduleCallTurnCommit();
       },
       onError: (Object error) {
         _stopCallAudioWatchdog();
@@ -830,6 +842,74 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   void _stopCallAudioWatchdog() {
     _callAudioWatchdogTimer?.cancel();
     _callAudioWatchdogTimer = null;
+  }
+
+  void _scheduleCallTurnCommit() {
+    _stopCallTurnCommitTimer();
+    _callTurnCommitTimer = Timer(const Duration(milliseconds: 1200), () {
+      _commitCallAudioTurn();
+    });
+  }
+
+  void _stopCallTurnCommitTimer() {
+    _callTurnCommitTimer?.cancel();
+    _callTurnCommitTimer = null;
+  }
+
+  void _commitCallAudioTurn() {
+    _stopCallTurnCommitTimer();
+    if (!_callPendingAudioTurn ||
+        !_callConnected ||
+        !_callUpstreamReady ||
+        _callResponseActive) {
+      return;
+    }
+    _callPendingAudioTurn = false;
+    _sendRealtimeJson({
+      'type': 'input_audio_buffer.commit',
+      'event_id': _realtimeEventId('commit'),
+    });
+    _sendRealtimeJson({
+      'type': 'response.create',
+      'event_id': _realtimeEventId('response'),
+    });
+    if (mounted) {
+      setState(() {
+        _callStatusMessage = _t(context, 'AI 正在思考', 'AI is thinking');
+      });
+    }
+  }
+
+  Future<void> _saveRealtimeAssistantText({
+    required bool hasOutputAudio,
+  }) async {
+    final content = _callAssistantText.trim();
+    if (content.isEmpty) {
+      if (mounted && !hasOutputAudio) {
+        setState(() {
+          _callStatusMessage = _t(
+            context,
+            'AI 未返回文本或音频，请再说一次',
+            'AI returned no text or audio. Please try again.',
+          );
+        });
+      }
+      return;
+    }
+    try {
+      await ref
+          .read(chatRepositoryProvider)
+          .saveRealtimeAssistantRecord(
+            sessionId: widget.sessionId,
+            content: content,
+          );
+      ref.invalidate(chatRecordsProvider(widget.sessionId));
+      ref.invalidate(chatOverviewProvider);
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(error.toString());
+      }
+    }
   }
 
   void _startCallFrameTimer() {

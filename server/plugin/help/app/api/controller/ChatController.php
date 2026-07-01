@@ -199,6 +199,18 @@ class ChatController extends BaseController
         return ok($this->service->saveUserChatRecord($this->memberId, $request->post()));
     }
 
+    #[Apidoc\Title('保存实时通话AI消息')]
+    #[Apidoc\Url('/app/help/chat/realtime/assistant-record')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('session_id', type: 'int', require: true, desc: '会话ID')]
+    #[Apidoc\Param('content', type: 'string', require: true, desc: 'AI消息内容')]
+    #[Apidoc\Returned('id', type: 'int', desc: '消息ID')]
+    #[Apidoc\Returned('message_time', type: 'datetime', desc: '消息时间')]
+    public function saveRealtimeAssistantRecord(Request $request): Response
+    {
+        return ok($this->service->saveRealtimeAssistantChatRecord($this->memberId, $request->post()));
+    }
+
     #[Apidoc\Title('发送在线AI消息')]
     #[Apidoc\Url('/app/help/chat/send')]
     #[Apidoc\Method('POST')]

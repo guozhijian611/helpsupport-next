@@ -151,6 +151,27 @@ class ChatRepository {
     return record;
   }
 
+  Future<ChatRecord> saveRealtimeAssistantRecord({
+    required int sessionId,
+    required String content,
+  }) async {
+    final result = await _apiClient.postApi<ChatRecord>(
+      '/app/help/chat/realtime/assistant-record',
+      data: {'session_id': sessionId, 'content': content},
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return ChatRecord.fromJson(value);
+        }
+        throw const FormatException('Unexpected chat record shape');
+      },
+    );
+    final record = result.data;
+    if (record == null || record.id <= 0) {
+      throw const FormatException('AI 通话消息保存失败');
+    }
+    return record;
+  }
+
   Future<ChatSendResult> sendMessage({
     required int sessionId,
     required String chatMode,

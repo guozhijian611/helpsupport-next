@@ -1154,6 +1154,51 @@ class HelpApiService
         return Db::table('sa_member_chat_record')->where('id', $id)->find() ?: [];
     }
 
+    public function saveRealtimeAssistantChatRecord(int $memberId, array $data): array
+    {
+        $sessionId = (int) ($data['session_id'] ?? 0);
+        $content = trim((string) ($data['content'] ?? ''));
+        if ($sessionId <= 0) {
+            throw new ApiException('会话ID必须填写', 400);
+        }
+        if ($content === '') {
+            throw new ApiException('AI消息内容必须填写', 400);
+        }
+
+        $content = (new HelpRiskService())->filterText('chat', $content);
+        if ($content === '') {
+            throw new ApiException('AI消息内容必须填写', 400);
+        }
+
+        $session = $this->assertChatSession($memberId, $sessionId);
+        $now = date('Y-m-d H:i:s');
+        $summary = $this->chatSummary($content, 'text');
+
+        $id = Db::transaction(function () use ($memberId, $session, $sessionId, $content, $summary, $now) {
+            $record = $this->insertChatRecord(
+                $memberId,
+                $sessionId,
+                (string) $session['chat_mode'],
+                'assistant',
+                $content,
+                'text',
+                json_encode(['source' => 'realtime_call'], JSON_UNESCAPED_UNICODE),
+                $now
+            );
+
+            Db::table('sa_member_chat_session')->where('id', $sessionId)->update([
+                'last_message' => $summary,
+                'last_message_time' => $now,
+                'updated_by' => $memberId,
+                'update_time' => $now,
+            ]);
+
+            return (int) ($record['id'] ?? 0);
+        });
+
+        return Db::table('sa_member_chat_record')->where('id', $id)->find() ?: [];
+    }
+
     public function sendChatMessage(int $memberId, array $data): array
     {
         $sessionId = (int) ($data['session_id'] ?? 0);
