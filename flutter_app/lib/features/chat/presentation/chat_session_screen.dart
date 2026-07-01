@@ -2934,9 +2934,7 @@ class _DoctorCallView extends StatelessWidget {
     final prompt = statusMessage.trim().isEmpty
         ? fallbackPrompt
         : statusMessage.trim();
-    final subtitle = assistantText.trim().isEmpty
-        ? prompt
-        : assistantText.trim();
+    final subtitle = assistantText.trim();
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 260),
@@ -3024,22 +3022,8 @@ class _DoctorCallView extends StatelessWidget {
                 ),
               ),
             ),
-            if (subtitlesEnabled)
-              Positioned(
-                top: 62,
-                left: 24,
-                right: 24,
-                child: Center(
-                  child: _CallGlassChip(
-                    label: subtitle,
-                    icon: Icons.subtitles_rounded,
-                    darkBackdrop: videoEnabled,
-                    maxLines: 2,
-                  ),
-                ),
-              ),
             Positioned(
-              top: subtitlesEnabled ? 148 : 64,
+              top: 64,
               left: 12,
               right: 12,
               child: _CallDebugOverlay(
@@ -3048,6 +3032,16 @@ class _DoctorCallView extends StatelessWidget {
                 onToggle: onToggleDebug,
               ),
             ),
+            if (subtitlesEnabled && subtitle.isNotEmpty)
+              Positioned(
+                left: 18,
+                right: 18,
+                bottom: 224,
+                child: _CallSubtitlePanel(
+                  label: subtitle,
+                  darkBackdrop: videoEnabled,
+                ),
+              ),
             Positioned(
               left: 0,
               right: 0,
@@ -3227,6 +3221,54 @@ class _CallDebugOverlay extends StatelessWidget {
                   ),
                 ),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CallSubtitlePanel extends StatelessWidget {
+  const _CallSubtitlePanel({required this.label, required this.darkBackdrop});
+
+  final String label;
+  final bool darkBackdrop;
+
+  @override
+  Widget build(BuildContext context) {
+    final background = darkBackdrop
+        ? Colors.black.withValues(alpha: 0.62)
+        : Colors.white.withValues(alpha: 0.82);
+    final borderColor = darkBackdrop
+        ? Colors.white.withValues(alpha: 0.16)
+        : const Color(0xFFECE7E4);
+    final foreground = darkBackdrop ? Colors.white : const Color(0xFF303236);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: darkBackdrop ? 0.24 : 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 150),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(14, 11, 14, 12),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: foreground,
+              fontSize: 15,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
