@@ -228,7 +228,7 @@ class CommunityController extends BaseController
     #[Apidoc\Title('社区内容审核列表')]
     #[Apidoc\Url('/app/help/community/review/posts')]
     #[Apidoc\Method('GET')]
-    #[Apidoc\Query('scope', type: 'string', require: false, default: 'pending', desc: 'pending 待审核，reviewed 已审核')]
+    #[Apidoc\Query('scope', type: 'string', require: false, default: 'pending', desc: 'pending 待审核，reviewed 当前医生已审核')]
     #[Apidoc\Query('keyword', type: 'string', require: false, desc: '关键词')]
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]

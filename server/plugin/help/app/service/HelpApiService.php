@@ -1566,7 +1566,7 @@ class HelpApiService
         $scope = trim((string) ($params['scope'] ?? 'pending'));
         $scope = $scope === 'reviewed' ? 'reviewed' : 'pending';
 
-        $page = $this->paginate(function () use ($scope, $params) {
+        $page = $this->paginate(function () use ($scope, $params, $doctorId) {
             $query = Db::table('sa_community_post')
                 ->alias('p')
                 ->leftJoin('sa_member m', 'm.id = p.member_id AND m.delete_time IS NULL')
@@ -1574,7 +1574,8 @@ class HelpApiService
                 ->field('p.*, m.nickname AS author_name, m.avatar AS author_avatar');
 
             if ($scope === 'reviewed') {
-                $query->whereIn('p.audit_status', [1, 2]);
+                $query->whereIn('p.audit_status', [1, 2])
+                    ->where('p.audit_by', $doctorId);
             } else {
                 $query->whereIn('p.audit_status', [0, 3]);
             }
