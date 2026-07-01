@@ -1,21 +1,21 @@
 <template>
-  <div class="art-card h-128 p-5 mb-5 max-sm:mb-4">
+  <div class="art-card signal-card p-5 mb-5 max-sm:mb-4">
     <div class="art-card-header">
       <div class="title">
-        <h4>动态</h4>
-        <p>新增<span class="text-success">+6</span></p>
+        <h4>运营信号</h4>
+        <p>管理员每天要扫的增长与风险信号</p>
       </div>
     </div>
 
-    <div class="h-9/10 mt-2 overflow-hidden">
+    <div class="mt-2 overflow-hidden">
       <ElScrollbar>
         <div
           class="h-17.5 leading-17.5 border-b border-g-300 text-sm overflow-hidden last:border-b-0"
           v-for="(item, index) in list"
           :key="index"
         >
-          <span class="text-g-800 font-medium">{{ item.username }}</span>
-          <span class="mx-2 text-g-600">{{ item.type }}</span>
+          <span class="text-g-800 font-medium">{{ item.module }}</span>
+          <span class="mx-2 text-g-600">{{ item.action }}</span>
           <span class="text-theme">{{ item.target }}</span>
         </div>
       </ElScrollbar>
@@ -25,55 +25,57 @@
 
 <script setup lang="ts">
   interface DynamicItem {
-    username: string
-    type: string
+    module: string
+    action: string
     target: string
   }
 
-  /**
-   * 用户动态列表
-   * 记录用户的关注、发文、提问、兑换等各类活动
-   */
   const list = reactive<DynamicItem[]>([
     {
-      username: '中小鱼',
-      type: '关注了',
-      target: '誶誶淰'
+      module: '帖子',
+      action: '关注',
+      target: '浏览高但互动低的内容'
     },
     {
-      username: '何小荷',
-      type: '发表文章',
-      target: 'Vue3 + Typescript + Vite 项目实战笔记'
+      module: '评论',
+      action: '排查',
+      target: 'AI 标记和待审核评论'
     },
     {
-      username: '中小鱼',
-      type: '关注了',
-      target: '誶誶淰'
+      module: '举报',
+      action: '优先处理',
+      target: '帖子和评论举报'
     },
     {
-      username: '何小荷',
-      type: '发表文章',
-      target: 'Vue3 + Typescript + Vite 项目实战笔记'
+      module: '医生',
+      action: '提升',
+      target: '审核通过率和预约履约'
     },
     {
-      username: '誶誶淰',
-      type: '提出问题',
-      target: '主题可以配置吗'
+      module: '计划',
+      action: '观察',
+      target: '每日任务反馈质量'
     },
     {
-      username: '发呆草',
-      type: '兑换了物品',
-      target: '《奇特的一生》'
+      module: '素材',
+      action: '优化',
+      target: '教育与娱乐内容供给'
     },
     {
-      username: '甜筒',
-      type: '关闭了问题',
-      target: '发呆草'
+      module: '推送',
+      action: '复盘',
+      target: '失败率和未读消息'
     },
     {
-      username: '冷月呆呆',
-      type: '兑换了物品',
-      target: '《高效人士的七个习惯》'
+      module: 'AI',
+      action: '对比',
+      target: '聊天模式和提示词效果'
     }
   ])
 </script>
+
+<style lang="scss" scoped>
+  .signal-card {
+    min-height: 360px;
+  }
+</style>

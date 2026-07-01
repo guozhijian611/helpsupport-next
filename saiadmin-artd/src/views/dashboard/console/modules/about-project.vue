@@ -1,23 +1,28 @@
 <template>
-  <div class="art-card p-5 flex-b mb-5 max-sm:mb-4">
-    <div>
-      <h2 class="text-2xl font-medium">关于项目</h2>
-      <p class="text-g-700 mt-1">{{ systemName }} 是一款兼具设计美学与高效开发的后台系统</p>
-      <p class="text-g-700 mt-1">使用了 webman + Vue3 + Element Plus 高性能、高颜值技术栈</p>
+  <div class="art-card p-5 mb-5 max-sm:mb-4">
+    <div class="flex-b gap-6 max-md:flex-col max-md:items-start">
+      <div>
+        <h2 class="text-2xl font-medium">运营地图</h2>
+        <p class="text-g-700 mt-1">
+          {{ systemName }} 当前工作台聚合社区、内容、医生服务、康复计划、AI
+          咨询、推送触达与风险治理。
+        </p>
+        <p class="text-g-700 mt-1">
+          管理员可以先看运营指标，再进入对应业务页处理帖子、举报、预约、素材、消息和配置。
+        </p>
+      </div>
+      <ElTag type="success" effect="light">运营驾驶舱</ElTag>
+    </div>
 
-      <div class="flex flex-wrap gap-3.5 max-w-150 mt-9">
-        <div
-          class="w-60 flex-cb h-12.5 px-3.5 border border-g-300 c-p rounded-lg text-sm bg-g-100 duration-300 hover:-translate-y-1 max-sm:w-full"
-          v-for="link in linkList"
-          :key="link.label"
-          @click="goPage(link.url)"
-        >
-          <span class="text-g-700">{{ link.label }}</span>
-          <ArtSvgIcon icon="ri:arrow-right-s-line" class="text-lg text-g-600" />
+    <div class="info-grid mt-6">
+      <div v-for="item in infoList" :key="item.label" class="info-item">
+        <div class="flex-c">
+          <ArtSvgIcon :icon="item.icon" class="text-xl text-theme" />
+          <span class="ml-2 text-g-600 text-sm">{{ item.label }}</span>
         </div>
+        <p class="mt-3 text-lg font-medium text-g-900">{{ item.value }}</p>
       </div>
     </div>
-    <img class="w-75 max-md:!hidden" src="@imgs/draw/draw1.png" alt="draw1" />
   </div>
 </template>
 
@@ -26,18 +31,38 @@
 
   const systemName = AppConfig.systemInfo.name
 
-  const linkList = [
-    { label: '项目官网', url: 'https://saithink.top/' },
-    { label: '文档', url: 'https://saithink.top/documents/' },
-    { label: 'Github', url: 'https://github.com/saithink/saiadmin' },
-    { label: '插件市场', url: 'https://saas.saithink.top/' }
+  const infoList = [
+    { label: '社区增长', value: '帖子、评论、标签、举报', icon: 'ri:article-line' },
+    { label: '服务履约', value: '医生、排班、预约、患者', icon: 'ri:user-heart-line' },
+    { label: '康复留存', value: '计划、任务、评估、目标', icon: 'ri:calendar-check-line' },
+    { label: '触达转化', value: '消息、推送、AI 会话', icon: 'ri:notification-3-line' }
   ]
-
-  /**
-   * 在新标签页中打开指定 URL
-   * @param url 要打开的网页地址
-   */
-  const goPage = (url: string): void => {
-    window.open(url, '_blank', 'noopener,noreferrer')
-  }
 </script>
+
+<style lang="scss" scoped>
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .info-item {
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid var(--default-border);
+    border-radius: 10px;
+    background: var(--default-bg-color);
+  }
+
+  @media (max-width: 1100px) {
+    .info-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 640px) {
+    .info-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,15 +1,11 @@
 <template>
-  <div class="art-card p-5 h-128 overflow-hidden mb-5 max-sm:mb-4">
+  <div class="art-card p-5 mb-5 max-sm:mb-4">
     <div class="art-card-header">
       <div class="title">
-        <h4>新用户</h4>
-        <p>这个月增长<span class="text-success">+20%</span></p>
+        <h4>运营模块</h4>
+        <p>从内容、服务、触达、增长四条线看当前系统</p>
       </div>
-      <ElRadioGroup v-model="radio2">
-        <ElRadioButton value="本月" label="本月"></ElRadioButton>
-        <ElRadioButton value="上月" label="上月"></ElRadioButton>
-        <ElRadioButton value="今年" label="今年"></ElRadioButton>
-      </ElRadioGroup>
+      <ElTag type="success" effect="light">运营视角</ElTag>
     </div>
     <ArtTable
       class="w-full"
@@ -21,30 +17,34 @@
       :header-cell-style="{ background: 'transparent' }"
     >
       <template #default>
-        <ElTableColumn label="头像" prop="avatar" width="150px">
+        <ElTableColumn label="运营域" prop="module" min-width="150">
           <template #default="scope">
-            <div style="display: flex; align-items: center">
-              <img class="size-9 rounded-lg" :src="scope.row.avatar" alt="avatar" />
-              <span class="ml-2">{{ scope.row.username }}</span>
+            <div class="flex-c min-w-0">
+              <span class="entry-icon" :class="scope.row.type">
+                <ArtSvgIcon :icon="scope.row.icon" class="text-lg" />
+              </span>
+              <span class="ml-2 font-medium truncate">{{ scope.row.module }}</span>
             </div>
           </template>
         </ElTableColumn>
-        <ElTableColumn label="地区" prop="province" />
-        <ElTableColumn label="性别" prop="avatar">
+        <ElTableColumn label="观察重点" prop="description" min-width="260" show-overflow-tooltip />
+        <ElTableColumn label="状态" prop="status" width="120">
           <template #default="scope">
-            <div style="display: flex; align-items: center">
-              <span style="margin-left: 10px">{{ scope.row.sex === 1 ? '男' : '女' }}</span>
-            </div>
+            <ElTag :type="scope.row.tagType" effect="light">{{ scope.row.status }}</ElTag>
           </template>
         </ElTableColumn>
-        <ElTableColumn label="进度" width="240">
+        <ElTableColumn label="运营成熟度" width="180">
           <template #default="scope">
             <ElProgress
-              :percentage="scope.row.pro"
+              :percentage="scope.row.percent"
               :color="scope.row.color"
               :stroke-width="4"
-              :aria-label="`${scope.row.username}的完成进度: ${scope.row.pro}%`"
             />
+          </template>
+        </ElTableColumn>
+        <ElTableColumn label="操作" width="110" fixed="right">
+          <template #default="scope">
+            <ElButton type="primary" link @click="goPage(scope.row.path)">进入</ElButton>
           </template>
         </ElTableColumn>
       </template>
@@ -53,117 +53,125 @@
 </template>
 
 <script setup lang="ts">
-  import avatar1 from '@/assets/images/avatar/avatar1.webp'
-  import avatar2 from '@/assets/images/avatar/avatar2.webp'
-  import avatar3 from '@/assets/images/avatar/avatar3.webp'
-  import avatar4 from '@/assets/images/avatar/avatar4.webp'
-  import avatar5 from '@/assets/images/avatar/avatar5.webp'
-  import avatar6 from '@/assets/images/avatar/avatar6.webp'
+  import type { TagProps } from 'element-plus'
+  import { useRouter } from 'vue-router'
 
-  interface UserTableItem {
-    username: string
-    province: string
-    sex: 0 | 1
-    age: number
-    percentage: number
-    pro: number
+  interface OperationEntry {
+    module: string
+    description: string
+    status: string
+    tagType: TagProps['type']
+    percent: number
     color: string
-    avatar: string
+    icon: string
+    type: 'primary' | 'success' | 'warning' | 'info'
+    path: string
   }
 
-  const ANIMATION_DELAY = 100
+  const router = useRouter()
 
-  const radio2 = ref('本月')
-
-  /**
-   * 新用户表格数据
-   * 包含用户基本信息和完成进度
-   */
-  const tableData = reactive<UserTableItem[]>([
+  const tableData = reactive<OperationEntry[]>([
     {
-      username: '中小鱼',
-      province: '北京',
-      sex: 0,
-      age: 22,
-      percentage: 60,
-      pro: 0,
+      module: '社区内容',
+      description: '帖子热度、评论互动、审核状态和举报联动',
+      status: '内容增长',
+      tagType: 'success',
+      percent: 86,
       color: 'var(--art-primary)',
-      avatar: avatar1
+      icon: 'ri:article-line',
+      type: 'primary',
+      path: '/helpsupport/community/post'
     },
     {
-      username: '何小荷',
-      province: '深圳',
-      sex: 1,
-      age: 21,
-      percentage: 20,
-      pro: 0,
-      color: 'var(--art-secondary)',
-      avatar: avatar2
-    },
-    {
-      username: '誶誶淰',
-      province: '上海',
-      sex: 1,
-      age: 23,
-      percentage: 60,
-      pro: 0,
+      module: '社区安全',
+      description: '举报处理、评论审核、敏感词规则和内容隐藏',
+      status: '风控队列',
+      tagType: 'warning',
+      percent: 82,
       color: 'var(--art-warning)',
-      avatar: avatar3
+      icon: 'ri:shield-check-line',
+      type: 'warning',
+      path: '/helpsupport/community/report'
     },
     {
-      username: '发呆草',
-      province: '长沙',
-      sex: 0,
-      age: 28,
-      percentage: 50,
-      pro: 0,
-      color: 'var(--art-info)',
-      avatar: avatar4
-    },
-    {
-      username: '甜筒',
-      province: '浙江',
-      sex: 1,
-      age: 26,
-      percentage: 70,
-      pro: 0,
-      color: 'var(--art-error)',
-      avatar: avatar5
-    },
-    {
-      username: '冷月呆呆',
-      province: '湖北',
-      sex: 1,
-      age: 25,
-      percentage: 90,
-      pro: 0,
+      module: '医生服务',
+      description: '医生入驻审核、排班、预约确认和服务完成',
+      status: '供给履约',
+      tagType: 'primary',
+      percent: 79,
       color: 'var(--art-success)',
-      avatar: avatar6
+      icon: 'ri:user-heart-line',
+      type: 'success',
+      path: '/helpsupport/appointment/doctorAppointment'
+    },
+    {
+      module: '康复计划',
+      description: '治疗计划、每日任务、评估结果和患者反馈',
+      status: '留存主线',
+      tagType: 'info',
+      percent: 84,
+      color: 'var(--art-info)',
+      icon: 'ri:calendar-check-line',
+      type: 'info',
+      path: '/helpsupport/plan/dailyTask'
+    },
+    {
+      module: 'AI 咨询',
+      description: '会话规模、聊天模式、提示词和本地模型配置',
+      status: '互动引擎',
+      tagType: 'success',
+      percent: 81,
+      color: 'var(--art-primary)',
+      icon: 'ri:chat-smile-3-line',
+      type: 'primary',
+      path: '/helpsupport/chat/session'
+    },
+    {
+      module: '消息触达',
+      description: '会员消息、推送状态、设备偏好和模板效果',
+      status: '召回触达',
+      tagType: 'warning',
+      percent: 74,
+      color: 'var(--art-warning)',
+      icon: 'ri:notification-3-line',
+      type: 'warning',
+      path: '/helpsupport/message/memberMessage'
     }
   ])
 
-  /**
-   * 添加进度条动画效果
-   * 延迟后将进度值从 0 更新到目标百分比，触发动画
-   */
-  const addAnimation = (): void => {
-    setTimeout(() => {
-      tableData.forEach((item) => {
-        item.pro = item.percentage
-      })
-    }, ANIMATION_DELAY)
+  const goPage = (path: string) => {
+    router.push(path)
   }
-
-  onMounted(() => {
-    addAnimation()
-  })
 </script>
 
 <style lang="scss" scoped>
-  .art-card {
-    :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-      color: var(--el-color-primary) !important;
-      background: transparent !important;
+  .entry-icon {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &.primary {
+      color: var(--art-primary);
+      background: rgba(93, 135, 255, 0.1);
+    }
+
+    &.success {
+      color: var(--art-success);
+      background: rgba(64, 190, 88, 0.1);
+    }
+
+    &.warning {
+      color: var(--art-warning);
+      background: rgba(245, 166, 35, 0.12);
+    }
+
+    &.info {
+      color: var(--art-info);
+      background: rgba(56, 192, 252, 0.1);
     }
   }
 </style>

@@ -1,32 +1,31 @@
 <!-- 工作台页面 -->
 <template>
-  <div>
-    <template v-if="userInfo.dashboard === 'statistics'">
-      <CardList></CardList>
+  <div class="console-page">
+    <CardList />
 
-      <ElRow :gutter="20">
-        <ElCol :sm="24" :md="12" :lg="10">
-          <ActiveUser />
-        </ElCol>
-        <ElCol :sm="24" :md="12" :lg="14">
-          <SalesOverview />
-        </ElCol>
-      </ElRow>
-    </template>
+    <ElRow :gutter="20">
+      <ElCol :xs="24" :sm="24" :md="24" :lg="15">
+        <SalesOverview />
+      </ElCol>
+      <ElCol :xs="24" :sm="24" :md="24" :lg="9">
+        <ActiveUser />
+      </ElCol>
+    </ElRow>
 
-    <template v-if="userInfo.dashboard === 'work'">
-      <ElRow :gutter="20">
-        <ElCol :sm="24" :md="24" :lg="12">
-          <NewUser />
-        </ElCol>
-        <ElCol :sm="24" :md="12" :lg="6">
-          <Dynamic />
-        </ElCol>
-        <ElCol :sm="24" :md="12" :lg="6">
-          <TodoList />
-        </ElCol>
-      </ElRow>
-    </template>
+    <ElRow :gutter="20">
+      <ElCol :span="24">
+        <NewUser />
+      </ElCol>
+    </ElRow>
+
+    <ElRow :gutter="20">
+      <ElCol :xs="24" :sm="24" :md="12" :lg="12">
+        <Dynamic />
+      </ElCol>
+      <ElCol :xs="24" :sm="24" :md="12" :lg="12">
+        <TodoList />
+      </ElCol>
+    </ElRow>
 
     <AboutProject />
   </div>
@@ -41,13 +40,15 @@
   import Dynamic from './modules/dynamic-stats.vue'
   import TodoList from './modules/todo-list.vue'
   import { useCommon } from '@/hooks/core/useCommon'
-  import { useUserStore } from '@/store/modules/user'
 
   defineOptions({ name: 'Console' })
-
-  const userStore = useUserStore()
-  const userInfo = userStore.getUserInfo
 
   const { scrollToTop } = useCommon()
   scrollToTop()
 </script>
+
+<style lang="scss" scoped>
+  .console-page {
+    min-width: 0;
+  }
+</style>

@@ -1,13 +1,15 @@
 <template>
-  <div class="art-card h-128 p-5 mb-5 max-sm:mb-4">
+  <div class="art-card action-card p-5 mb-5 max-sm:mb-4">
     <div class="art-card-header">
       <div class="title">
-        <h4>代办事项</h4>
-        <p>待处理<span class="text-danger">3</span></p>
+        <h4>今日动作</h4>
+        <p
+          >待处理<span class="text-danger">{{ pendingCount }}</span></p
+        >
       </div>
     </div>
 
-    <div class="h-[calc(100%-40px)] overflow-auto">
+    <div class="overflow-auto">
       <ElScrollbar>
         <div
           class="flex-cb h-17.5 border-b border-g-300 text-sm last:border-b-0"
@@ -15,10 +17,10 @@
           :key="index"
         >
           <div>
-            <p class="text-sm">{{ item.username }}</p>
-            <p class="text-g-500 mt-1">{{ item.date }}</p>
+            <p class="text-sm">{{ item.title }}</p>
+            <p class="text-g-500 mt-1">{{ item.description }}</p>
           </div>
-          <ElCheckbox v-model="item.complate" />
+          <ElCheckbox v-model="item.complete" />
         </div>
       </ElScrollbar>
     </div>
@@ -27,45 +29,49 @@
 
 <script setup lang="ts">
   interface TodoItem {
-    username: string
-    date: string
-    complate: boolean
+    title: string
+    description: string
+    complete: boolean
   }
 
-  /**
-   * 待办事项列表
-   * 记录每日工作任务及完成状态
-   */
   const list = reactive<TodoItem[]>([
     {
-      username: '查看今天工作内容',
-      date: '上午 09:30',
-      complate: true
+      title: '看帖子热榜',
+      description: '找可推荐内容和异常互动',
+      complete: true
     },
     {
-      username: '回复邮件',
-      date: '上午 10:30',
-      complate: true
+      title: '清空举报队列',
+      description: '先处理帖子和评论举报',
+      complete: false
     },
     {
-      username: '工作汇报整理',
-      date: '上午 11:00',
-      complate: true
+      title: '复核待审评论',
+      description: '处理 AI 标记与用户反馈',
+      complete: false
     },
     {
-      username: '产品需求会议',
-      date: '下午 02:00',
-      complate: false
+      title: '跟进医生预约',
+      description: '待确认和待完成订单',
+      complete: true
     },
     {
-      username: '整理会议内容',
-      date: '下午 03:30',
-      complate: false
+      title: '补齐内容供给',
+      description: '素材分类、封面、摘要、多语言',
+      complete: false
     },
     {
-      username: '明天工作计划',
-      date: '下午 06:30',
-      complate: false
+      title: '复盘推送触达',
+      description: '失败推送、未读消息、设备偏好',
+      complete: false
     }
   ])
+
+  const pendingCount = computed(() => list.filter((item) => !item.complete).length)
 </script>
+
+<style lang="scss" scoped>
+  .action-card {
+    min-height: 360px;
+  }
+</style>
