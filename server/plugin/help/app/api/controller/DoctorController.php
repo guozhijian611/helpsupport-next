@@ -80,6 +80,86 @@ class DoctorController extends BaseController
         return ok($this->service->saveDoctorPatientProfile($this->memberId, $request->post()));
     }
 
+    #[Apidoc\Title('患者康复目标记录')]
+    #[Apidoc\Url('/app/help/doctor/patient/recovery-goals')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('member_id', type: 'int', require: true, desc: '患者会员ID')]
+    #[Apidoc\Query('status', type: 'int', require: false, desc: '状态 1进行中 2已完成 3已放弃')]
+    #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
+    #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
+    #[Apidoc\Returned('list', type: 'array', desc: '康复目标记录')]
+    public function patientRecoveryGoals(Request $request): Response
+    {
+        return ok($this->service->doctorPatientRecoveryGoals($this->memberId, $request->get()));
+    }
+
+    #[Apidoc\Title('保存患者康复目标记录')]
+    #[Apidoc\Url('/app/help/doctor/patient/recovery-goal')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('member_id', type: 'int', require: true, desc: '患者会员ID')]
+    #[Apidoc\Param('id', type: 'int', require: false, desc: '记录ID，空为新增')]
+    #[Apidoc\Param('goal_text', type: 'string', require: true, desc: '康复目标')]
+    #[Apidoc\Param('goal_type', type: 'string', require: false, default: 'custom', desc: '目标类型 custom/weekly/monthly')]
+    #[Apidoc\Param('target_date', type: 'string', require: false, desc: '目标日期 YYYY-MM-DD')]
+    #[Apidoc\Param('status', type: 'int', require: false, default: 1, desc: '状态 1进行中 2已完成 3已放弃')]
+    #[Apidoc\Returned('id', type: 'int', desc: '记录ID')]
+    public function savePatientRecoveryGoal(Request $request): Response
+    {
+        return ok($this->service->saveDoctorPatientRecoveryGoal($this->memberId, $request->post()));
+    }
+
+    #[Apidoc\Title('删除患者康复目标记录')]
+    #[Apidoc\Url('/app/help/doctor/patient/recovery-goal/delete')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('member_id', type: 'int', require: true, desc: '患者会员ID')]
+    #[Apidoc\Param('id', type: 'int', require: true, desc: '记录ID')]
+    #[Apidoc\Returned('deleted', type: 'boolean', desc: '是否删除成功')]
+    public function deletePatientRecoveryGoal(Request $request): Response
+    {
+        return ok($this->service->deleteDoctorPatientRecoveryGoal($this->memberId, $request->post()));
+    }
+
+    #[Apidoc\Title('患者触发因素记录')]
+    #[Apidoc\Url('/app/help/doctor/patient/triggers')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('member_id', type: 'int', require: true, desc: '患者会员ID')]
+    #[Apidoc\Query('trigger_type', type: 'string', require: false, desc: '触发类型 emotion/place/person/custom')]
+    #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
+    #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
+    #[Apidoc\Returned('list', type: 'array', desc: '触发因素记录')]
+    public function patientTriggerLogs(Request $request): Response
+    {
+        return ok($this->service->doctorPatientTriggerLogs($this->memberId, $request->get()));
+    }
+
+    #[Apidoc\Title('保存患者触发因素记录')]
+    #[Apidoc\Url('/app/help/doctor/patient/trigger')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('member_id', type: 'int', require: true, desc: '患者会员ID')]
+    #[Apidoc\Param('id', type: 'int', require: false, desc: '记录ID，空为新增')]
+    #[Apidoc\Param('trigger_name', type: 'string', require: true, desc: '触发因素名称')]
+    #[Apidoc\Param('trigger_type', type: 'string', require: false, default: 'custom', desc: '触发类型 emotion/place/person/custom')]
+    #[Apidoc\Param('intensity', type: 'int', require: false, default: 0, desc: '强度 0-10')]
+    #[Apidoc\Param('occurred_at', type: 'string', require: false, desc: '发生时间，空为当前时间')]
+    #[Apidoc\Param('response_action', type: 'string', require: false, desc: '应对动作')]
+    #[Apidoc\Param('note', type: 'string', require: false, desc: '记录说明')]
+    #[Apidoc\Returned('id', type: 'int', desc: '记录ID')]
+    public function savePatientTriggerLog(Request $request): Response
+    {
+        return ok($this->service->saveDoctorPatientTriggerLog($this->memberId, $request->post()));
+    }
+
+    #[Apidoc\Title('删除患者触发因素记录')]
+    #[Apidoc\Url('/app/help/doctor/patient/trigger/delete')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('member_id', type: 'int', require: true, desc: '患者会员ID')]
+    #[Apidoc\Param('id', type: 'int', require: true, desc: '记录ID')]
+    #[Apidoc\Returned('deleted', type: 'boolean', desc: '是否删除成功')]
+    public function deletePatientTriggerLog(Request $request): Response
+    {
+        return ok($this->service->deleteDoctorPatientTriggerLog($this->memberId, $request->post()));
+    }
+
     #[Apidoc\Title('患者治疗计划')]
     #[Apidoc\Url('/app/help/doctor/patient/plans')]
     #[Apidoc\Method('GET')]

@@ -136,11 +136,7 @@ Route::group('/app/help', function () {
     Route::get('/me/badges', [MeController::class, 'badges']);
     Route::get('/me/points', [MeController::class, 'points']);
     Route::get('/me/recovery-goals', [MeController::class, 'recoveryGoals']);
-    Route::post('/me/recovery-goal', [MeController::class, 'saveRecoveryGoal']);
-    Route::post('/me/recovery-goal/delete', [MeController::class, 'deleteRecoveryGoal']);
     Route::get('/me/triggers', [MeController::class, 'triggerLogs']);
-    Route::post('/me/trigger', [MeController::class, 'saveTriggerLog']);
-    Route::post('/me/trigger/delete', [MeController::class, 'deleteTriggerLog']);
     Route::get('/me/messages', [MeController::class, 'messages']);
     Route::put('/me/message/read', [MeController::class, 'readMessage']);
 
@@ -180,6 +176,12 @@ Route::group('/app/help', function () {
     Route::post('/doctor/patient/bind', [DoctorController::class, 'bindPatient']);
     Route::post('/doctor/patient/unbind', [DoctorController::class, 'unbindPatient']);
     Route::post('/doctor/patient/profile', [DoctorController::class, 'savePatientProfile']);
+    Route::get('/doctor/patient/recovery-goals', [DoctorController::class, 'patientRecoveryGoals']);
+    Route::post('/doctor/patient/recovery-goal', [DoctorController::class, 'savePatientRecoveryGoal']);
+    Route::post('/doctor/patient/recovery-goal/delete', [DoctorController::class, 'deletePatientRecoveryGoal']);
+    Route::get('/doctor/patient/triggers', [DoctorController::class, 'patientTriggerLogs']);
+    Route::post('/doctor/patient/trigger', [DoctorController::class, 'savePatientTriggerLog']);
+    Route::post('/doctor/patient/trigger/delete', [DoctorController::class, 'deletePatientTriggerLog']);
     Route::get('/doctor/patient/plans', [DoctorController::class, 'patientPlans']);
     Route::post('/doctor/treatment-plan', [DoctorController::class, 'saveTreatmentPlan']);
     Route::post('/doctor/treatment-plan/delete', [DoctorController::class, 'deleteTreatmentPlan']);

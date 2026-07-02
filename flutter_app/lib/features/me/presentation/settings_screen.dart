@@ -50,8 +50,8 @@ class SettingsScreen extends ConsumerWidget {
                   title: _t(context, '个人资料设置', 'Profile settings'),
                   subtitle: _t(
                     context,
-                    '头像、背景、昵称、签名、康复目标',
-                    'Avatar, cover, name, signature, recovery goal',
+                    '头像、背景、昵称、签名',
+                    'Avatar, cover, name, signature',
                   ),
                   onTap: () =>
                       _openDetail(context, SettingsSectionType.profile),
@@ -735,17 +735,15 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
               value: _summaryOrFallback(
                 bundle.recoveryGoal,
                 context,
-                emptyZh: '待补充',
-                emptyEn: 'To complete',
+                emptyZh: '待医生配置',
+                emptyEn: 'Pending doctor setup',
               ),
-              onTap: () => _editRecoveryGoal(bundle),
             ),
             _SettingsNavRow(
               title: _t(context, '重点触发', 'Key triggers'),
               value: bundle.triggerTags.isEmpty
-                  ? _t(context, '待补充', 'To complete')
+                  ? _t(context, '待医生配置', 'Pending doctor setup')
                   : bundle.triggerTags.join(' / '),
-              onTap: () => _editTriggerTags(bundle),
             ),
           ],
         ),
@@ -2496,52 +2494,6 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     await _saveProfilePayload({
       'birthday': text,
     }, successMessage: _t(context, '生日已更新', 'Birthday updated'));
-  }
-
-  Future<void> _editRecoveryGoal(MeProfileBundle bundle) async {
-    final nextValue = await _showTextInputDialog(
-      context: context,
-      title: _t(context, '编辑康复目标', 'Edit recovery goal'),
-      initialValue: bundle.recoveryGoal,
-      hintText: _t(context, '请输入康复目标', 'Enter recovery goal'),
-      maxLines: 4,
-    );
-    if (!mounted) {
-      return;
-    }
-    if (nextValue == null || nextValue.trim() == bundle.recoveryGoal.trim()) {
-      return;
-    }
-    await _saveProfilePayload({
-      'recovery_goal': nextValue.trim(),
-    }, successMessage: _t(context, '康复目标已更新', 'Recovery goal updated'));
-  }
-
-  Future<void> _editTriggerTags(MeProfileBundle bundle) async {
-    final nextValue = await _showTextInputDialog(
-      context: context,
-      title: _t(context, '编辑重点触发', 'Edit key triggers'),
-      initialValue: bundle.triggerTags.join(', '),
-      hintText: _t(context, '多个触发因素请用逗号分隔', 'Separate triggers with commas'),
-      maxLines: 4,
-    );
-    if (!mounted) {
-      return;
-    }
-    if (nextValue == null) {
-      return;
-    }
-    final tags = nextValue
-        .split(',')
-        .map((item) => item.trim())
-        .where((item) => item.isNotEmpty)
-        .toList();
-    if (tags.join(',') == bundle.triggerTags.join(',')) {
-      return;
-    }
-    await _saveProfilePayload({
-      'trigger_tags': tags,
-    }, successMessage: _t(context, '重点触发已更新', 'Key triggers updated'));
   }
 
   Future<void> _editBio(MeProfileBundle bundle) async {

@@ -228,13 +228,15 @@ class HelpApiService
             'birthday',
             'bio',
             'profile_background',
-            'recovery_goal',
-            'trigger_tags',
             'locale',
             'timezone',
             'onboarding_version',
             'status',
         ]);
+
+        if (array_key_exists('recovery_goal', $data) || array_key_exists('trigger_tags', $data)) {
+            throw new ApiException('康复目标和触发因素由医生配置，患者仅可查看', 403);
+        }
 
         if (isset($payload['member_role']) && !in_array($payload['member_role'], ['patient', 'doctor'], true)) {
             throw new ApiException('会员身份参数错误', 400);
@@ -248,13 +250,8 @@ class HelpApiService
         if (isset($payload['status'])) {
             $payload['status'] = $this->intIn($payload['status'], [1, 2], '状态参数错误');
         }
-        if (array_key_exists('trigger_tags', $payload)) {
-            $payload['trigger_tags'] = $this->jsonValue($payload['trigger_tags']);
-        }
-        foreach (['bio', 'recovery_goal'] as $field) {
-            if (array_key_exists($field, $payload)) {
-                $payload[$field] = (new HelpRiskService())->filterText('profile', (string) $payload[$field]);
-            }
+        if (array_key_exists('bio', $payload)) {
+            $payload['bio'] = (new HelpRiskService())->filterText('profile', (string) $payload['bio']);
         }
 
         Db::transaction(function () use ($memberId, $payload, $hasNickname, $nickname) {
@@ -265,7 +262,6 @@ class HelpApiService
                 ]);
             }
             $this->upsertByMember('sa_help_member_profile', $memberId, $payload);
-            $this->syncProfileRecordLogs($memberId, $payload, $memberId);
         });
 
         return $this->profile($memberId, $this->member($memberId));
@@ -3449,6 +3445,78 @@ class HelpApiService
         return $this->doctorPatientProfileRow($doctorId, $memberId);
     }
 
+    public function doctorPatientRecoveryGoals(int $doctorId, array $params): array
+    {
+        $memberId = (int) ($params['member_id'] ?? 0);
+        $this->assertDoctorPatient($doctorId, $memberId);
+
+        return $this->recoveryGoals($memberId, $params);
+    }
+
+    public function saveDoctorPatientRecoveryGoal(int $doctorId, array $data): array
+    {
+        $memberId = (int) ($data['member_id'] ?? 0);
+        $this->assertDoctorPatient($doctorId, $memberId);
+
+        $record = $this->saveRecoveryGoalForMember($memberId, $data, $doctorId);
+        $this->refreshMemberRecoveryGoalSummary($memberId);
+
+        return $record;
+    }
+
+    public function deleteDoctorPatientRecoveryGoal(int $doctorId, array $data): array
+    {
+        $memberId = (int) ($data['member_id'] ?? 0);
+        $this->assertDoctorPatient($doctorId, $memberId);
+
+        $result = $this->softDeleteOwnedRow(
+            'sa_member_recovery_goal_log',
+            $memberId,
+            (int) ($data['id'] ?? 0),
+            '康复目标ID必须填写',
+            $doctorId
+        );
+        $this->refreshMemberRecoveryGoalSummary($memberId);
+
+        return $result;
+    }
+
+    public function doctorPatientTriggerLogs(int $doctorId, array $params): array
+    {
+        $memberId = (int) ($params['member_id'] ?? 0);
+        $this->assertDoctorPatient($doctorId, $memberId);
+
+        return $this->triggerLogs($memberId, $params);
+    }
+
+    public function saveDoctorPatientTriggerLog(int $doctorId, array $data): array
+    {
+        $memberId = (int) ($data['member_id'] ?? 0);
+        $this->assertDoctorPatient($doctorId, $memberId);
+
+        $record = $this->saveTriggerLogForMember($memberId, $data, $doctorId);
+        $this->refreshMemberTriggerSummary($memberId);
+
+        return $record;
+    }
+
+    public function deleteDoctorPatientTriggerLog(int $doctorId, array $data): array
+    {
+        $memberId = (int) ($data['member_id'] ?? 0);
+        $this->assertDoctorPatient($doctorId, $memberId);
+
+        $result = $this->softDeleteOwnedRow(
+            'sa_member_trigger_log',
+            $memberId,
+            (int) ($data['id'] ?? 0),
+            '触发因素记录ID必须填写',
+            $doctorId
+        );
+        $this->refreshMemberTriggerSummary($memberId);
+
+        return $result;
+    }
+
     public function doctorPatientPlans(int $doctorId, array $params): array
     {
         $memberId = (int) ($params['member_id'] ?? 0);
@@ -4430,7 +4498,7 @@ class HelpApiService
         }, $params);
     }
 
-    public function saveRecoveryGoal(int $memberId, array $data): array
+    private function saveRecoveryGoalForMember(int $memberId, array $data, int $actorId): array
     {
         $goalText = trim((string) ($data['goal_text'] ?? ''));
         if ($goalText === '') {
@@ -4468,14 +4536,10 @@ class HelpApiService
         if ($payload['status'] === 2 && empty($payload['completed_time'])) {
             $payload['completed_time'] = date('Y-m-d H:i:s');
         }
+        $payload['member_id'] = $memberId;
 
-        $rowId = $this->saveRow('sa_member_recovery_goal_log', $payload, $memberId, $id);
+        $rowId = $this->saveRow('sa_member_recovery_goal_log', $payload, $actorId, $id);
         return Db::table('sa_member_recovery_goal_log')->where('id', $rowId)->find() ?: [];
-    }
-
-    public function deleteRecoveryGoal(int $memberId, int $goalId): array
-    {
-        return $this->softDeleteOwnedRow('sa_member_recovery_goal_log', $memberId, $goalId, '康复目标ID必须填写');
     }
 
     public function triggerLogs(int $memberId, array $params): array
@@ -4496,7 +4560,7 @@ class HelpApiService
         }, $params);
     }
 
-    public function saveTriggerLog(int $memberId, array $data): array
+    private function saveTriggerLogForMember(int $memberId, array $data, int $actorId): array
     {
         $triggerName = trim((string) ($data['trigger_name'] ?? ''));
         if ($triggerName === '') {
@@ -4535,14 +4599,10 @@ class HelpApiService
         $payload['status'] = isset($payload['status']) && $payload['status'] !== ''
             ? $this->intIn($payload['status'], [1, 2], '触发因素状态参数错误')
             : 1;
+        $payload['member_id'] = $memberId;
 
-        $rowId = $this->saveRow('sa_member_trigger_log', $payload, $memberId, $id);
+        $rowId = $this->saveRow('sa_member_trigger_log', $payload, $actorId, $id);
         return Db::table('sa_member_trigger_log')->where('id', $rowId)->find() ?: [];
-    }
-
-    public function deleteTriggerLog(int $memberId, int $triggerId): array
-    {
-        return $this->softDeleteOwnedRow('sa_member_trigger_log', $memberId, $triggerId, '触发因素记录ID必须填写');
     }
 
     public function messages(int $memberId, array $params): array
@@ -4704,11 +4764,18 @@ class HelpApiService
         return $row;
     }
 
-    private function softDeleteOwnedRow(string $table, int $memberId, int $id, string $emptyMessage): array
+    private function softDeleteOwnedRow(
+        string $table,
+        int $memberId,
+        int $id,
+        string $emptyMessage,
+        ?int $actorId = null
+    ): array
     {
         if ($id <= 0) {
             throw new ApiException($emptyMessage, 400);
         }
+        $actorId ??= $memberId;
 
         $affected = Db::table($table)
             ->where('id', $id)
@@ -4716,7 +4783,7 @@ class HelpApiService
             ->whereNull('delete_time')
             ->update([
                 'delete_time' => date('Y-m-d H:i:s'),
-                'updated_by' => $memberId,
+                'updated_by' => $actorId,
                 'update_time' => date('Y-m-d H:i:s'),
             ]);
 
@@ -6573,6 +6640,38 @@ class HelpApiService
                 'update_time' => $now,
             ]);
         }
+    }
+
+    private function refreshMemberRecoveryGoalSummary(int $memberId): void
+    {
+        $goalText = (string) (Db::table('sa_member_recovery_goal_log')
+            ->where('member_id', $memberId)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->orderRaw('target_date IS NULL ASC')
+            ->order('target_date', 'asc')
+            ->order('id', 'desc')
+            ->value('goal_text') ?? '');
+
+        $this->upsertByMember('sa_help_member_profile', $memberId, [
+            'recovery_goal' => $goalText,
+        ]);
+    }
+
+    private function refreshMemberTriggerSummary(int $memberId): void
+    {
+        $activeTriggers = Db::table('sa_member_trigger_log')
+            ->where('member_id', $memberId)
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->order('occurred_at', 'desc')
+            ->order('id', 'desc')
+            ->limit(5)
+            ->column('trigger_name');
+
+        $this->upsertByMember('sa_help_member_profile', $memberId, [
+            'trigger_tags' => $this->jsonValue(array_values(array_unique(array_map('strval', $activeTriggers)))),
+        ]);
     }
 
     /**
