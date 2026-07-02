@@ -46,9 +46,6 @@ while IFS= read -r lib_name; do
 
   destination="${frameworks_dir}/${lib_name}"
   cp -f "${lib_path}" "${destination}"
-  if [ -n "${EXPANDED_CODE_SIGN_IDENTITY:-}" ]; then
-    codesign --force --sign "${EXPANDED_CODE_SIGN_IDENTITY}" --timestamp=none "${destination}"
-  fi
   copied_count=$((copied_count + 1))
 done < "${needed_file}"
 
