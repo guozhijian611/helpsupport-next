@@ -234,24 +234,13 @@
                 :limit="1"
                 :disabled="isFieldDisabled(field)"
               />
-              <ElInput
+              <sa-icon-picker
                 v-else-if="isIconField(field)"
                 v-model="formData[field.prop]"
-                clearable
                 :placeholder="field.placeholder || '请输入' + field.label"
                 :disabled="isFieldDisabled(field)"
                 class="help-form-control"
-              >
-                <template #prepend>
-                  <span class="help-icon-input-preview">
-                    <ArtSvgIcon
-                      v-if="formData[field.prop]"
-                      :icon="String(formData[field.prop])"
-                      class="help-icon-svg"
-                    />
-                  </span>
-                </template>
-              </ElInput>
+              />
               <div v-else-if="field.type === 'file'" class="help-file-field">
                 <SaFileUpload
                   v-model="formData[field.prop]"
@@ -853,8 +842,7 @@
     vertical-align: middle;
   }
 
-  .help-icon-preview,
-  .help-icon-input-preview {
+  .help-icon-preview {
     display: inline-flex;
     width: 30px;
     height: 30px;
@@ -865,13 +853,6 @@
     border-radius: 6px;
     background: var(--el-fill-color-light);
     color: var(--el-color-primary);
-  }
-
-  .help-icon-input-preview {
-    width: 22px;
-    height: 22px;
-    border: 0;
-    background: transparent;
   }
 
   .help-icon-svg {
