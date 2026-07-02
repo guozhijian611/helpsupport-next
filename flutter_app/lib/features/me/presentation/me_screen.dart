@@ -59,6 +59,7 @@ class MeScreen extends ConsumerWidget {
       context,
       balance: honorBalance,
       badgeCount: latestDistinctBadges(badges).length,
+      member: session?.member,
     );
     final plans = switch (ref.watch(currentPlansProvider)) {
       AsyncData(:final value) => value,

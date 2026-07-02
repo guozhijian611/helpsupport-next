@@ -5,6 +5,7 @@ import '../data/me_content_models.dart';
 
 class HonorLevelSpec {
   const HonorLevelSpec({
+    required this.levelId,
     required this.level,
     required this.title,
     required this.targetPoints,
@@ -14,6 +15,7 @@ class HonorLevelSpec {
     this.isFinal = false,
   });
 
+  final int levelId;
   final int level;
   final String title;
   final int targetPoints;
@@ -63,6 +65,7 @@ List<HonorLevelSpec> buildHonorLevels(BuildContext context) {
   final l10n = context.l10n;
   return [
     HonorLevelSpec(
+      levelId: 0,
       level: 1,
       title: l10n.meHonorLevelApprentice,
       targetPoints: 1500,
@@ -71,6 +74,7 @@ List<HonorLevelSpec> buildHonorLevels(BuildContext context) {
       progressDotColor: const Color(0xFFBBBBBB),
     ),
     HonorLevelSpec(
+      levelId: 0,
       level: 2,
       title: l10n.meHonorLevelPersistent,
       targetPoints: 3000,
@@ -79,6 +83,7 @@ List<HonorLevelSpec> buildHonorLevels(BuildContext context) {
       progressDotColor: const Color(0xFFFFD94D),
     ),
     HonorLevelSpec(
+      levelId: 0,
       level: 3,
       title: l10n.meHonorLevelInspired,
       targetPoints: 6000,
@@ -87,6 +92,7 @@ List<HonorLevelSpec> buildHonorLevels(BuildContext context) {
       progressDotColor: const Color(0xFF52C6F2),
     ),
     HonorLevelSpec(
+      levelId: 0,
       level: 4,
       title: l10n.meHonorLevelReborn,
       targetPoints: 10000,
@@ -106,13 +112,24 @@ HonorSummaryData buildHonorSummary(
   BuildContext context, {
   required int balance,
   required int badgeCount,
+  Map<String, dynamic>? member,
 }) {
-  final levels = buildHonorLevels(context);
+  final levels = _configuredHonorLevels(member) ?? buildHonorLevels(context);
   var currentIndex = levels.length - 1;
-  for (var index = 0; index < levels.length; index += 1) {
-    if (balance < levels[index].targetPoints) {
-      currentIndex = index;
-      break;
+  final memberLevelId = _intValue(member?['member_level_id']);
+  if (memberLevelId > 0) {
+    final configuredIndex = levels.indexWhere(
+      (level) => level.levelId == memberLevelId,
+    );
+    if (configuredIndex >= 0) {
+      currentIndex = configuredIndex;
+    }
+  } else {
+    for (var index = 0; index < levels.length; index += 1) {
+      if (balance < levels[index].targetPoints) {
+        currentIndex = index;
+        break;
+      }
     }
   }
   return HonorSummaryData(
@@ -120,6 +137,51 @@ HonorSummaryData buildHonorSummary(
     balance: balance,
     badgeCount: badgeCount,
     currentIndex: currentIndex,
+  );
+}
+
+List<HonorLevelSpec>? _configuredHonorLevels(Map<String, dynamic>? member) {
+  final value = member?['member_levels'];
+  if (value is! List || value.isEmpty) {
+    return null;
+  }
+
+  final rows = value
+      .whereType<Map>()
+      .map((row) => Map<String, dynamic>.from(row))
+      .where((row) => _intValue(row['id']) > 0)
+      .toList(growable: false);
+  if (rows.isEmpty) {
+    return null;
+  }
+
+  return [
+    for (var index = 0; index < rows.length; index += 1)
+      _levelSpecFromConfig(rows, index),
+  ];
+}
+
+HonorLevelSpec _levelSpecFromConfig(
+  List<Map<String, dynamic>> rows,
+  int index,
+) {
+  final row = rows[index];
+  final nextRow = index + 1 < rows.length ? rows[index + 1] : null;
+  final minPoints = _intValue(row['min_points']);
+  final targetPoints = nextRow == null
+      ? minPoints
+      : _intValue(nextRow['min_points'], fallback: minPoints);
+  final colors = _levelColors(row, index);
+
+  return HonorLevelSpec(
+    levelId: _intValue(row['id']),
+    level: index + 1,
+    title: _stringValue(row['level_name'], fallback: 'Lv.${index + 1}'),
+    targetPoints: targetPoints,
+    gradientColors: colors.gradient,
+    medalColor: colors.medal,
+    progressDotColor: colors.dot,
+    isFinal: index == rows.length - 1,
   );
 }
 
@@ -163,7 +225,9 @@ String honorHintText(
   int index,
 ) {
   final level = summary.levels[index];
-  if (level.isFinal && summary.balance >= level.targetPoints) {
+  if (level.isFinal &&
+      summary.currentIndex == index &&
+      summary.balance >= level.targetPoints) {
     return context.l10n.meHonorFinalHint;
   }
   final remaining = (level.targetPoints - summary.balance)
@@ -186,4 +250,77 @@ List<MemberBadge> latestDistinctBadges(List<MemberBadge> badges) {
     }
   }
   return result;
+}
+
+_LevelColors _levelColors(Map<String, dynamic> row, int index) {
+  final code = _stringValue(row['level_code']).toUpperCase();
+  if (code.contains('GOLD')) {
+    return const _LevelColors(
+      gradient: [Color(0xFFFFC85A), Color(0xFFFFE19A)],
+      medal: Color(0xFFE8B63B),
+      dot: Color(0xFFFFD36B),
+    );
+  }
+  if (code.contains('SILVER')) {
+    return const _LevelColors(
+      gradient: [Color(0xFFAEB7C2), Color(0xFFE1E6EC)],
+      medal: Color(0xFFC1CAD4),
+      dot: Color(0xFFD5DCE4),
+    );
+  }
+  if (code.contains('NORMAL')) {
+    return const _LevelColors(
+      gradient: [Color(0xFFFF9585), Color(0xFFFCB08E)],
+      medal: Color(0xFFFFB4A8),
+      dot: Color(0xFFFFD1C9),
+    );
+  }
+
+  const palette = [
+    _LevelColors(
+      gradient: [Color(0xFFFF9585), Color(0xFFFCB08E)],
+      medal: Color(0xFFFFB4A8),
+      dot: Color(0xFFFFD1C9),
+    ),
+    _LevelColors(
+      gradient: [Color(0xFF5A81DA), Color(0xFF8FAAF0)],
+      medal: Color(0xFF6F91E0),
+      dot: Color(0xFFA8BBF5),
+    ),
+    _LevelColors(
+      gradient: [Color(0xFFFFAE4D), Color(0xFFFFD08A)],
+      medal: Color(0xFFF4A33D),
+      dot: Color(0xFFFFC26E),
+    ),
+    _LevelColors(
+      gradient: [Color(0xFF986FF5), Color(0xFFC2AAFF)],
+      medal: Color(0xFFA47EF6),
+      dot: Color(0xFFD0BEFF),
+    ),
+  ];
+  return palette[index % palette.length];
+}
+
+class _LevelColors {
+  const _LevelColors({
+    required this.gradient,
+    required this.medal,
+    required this.dot,
+  });
+
+  final List<Color> gradient;
+  final Color medal;
+  final Color dot;
+}
+
+int _intValue(Object? value, {int fallback = 0}) {
+  if (value is num) {
+    return value.toInt();
+  }
+  return int.tryParse((value ?? '').toString()) ?? fallback;
+}
+
+String _stringValue(Object? value, {String fallback = ''}) {
+  final text = (value ?? '').toString().trim();
+  return text.isEmpty ? fallback : text;
 }

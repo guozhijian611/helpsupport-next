@@ -4729,7 +4729,7 @@ class HelpApiService
             throw new ApiException('会员不存在', 404);
         }
 
-        return $member;
+        return (new HelpMemberLevelService())->enrichMember($member);
     }
 
     private function member(int $memberId): array

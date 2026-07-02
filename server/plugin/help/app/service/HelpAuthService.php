@@ -304,7 +304,7 @@ class HelpAuthService
             throw new ApiException('会员不存在或状态异常', 401);
         }
 
-        return $member;
+        return (new HelpMemberLevelService())->enrichMember($member);
     }
 
     private function rowByMember(string $table, int $memberId): array

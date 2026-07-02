@@ -31,6 +31,9 @@ class AuthController extends OpenController
     #[Apidoc\Returned('doctor_profile', type: 'object', desc: '医生认证资料')]
     #[Apidoc\Returned('current_role', type: 'string', desc: '当前生效身份 patient/doctor')]
     #[Apidoc\Returned('role_flags', type: 'object', desc: '身份标记 profile_role/is_patient/is_doctor/doctor_profile_submitted/doctor_approved')]
+    #[Apidoc\Returned('member.member_level', type: 'object', desc: '当前会员等级，来源 sa_member_level')]
+    #[Apidoc\Returned('member.member_levels', type: 'array', desc: 'App 可展示的有效会员等级配置列表')]
+    #[Apidoc\Returned('member.member_level_progress', type: 'object', desc: '当前积分、下一等级和剩余积分进度')]
     public function accountLogin(Request $request): Response
     {
         return ok($this->service->accountLogin($request->post()));
@@ -113,6 +116,9 @@ class AuthController extends OpenController
     #[Apidoc\Returned('doctor_profile', type: 'object', desc: '医生认证资料')]
     #[Apidoc\Returned('current_role', type: 'string', desc: '当前生效身份 patient/doctor')]
     #[Apidoc\Returned('role_flags', type: 'object', desc: '身份标记 profile_role/is_patient/is_doctor/doctor_profile_submitted/doctor_approved')]
+    #[Apidoc\Returned('member.member_level', type: 'object', desc: '当前会员等级，来源 sa_member_level')]
+    #[Apidoc\Returned('member.member_levels', type: 'array', desc: 'App 可展示的有效会员等级配置列表')]
+    #[Apidoc\Returned('member.member_level_progress', type: 'object', desc: '当前积分、下一等级和剩余积分进度')]
     public function accountRegister(Request $request): Response
     {
         return ok($this->service->accountRegister($request->post()));
@@ -148,6 +154,9 @@ class AuthController extends OpenController
     #[Apidoc\Returned('doctor_profile', type: 'object', desc: '医生认证资料')]
     #[Apidoc\Returned('current_role', type: 'string', desc: '当前生效身份 patient/doctor')]
     #[Apidoc\Returned('role_flags', type: 'object', desc: '身份标记 profile_role/is_patient/is_doctor/doctor_profile_submitted/doctor_approved')]
+    #[Apidoc\Returned('member.member_level', type: 'object', desc: '当前会员等级，来源 sa_member_level')]
+    #[Apidoc\Returned('member.member_levels', type: 'array', desc: 'App 可展示的有效会员等级配置列表')]
+    #[Apidoc\Returned('member.member_level_progress', type: 'object', desc: '当前积分、下一等级和剩余积分进度')]
     public function google(Request $request): Response
     {
         return ok($this->service->googleLogin($request->post()));
@@ -168,6 +177,9 @@ class AuthController extends OpenController
     #[Apidoc\Returned('doctor_profile', type: 'object', desc: '医生认证资料')]
     #[Apidoc\Returned('current_role', type: 'string', desc: '当前生效身份 patient/doctor')]
     #[Apidoc\Returned('role_flags', type: 'object', desc: '身份标记 profile_role/is_patient/is_doctor/doctor_profile_submitted/doctor_approved')]
+    #[Apidoc\Returned('member.member_level', type: 'object', desc: '当前会员等级，来源 sa_member_level')]
+    #[Apidoc\Returned('member.member_levels', type: 'array', desc: 'App 可展示的有效会员等级配置列表')]
+    #[Apidoc\Returned('member.member_level_progress', type: 'object', desc: '当前积分、下一等级和剩余积分进度')]
     public function apple(Request $request): Response
     {
         return ok($this->service->appleLogin($request->post()));
@@ -182,6 +194,9 @@ class AuthController extends OpenController
     #[Apidoc\Returned('doctor_profile', type: 'object', desc: '医生认证资料')]
     #[Apidoc\Returned('current_role', type: 'string', desc: '当前生效身份 patient/doctor')]
     #[Apidoc\Returned('role_flags', type: 'object', desc: '身份标记 profile_role/is_patient/is_doctor/doctor_profile_submitted/doctor_approved')]
+    #[Apidoc\Returned('member.member_level', type: 'object', desc: '当前会员等级，来源 sa_member_level')]
+    #[Apidoc\Returned('member.member_levels', type: 'array', desc: 'App 可展示的有效会员等级配置列表')]
+    #[Apidoc\Returned('member.member_level_progress', type: 'object', desc: '当前积分、下一等级和剩余积分进度')]
     public function refresh(Request $request): Response
     {
         return ok($this->service->refreshToken());

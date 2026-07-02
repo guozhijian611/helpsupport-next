@@ -44,6 +44,7 @@ class HonorBadgesScreen extends ConsumerWidget {
       context,
       balance: balance,
       badgeCount: latestDistinctBadges(badges).length,
+      member: session?.member,
     );
 
     return Scaffold(
