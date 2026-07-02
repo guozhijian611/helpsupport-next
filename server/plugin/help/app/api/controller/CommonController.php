@@ -29,6 +29,11 @@ class CommonController extends OpenController
     #[Apidoc\Returned('app.description', type: 'string', desc: 'App描述，读取 SAIUSER 站点配置')]
     #[Apidoc\Returned('oauth', type: 'object', desc: '第三方登录客户端配置，不包含服务端私钥')]
     #[Apidoc\Returned('push', type: 'object', desc: '推送公开配置')]
+    #[Apidoc\Returned('download', type: 'object', desc: 'App 下载配置')]
+    #[Apidoc\Returned('download.google_play_url', type: 'string', desc: 'Google Play 商店链接')]
+    #[Apidoc\Returned('download.app_store_url', type: 'string', desc: 'App Store 商店链接')]
+    #[Apidoc\Returned('download.dev_apk_url', type: 'string', desc: '开发版 APK 下载链接')]
+    #[Apidoc\Returned('download.dev_ipa_url', type: 'string', desc: '开发版 IPA 下载链接')]
     #[Apidoc\Returned('member_platforms', type: 'array', desc: '已初始化的第三方会员平台')]
     public function appConfig(Request $request): Response
     {

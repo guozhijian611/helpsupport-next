@@ -48,6 +48,7 @@ class HelpApiService
             'help_google_oauth',
             'help_apple_oauth',
             'help_firebase_push',
+            'help_app_download',
         ]);
         $siteInfo = (array) Db::table('sa_site_info')
             ->where('id', 1)
@@ -92,6 +93,12 @@ class HelpApiService
             'push' => [
                 'firebase_enabled' => ($groups['help_firebase_push']['enabled'] ?? '2') === '1',
                 'firebase_project_id' => $groups['help_firebase_push']['project_id'] ?? '',
+            ],
+            'download' => [
+                'google_play_url' => $groups['help_app_download']['google_play_url'] ?? '',
+                'app_store_url' => $groups['help_app_download']['app_store_url'] ?? '',
+                'dev_apk_url' => $groups['help_app_download']['dev_apk_url'] ?? '',
+                'dev_ipa_url' => $groups['help_app_download']['dev_ipa_url'] ?? '',
             ],
             'member_platforms' => $platforms,
         ];

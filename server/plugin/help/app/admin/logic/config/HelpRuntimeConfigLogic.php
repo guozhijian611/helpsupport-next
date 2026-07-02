@@ -11,11 +11,15 @@ use support\Db;
  */
 class HelpRuntimeConfigLogic
 {
-    private const GROUPS = [
+    private const RUNTIME_GROUPS = [
         'help_google_oauth' => 'Google 登录',
         'help_apple_oauth' => 'Apple 登录',
         'help_firebase_push' => 'Firebase 推送',
         'help_appointment_payment' => '预约积分',
+    ];
+
+    private const APP_DOWNLOAD_GROUPS = [
+        'help_app_download' => 'App 下载配置',
     ];
 
     private const SECRET_KEYS = [
@@ -30,8 +34,34 @@ class HelpRuntimeConfigLogic
 
     public function read(): array
     {
+        return $this->readGroups(self::RUNTIME_GROUPS);
+    }
+
+    public function readAppDownload(): array
+    {
+        return $this->readGroups(self::APP_DOWNLOAD_GROUPS)[0] ?? [
+            'id' => 0,
+            'code' => 'help_app_download',
+            'name' => self::APP_DOWNLOAD_GROUPS['help_app_download'],
+            'remark' => '',
+            'items' => [],
+        ];
+    }
+
+    public function update(array $configs, int $adminId = 0): bool
+    {
+        return $this->updateGroups($configs, $adminId, self::RUNTIME_GROUPS);
+    }
+
+    public function updateAppDownload(array $values, int $adminId = 0): bool
+    {
+        return $this->updateGroups(['help_app_download' => $values], $adminId, self::APP_DOWNLOAD_GROUPS);
+    }
+
+    private function readGroups(array $allowedGroups): array
+    {
         $groups = [];
-        foreach (array_keys(self::GROUPS) as $code) {
+        foreach (array_keys($allowedGroups) as $code) {
             $group = Db::table('sa_system_config_group')
                 ->where('code', $code)
                 ->whereNull('delete_time')
@@ -61,16 +91,16 @@ class HelpRuntimeConfigLogic
         return $groups;
     }
 
-    public function update(array $configs, int $adminId = 0): bool
+    private function updateGroups(array $configs, int $adminId, array $allowedGroups): bool
     {
         if (empty($configs)) {
             throw new ApiException('配置参数不能为空');
         }
 
         $touchedGroups = [];
-        Db::connection()->transaction(function () use ($configs, $adminId, &$touchedGroups) {
+        Db::connection()->transaction(function () use ($configs, $adminId, $allowedGroups, &$touchedGroups) {
             foreach ($configs as $groupCode => $values) {
-                if (!array_key_exists($groupCode, self::GROUPS)) {
+                if (!array_key_exists($groupCode, $allowedGroups)) {
                     throw new ApiException('配置组参数错误');
                 }
                 if (!is_array($values)) {
@@ -82,7 +112,7 @@ class HelpRuntimeConfigLogic
                     ->whereNull('delete_time')
                     ->first();
                 if (!$group) {
-                    throw new ApiException(self::GROUPS[$groupCode] . '配置组不存在');
+                    throw new ApiException($allowedGroups[$groupCode] . '配置组不存在');
                 }
 
                 $items = Db::table('sa_system_config')

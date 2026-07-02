@@ -1143,6 +1143,28 @@
                       "type": "object",
                       "description": "推送公开配置"
                     },
+                    "download": {
+                      "type": "object",
+                      "description": "App 下载配置",
+                      "properties": {
+                        "google_play_url": {
+                          "type": "string",
+                          "description": "Google Play 商店链接"
+                        },
+                        "app_store_url": {
+                          "type": "string",
+                          "description": "App Store 商店链接"
+                        },
+                        "dev_apk_url": {
+                          "type": "string",
+                          "description": "开发版 APK 下载链接"
+                        },
+                        "dev_ipa_url": {
+                          "type": "string",
+                          "description": "开发版 IPA 下载链接"
+                        }
+                      }
+                    },
                     "member_platforms": {
                       "type": "array",
                       "description": "已初始化的第三方会员平台",

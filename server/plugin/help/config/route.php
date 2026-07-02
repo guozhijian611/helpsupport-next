@@ -230,6 +230,8 @@ Route::group('/app/help/admin/config', function () {
     fastRoute('SaAppOnboardingPage', AdminAppOnboardingPageController::class);
     Route::get('/HelpRuntimeConfig/read', [AdminHelpRuntimeConfigController::class, 'read']);
     Route::post('/HelpRuntimeConfig/update', [AdminHelpRuntimeConfigController::class, 'update']);
+    Route::get('/HelpRuntimeConfig/readDownload', [AdminHelpRuntimeConfigController::class, 'readDownload']);
+    Route::post('/HelpRuntimeConfig/updateDownload', [AdminHelpRuntimeConfigController::class, 'updateDownload']);
 });
 
 Route::group('/app/help/admin/audit', function () {
