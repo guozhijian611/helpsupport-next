@@ -45,6 +45,8 @@ Environment:
   EXPORT_PATH       Temporary Xcode export/upload output directory. Default: build/ios/upload
   TEAM_ID           Apple Developer Team ID. Default: 33ZX95D3LJ
   UPLOAD_SYMBOLS=0  Disable dSYM upload warnings for third-party native libs.
+  SKIP_DISTRIBUTION_SIGNING_CHECK=1
+                    Skip the local Apple Distribution certificate preflight.
 USAGE
 }
 
@@ -64,6 +66,13 @@ require_command xcodebuild
 require_command mktemp
 
 [[ -d "${ARCHIVE_PATH}" ]] || fail "Archive not found: ${ARCHIVE_PATH}. Build it first with ./tool/package_release.sh ipa --export-method app-store."
+
+if [[ "${SKIP_DISTRIBUTION_SIGNING_CHECK:-0}" != "1" ]]; then
+  require_command security
+  if ! security find-identity -v -p codesigning | grep -Eq '"(Apple Distribution|iOS Distribution):'; then
+    fail "Apple Distribution signing identity not found. TestFlight/App Store uploads require a distribution-signed export. Open Xcode > Settings > Accounts > Manage Certificates and create/download Apple Distribution first."
+  fi
+fi
 
 mkdir -p "${EXPORT_PATH}"
 options_plist="$(mktemp "${TMPDIR:-/tmp}/helpsupport-upload-options.XXXXXX.plist")"

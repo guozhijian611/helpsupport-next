@@ -163,6 +163,16 @@ LLAMA_ANDROID_ABIS="arm64-v8a x86_64" BUILD_ANDROID_LLAMA=1 ./tool/package_relea
 
 打 IPA 前需要确认本机 Xcode 已登录 Apple Developer 账号，并且 `com.openb8.helpsupportApp` 的证书、描述文件和相关能力可用。
 
+TestFlight 也属于 App Store Connect 分发，必须使用 `app-store` 导出方式，并且本机需要存在 `Apple Distribution` 或 `iOS Distribution` 签名证书。只有 `Apple Development` 证书时，包可能能上传到 App Store Connect，但 Apple 后台异步处理会退回 `ITMS-90426: Invalid Swift Support - The SwiftSupport folder is missing`。
+
+本机可先检查分发证书：
+
+```bash
+security find-identity -v -p codesigning | grep -E 'Apple Distribution|iOS Distribution'
+```
+
+如果没有输出，先打开 Xcode：`Settings > Accounts > Manage Certificates`，点击 `+` 创建或下载 `Apple Distribution` 证书，再重新打包上传。
+
 常见导出方式：
 
 | export-method | 用途 |
@@ -227,7 +237,8 @@ iOS 导出失败：
 
 - 打开 `ios/Runner.xcworkspace`，确认 Xcode 登录账号、Team、Bundle ID 和 Signing & Capabilities。
 - 如果是 `ad-hoc`，确认目标设备 UDID 已加入描述文件。
-- 如果是 `app-store`，确认证书和 App Store Connect 中的 Bundle ID 匹配。
+- 如果是 `app-store`，确认存在 `Apple Distribution` / `iOS Distribution` 证书，且证书、描述文件和 App Store Connect 中的 Bundle ID 匹配。
+- 遇到 `ITMS-90426`、`ITMS-90429` 或 `ITMS-90433` 时，不要手工修改 IPA、移动 `SwiftSupport` 或重签 Swift dylib；应修正 Xcode 分发签名后重新归档导出。
 
 API 地址不对：
 

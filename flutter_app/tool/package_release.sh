@@ -44,6 +44,7 @@ Options:
   --build-number VALUE    Build number, for example 12.
   --export-method VALUE   iOS export method: app-store, ad-hoc, development, enterprise.
                           Default: app-store.
+                          TestFlight uses app-store and requires a local Apple Distribution certificate.
   --split-per-abi         Build Android APKs split by ABI.
   --android-llama         Rebuild Android llama native runtime before Android artifacts.
   --clean                 Run flutter clean before packaging.
@@ -365,69 +366,19 @@ build_aab() {
 
 build_ipa() {
   log "Building iOS IPA (${EXPORT_METHOD})"
-  run_cmd flutter build ipa --release --export-method "${EXPORT_METHOD}" --build-name "${BUILD_NAME}" --build-number "${BUILD_NUMBER}"
   if [[ "${EXPORT_METHOD}" == "app-store" ]]; then
-    ensure_swift_support_matches_app_frameworks
+    require_ios_distribution_signing
   fi
+  run_cmd flutter build ipa --release --export-method "${EXPORT_METHOD}" --build-name "${BUILD_NAME}" --build-number "${BUILD_NUMBER}"
 }
 
-ensure_swift_support_matches_app_frameworks() {
+require_ios_distribution_signing() {
   [[ "${DRY_RUN}" == "1" ]] && return
+  require_command security
 
-  local ipa_path="${FLUTTER_APP_DIR}/build/ios/ipa/helpsupport_app.ipa"
-  local tmp_dir
-  local app_dir
-  local frameworks_dir
-  local support_dir
-  local swift_lib_count
-  local xcode_developer_dir
-  local toolchain_swift_dir
-
-  [[ -f "${ipa_path}" ]] || fail "IPA not found: ${ipa_path}"
-  require_command unzip
-  require_command zip
-  require_command xcode-select
-
-  xcode_developer_dir="$(xcode-select -p)"
-  toolchain_swift_dir="${xcode_developer_dir}/Toolchains/XcodeDefault.xctoolchain/usr/lib"
-  [[ -d "${toolchain_swift_dir}" ]] || fail "Xcode Swift library directory not found: ${toolchain_swift_dir}"
-
-  tmp_dir="$(mktemp -d)"
-  trap 'rm -rf "${tmp_dir}"' RETURN
-
-  unzip -q "${ipa_path}" -d "${tmp_dir}"
-  app_dir="$(find "${tmp_dir}/Payload" -maxdepth 1 -name '*.app' -type d | head -n 1)"
-  [[ -n "${app_dir}" && -d "${app_dir}" ]] || fail "App bundle not found in IPA"
-
-  frameworks_dir="${app_dir}/Frameworks"
-  swift_lib_count="$(find "${frameworks_dir}" -maxdepth 1 -type f -name 'libswift*.dylib' | wc -l | tr -d ' ')"
-  if [[ "${swift_lib_count}" == "0" ]]; then
-    warn "No Swift dylibs found in Payload app Frameworks; SwiftSupport was not generated."
-    rm -rf "${tmp_dir}"
-    trap - RETURN
-    return
+  if ! security find-identity -v -p codesigning | grep -Eq '"(Apple Distribution|iOS Distribution):'; then
+    fail "Apple Distribution signing identity not found. TestFlight/App Store builds must be exported with a distribution certificate. Open Xcode > Settings > Accounts > Manage Certificates and create/download Apple Distribution first."
   fi
-
-  support_dir="${tmp_dir}/SwiftSupport/iphoneos"
-  rm -rf "${tmp_dir}/SwiftSupport"
-  mkdir -p "${support_dir}"
-
-  while IFS= read -r embedded_lib; do
-    local lib_name
-    local source_lib
-    lib_name="$(basename "${embedded_lib}")"
-    source_lib="$(find "${toolchain_swift_dir}" -path "*/swift-*/iphoneos/${lib_name}" -type f | sort | head -n 1)"
-    [[ -n "${source_lib}" ]] || fail "Xcode Swift library not found for SwiftSupport: ${lib_name}"
-    cp -f "${source_lib}" "${support_dir}/${lib_name}"
-  done < <(find "${frameworks_dir}" -maxdepth 1 -type f -name 'libswift*.dylib' | sort)
-
-  find "${tmp_dir}" -maxdepth 1 -type f -name '*.txt' -delete
-  rm -f "${ipa_path}.tmp"
-  (cd "${tmp_dir}" && zip -qry "${ipa_path}.tmp" .)
-  mv "${ipa_path}.tmp" "${ipa_path}"
-  rm -rf "${tmp_dir}"
-  trap - RETURN
-  log "Synchronized SwiftSupport/iphoneos (${swift_lib_count} dylibs)"
 }
 
 run_cmd() {
