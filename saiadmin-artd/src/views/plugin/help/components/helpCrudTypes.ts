@@ -47,6 +47,7 @@ export interface HelpCrudField {
     | 'contentCategory'
     | 'contentMaterial'
     | 'communityPost'
+    | 'communityComment'
     | 'chatSession'
     | 'localModelCatalog'
     | 'taskTemplateFolder'

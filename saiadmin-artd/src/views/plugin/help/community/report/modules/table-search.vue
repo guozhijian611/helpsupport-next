@@ -27,7 +27,19 @@
     </ElCol>
     <ElCol v-bind="setSpan(6)">
       <ElFormItem label="目标ID" prop="target_id">
-        <ElInput v-model="formData.target_id" placeholder="请输入目标ID" clearable />
+        <HelpRelationSelect
+          v-if="targetRelation"
+          :key="targetRelation"
+          v-model="formData.target_id"
+          :relation="targetRelation"
+          placeholder="请选择举报目标"
+        />
+        <ElInput
+          v-else
+          v-model="formData.target_id"
+          placeholder="先选目标类型后可关联选择"
+          clearable
+        />
       </ElFormItem>
     </ElCol>
     <ElCol v-bind="setSpan(6)">
@@ -49,6 +61,7 @@
 
 <script setup lang="ts">
   import HelpRelationSelect from '../../../components/HelpRelationSelect.vue'
+  import type { HelpRelationType } from '../../../components/relationOptions'
 
   interface Props {
     modelValue: Record<string, any>
@@ -68,6 +81,19 @@
     set: (val) => emit('update:modelValue', val)
   })
 
+  const targetRelation = computed<HelpRelationType | undefined>(() =>
+    relationByTargetType(formData.value.target_type)
+  )
+
+  watch(
+    () => formData.value.target_type,
+    (newValue, oldValue) => {
+      if (newValue !== oldValue) {
+        formData.value.target_id = undefined
+      }
+    }
+  )
+
   function handleReset() {
     searchBarRef.value?.ref.resetFields()
     emit('reset')
@@ -85,4 +111,15 @@
     lg: span,
     xl: span
   })
+
+  function relationByTargetType(
+    type: number | string | null | undefined
+  ): HelpRelationType | undefined {
+    const map: Record<number, HelpRelationType> = {
+      1: 'communityPost',
+      2: 'communityComment',
+      3: 'member'
+    }
+    return map[Number(type)]
+  }
 </script>

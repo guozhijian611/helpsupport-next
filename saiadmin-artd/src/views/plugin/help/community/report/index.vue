@@ -49,6 +49,13 @@
         <template #target_type="{ row }">
           <ElTag>{{ targetTypeText(row.target_type) }}</ElTag>
         </template>
+        <template #target_id="{ row }">
+          <TargetRelationText
+            :target-type="row.target_type"
+            :target-id="row.target_id"
+            @open="openTargetDetail"
+          />
+        </template>
         <template #handle_status="{ row }">
           <ElTag :type="handleStatusType(row.handle_status)">
             {{ handleStatusText(row.handle_status) }}
@@ -105,7 +112,11 @@
           <HelpRelationText relation="member" :value="detail.member_id" />
         </ElDescriptionsItem>
         <ElDescriptionsItem label="举报目标">
-          {{ targetTypeText(detail.target_type) }} #{{ detail.target_id }}
+          <TargetRelationText
+            :target-type="detail.target_type"
+            :target-id="detail.target_id"
+            @open="openTargetDetail"
+          />
         </ElDescriptionsItem>
         <ElDescriptionsItem label="原因">{{ detail.reason }}</ElDescriptionsItem>
         <ElDescriptionsItem label="描述">{{ detail.description || '无' }}</ElDescriptionsItem>
@@ -117,6 +128,77 @@
           <AuditLogTimeline :logs="detail.audit_logs || []" />
         </ElDescriptionsItem>
         <ElDescriptionsItem label="举报时间">{{ detail.create_time }}</ElDescriptionsItem>
+      </ElDescriptions>
+    </ElDrawer>
+
+    <ElDrawer
+      v-model="targetDetailVisible"
+      size="60%"
+      :title="`${targetTypeText(targetDetailType)}详情`"
+    >
+      <ElSkeleton v-if="targetDetailLoading" :rows="8" animated />
+      <ElDescriptions v-else :column="1" border>
+        <template v-if="targetDetailType === 1">
+          <ElDescriptionsItem label="帖子ID">{{ targetDetail.id }}</ElDescriptionsItem>
+          <ElDescriptionsItem label="会员">
+            <HelpRelationText relation="member" :value="targetDetail.member_id" />
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="帖子内容">
+            <div class="content-text">{{ plainText(targetDetail.content) || '无' }}</div>
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="互动数据">
+            浏览 {{ targetDetail.view_count || 0 }} / 点赞 {{ targetDetail.like_count || 0 }} / 评论
+            {{ targetDetail.comment_count || 0 }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="审核状态">
+            {{ auditStatusText(targetDetail.audit_status) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="发布状态">
+            {{ Number(targetDetail.status) === 1 ? '正常' : '隐藏' }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="发布时间">{{
+            targetDetail.create_time || '无'
+          }}</ElDescriptionsItem>
+        </template>
+        <template v-else-if="targetDetailType === 2">
+          <ElDescriptionsItem label="评论ID">{{ targetDetail.id }}</ElDescriptionsItem>
+          <ElDescriptionsItem label="所属帖子">
+            #{{ targetDetail.post_id }} {{ targetDetail.post_title || '' }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="会员">
+            <HelpRelationText relation="member" :value="targetDetail.member_id" />
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="父评论ID">{{
+            targetDetail.parent_id || '无'
+          }}</ElDescriptionsItem>
+          <ElDescriptionsItem label="评论内容">
+            <div class="content-text">{{ plainText(targetDetail.content) || '无' }}</div>
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="审核状态">
+            {{ auditStatusText(targetDetail.audit_status) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="评论时间">{{
+            targetDetail.create_time || '无'
+          }}</ElDescriptionsItem>
+        </template>
+        <template v-else-if="targetDetailType === 3">
+          <ElDescriptionsItem label="会员ID">{{ targetDetail.id }}</ElDescriptionsItem>
+          <ElDescriptionsItem label="用户名">{{
+            targetDetail.username || '无'
+          }}</ElDescriptionsItem>
+          <ElDescriptionsItem label="昵称">{{ targetDetail.nickname || '无' }}</ElDescriptionsItem>
+          <ElDescriptionsItem label="身份">{{
+            targetDetail.current_role_text || targetDetail.identity_text || '无'
+          }}</ElDescriptionsItem>
+          <ElDescriptionsItem label="手机">{{ targetDetail.mobile || '无' }}</ElDescriptionsItem>
+          <ElDescriptionsItem label="邮箱">{{ targetDetail.email || '无' }}</ElDescriptionsItem>
+          <ElDescriptionsItem label="状态">
+            {{ Number(targetDetail.status) === 1 ? '正常' : '禁用' }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="最后登录">{{
+            targetDetail.last_login_time || '无'
+          }}</ElDescriptionsItem>
+        </template>
       </ElDescriptions>
     </ElDrawer>
 
@@ -136,7 +218,11 @@
   import AuditLogTimeline from '../../components/AuditLogTimeline.vue'
   import HelpRelationText from '../../components/HelpRelationText.vue'
   import api from '../../api/community/report'
+  import postApi from '../../api/community/post'
+  import commentApi from '../../api/community/comment'
+  import memberApi from '@/views/plugin/saiuser/api/member/member'
   import TableSearch from './modules/table-search.vue'
+  import TargetRelationText from './modules/target-relation-text.vue'
   import EditDialog from './modules/edit-dialog.vue'
 
   const searchForm = ref({
@@ -149,6 +235,10 @@
 
   const detailVisible = ref(false)
   const detail = ref<Record<string, any>>({})
+  const targetDetailVisible = ref(false)
+  const targetDetailLoading = ref(false)
+  const targetDetailType = ref(0)
+  const targetDetail = ref<Record<string, any>>({})
 
   const handleSearch = (params: Record<string, any>) => {
     Object.assign(searchParams, params)
@@ -176,7 +266,7 @@
         { prop: 'id', label: 'ID', width: 80 },
         { prop: 'member_id', label: '举报会员', minWidth: 160, useSlot: true },
         { prop: 'target_type', label: '目标类型', width: 100, useSlot: true },
-        { prop: 'target_id', label: '目标ID', width: 100 },
+        { prop: 'target_id', label: '举报目标', minWidth: 220, useSlot: true },
         { prop: 'reason', label: '原因', width: 150 },
         { prop: 'description', label: '描述', minWidth: 220, useSlot: true },
         { prop: 'handle_status', label: '处理状态', width: 110, useSlot: true },
@@ -201,6 +291,28 @@
   const openDetail = async (row: Record<string, any>) => {
     detail.value = await api.read(row.id)
     detailVisible.value = true
+  }
+
+  const openTargetDetail = async (payload: {
+    targetType: number
+    targetId: number | string | null
+  }) => {
+    if (!payload.targetId) return
+    targetDetailType.value = Number(payload.targetType)
+    targetDetail.value = {}
+    targetDetailVisible.value = true
+    targetDetailLoading.value = true
+
+    try {
+      const response = await targetApi(targetDetailType.value).read(payload.targetId)
+      targetDetail.value = unwrapData(response)
+    } catch (error) {
+      console.error('加载举报目标详情失败:', error)
+      ElMessage.error('举报目标详情加载失败')
+      targetDetailVisible.value = false
+    } finally {
+      targetDetailLoading.value = false
+    }
   }
 
   const handleReport = async (row: Record<string, any>, handleStatus: number) => {
@@ -231,6 +343,33 @@
     return map[Number(type)] || '未知'
   }
 
+  const targetApi = (type: number) => {
+    const map: Record<number, { read: (id: number | string) => Promise<any> }> = {
+      1: postApi,
+      2: commentApi,
+      3: memberApi
+    }
+    return map[type] || postApi
+  }
+
+  const unwrapData = (response: any) => response?.data || response || {}
+
+  const plainText = (content: string | undefined) => {
+    return String(content || '')
+      .replace(/<[^>]+>/g, '')
+      .trim()
+  }
+
+  const auditStatusText = (status: number) => {
+    const map: Record<number, string> = {
+      0: '待审核',
+      1: '已通过',
+      2: '已拒绝',
+      3: 'AI预审'
+    }
+    return map[Number(status)] || '未知'
+  }
+
   const handleStatusText = (status: number) => {
     const map: Record<number, string> = {
       0: '待处理',
@@ -249,3 +388,10 @@
     return map[Number(status)] || 'info'
   }
 </script>
+
+<style scoped>
+  .content-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+</style>

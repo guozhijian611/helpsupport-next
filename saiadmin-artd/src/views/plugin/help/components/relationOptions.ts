@@ -14,6 +14,7 @@ const relationUrls: Record<HelpRelationType, string> = {
   contentCategory: '/app/help/admin/material/SaContentCategory/index',
   contentMaterial: '/app/help/admin/material/SaContentMaterial/index',
   communityPost: '/app/help/admin/community/SaCommunityPost/index',
+  communityComment: '/app/help/admin/community/SaCommunityComment/index',
   chatSession: '/app/help/admin/chat/SaMemberChatSession/index',
   localModelCatalog: '/app/help/admin/localModel/SaLocalModelCatalog/index',
   taskTemplateFolder: '/app/help/admin/doctor/SaDoctorTaskTemplateFolder/index',
@@ -45,6 +46,7 @@ export function inferRelationType(field: HelpCrudField): HelpRelationType | unde
   if (prop === 'category_id' || prop === 'parent_id') return 'contentCategory'
   if (prop === 'material_id') return 'contentMaterial'
   if (prop === 'post_id') return 'communityPost'
+  if (prop === 'comment_id') return 'communityComment'
   if (prop === 'session_id') return 'chatSession'
   if (prop === 'model_id') return 'localModelCatalog'
   if (prop === 'folder_id') return 'taskTemplateFolder'
@@ -132,7 +134,8 @@ function labelCandidates(type: HelpRelationType, row: Record<string, any>): unkn
     assessmentScale: [row.title],
     contentCategory: [row.name],
     contentMaterial: [row.title],
-    communityPost: [row.title],
+    communityPost: [row.title, row.content],
+    communityComment: [row.content],
     chatSession: [row.session_name, row.chat_mode],
     localModelCatalog: [row.display_name, row.model_name, row.name],
     taskTemplateFolder: [row.name],

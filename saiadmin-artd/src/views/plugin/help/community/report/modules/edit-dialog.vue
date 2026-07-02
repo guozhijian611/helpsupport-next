@@ -31,12 +31,12 @@
         </el-col>
         <el-col :span="12">
           <el-form-item label="目标ID" prop="target_id">
-            <el-input-number
+            <HelpRelationSelect
+              v-if="targetRelation"
+              :key="targetRelation"
               v-model="formData.target_id"
-              :min="1"
-              :precision="0"
-              controls-position="right"
-              class="w-full"
+              :relation="targetRelation"
+              placeholder="请选择举报目标"
             />
           </el-form-item>
         </el-col>
@@ -89,6 +89,8 @@
 
 <script setup lang="ts">
   import api from '../../../api/community/report'
+  import HelpRelationSelect from '../../../components/HelpRelationSelect.vue'
+  import type { HelpRelationType } from '../../../components/relationOptions'
   import { ElMessage } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
 
@@ -119,7 +121,7 @@
   const rules = reactive<FormRules>({
     member_id: [{ required: true, message: '举报会员必须填写', trigger: 'blur' }],
     target_type: [{ required: true, message: '目标类型必须选择', trigger: 'change' }],
-    target_id: [{ required: true, message: '目标ID必须填写', trigger: 'blur' }],
+    target_id: [{ required: true, message: '目标ID必须填写', trigger: 'change' }],
     reason: [{ required: true, message: '举报原因必须填写', trigger: 'blur' }],
     handle_status: [{ required: true, message: '处理状态必须选择', trigger: 'change' }]
   })
@@ -136,11 +138,17 @@
   }
 
   const formData = reactive({ ...initialFormData })
+  const hydrating = ref(false)
+
+  const targetRelation = computed<HelpRelationType | undefined>(() =>
+    relationByTargetType(formData.target_type)
+  )
 
   watch(
     () => props.modelValue,
     async (newVal) => {
       if (newVal) {
+        hydrating.value = true
         Object.assign(formData, initialFormData)
         if (props.data) {
           await nextTick()
@@ -150,6 +158,17 @@
             }
           }
         }
+        await nextTick()
+        hydrating.value = false
+      }
+    }
+  )
+
+  watch(
+    () => formData.target_type,
+    (newValue, oldValue) => {
+      if (!hydrating.value && newValue !== oldValue) {
+        formData.target_id = null
       }
     }
   )
@@ -175,5 +194,16 @@
     } catch (error) {
       console.log('表单验证失败:', error)
     }
+  }
+
+  function relationByTargetType(
+    type: number | string | null | undefined
+  ): HelpRelationType | undefined {
+    const map: Record<number, HelpRelationType> = {
+      1: 'communityPost',
+      2: 'communityComment',
+      3: 'member'
+    }
+    return map[Number(type)]
   }
 </script>
