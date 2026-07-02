@@ -380,10 +380,17 @@ ensure_swift_support_matches_app_frameworks() {
   local frameworks_dir
   local support_dir
   local swift_lib_count
+  local xcode_developer_dir
+  local toolchain_swift_dir
 
   [[ -f "${ipa_path}" ]] || fail "IPA not found: ${ipa_path}"
   require_command unzip
   require_command zip
+  require_command xcode-select
+
+  xcode_developer_dir="$(xcode-select -p)"
+  toolchain_swift_dir="${xcode_developer_dir}/Toolchains/XcodeDefault.xctoolchain/usr/lib"
+  [[ -d "${toolchain_swift_dir}" ]] || fail "Xcode Swift library directory not found: ${toolchain_swift_dir}"
 
   tmp_dir="$(mktemp -d)"
   trap 'rm -rf "${tmp_dir}"' RETURN
@@ -404,7 +411,15 @@ ensure_swift_support_matches_app_frameworks() {
   support_dir="${tmp_dir}/SwiftSupport/iphoneos"
   rm -rf "${tmp_dir}/SwiftSupport"
   mkdir -p "${support_dir}"
-  find "${frameworks_dir}" -maxdepth 1 -type f -name 'libswift*.dylib' -exec cp -f {} "${support_dir}/" \;
+
+  while IFS= read -r embedded_lib; do
+    local lib_name
+    local source_lib
+    lib_name="$(basename "${embedded_lib}")"
+    source_lib="$(find "${toolchain_swift_dir}" -path "*/swift-*/iphoneos/${lib_name}" -type f | sort | head -n 1)"
+    [[ -n "${source_lib}" ]] || fail "Xcode Swift library not found for SwiftSupport: ${lib_name}"
+    cp -f "${source_lib}" "${support_dir}/${lib_name}"
+  done < <(find "${frameworks_dir}" -maxdepth 1 -type f -name 'libswift*.dylib' | sort)
 
   find "${tmp_dir}" -maxdepth 1 -type f -name '*.txt' -delete
   rm -f "${ipa_path}.tmp"
