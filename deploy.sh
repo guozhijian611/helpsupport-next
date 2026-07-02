@@ -4,11 +4,10 @@ set -Eeuo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRONTEND_DIR="$ROOT_DIR/saiadmin-artd"
-UNIAPP_DIR="$ROOT_DIR/uniapp"
 SERVER_DIR="$ROOT_DIR/server"
 PACKAGES_DIR="$ROOT_DIR/packages"
 
-REMOTE="${REMOTE:-shanghai}"
+REMOTE="${REMOTE:-b8org}"
 REMOTE_ENV="${REMOTE_ENV:-LC_ALL=C LANG=C}"
 REMOTE_OTEL_DISABLED_INSTRUMENTATIONS="${REMOTE_OTEL_DISABLED_INSTRUMENTATIONS:-pdo}"
 SSH_OPTS=(-o SendEnv=NONE -o SetEnv=LC_ALL=C -o SetEnv=LANG=C)
@@ -19,7 +18,6 @@ REMOTE_SERVER_DIR="$REMOTE_ROOT/server"
 REMOTE_PACKAGES_DIR="$REMOTE_ROOT/packages"
 REMOTE_PUBLIC_DIR="$REMOTE_SERVER_DIR/public"
 REMOTE_ADMIN_DIR="$REMOTE_PUBLIC_DIR/admin"
-REMOTE_H5_DIR="$REMOTE_PUBLIC_DIR/h5"
 REMOTE_STORAGE_DIR="$REMOTE_PUBLIC_DIR/storage"
 REMOTE_BACKUP_DIR="$REMOTE_ROOT/backups"
 
@@ -36,10 +34,8 @@ REMOTE_DB_USER="${REMOTE_DB_USER:-b8aiadmin}"
 REMOTE_DB_PASS="${REMOTE_DB_PASS:-b8aiadmin}"
 
 BUILD_ADMIN="${BUILD_ADMIN:-}"
-BUILD_H5="${BUILD_H5:-}"
 SYNC_DB="${SYNC_DB:-}"
 ADMIN_PUBLIC_BASE="${ADMIN_PUBLIC_BASE:-/admin/}"
-H5_PUBLIC_BASE="${H5_PUBLIC_BASE:-/h5/}"
 DRY_RUN="${DRY_RUN:-}"
 FIX_PERMS="${FIX_PERMS:-1}"
 RESTART_WEBMAN="${RESTART_WEBMAN:-1}"
@@ -102,14 +98,6 @@ if [[ "$INTERACTIVE" == "1" ]]; then
     fi
   fi
 
-  if [[ -z "$BUILD_H5" ]]; then
-    if prompt_yes_no "是否先编译 uniapp H5？" "y"; then
-      BUILD_H5=1
-    else
-      BUILD_H5=0
-    fi
-  fi
-
   if [[ -z "$SYNC_DB" ]]; then
     if prompt_yes_no "是否同步本地数据库到服务器？这会覆盖服务器 ${REMOTE_DB_NAME} 库" "n"; then
       SYNC_DB=1
@@ -127,19 +115,16 @@ if [[ "$INTERACTIVE" == "1" ]]; then
   fi
 else
   BUILD_ADMIN="${BUILD_ADMIN:-0}"
-  BUILD_H5="${BUILD_H5:-1}"
   SYNC_DB="${SYNC_DB:-0}"
   DRY_RUN="${DRY_RUN:-0}"
 fi
 
 RSYNC_FLAGS=(-azh --delete -e "$RSYNC_SSH")
 ADMIN_RSYNC_FLAGS=(-azh --delete -e "$RSYNC_SSH")
-H5_RSYNC_FLAGS=(-azh --delete -e "$RSYNC_SSH")
 STORAGE_RSYNC_FLAGS=(-azh --progress -e "$RSYNC_SSH")
 if [[ "$DRY_RUN" == "1" ]]; then
   RSYNC_FLAGS+=(-n)
   ADMIN_RSYNC_FLAGS+=(-n)
-  H5_RSYNC_FLAGS+=(-n)
   STORAGE_RSYNC_FLAGS+=(-n)
 fi
 
@@ -151,12 +136,9 @@ echo "目标目录：${REMOTE_ROOT}"
 echo "server 目标：${REMOTE_SERVER_DIR}"
 echo "packages 目标：${REMOTE_PACKAGES_DIR}"
 echo "admin 目标：${REMOTE_ADMIN_DIR}"
-echo "uniapp H5 目标：${REMOTE_H5_DIR}"
 echo "编译 admin：${BUILD_ADMIN}"
-echo "编译 uniapp H5：${BUILD_H5}"
 echo "同步数据库：${SYNC_DB}"
 echo "admin 基础路径：${ADMIN_PUBLIC_BASE}"
-echo "uniapp H5 基础路径：${H5_PUBLIC_BASE}"
 echo "预览模式：${DRY_RUN}"
 echo "修复权限：${FIX_PERMS}"
 echo "重启 Webman：${RESTART_WEBMAN}"
@@ -215,19 +197,6 @@ else
   echo "如需编译后再部署，执行：BUILD_ADMIN=1 ./deploy.sh"
 fi
 
-if [[ "$BUILD_H5" == "1" ]]; then
-  require_command pnpm
-
-  log "编译 uniapp H5"
-  (
-    cd "$UNIAPP_DIR"
-    VITE_APP_PUBLIC_BASE="$H5_PUBLIC_BASE" pnpm build:h5
-  )
-else
-  log "跳过 uniapp H5 编译"
-  echo "如需编译后再部署，执行：BUILD_H5=1 ./deploy.sh"
-fi
-
 ADMIN_DIST_READY=1
 if [[ ! -d "$FRONTEND_DIR/dist" ]]; then
   ADMIN_DIST_READY=0
@@ -240,24 +209,12 @@ if [[ ! -d "$FRONTEND_DIR/dist" ]]; then
   fi
 fi
 
-H5_DIST_READY=1
-if [[ ! -d "$UNIAPP_DIR/dist/build/h5" ]]; then
-  H5_DIST_READY=0
-  echo "uniapp H5 构建目录不存在：$UNIAPP_DIR/dist/build/h5" >&2
-  if [[ "$DRY_RUN" == "1" ]]; then
-    echo "预览模式下继续执行；实际部署前请生成 H5 dist，或使用 BUILD_H5=1 ./deploy.sh" >&2
-  else
-    echo "请先在 $UNIAPP_DIR 生成 H5 dist，或使用 BUILD_H5=1 ./deploy.sh" >&2
-    exit 1
-  fi
-fi
-
 if [[ "$DRY_RUN" == "1" ]]; then
   log "预览模式：跳过创建服务器目录"
-  echo "将执行：ssh ${REMOTE} \"${REMOTE_ENV} mkdir -p '${REMOTE_SERVER_DIR}' '${REMOTE_PACKAGES_DIR}' '${REMOTE_PUBLIC_DIR}' '${REMOTE_ADMIN_DIR}' '${REMOTE_H5_DIR}' '${REMOTE_STORAGE_DIR}'\""
+  echo "将执行：ssh ${REMOTE} \"${REMOTE_ENV} mkdir -p '${REMOTE_SERVER_DIR}' '${REMOTE_PACKAGES_DIR}' '${REMOTE_PUBLIC_DIR}' '${REMOTE_ADMIN_DIR}' '${REMOTE_STORAGE_DIR}'\""
 else
   log "创建服务器目录"
-  ssh "${SSH_OPTS[@]}" "$REMOTE" "${REMOTE_ENV} mkdir -p '$REMOTE_SERVER_DIR' '$REMOTE_PACKAGES_DIR' '$REMOTE_PUBLIC_DIR' '$REMOTE_ADMIN_DIR' '$REMOTE_H5_DIR' '$REMOTE_STORAGE_DIR'"
+  ssh "${SSH_OPTS[@]}" "$REMOTE" "${REMOTE_ENV} mkdir -p '$REMOTE_SERVER_DIR' '$REMOTE_PACKAGES_DIR' '$REMOTE_PUBLIC_DIR' '$REMOTE_ADMIN_DIR' '$REMOTE_STORAGE_DIR'"
 fi
 
 if [[ -d "$PACKAGES_DIR" ]]; then
@@ -287,18 +244,10 @@ else
   echo "本地目录不存在：$FRONTEND_DIR/dist"
 fi
 
-if [[ "$H5_DIST_READY" == "1" ]]; then
-  log "同步 uniapp H5 到 ${REMOTE}:${REMOTE_H5_DIR}"
-  rsync "${H5_RSYNC_FLAGS[@]}" "$UNIAPP_DIR/dist/build/h5/" "$REMOTE:$REMOTE_H5_DIR/"
-else
-  log "预览模式：跳过 uniapp H5 同步"
-  echo "本地目录不存在：$UNIAPP_DIR/dist/build/h5"
-fi
-
 if [[ "$DRY_RUN" == "1" ]]; then
   log "预览模式：跳过权限修复和前端检查"
   echo "将执行：ssh ${REMOTE} \"${REMOTE_ENV} find '${REMOTE_SERVER_DIR}' '${REMOTE_PACKAGES_DIR}' -path '${REMOTE_PUBLIC_DIR}/.user.ini' -prune -o -exec chown -h www:www {} +\""
-  echo "将检查：${REMOTE_ADMIN_DIR}/index.html、${REMOTE_ADMIN_DIR}/assets、${REMOTE_H5_DIR}/index.html"
+  echo "将检查：${REMOTE_ADMIN_DIR}/index.html、${REMOTE_ADMIN_DIR}/assets"
 else
   if [[ "$FIX_PERMS" == "1" ]]; then
     log "修复 server 和 packages 文件归属"
@@ -311,13 +260,6 @@ else
     test -f '$REMOTE_ADMIN_DIR/index.html'
     test -d '$REMOTE_ADMIN_DIR/assets'
     ls -ld '$REMOTE_ADMIN_DIR' '$REMOTE_ADMIN_DIR/index.html' '$REMOTE_ADMIN_DIR/assets'
-EOF
-
-  log "检查 uniapp H5 同步结果"
-  ssh "${SSH_OPTS[@]}" "$REMOTE" "${REMOTE_ENV} bash -s" <<EOF
-    set -e
-    test -f '$REMOTE_H5_DIR/index.html'
-    ls -ld '$REMOTE_H5_DIR' '$REMOTE_H5_DIR/index.html'
 EOF
 fi
 
