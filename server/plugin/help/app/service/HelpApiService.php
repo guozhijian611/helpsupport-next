@@ -265,6 +265,7 @@ class HelpApiService
                 ]);
             }
             $this->upsertByMember('sa_help_member_profile', $memberId, $payload);
+            $this->syncProfileRecordLogs($memberId, $payload, $memberId);
         });
 
         return $this->profile($memberId, $this->member($memberId));
@@ -3440,7 +3441,10 @@ class HelpApiService
             );
         }
 
-        $this->upsertByMember('sa_help_member_profile', $memberId, $payload);
+        Db::transaction(function () use ($memberId, $payload, $doctorId) {
+            $this->upsertByMember('sa_help_member_profile', $memberId, $payload);
+            $this->syncProfileRecordLogs($memberId, $payload, $doctorId);
+        });
 
         return $this->doctorPatientProfileRow($doctorId, $memberId);
     }
@@ -6528,6 +6532,77 @@ class HelpApiService
         $payload['update_time'] = $now;
 
         return (int) Db::table($table)->insertGetId($payload);
+    }
+
+    private function syncProfileRecordLogs(int $memberId, array $payload, int $actorId): void
+    {
+        $now = date('Y-m-d H:i:s');
+        if (array_key_exists('recovery_goal', $payload)) {
+            $goalText = trim((string) $payload['recovery_goal']);
+            if ($goalText !== '') {
+                Db::table('sa_member_recovery_goal_log')->insert([
+                    'member_id' => $memberId,
+                    'goal_text' => mb_substr($goalText, 0, 500),
+                    'goal_type' => 'custom',
+                    'status' => 1,
+                    'remark' => '由个人资料康复目标同步生成',
+                    'created_by' => $actorId,
+                    'updated_by' => $actorId,
+                    'create_time' => $now,
+                    'update_time' => $now,
+                ]);
+            }
+        }
+
+        if (!array_key_exists('trigger_tags', $payload)) {
+            return;
+        }
+
+        foreach ($this->profileTriggerTags($payload['trigger_tags']) as $triggerName) {
+            Db::table('sa_member_trigger_log')->insert([
+                'member_id' => $memberId,
+                'trigger_name' => mb_substr($triggerName, 0, 120),
+                'trigger_type' => 'custom',
+                'intensity' => 0,
+                'occurred_at' => $now,
+                'status' => 1,
+                'remark' => '由个人资料重点触发同步生成',
+                'created_by' => $actorId,
+                'updated_by' => $actorId,
+                'create_time' => $now,
+                'update_time' => $now,
+            ]);
+        }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function profileTriggerTags(mixed $value): array
+    {
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $value = $decoded;
+            } else {
+                $value = explode(',', $value);
+            }
+        }
+
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $tags = [];
+        foreach ($value as $item) {
+            $text = trim((string) $item);
+            if ($text === '' || in_array($text, $tags, true)) {
+                continue;
+            }
+            $tags[] = $text;
+        }
+
+        return $tags;
     }
 
     private function paginate(callable $builder, array $params): array
