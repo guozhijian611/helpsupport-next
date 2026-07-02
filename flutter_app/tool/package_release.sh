@@ -29,8 +29,10 @@ Build HelpSupport Flutter release artifacts.
 Usage:
   ./tool/package_release.sh [target...] [options]
 
+Run without arguments to select release artifacts interactively.
+
 Targets:
-  all                 Build apk, aab, and ipa. Default.
+  all                 Build apk, aab, and ipa.
   android             Build apk and aab.
   ios                 Build ipa.
   apk                 Build Android APK.
@@ -60,7 +62,7 @@ Environment:
   DRY_RUN=1               Same as --dry-run.
 
 Examples:
-  ./tool/package_release.sh
+  ./tool/package_release.sh       # Interactive selection.
   ./tool/package_release.sh android --build-name 1.0.0 --build-number 2
   ./tool/package_release.sh ipa --export-method ad-hoc
   BUILD_ANDROID_LLAMA=1 ./tool/package_release.sh apk
@@ -157,9 +159,6 @@ parse_args() {
     esac
   done
 
-  if [[ ${#TARGETS[@]} -eq 0 ]]; then
-    add_target all
-  fi
 }
 
 target_enabled() {
@@ -173,6 +172,135 @@ target_enabled() {
 
 has_android_target() {
   target_enabled apk || target_enabled aab
+}
+
+prompt_value() {
+  local label="$1"
+  local current="$2"
+  local input
+  printf '%s [%s]: ' "${label}" "${current}" >&2
+  IFS= read -r input || fail "Input cancelled"
+  if [[ -n "${input}" ]]; then
+    printf '%s\n' "${input}"
+  else
+    printf '%s\n' "${current}"
+  fi
+}
+
+prompt_yes_no() {
+  local label="$1"
+  local default_value="$2"
+  local hint input
+
+  if [[ "${default_value}" == "1" ]]; then
+    hint="Y/n"
+  else
+    hint="y/N"
+  fi
+
+  while true; do
+    printf '%s [%s]: ' "${label}" "${hint}" >&2
+    IFS= read -r input || fail "Input cancelled"
+    case "${input}" in
+      y | Y | yes | YES)
+        printf '1\n'
+        return
+        ;;
+      n | N | no | NO)
+        printf '0\n'
+        return
+        ;;
+      '')
+        printf '%s\n' "${default_value}"
+        return
+        ;;
+      *)
+        printf 'Please enter y or n.\n' >&2
+        ;;
+    esac
+  done
+}
+
+interactive_select() {
+  local choice
+
+  cat <<'MENU'
+
+HelpSupport 正式包打包
+
+请选择要输出的产物：
+  1) 全部：APK + AAB + IPA(App Store/TestFlight)
+  2) Android：APK + AAB
+  3) Android APK
+  4) Android AAB
+  5) iOS IPA：App Store / TestFlight
+  6) iOS IPA：Ad Hoc 内部分发
+  7) iOS IPA：Development 开发签名
+  8) iOS IPA：Enterprise 企业分发
+MENU
+
+  while true; do
+    printf '请输入序号 [1]: '
+    IFS= read -r choice || fail "Input cancelled"
+    choice="${choice:-1}"
+    case "${choice}" in
+      1)
+        add_target all
+        EXPORT_METHOD="app-store"
+        break
+        ;;
+      2)
+        add_target android
+        break
+        ;;
+      3)
+        add_target apk
+        break
+        ;;
+      4)
+        add_target aab
+        break
+        ;;
+      5)
+        add_target ipa
+        EXPORT_METHOD="app-store"
+        break
+        ;;
+      6)
+        add_target ipa
+        EXPORT_METHOD="ad-hoc"
+        break
+        ;;
+      7)
+        add_target ipa
+        EXPORT_METHOD="development"
+        break
+        ;;
+      8)
+        add_target ipa
+        EXPORT_METHOD="enterprise"
+        break
+        ;;
+      *)
+        printf '请输入 1-8 的序号。\n' >&2
+        ;;
+    esac
+  done
+
+  BUILD_NAME="$(prompt_value '版本号 build-name' "${BUILD_NAME}")"
+  BUILD_NUMBER="$(prompt_value '构建号 build-number' "${BUILD_NUMBER}")"
+
+  if has_android_target && target_enabled apk; then
+    SPLIT_PER_ABI="$(prompt_yes_no 'Android APK 是否按 ABI 拆分' "${SPLIT_PER_ABI}")"
+  fi
+
+  if has_android_target; then
+    BUILD_ANDROID_LLAMA="$(prompt_yes_no '是否重新编译 Android 本地模型动态库' "${BUILD_ANDROID_LLAMA}")"
+  fi
+
+  RUN_CLEAN="$(prompt_yes_no '是否先执行 flutter clean' "${RUN_CLEAN}")"
+  RUN_PUB_GET="$(prompt_yes_no '是否执行 flutter pub get' "${RUN_PUB_GET}")"
+  DRY_RUN="$(prompt_yes_no '是否只打印命令不实际打包' "${DRY_RUN}")"
 }
 
 validate_export_method() {
@@ -268,7 +396,15 @@ EOF
 }
 
 main() {
+  local arg_count="$#"
+
   parse_args "$@"
+  if [[ "${arg_count}" -eq 0 ]]; then
+    interactive_select
+  elif [[ ${#TARGETS[@]} -eq 0 ]]; then
+    add_target all
+  fi
+
   validate_export_method
   if [[ "${DRY_RUN}" != "1" ]]; then
     require_command flutter

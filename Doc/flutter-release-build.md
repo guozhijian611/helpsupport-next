@@ -12,7 +12,7 @@ flutter_app/tool/package_release.sh
 https://help.openb8.chat
 ```
 
-## 快速打包
+## 快速打包和交互选择
 
 在 `flutter_app/` 目录执行：
 
@@ -20,7 +20,17 @@ https://help.openb8.chat
 ./tool/package_release.sh
 ```
 
-默认会依次输出：
+无参数运行会进入交互菜单，可选择：
+
+- 全部：APK + AAB + IPA
+- Android：APK + AAB
+- 单独 APK
+- 单独 AAB
+- IPA：`app-store`、`ad-hoc`、`development`、`enterprise`
+
+菜单还会继续询问版本号、构建号、是否按 ABI 拆分 APK、是否重新编译 Android 本地模型动态库、是否执行 `flutter clean`、是否执行 `flutter pub get`、是否只打印命令不实际打包。
+
+对应产物位置：
 
 | 目标 | 命令 | 产物位置 |
 | --- | --- | --- |
@@ -95,6 +105,8 @@ Android 按 ABI 拆分 APK：
 ```bash
 ./tool/package_release.sh android --dry-run
 ```
+
+也可以在交互菜单最后选择 dry-run。
 
 ## Android 正式签名
 

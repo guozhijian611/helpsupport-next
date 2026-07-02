@@ -29,7 +29,7 @@ APK、AAB 和 IPA 统一使用发布脚本：
 ./tool/package_release.sh
 ```
 
-可按需只打单个平台或单类产物：
+无参数运行会进入交互菜单，由用户选择 APK、AAB、IPA、版本号、构建号和是否 dry-run。也可以按需直接传参只打单个平台或单类产物：
 
 ```bash
 ./tool/package_release.sh android
