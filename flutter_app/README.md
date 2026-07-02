@@ -12,7 +12,7 @@ cd ..
 
 `./run_app.sh` 会合并显示 `flutter devices`、`adb devices` 和可启动 Android AVD，让用户选择后在 `flutter_app/` 下执行 `flutter run -d <device id>`。脚本会在运行时把 Android SDK 的 `emulator`、`platform-tools` 和 `cmdline-tools/latest/bin` 加入 PATH；如果没有检测到 Android 设备，会自动执行 `flutter emulators --launch HelpSupport_API36` 并等待模拟器连接。选择可启动 Android AVD 时，脚本会先启动对应模拟器，再用启动后的 adb 设备 ID 运行 Flutter。
 
-API 基础地址写在 `flutter_app/lib/core/api/api_client.dart` 的 `ApiClient.apiBaseUrl` 常量里，默认值是 `http://10.0.0.6:8787`，后端 API 使用现有 `/app/help/...` 路由。
+API 基础地址写在 `flutter_app/lib/core/api/api_client.dart` 的 `ApiClient.apiBaseUrl` 常量里。Debug 本地调试使用 `http://10.0.0.6:8787`，打包 APK 等非 Debug 构建使用 `https://help.openb8.chat`，后端 API 使用现有 `/app/help/...` 路由。
 
 如需切换默认 Android AVD 或关闭自动启动：
 

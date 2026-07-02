@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../auth/session_invalidation_notifier.dart';
 import '../auth/token_storage.dart';
@@ -35,7 +36,9 @@ class ApiClient {
     }
   }
 
-  static const apiBaseUrl = 'http://10.0.0.6:8787';
+  static const localApiBaseUrl = 'http://10.0.0.6:8787';
+  static const packagedApiBaseUrl = 'https://help.openb8.chat';
+  static const apiBaseUrl = kDebugMode ? localApiBaseUrl : packagedApiBaseUrl;
   static const aiCallDebugOverlayEnabled = true;
   static const _refreshPath = '/app/help/auth/refresh';
   static const _authPublicPrefixes = <String>[
