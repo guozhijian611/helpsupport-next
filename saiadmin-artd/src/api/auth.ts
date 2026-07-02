@@ -1,5 +1,10 @@
 import request from '@/utils/http'
 import { AppRouteRecord } from '@/types/router'
+import type { AxiosProgressEvent } from 'axios'
+
+interface UploadRequestOptions {
+  onUploadProgress?: (progressEvent: AxiosProgressEvent) => void
+}
 
 /**
  * 获取验证码
@@ -114,10 +119,11 @@ export function fetchGetMenuList() {
  * @param params
  * @returns
  */
-export function uploadImage(params: any) {
+export function uploadImage(params: any, options: UploadRequestOptions = {}) {
   return request.post<any>({
     url: '/core/system/uploadImage',
     timeout: 0,
+    onUploadProgress: options.onUploadProgress,
     headers: {
       'Content-Type': 'multipart/form-data'
     },
@@ -130,10 +136,11 @@ export function uploadImage(params: any) {
  * @param params
  * @returns
  */
-export function uploadFile(params: any) {
+export function uploadFile(params: any, options: UploadRequestOptions = {}) {
   return request.post<any>({
     url: '/core/system/uploadFile',
     timeout: 0,
+    onUploadProgress: options.onUploadProgress,
     headers: {
       'Content-Type': 'multipart/form-data'
     },
@@ -146,10 +153,11 @@ export function uploadFile(params: any) {
  * @param params
  * @returns
  */
-export function chunkUpload(params: any) {
+export function chunkUpload(params: any, options: UploadRequestOptions = {}) {
   return request.post<any>({
     url: '/core/system/chunkUpload',
     timeout: 0,
+    onUploadProgress: options.onUploadProgress,
     headers: {
       'Content-Type': 'multipart/form-data'
     },

@@ -29,16 +29,28 @@
           <span v-if="acceptHint">支持 {{ acceptHint }} 格式，</span>
           单个文件不超过 {{ maxSize }}MB，最多上传 {{ limit }} 个文件
         </div>
+        <div v-if="uploadState.visible" class="upload-progress">
+          <div class="progress-meta">
+            <span class="progress-name">{{ uploadState.fileName }}</span>
+            <span class="progress-percent">{{ uploadState.percent }}%</span>
+          </div>
+          <ElProgress
+            :percentage="uploadState.percent"
+            :status="uploadState.status"
+            :stroke-width="8"
+          />
+        </div>
       </template>
     </el-upload>
   </div>
 </template>
 
 <script lang="ts" setup>
-  import { ref, watch } from 'vue'
+  import { reactive, ref, watch } from 'vue'
   import { Upload, UploadFilled } from '@element-plus/icons-vue'
   import { ElMessage } from 'element-plus'
   import type { UploadProps, UploadUserFile, UploadRequestOptions } from 'element-plus'
+  import type { AxiosProgressEvent } from 'axios'
   import { uploadFile } from '@/api/auth'
 
   defineOptions({ name: 'SaFileUpload' })
@@ -78,6 +90,17 @@
   // 状态
   const uploadRef = ref()
   const fileList = ref<UploadUserFile[]>([])
+  const uploadState = reactive<{
+    visible: boolean
+    fileName: string
+    percent: number
+    status: '' | 'success' | 'exception'
+  }>({
+    visible: false,
+    fileName: '',
+    percent: 0,
+    status: ''
+  })
 
   // 监听 modelValue 变化，同步到 fileList
   watch(
@@ -147,12 +170,19 @@
     const { file, onSuccess, onError } = options
 
     try {
+      uploadState.visible = true
+      uploadState.fileName = file.name
+      uploadState.percent = 0
+      uploadState.status = ''
+
       // 创建 FormData
       const formData = new FormData()
       formData.append('file', file)
 
       // 调用上传接口
-      const response: any = await uploadFile(formData)
+      const response: any = await uploadFile(formData, {
+        onUploadProgress: handleUploadProgress
+      })
 
       // 尝试从不同的响应格式中获取文件URL
       const fileUrl = response?.data?.url || response?.data || response?.url || ''
@@ -172,15 +202,35 @@
       updateModelValue()
 
       // 触发成功回调
+      uploadState.percent = 100
+      uploadState.status = 'success'
       onSuccess?.(response)
       emit('success', response)
       ElMessage.success('上传成功!')
+      setTimeout(resetUploadState, 1200)
     } catch (error: any) {
+      uploadState.status = 'exception'
       console.error('上传失败:', error)
       onError?.(error)
       emit('error', error)
       ElMessage.error(error.message || '上传失败!')
     }
+  }
+
+  const handleUploadProgress = (event: AxiosProgressEvent) => {
+    if (!event.total) {
+      uploadState.percent = Math.max(uploadState.percent, 1)
+      return
+    }
+    const percent = Math.round((event.loaded * 100) / event.total)
+    uploadState.percent = Math.min(Math.max(percent, 1), 99)
+  }
+
+  const resetUploadState = () => {
+    uploadState.visible = false
+    uploadState.fileName = ''
+    uploadState.percent = 0
+    uploadState.status = ''
   }
 
   // 删除文件
@@ -264,6 +314,34 @@
       color: #909399;
       margin-top: 7px;
       line-height: 1.5;
+    }
+
+    .upload-progress {
+      width: min(100%, 560px);
+      margin-top: 10px;
+    }
+
+    .progress-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 6px;
+      color: var(--art-gray-600);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .progress-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .progress-percent {
+      flex: 0 0 auto;
+      font-variant-numeric: tabular-nums;
     }
   }
 </style>
