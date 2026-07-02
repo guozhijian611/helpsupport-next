@@ -97,17 +97,6 @@ SCRIPT
     )
   end
 
-  # 关闭 CocoaPods 生成的 Swift 运行时嵌入：部署目标 iOS 15，Swift ABI 已系统内置，
-  # 嵌入 libswift*.dylib 会触发 App Store ITMS-90426（Invalid Swift Support）。
-  embed_swift_replacements = {
-    "ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES\n" => "ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO\n",
-  }
-  %w[debug release profile].each do |configuration|
-    patch_file_contents(
-      File.join(support_files_dir, "Pods-Runner.#{configuration}.xcconfig"),
-      embed_swift_replacements,
-    )
-  end
 end
 
 target 'Runner' do

@@ -47,26 +47,25 @@ ITMS-90429: Swift dylibs aren't at the expected location.
 ITMS-90433: Swift dylib doesn't have the correct code signature.
 ```
 
-真正根因（2026-07-02 深夜复查确认）：
+真正根因（2026-07-03 复查确认）：
 
-- 问题不是「缺少 SwiftSupport」，而是「这个包本来就不该嵌入 Swift 系统运行时，却被强制嵌入了」。
-- build 4 的 `Runner.app/Frameworks/` 里嵌入了 18 个 `libswift*.dylib`（libswiftCore / libswiftFoundation / libswiftUIKit 等系统运行时），但导出 IPA 顶层没有 `SwiftSupport/` 目录。
-- App Store 校验规则：只要 app 内嵌了这些 Swift 运行时 dylib，IPA 顶层就必须携带 `SwiftSupport/`，缺了就报 ITMS-90426。
-- 嵌入的开关是 `ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES`，来源有两处：CocoaPods 生成的 `Pods-Runner.*.xcconfig`，以及 commit `cf5b15bd` 手动加进 `project.pbxproj` 的三处 `ALWAYS_EMBED...=YES` + 三处 `EMBEDDED_CONTENT_CONTAINS_SWIFT=YES` + 自定义 `Embed Swift Standard Libraries` 构建阶段。
-- 本 app 部署目标 iOS 15，Swift 5 ABI 已系统内置，根本不需要嵌入运行时。`cf5b15bd` 那次「修 SwiftSupport」方向搞反了，反而把嵌入坐死，导致 build 4 继续被退回。
-- 邮件里的 `Rebuild using the current public (GM) version of Xcode` 只是 Apple 的模板话术；本机 Xcode 26.6 (17F113) 是正式版，与本次退回无关。
+- `Runner.app/Frameworks/` 里的多个 Flutter / CocoaPods 嵌入框架确实链接了 `/usr/lib/swift/libswift*.dylib`。
+- Xcode 26 的 `swift-stdlib-tool --print` 对这些框架返回空，导致标准 archive/export 流程没有自动把 Swift 运行时拷进 `Payload/Runner.app/Frameworks/`，也没有生成有效的 `SwiftSupport/iphoneos/`。
+- App Store Connect 后台会按实际依赖校验 SwiftSupport，所以即使 `flutter build ipa` 本身成功，仍会异步退回 `ITMS-90426`。
+- `ITMS-90429` 和 `ITMS-90433` 是手工拆 IPA、移动或重签 Swift dylib 后造成的结构/签名不一致，不应继续用手工改 IPA 的方式修。
+- 邮件里的 `Rebuild using the current public (GM) version of Xcode` 是 Apple 的模板话术；本机 Xcode 26.6 (17F113) 是正式版，与本次退回无关。
 
 已废弃的错误做法（不要再用）：
 
 - 手工拆 IPA、移动 / 补 `SwiftSupport`、重签 Swift dylib：会继续触发 90429 / 90433。
-- 在工程或脚本里强制 `ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES` 或跑 `embed_swift_stdlibs.sh` 主动嵌入运行时：这正是 ITMS-90426 的根源。
+- 只改 `ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES`，但不检查最终 IPA 结构：构建可能成功，App Store Connect 后台仍会退回。
 
 正确修法（本次已落地）：
 
-- `Runner.xcodeproj/project.pbxproj`：三处 `ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES` 改为 `NO`（显式覆盖 xcconfig 继承值），删除三处 `EMBEDDED_CONTENT_CONTAINS_SWIFT = YES` 和自定义 `Embed Swift Standard Libraries` 构建阶段。
-- 删除 `ios/scripts/embed_swift_stdlibs.sh`。
-- `Podfile` 的 `post_integrate` 增加 patch，把 `Pods-Runner.{debug,release,profile}.xcconfig` 的 `ALWAYS_EMBED...` 改为 `NO`，避免每次 `pod install` 重新生成时又带回 `YES`。
-- 修复成功判据：重打包后解包 IPA，`Payload/Runner.app/Frameworks/` 里 `libswift*.dylib` 数量为 0。
+- `Podfile` 不再把 CocoaPods 生成的 `ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES` patch 成 `NO`。
+- `Runner.xcodeproj/project.pbxproj` 显式保留 `ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES` 和 `EMBEDDED_CONTENT_CONTAINS_SWIFT = YES`。
+- 新增 `ios/scripts/embed_swift_stdlibs.sh` 构建阶段：用 `otool -L` 解析实际 Swift dylib 依赖，从 Xcode toolchain 拷贝 app 内签名副本，并在 archive/IPA 顶层生成未重签的 `SwiftSupport/iphoneos` 副本。
+- 修复成功判据：重打包后解包 IPA，`Payload/Runner.app/Frameworks/libswift*.dylib` 和 `SwiftSupport/iphoneos/libswift*.dylib` 都存在，且数量一致。
 
 签名相关（此前已处理，仍然有效）：
 
@@ -139,7 +138,7 @@ flutter clean
 
 ```bash
 cd /Users/openb8/Downloads/项目/helpsupport-next/flutter_app
-./tool/package_release.sh ipa --export-method app-store --build-name 1.0.2 --build-number 4
+./tool/package_release.sh ipa --export-method app-store --build-name 1.0.2 --build-number 10
 ```
 
 本次产物：
@@ -179,9 +178,9 @@ The archive did not include a dSYM for libggml*.dylib / libllama.dylib / libmtmd
 
 ## 后续继续发布时的流程
 
-1. App Store Connect 里确认 `1.0.2 (4)` 是否处理完成。
+1. App Store Connect 里确认 `1.0.2 (10)` 是否处理完成。
 2. 如果处理通过，在 TestFlight 里添加内部测试员或提交外部测试审核。
-3. 下次再上传同版本时必须递增 build number，例如 `1.0.2 (5)`。
+3. 下次再上传同版本时必须递增 build number，例如 `1.0.2 (11)`。
 4. 不要复用已上传或被拒的 build number。
 5. 遇到 SwiftSupport 相关错误时，不要手工改 IPA；优先用 Xcode Organizer 或 `./tool/upload_ios_archive.sh` 从 archive 重新上传。
 
