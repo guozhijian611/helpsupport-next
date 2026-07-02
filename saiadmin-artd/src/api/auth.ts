@@ -117,6 +117,7 @@ export function fetchGetMenuList() {
 export function uploadImage(params: any) {
   return request.post<any>({
     url: '/core/system/uploadImage',
+    timeout: 0,
     headers: {
       'Content-Type': 'multipart/form-data'
     },
@@ -132,6 +133,7 @@ export function uploadImage(params: any) {
 export function uploadFile(params: any) {
   return request.post<any>({
     url: '/core/system/uploadFile',
+    timeout: 0,
     headers: {
       'Content-Type': 'multipart/form-data'
     },
@@ -147,6 +149,7 @@ export function uploadFile(params: any) {
 export function chunkUpload(params: any) {
   return request.post<any>({
     url: '/core/system/chunkUpload',
+    timeout: 0,
     headers: {
       'Content-Type': 'multipart/form-data'
     },
