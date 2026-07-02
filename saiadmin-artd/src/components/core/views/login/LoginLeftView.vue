@@ -6,8 +6,31 @@
       <h1 class="title">{{ AppConfig.systemInfo.name }}</h1>
     </div>
 
-    <div class="left-img">
-      <ThemeSvg :src="loginIcon" size="100%" />
+    <div class="brand-hero">
+      <div class="hero-card">
+        <div class="hero-card__halo"></div>
+        <div class="hero-card__pulse hero-card__pulse--one"></div>
+        <div class="hero-card__pulse hero-card__pulse--two"></div>
+        <img :src="brandLogo" alt="HelpSupport" class="brand-hero__logo" />
+        <div class="support-badge support-badge--heart">
+          <ArtSvgIcon icon="ri:heart-pulse-line" />
+        </div>
+        <div class="support-badge support-badge--shield">
+          <ArtSvgIcon icon="ri:shield-check-line" />
+        </div>
+      </div>
+
+      <div class="care-panel care-panel--daily">
+        <span></span>
+        <strong></strong>
+        <i></i>
+      </div>
+
+      <div class="care-panel care-panel--message">
+        <span></span>
+        <strong></strong>
+        <i></i>
+      </div>
     </div>
 
     <div class="text-wrap">
@@ -15,65 +38,19 @@
       <p> {{ $t('login.leftView.subTitle') }} </p>
     </div>
 
-    <!-- 几何装饰元素 -->
-    <div class="geometric-decorations">
-      <!-- 基础几何形状 -->
-      <div class="geo-element circle-outline animate-fade-in-up" style="animation-delay: 0s"></div>
-      <div
-        class="geo-element square-rotated animate-fade-in-left"
-        style="animation-delay: 0s"
-      ></div>
-      <div class="geo-element circle-small animate-fade-in-up" style="animation-delay: 0.3s"></div>
-
-      <div
-        class="geo-element square-bottom-right animate-fade-in-right"
-        style="animation-delay: 0s"
-      ></div>
-
-      <!-- 背景泡泡 -->
-      <div class="geo-element bg-bubble animate-scale-in" style="animation-delay: 0.5"></div>
-
-      <!-- 太阳/月亮 -->
-      <div
-        class="geo-element circle-top-right animate-fade-in-down"
-        style="animation-delay: 0.5"
-        @click="themeAnimation"
-      ></div>
-
-      <!-- 装饰点 -->
-      <div class="geo-element dot dot-top-left animate-bounce-in" style="animation-delay: 0s"></div>
-      <div
-        class="geo-element dot dot-top-right animate-bounce-in"
-        style="animation-delay: 0s"
-      ></div>
-      <div
-        class="geo-element dot dot-center-right animate-bounce-in"
-        style="animation-delay: 0s"
-      ></div>
-
-      <!-- 叠加方块组 -->
-      <div class="squares-group">
-        <i
-          class="geo-element square square-blue animate-fade-in-left-rotated-blue"
-          style="animation-delay: 0.2s"
-        ></i>
-        <i
-          class="geo-element square square-pink animate-fade-in-left-rotated-pink"
-          style="animation-delay: 0.4s"
-        ></i>
-        <i
-          class="geo-element square square-purple animate-fade-in-left-no-rotation"
-          style="animation-delay: 0.6s"
-        ></i>
-      </div>
+    <div class="soft-shapes" aria-hidden="true">
+      <span class="shape shape--coral"></span>
+      <span class="shape shape--blue"></span>
+      <span class="shape shape--mint"></span>
+      <span class="shape shape--ring"></span>
+      <span class="shape shape--dot"></span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
   import AppConfig from '@/config'
-  import loginIcon from '@imgs/svg/login_icon.svg'
-  import { themeAnimation } from '@/utils/ui/animation'
+  import brandLogo from '@imgs/common/logo.png'
 
   // 定义 props
   defineProps<{
@@ -82,413 +59,307 @@
 </script>
 
 <style lang="scss" scoped>
-  // 颜色变量定义
-  $primary-light-7: var(--el-color-primary-light-7);
-  $primary-light-8: var(--el-color-primary-light-8);
-  $primary-light-9: var(--el-color-primary-light-9);
-  $primary-base: var(--el-color-primary);
-  $main-bg: var(--default-box-color);
-
-  // 混合颜色函数
-  $bg-mix-light-9: color-mix(in srgb, $primary-light-9 100%, $main-bg);
-  $bg-mix-light-8: color-mix(in srgb, $primary-light-8 80%, $main-bg);
-  $bg-mix-light-7: color-mix(in srgb, $primary-light-7 80%, $main-bg);
-
   .login-left-view {
     position: relative;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
     width: 65vw;
     height: 100%;
-    padding: 15px;
+    min-height: 720px;
+    padding: 28px 32px 46px;
     overflow: hidden;
-    background-color: $bg-mix-light-9;
+    background:
+      radial-gradient(circle at 18% 16%, rgb(255 180 168 / 42%), transparent 30%),
+      radial-gradient(circle at 88% 12%, rgb(164 195 204 / 34%), transparent 27%),
+      linear-gradient(142deg, #fff8f5 0%, #f6f4f1 46%, #eef6f8 100%);
 
     .logo {
       position: relative;
-      z-index: 100;
+      z-index: 4;
       display: flex;
       align-items: center;
 
       .title {
         margin-left: 10px;
         font-size: 20px;
-        font-weight: 400;
+        font-weight: 650;
+        color: #303236;
+        letter-spacing: 0;
       }
     }
 
-    .left-img {
-      position: absolute;
-      inset: 0 0 10.5%;
-      z-index: 10;
-      width: 40%;
-      margin: auto;
+    .brand-hero {
+      position: relative;
+      z-index: 3;
+      display: grid;
+      place-items: center;
+      width: min(520px, 58vw);
+      height: min(520px, 56vh);
+      min-height: 390px;
+      margin: auto auto 28px;
       animation: slideInLeft 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
     }
 
-    .text-wrap {
+    .hero-card {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 284px;
+      height: 284px;
+      border: 1px solid rgb(255 255 255 / 76%);
+      border-radius: 46px;
+      background:
+        linear-gradient(145deg, rgb(255 255 255 / 92%), rgb(255 246 242 / 76%)),
+        radial-gradient(circle at 50% 0%, rgb(255 149 133 / 22%), transparent 56%);
+      box-shadow:
+        0 28px 70px rgb(103 68 54 / 14%),
+        0 14px 34px rgb(255 149 133 / 16%);
+      transform: rotate(-3deg);
+    }
+
+    .hero-card__halo {
       position: absolute;
-      bottom: 80px;
+      inset: -52px;
+      z-index: -1;
+      border: 1px solid rgb(255 149 133 / 18%);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgb(255 180 168 / 18%), transparent 68%);
+    }
+
+    .hero-card__pulse {
+      position: absolute;
+      border-radius: 999px;
+      background: rgb(255 149 133 / 12%);
+      box-shadow: inset 0 0 0 1px rgb(255 149 133 / 14%);
+
+      &--one {
+        right: -42px;
+        bottom: 42px;
+        width: 92px;
+        height: 92px;
+      }
+
+      &--two {
+        top: 34px;
+        left: -46px;
+        width: 68px;
+        height: 68px;
+        background: rgb(164 195 204 / 22%);
+        box-shadow: inset 0 0 0 1px rgb(164 195 204 / 20%);
+      }
+    }
+
+    .brand-hero__logo {
+      width: 178px;
+      height: 178px;
+      filter: drop-shadow(0 18px 28px rgb(109 71 62 / 15%));
+      transform: rotate(3deg);
+    }
+
+    .support-badge {
+      position: absolute;
+      display: grid;
+      place-items: center;
+      width: 54px;
+      height: 54px;
+      font-size: 24px;
+      color: #fff;
+      border: 5px solid rgb(255 255 255 / 84%);
+      border-radius: 18px;
+      box-shadow: 0 16px 34px rgb(255 149 133 / 22%);
+
+      &--heart {
+        right: 24px;
+        bottom: 28px;
+        background: linear-gradient(135deg, #ff9585, #ff7e70);
+      }
+
+      &--shield {
+        top: 24px;
+        left: 28px;
+        background: linear-gradient(135deg, #a4c3cc, #7faebc);
+      }
+    }
+
+    .care-panel {
+      position: absolute;
+      display: grid;
+      gap: 10px;
+      width: 176px;
+      padding: 16px;
+      border: 1px solid rgb(255 255 255 / 70%);
+      border-radius: 22px;
+      background: rgb(255 255 255 / 68%);
+      box-shadow: 0 18px 46px rgb(95 72 62 / 10%);
+      backdrop-filter: blur(18px);
+
+      span,
+      strong,
+      i {
+        display: block;
+        height: 8px;
+        border-radius: 999px;
+      }
+
+      span {
+        width: 58%;
+        background: rgb(255 149 133 / 44%);
+      }
+
+      strong {
+        width: 86%;
+        background: rgb(164 195 204 / 42%);
+      }
+
+      i {
+        width: 42%;
+        background: rgb(90 129 218 / 24%);
+      }
+
+      &--daily {
+        top: 17%;
+        right: 3%;
+        transform: rotate(7deg);
+      }
+
+      &--message {
+        bottom: 16%;
+        left: 2%;
+        transform: rotate(-8deg);
+      }
+    }
+
+    .text-wrap {
+      position: relative;
+      z-index: 4;
+      max-width: 640px;
+      margin: 0 auto;
       width: 100%;
       text-align: center;
       animation: slideInLeft 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 
       h1 {
-        font-size: 24px;
-        font-weight: 400;
-        color: var(--art-gray-900) !important;
+        font-size: 28px;
+        font-weight: 700;
+        line-height: 1.25;
+        color: #303236 !important;
+        letter-spacing: 0;
       }
 
       p {
-        margin-top: 10px;
-        font-size: 14px;
-        color: var(--art-gray-600) !important;
+        max-width: 560px;
+        margin: 12px auto 0;
+        font-size: 15px;
+        line-height: 1.7;
+        color: #7d828a !important;
       }
     }
 
-    .geometric-decorations {
-      .geo-element {
+    .soft-shapes {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+
+      .shape {
         position: absolute;
-        opacity: 0;
-        animation-fill-mode: forwards;
-        animation-duration: 0.8s;
-        animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
-      }
+        display: block;
+        opacity: 0.74;
 
-      // 动画 mixin
-      @mixin fadeAnimation($direction: '', $rotation: 0deg) {
-        from {
-          opacity: 0;
-
-          @if $direction == 'up' {
-            transform: translateY(30px) rotate($rotation);
-          } @else if $direction == 'down' {
-            transform: translateY(-30px) rotate($rotation);
-          } @else if $direction == 'left' {
-            transform: translateX(-30px) rotate($rotation);
-          } @else if $direction == 'right' {
-            transform: translateX(30px) rotate($rotation);
-          }
-        }
-
-        to {
-          opacity: 1;
-
-          @if $direction == 'up' or $direction == 'down' {
-            transform: translateY(0) rotate($rotation);
-          } @else {
-            transform: translateX(0) rotate($rotation);
-          }
-        }
-      }
-
-      // 动画定义
-      @keyframes fadeInUp {
-        @include fadeAnimation('up');
-      }
-
-      @keyframes fadeInDown {
-        @include fadeAnimation('down');
-      }
-
-      @keyframes fadeInLeft {
-        @include fadeAnimation('left');
-      }
-
-      @keyframes fadeInLeftRotated {
-        @include fadeAnimation('left', -25deg);
-      }
-
-      @keyframes fadeInRight {
-        @include fadeAnimation('right');
-      }
-
-      @keyframes fadeInRightRotated {
-        @include fadeAnimation('right', 45deg);
-      }
-
-      @keyframes fadeInLeftRotatedBlue {
-        @include fadeAnimation('left', -10deg);
-      }
-
-      @keyframes fadeInLeftRotatedPink {
-        @include fadeAnimation('left', 10deg);
-      }
-
-      @keyframes fadeInLeftNoRotation {
-        @include fadeAnimation('left');
-      }
-
-      @keyframes scaleIn {
-        from {
-          opacity: 0;
-          transform: scale(0.8);
-        }
-
-        to {
-          opacity: 1;
-          transform: scale(1);
-        }
-      }
-
-      @keyframes bounceIn {
-        0% {
-          opacity: 0;
-          transform: scale(0.3);
-        }
-
-        50% {
-          opacity: 1;
-          transform: scale(1.05);
-        }
-
-        70% {
-          transform: scale(0.9);
-        }
-
-        100% {
-          opacity: 1;
-          transform: scale(1);
-        }
-      }
-
-      @keyframes lineGrow {
-        from {
-          opacity: 0;
-        }
-
-        to {
-          opacity: 1;
-        }
-      }
-
-      @keyframes slideInLeft {
-        from {
-          opacity: 0;
-          transform: translateX(-30px);
-        }
-
-        to {
-          opacity: 1;
-          transform: translateX(0);
-        }
-      }
-
-      // 动画类
-      .animate-fade-in-up {
-        animation-name: fadeInUp;
-      }
-
-      .animate-fade-in-down {
-        animation-name: fadeInDown;
-      }
-
-      .animate-fade-in-left {
-        animation-name: fadeInLeft;
-      }
-
-      .animate-fade-in-right {
-        animation-name: fadeInRight;
-      }
-
-      .animate-scale-in {
-        animation-name: scaleIn;
-        animation-duration: 1.2s;
-      }
-
-      .animate-bounce-in {
-        animation-name: bounceIn;
-        animation-duration: 0.6s;
-      }
-
-      .animate-fade-in-left-rotated-blue {
-        animation-name: fadeInLeftRotatedBlue;
-      }
-
-      .animate-fade-in-left-rotated-pink {
-        animation-name: fadeInLeftRotatedPink;
-      }
-
-      .animate-fade-in-left-no-rotation {
-        animation-name: fadeInLeftNoRotation;
-      }
-
-      // 基础几何形状
-      .circle-outline {
-        top: 10%;
-        left: 25%;
-        width: 42px;
-        height: 42px;
-        border: 2px solid $primary-light-8;
-        border-radius: 50%;
-      }
-
-      .square-rotated {
-        top: 50%;
-        left: 16%;
-        width: 60px;
-        height: 60px;
-        background-color: $bg-mix-light-8;
-
-        &.animate-fade-in-left {
-          animation-name: fadeInLeftRotated;
-        }
-      }
-
-      .circle-small {
-        bottom: 26%;
-        left: 30%;
-        width: 18px;
-        height: 18px;
-        background-color: $primary-light-8;
-        border-radius: 50%;
-      }
-
-      // 太阳/月亮效果
-      .circle-top-right {
-        top: 3%;
-        right: 3%;
-        z-index: 100;
-        width: 50px;
-        height: 50px;
-        cursor: pointer;
-        background: $bg-mix-light-7;
-        border-radius: 50%;
-        transition: all 0.3s;
-
-        &::after {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          width: 100%;
-          height: 100%;
-          content: '';
-          background: linear-gradient(to right, #fcbb04, #fffc00);
+        &--coral {
+          top: -120px;
+          right: -98px;
+          width: 360px;
+          height: 360px;
           border-radius: 50%;
-          opacity: 0;
-          transition: all 0.5s;
-          transform: translate(-50%, -50%);
+          background: rgb(255 149 133 / 16%);
         }
 
-        &:hover {
-          box-shadow: 0 0 36px #fffc00;
-
-          &::after {
-            opacity: 1;
-          }
-        }
-      }
-
-      .square-bottom-right {
-        right: 10%;
-        bottom: 10%;
-        width: 50px;
-        height: 50px;
-        background-color: $primary-light-8;
-
-        &.animate-fade-in-right {
-          animation-name: fadeInRightRotated;
-        }
-      }
-
-      // 背景泡泡
-      .bg-bubble {
-        top: -120px;
-        right: -120px;
-        width: 360px;
-        height: 360px;
-        background-color: $bg-mix-light-8;
-        border-radius: 50%;
-      }
-
-      // 装饰点
-      .dot {
-        width: 14px;
-        height: 14px;
-        background-color: $primary-light-7;
-        border-radius: 50%;
-
-        &.dot-top-left {
-          top: 140px;
-          left: 100px;
+        &--blue {
+          bottom: 6%;
+          left: 8%;
+          width: 118px;
+          height: 118px;
+          border-radius: 36px;
+          background: rgb(90 129 218 / 10%);
+          transform: rotate(-18deg);
         }
 
-        &.dot-top-right {
-          top: 140px;
-          right: 120px;
+        &--mint {
+          top: 25%;
+          left: 9%;
+          width: 66px;
+          height: 66px;
+          border-radius: 24px;
+          background: rgb(164 195 204 / 18%);
+          transform: rotate(19deg);
         }
 
-        &.dot-center-right {
-          top: 46%;
-          right: 22%;
-          background-color: $primary-light-8;
+        &--ring {
+          right: 12%;
+          bottom: 14%;
+          width: 96px;
+          height: 96px;
+          border: 2px solid rgb(255 149 133 / 14%);
+          border-radius: 999px;
+        }
+
+        &--dot {
+          top: 14%;
+          left: 19%;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: #ffb4a8;
+          box-shadow:
+            48vw 7vh 0 rgb(164 195 204 / 48%),
+            26vw 64vh 0 rgb(255 149 133 / 34%),
+            41vw 43vh 0 rgb(90 129 218 / 20%);
         }
       }
+    }
 
-      // 叠加方块组
-      .squares-group {
-        position: absolute;
-        bottom: 18px;
-        left: 20px;
-        width: 140px;
-        height: 140px;
-        pointer-events: none;
+    @keyframes slideInLeft {
+      from {
+        opacity: 0;
+        transform: translateX(-30px);
+      }
 
-        .square {
-          position: absolute;
-          display: block;
-          border-radius: 8px;
-          box-shadow: 0 8px 24px rgb(64 87 167 / 12%);
-
-          &.square-blue {
-            top: 12px;
-            left: 30px;
-            z-index: 2;
-            width: 50px;
-            height: 50px;
-            background-color: rgb(from $primary-base r g b / 30%);
-          }
-
-          &.square-pink {
-            top: 30px;
-            left: 48px;
-            z-index: 1;
-            width: 70px;
-            height: 70px;
-            background-color: rgb(from $primary-base r g b / 15%);
-          }
-
-          &.square-purple {
-            top: 66px;
-            left: 86px;
-            z-index: 3;
-            width: 32px;
-            height: 32px;
-            background-color: rgb(from $primary-base r g b / 45%);
-          }
-        }
-
-        // 装饰线条
-        &::after {
-          position: absolute;
-          top: 86px;
-          left: 72px;
-          width: 80px;
-          height: 1px;
-          content: '';
-          background: linear-gradient(90deg, var(--el-color-primary-light-6), transparent);
-          opacity: 0;
-          transform: rotate(50deg);
-          animation: lineGrow 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-          animation-delay: 1.2s;
-        }
+      to {
+        opacity: 1;
+        transform: translateX(0);
       }
     }
 
     @media only screen and (width <= 1600px) {
       width: 60vw;
+      min-height: 660px;
+
+      .brand-hero {
+        width: min(460px, 54vw);
+        height: min(460px, 54vh);
+      }
+
+      .hero-card {
+        width: 250px;
+        height: 250px;
+        border-radius: 40px;
+      }
+
+      .brand-hero__logo {
+        width: 156px;
+        height: 156px;
+      }
+
+      .care-panel {
+        width: 154px;
+      }
 
       .text-wrap {
-        bottom: 40px;
+        h1 {
+          font-size: 24px;
+        }
       }
     }
 
@@ -499,9 +370,9 @@
       // 隐藏背景和其他内容，只保留 logo
       background: transparent;
 
-      .left-img,
+      .brand-hero,
       .text-wrap,
-      .geometric-decorations {
+      .soft-shapes {
         display: none;
       }
 
@@ -513,90 +384,38 @@
 
   // 暗色主题
   .dark .login-left-view {
-    background-color: color-mix(in srgb, $primary-light-9 60%, #070707);
+    background:
+      radial-gradient(circle at 20% 18%, rgb(255 180 168 / 12%), transparent 30%),
+      radial-gradient(circle at 88% 12%, rgb(164 195 204 / 14%), transparent 27%),
+      linear-gradient(142deg, #171512 0%, #15181b 48%, #111c20 100%);
+
+    .logo .title,
+    .text-wrap h1 {
+      color: #f7f7fa !important;
+    }
+
+    .text-wrap p {
+      color: #a5a9b0 !important;
+    }
+
+    .hero-card {
+      border-color: rgb(255 255 255 / 12%);
+      background:
+        linear-gradient(145deg, rgb(38 35 33 / 86%), rgb(29 27 27 / 72%)),
+        radial-gradient(circle at 50% 0%, rgb(255 149 133 / 18%), transparent 56%);
+      box-shadow:
+        0 28px 70px rgb(0 0 0 / 32%),
+        0 14px 34px rgb(255 149 133 / 10%);
+    }
+
+    .care-panel {
+      border-color: rgb(255 255 255 / 10%);
+      background: rgb(34 36 38 / 58%);
+      box-shadow: 0 18px 46px rgb(0 0 0 / 20%);
+    }
 
     @media only screen and (width <= 1180px) {
       background: transparent;
-    }
-
-    .geometric-decorations {
-      // 月亮效果
-      .circle-top-right {
-        background-color: $bg-mix-light-8;
-        box-shadow: 0 0 25px #333 inset;
-        transition: all 0.3s ease-in-out 0.1s;
-        rotate: -48deg;
-
-        &::before {
-          position: absolute;
-          top: 0;
-          left: 15px;
-          width: 50px;
-          height: 50px;
-          content: '';
-          background-color: $bg-mix-light-9;
-          border-radius: 50%;
-          transition: all 0.3s ease-in-out;
-        }
-
-        &:hover {
-          background-color: transparent;
-          box-shadow: 0 40px 25px #ddd inset;
-
-          &::before {
-            left: 18px;
-          }
-
-          &::after {
-            opacity: 0;
-          }
-        }
-      }
-
-      .bg-bubble {
-        background-color: $bg-mix-light-9;
-      }
-
-      // 其他元素颜色调整
-      .square-rotated {
-        background-color: $bg-mix-light-9;
-      }
-
-      .circle-small,
-      .dot {
-        background-color: $primary-light-8;
-      }
-
-      .square-bottom-right {
-        background-color: $primary-light-9;
-      }
-
-      .dot.dot-top-right {
-        background-color: $primary-light-8;
-      }
-    }
-
-    // 方块组暗色调整
-    .squares-group {
-      .square {
-        box-shadow: none;
-
-        &.square-blue {
-          background-color: rgb(from $primary-base r g b / 18%);
-        }
-
-        &.square-pink {
-          background-color: rgb(from $primary-base r g b / 10%);
-        }
-
-        &.square-purple {
-          background-color: rgb(from $primary-base r g b / 20%);
-        }
-      }
-
-      &::after {
-        background: linear-gradient(90deg, $primary-light-8, transparent);
-      }
     }
   }
 </style>
