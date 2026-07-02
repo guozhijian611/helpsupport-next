@@ -37,7 +37,7 @@ The large app icon ... can't be transparent or contain an alpha channel.
 ccc0b0ee fix: 移除 iOS 图标透明通道
 ```
 
-### 2. SwiftSupport 相关拒绝
+### 2. SwiftSupport 相关拒绝（已定位真正根因）
 
 Apple 曾拒绝：
 
@@ -47,23 +47,38 @@ ITMS-90429: Swift dylibs aren't at the expected location.
 ITMS-90433: Swift dylib doesn't have the correct code signature.
 ```
 
-排查结论：
+真正根因（2026-07-02 深夜复查确认）：
 
-- 手工拆 IPA、移动 `SwiftSupport` 或重签 Swift dylib 会继续触发 90429 / 90433。
-- TestFlight 也属于 App Store Connect 分发，不能用 development 签名包当作测试平台包。
-- 本机之前只有 `Apple Development` 证书，没有 `Apple Distribution`，所以包能传输成功，但 Apple 后台异步校验会退回。
+- 问题不是「缺少 SwiftSupport」，而是「这个包本来就不该嵌入 Swift 系统运行时，却被强制嵌入了」。
+- build 4 的 `Runner.app/Frameworks/` 里嵌入了 18 个 `libswift*.dylib`（libswiftCore / libswiftFoundation / libswiftUIKit 等系统运行时），但导出 IPA 顶层没有 `SwiftSupport/` 目录。
+- App Store 校验规则：只要 app 内嵌了这些 Swift 运行时 dylib，IPA 顶层就必须携带 `SwiftSupport/`，缺了就报 ITMS-90426。
+- 嵌入的开关是 `ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES`，来源有两处：CocoaPods 生成的 `Pods-Runner.*.xcconfig`，以及 commit `cf5b15bd` 手动加进 `project.pbxproj` 的三处 `ALWAYS_EMBED...=YES` + 三处 `EMBEDDED_CONTENT_CONTAINS_SWIFT=YES` + 自定义 `Embed Swift Standard Libraries` 构建阶段。
+- 本 app 部署目标 iOS 15，Swift 5 ABI 已系统内置，根本不需要嵌入运行时。`cf5b15bd` 那次「修 SwiftSupport」方向搞反了，反而把嵌入坐死，导致 build 4 继续被退回。
+- 邮件里的 `Rebuild using the current public (GM) version of Xcode` 只是 Apple 的模板话术；本机 Xcode 26.6 (17F113) 是正式版，与本次退回无关。
 
-已处理：
+已废弃的错误做法（不要再用）：
+
+- 手工拆 IPA、移动 / 补 `SwiftSupport`、重签 Swift dylib：会继续触发 90429 / 90433。
+- 在工程或脚本里强制 `ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES` 或跑 `embed_swift_stdlibs.sh` 主动嵌入运行时：这正是 ITMS-90426 的根源。
+
+正确修法（本次已落地）：
+
+- `Runner.xcodeproj/project.pbxproj`：三处 `ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES` 改为 `NO`（显式覆盖 xcconfig 继承值），删除三处 `EMBEDDED_CONTENT_CONTAINS_SWIFT = YES` 和自定义 `Embed Swift Standard Libraries` 构建阶段。
+- 删除 `ios/scripts/embed_swift_stdlibs.sh`。
+- `Podfile` 的 `post_integrate` 增加 patch，把 `Pods-Runner.{debug,release,profile}.xcconfig` 的 `ALWAYS_EMBED...` 改为 `NO`，避免每次 `pod install` 重新生成时又带回 `YES`。
+- 修复成功判据：重打包后解包 IPA，`Payload/Runner.app/Frameworks/` 里 `libswift*.dylib` 数量为 0。
+
+签名相关（此前已处理，仍然有效）：
 
 - 安装了 `Apple Distribution: zhijian guo (33ZX95D3LJ)`。
 - 打包脚本增加分发证书检查。
-- 移除了手工修补 IPA 里 `SwiftSupport` 的逻辑。
-- 本次使用 Xcode archive 直传流程上传，不再拖本地 IPA 到 Transporter。
+- 使用 Xcode archive 直传流程上传，不再拖本地 IPA 到 Transporter。
 
 相关提交：
 
 ```text
 8c5befb3 fix: 校验 iOS 分发签名
+cf5b15bd fix: 修复 iOS Swift 支持包结构   ← 方向错误，已被本次修复推翻
 ```
 
 ### 3. Xcode iOS 26.5 平台组件缺失
