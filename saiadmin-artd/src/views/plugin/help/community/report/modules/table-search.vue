@@ -52,7 +52,7 @@
         <ElSelect v-model="formData.handle_status" placeholder="请选择处理状态" clearable>
           <ElOption label="待处理" :value="0" />
           <ElOption label="已处理" :value="1" />
-          <ElOption label="已忽略" :value="2" />
+          <ElOption label="已拒绝" :value="2" />
         </ElSelect>
       </ElFormItem>
     </ElCol>

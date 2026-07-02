@@ -67,7 +67,7 @@
           </ElTooltip>
         </template>
         <template #operation="{ row }">
-          <div class="flex gap-2">
+          <div class="flex flex-wrap gap-2">
             <ElButton size="small" @click="openDetail(row)">查看</ElButton>
             <ElButton
               v-permission="'help:community:report:update'"
@@ -90,10 +90,10 @@
               v-if="row.handle_status === 0"
               v-permission="'help:community:report:handle'"
               size="small"
-              type="info"
+              type="warning"
               @click="handleReport(row, 2)"
             >
-              忽略
+              拒绝举报
             </ElButton>
             <SaButton
               v-permission="'help:community:report:destroy'"
@@ -272,7 +272,7 @@
         { prop: 'handle_status', label: '处理状态', width: 110, useSlot: true },
         { prop: 'handle_remark', label: '处理备注', minWidth: 180 },
         { prop: 'create_time', label: '举报时间', width: 170 },
-        { prop: 'operation', label: '操作', width: 230, fixed: 'right', useSlot: true }
+        { prop: 'operation', label: '操作', width: 310, fixed: 'right', useSlot: true }
       ]
     }
   })
@@ -316,22 +316,36 @@
   }
 
   const handleReport = async (row: Record<string, any>, handleStatus: number) => {
-    const result = await ElMessageBox.prompt(
-      `请输入${handleStatus === 1 ? '处理备注，将同步隐藏被举报帖子/评论' : '忽略备注'}`,
-      handleStatus === 1 ? '处理并隐藏举报目标' : '忽略举报',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        inputPlaceholder: handleStatus === 1 ? '留空时使用举报原因作为处理备注' : '可选'
-      }
-    )
+    const action = reportActionConfig(handleStatus)
+    const result = await ElMessageBox.prompt(action.promptMessage, action.title, {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputPlaceholder: action.placeholder
+    })
     await api.handle({
       id: row.id,
       handle_status: handleStatus,
       handle_remark: String(result.value || '')
     })
-    ElMessage.success('处理成功')
+    ElMessage.success(`${action.successText}成功`)
     refreshData()
+  }
+
+  const reportActionConfig = (handleStatus: number) => {
+    if (handleStatus === 1) {
+      return {
+        title: '处理并隐藏举报目标',
+        promptMessage: '请输入处理备注，将同步隐藏被举报帖子/评论',
+        placeholder: '留空时使用举报原因作为处理备注',
+        successText: '处理'
+      }
+    }
+    return {
+      title: '拒绝举报',
+      promptMessage: '请输入拒绝原因，举报目标将保持当前展示状态',
+      placeholder: '例如：内容未违规、证据不足',
+      successText: '拒绝举报'
+    }
   }
 
   const targetTypeText = (type: number) => {
@@ -374,7 +388,7 @@
     const map: Record<number, string> = {
       0: '待处理',
       1: '已处理',
-      2: '已忽略'
+      2: '已拒绝'
     }
     return map[Number(status)] || '未知'
   }

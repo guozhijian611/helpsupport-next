@@ -45,7 +45,7 @@
             <el-select v-model="formData.handle_status" placeholder="请选择处理状态" class="w-full">
               <el-option label="待处理" :value="0" />
               <el-option label="已处理" :value="1" />
-              <el-option label="已忽略" :value="2" />
+              <el-option label="已拒绝" :value="2" />
             </el-select>
           </el-form-item>
         </el-col>
