@@ -6,6 +6,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/settings/privacy_preferences.dart';
 import '../../auth/data/auth_models.dart';
+import 'recovery_record_models.dart';
 import 'settings_models.dart';
 
 final meSettingsRepositoryProvider = Provider<MeSettingsRepository>((ref) {
@@ -40,6 +41,36 @@ class MeSettingsRepository {
       throw const FormatException('保存个人资料响应缺少 data');
     }
     return profile;
+  }
+
+  Future<RecoveryRecordPage<RecoveryGoalRecord>> fetchRecoveryGoals({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final result = await _apiClient
+        .getApi<RecoveryRecordPage<RecoveryGoalRecord>>(
+          '/app/help/me/recovery-goals',
+          queryParameters: {'page': page, 'page_size': pageSize},
+          decode: (value) =>
+              RecoveryRecordPage.fromJson(value, RecoveryGoalRecord.fromJson),
+        );
+    return result.data ??
+        const RecoveryRecordPage(list: [], total: 0, page: 1, pageSize: 20);
+  }
+
+  Future<RecoveryRecordPage<TriggerLogRecord>> fetchTriggerLogs({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final result = await _apiClient
+        .getApi<RecoveryRecordPage<TriggerLogRecord>>(
+          '/app/help/me/triggers',
+          queryParameters: {'page': page, 'page_size': pageSize},
+          decode: (value) =>
+              RecoveryRecordPage.fromJson(value, TriggerLogRecord.fromJson),
+        );
+    return result.data ??
+        const RecoveryRecordPage(list: [], total: 0, page: 1, pageSize: 20);
   }
 
   Future<PrivacyPreferences> fetchPrivacyPreferences() async {

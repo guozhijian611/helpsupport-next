@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../material/application/material_controller.dart';
 import '../../material/data/material_models.dart';
+import '../../plan/data/plan_models.dart';
 import '../application/doctor_controller.dart';
 import '../data/doctor_models.dart';
 

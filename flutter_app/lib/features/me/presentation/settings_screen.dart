@@ -20,6 +20,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../auth/data/auth_protocol.dart';
 import '../../plan/application/plan_controller.dart';
 import '../../plan/data/plan_models.dart';
+import '../data/recovery_record_models.dart';
 import '../data/settings_models.dart';
 import '../data/settings_repository.dart';
 
@@ -738,12 +739,14 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
                 emptyZh: '待医生配置',
                 emptyEn: 'Pending doctor setup',
               ),
+              onTap: _showRecoveryGoalRecords,
             ),
             _SettingsNavRow(
               title: _t(context, '重点触发', 'Key triggers'),
               value: bundle.triggerTags.isEmpty
                   ? _t(context, '待医生配置', 'Pending doctor setup')
                   : bundle.triggerTags.join(' / '),
+              onTap: _showTriggerRecords,
             ),
           ],
         ),
@@ -2496,6 +2499,40 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     }, successMessage: _t(context, '生日已更新', 'Birthday updated'));
   }
 
+  Future<void> _showRecoveryGoalRecords() async {
+    final future = ref.read(meSettingsRepositoryProvider).fetchRecoveryGoals();
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return _RecoveryRecordSheet<RecoveryGoalRecord>(
+          title: _t(context, '康复目标记录', 'Recovery goal records'),
+          future: future,
+          emptyText: _t(context, '医生还没有配置康复目标', 'No recovery goals yet'),
+          itemBuilder: (context, item) => _RecoveryGoalRecordTile(item: item),
+        );
+      },
+    );
+  }
+
+  Future<void> _showTriggerRecords() async {
+    final future = ref.read(meSettingsRepositoryProvider).fetchTriggerLogs();
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return _RecoveryRecordSheet<TriggerLogRecord>(
+          title: _t(context, '触发因素记录', 'Trigger records'),
+          future: future,
+          emptyText: _t(context, '医生还没有配置触发因素', 'No triggers yet'),
+          itemBuilder: (context, item) => _TriggerRecordTile(item: item),
+        );
+      },
+    );
+  }
+
   Future<void> _editBio(MeProfileBundle bundle) async {
     final nextValue = await _showTextInputDialog(
       context: context,
@@ -3634,6 +3671,245 @@ class _SettingsGroup extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RecoveryRecordSheet<T> extends StatelessWidget {
+  const _RecoveryRecordSheet({
+    required this.title,
+    required this.future,
+    required this.emptyText,
+    required this.itemBuilder,
+  });
+
+  final String title;
+  final Future<RecoveryRecordPage<T>> future;
+  final String emptyText;
+  final Widget Function(BuildContext context, T item) itemBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _SettingsPalette.of(context);
+    return DraggableScrollableSheet(
+      initialChildSize: 0.72,
+      minChildSize: 0.42,
+      maxChildSize: 0.9,
+      builder: (context, scrollController) {
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: palette.cardBackground,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+              child: FutureBuilder<RecoveryRecordPage<T>>(
+                future: future,
+                builder: (context, snapshot) {
+                  final items = snapshot.data?.list ?? const [];
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
+                                    color: palette.primaryText,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child:
+                            snapshot.connectionState == ConnectionState.waiting
+                            ? const Center(child: CircularProgressIndicator())
+                            : snapshot.hasError
+                            ? Center(
+                                child: Text(
+                                  snapshot.error.toString(),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: palette.secondaryText,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              )
+                            : items.isEmpty
+                            ? Center(
+                                child: Text(
+                                  emptyText,
+                                  style: TextStyle(
+                                    color: palette.secondaryText,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              )
+                            : ListView.separated(
+                                controller: scrollController,
+                                itemCount: items.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(height: 10),
+                                itemBuilder: (context, index) =>
+                                    itemBuilder(context, items[index]),
+                              ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _RecoveryGoalRecordTile extends StatelessWidget {
+  const _RecoveryGoalRecordTile({required this.item});
+
+  final RecoveryGoalRecord item;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = [
+      _recoveryGoalStatusLabel(context, item.status),
+      if (item.targetDate.isNotEmpty) item.targetDate,
+      if (item.completedTime.isNotEmpty) item.completedTime,
+    ].join(' · ');
+    return _RecoveryRecordTileFrame(
+      icon: Icons.track_changes_rounded,
+      title: item.goalText,
+      subtitle: subtitle,
+    );
+  }
+}
+
+class _TriggerRecordTile extends StatelessWidget {
+  const _TriggerRecordTile({required this.item});
+
+  final TriggerLogRecord item;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = [
+      _triggerTypeLabel(context, item.triggerType),
+      if (item.intensity > 0)
+        '${_t(context, '强度', 'Intensity')} ${item.intensity}',
+      if (item.occurredAt.isNotEmpty) item.occurredAt,
+    ].join(' · ');
+    return _RecoveryRecordTileFrame(
+      icon: Icons.hub_rounded,
+      title: item.triggerName,
+      subtitle: subtitle,
+      body: item.responseAction.isNotEmpty ? item.responseAction : item.note,
+    );
+  }
+}
+
+class _RecoveryRecordTileFrame extends StatelessWidget {
+  const _RecoveryRecordTileFrame({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.body = '',
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _SettingsPalette.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.pageBackground,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: palette.accent.withValues(alpha: 0.14),
+              child: Icon(icon, color: palette.accent, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title.isEmpty ? _t(context, '未命名', 'Untitled') : title,
+                    style: TextStyle(
+                      color: palette.primaryText,
+                      fontWeight: FontWeight.w800,
+                      height: 1.25,
+                    ),
+                  ),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: palette.secondaryText,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                  if (body.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      body,
+                      style: TextStyle(
+                        color: palette.valueText,
+                        fontSize: 13,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _recoveryGoalStatusLabel(BuildContext context, int status) {
+  return switch (status) {
+    2 => _t(context, '已完成', 'Completed'),
+    3 => _t(context, '已放弃', 'Abandoned'),
+    _ => _t(context, '进行中', 'Active'),
+  };
+}
+
+String _triggerTypeLabel(BuildContext context, String type) {
+  return switch (type) {
+    'emotion' => _t(context, '情绪', 'Emotion'),
+    'place' => _t(context, '地点', 'Place'),
+    'person' => _t(context, '人物', 'Person'),
+    _ => _t(context, '自定义', 'Custom'),
+  };
 }
 
 class _SettingsNavRow extends StatelessWidget {

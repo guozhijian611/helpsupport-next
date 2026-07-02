@@ -1,4 +1,5 @@
 import '../../../core/api/api_client.dart';
+import '../../me/data/recovery_record_models.dart';
 import '../../plan/data/plan_models.dart';
 import 'doctor_models.dart';
 
@@ -112,6 +113,141 @@ class DoctorRepository {
       throw const FormatException('患者资料保存失败');
     }
     return patient;
+  }
+
+  Future<RecoveryRecordPage<RecoveryGoalRecord>> fetchPatientRecoveryGoals({
+    required int memberId,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final result = await _apiClient
+        .getApi<RecoveryRecordPage<RecoveryGoalRecord>>(
+          '/app/help/doctor/patient/recovery-goals',
+          queryParameters: {
+            'member_id': memberId,
+            'page': page,
+            'page_size': pageSize,
+          },
+          decode: (value) =>
+              RecoveryRecordPage.fromJson(value, RecoveryGoalRecord.fromJson),
+        );
+    return result.data ??
+        const RecoveryRecordPage(list: [], total: 0, page: 1, pageSize: 20);
+  }
+
+  Future<RecoveryGoalRecord> savePatientRecoveryGoal({
+    required int memberId,
+    int id = 0,
+    required String goalText,
+    String goalType = 'custom',
+    String targetDate = '',
+    int status = 1,
+  }) async {
+    final result = await _apiClient.postApi<RecoveryGoalRecord>(
+      '/app/help/doctor/patient/recovery-goal',
+      data: {
+        'member_id': memberId,
+        if (id > 0) 'id': id,
+        'goal_text': goalText.trim(),
+        'goal_type': goalType.trim().isEmpty ? 'custom' : goalType.trim(),
+        if (targetDate.trim().isNotEmpty) 'target_date': targetDate.trim(),
+        'status': status,
+      },
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return RecoveryGoalRecord.fromJson(value);
+        }
+        throw const FormatException('Unexpected recovery goal shape');
+      },
+    );
+    final record = result.data;
+    if (record == null || record.id <= 0) {
+      throw const FormatException('康复目标保存失败');
+    }
+    return record;
+  }
+
+  Future<void> deletePatientRecoveryGoal({
+    required int memberId,
+    required int id,
+  }) async {
+    await _apiClient.postApi<Map<String, dynamic>>(
+      '/app/help/doctor/patient/recovery-goal/delete',
+      data: {'member_id': memberId, 'id': id},
+      decode: (value) =>
+          value is Map<String, dynamic> ? value : const <String, dynamic>{},
+    );
+  }
+
+  Future<RecoveryRecordPage<TriggerLogRecord>> fetchPatientTriggerLogs({
+    required int memberId,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final result = await _apiClient
+        .getApi<RecoveryRecordPage<TriggerLogRecord>>(
+          '/app/help/doctor/patient/triggers',
+          queryParameters: {
+            'member_id': memberId,
+            'page': page,
+            'page_size': pageSize,
+          },
+          decode: (value) =>
+              RecoveryRecordPage.fromJson(value, TriggerLogRecord.fromJson),
+        );
+    return result.data ??
+        const RecoveryRecordPage(list: [], total: 0, page: 1, pageSize: 20);
+  }
+
+  Future<TriggerLogRecord> savePatientTriggerLog({
+    required int memberId,
+    int id = 0,
+    required String triggerName,
+    String triggerType = 'custom',
+    int intensity = 0,
+    String responseAction = '',
+    String note = '',
+    int status = 1,
+  }) async {
+    final result = await _apiClient.postApi<TriggerLogRecord>(
+      '/app/help/doctor/patient/trigger',
+      data: {
+        'member_id': memberId,
+        if (id > 0) 'id': id,
+        'trigger_name': triggerName.trim(),
+        'trigger_type': triggerType.trim().isEmpty
+            ? 'custom'
+            : triggerType.trim(),
+        'intensity': intensity.clamp(0, 10),
+        if (responseAction.trim().isNotEmpty)
+          'response_action': responseAction.trim(),
+        if (note.trim().isNotEmpty) 'note': note.trim(),
+        'status': status,
+      },
+      decode: (value) {
+        if (value is Map<String, dynamic>) {
+          return TriggerLogRecord.fromJson(value);
+        }
+        throw const FormatException('Unexpected trigger log shape');
+      },
+    );
+    final record = result.data;
+    if (record == null || record.id <= 0) {
+      throw const FormatException('触发因素保存失败');
+    }
+    return record;
+  }
+
+  Future<void> deletePatientTriggerLog({
+    required int memberId,
+    required int id,
+  }) async {
+    await _apiClient.postApi<Map<String, dynamic>>(
+      '/app/help/doctor/patient/trigger/delete',
+      data: {'member_id': memberId, 'id': id},
+      decode: (value) =>
+          value is Map<String, dynamic> ? value : const <String, dynamic>{},
+    );
   }
 
   Future<List<TreatmentPlan>> fetchPatientPlans({

@@ -477,7 +477,7 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
   Future<void> _editRecoveryGoal(DoctorPatient patient) async {
     final nextValue = await _showDoctorPlanTextInputSheet(
       context: context,
-      title: _t(context, '编辑康复目标', 'Edit recovery goal'),
+      title: _t(context, '配置康复目标', 'Configure recovery goal'),
       initialValue: patient.recoveryGoal,
       hintText: _t(context, '请输入康复目标', 'Enter recovery goal'),
       maxLines: 4,
@@ -487,19 +487,42 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
         nextValue.trim() == patient.recoveryGoal.trim()) {
       return;
     }
-    await _savePatientProfile(
-      patient,
-      recoveryGoal: nextValue.trim(),
-      successMessage: _t(context, '康复目标已更新', 'Recovery goal updated'),
-    );
+    try {
+      await ref
+          .read(doctorRepositoryProvider)
+          .savePatientRecoveryGoal(
+            memberId: patient.memberId,
+            goalText: nextValue.trim(),
+          );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _patientOverrides[patient.memberId] = patient.copyWith(
+          recoveryGoal: nextValue.trim(),
+        );
+      });
+      ref.invalidate(doctorPatientsProvider);
+      context.showCenteredNotice(
+        _t(context, '康复目标已配置', 'Recovery goal configured'),
+      );
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(error.toString());
+      }
+    }
   }
 
   Future<void> _editTriggerTags(DoctorPatient patient) async {
     final nextValue = await _showDoctorPlanTextInputSheet(
       context: context,
-      title: _t(context, '编辑重点触发', 'Edit key triggers'),
-      initialValue: patient.triggerTags.join(', '),
-      hintText: _t(context, '多个触发因素请用逗号分隔', 'Separate triggers with commas'),
+      title: _t(context, '新增触发因素', 'Add key trigger'),
+      initialValue: '',
+      hintText: _t(
+        context,
+        '可输入一个或多个触发因素，用逗号分隔',
+        'Separate triggers with commas',
+      ),
       maxLines: 4,
     );
     if (!mounted || nextValue == null) {
@@ -510,38 +533,34 @@ class _DoctorPlanScreenState extends ConsumerState<DoctorPlanScreen> {
         .map((item) => item.trim())
         .where((item) => item.isNotEmpty)
         .toList();
-    if (tags.join(',') == patient.triggerTags.join(',')) {
+    if (tags.isEmpty) {
       return;
     }
-    await _savePatientProfile(
-      patient,
-      triggerTags: tags,
-      successMessage: _t(context, '重点触发已更新', 'Key triggers updated'),
-    );
-  }
-
-  Future<void> _savePatientProfile(
-    DoctorPatient patient, {
-    String? recoveryGoal,
-    List<String>? triggerTags,
-    required String successMessage,
-  }) async {
     try {
-      final updated = await ref
-          .read(doctorRepositoryProvider)
-          .savePatientProfile(
-            memberId: patient.memberId,
-            recoveryGoal: recoveryGoal,
-            triggerTags: triggerTags,
-          );
+      for (final tag in tags) {
+        await ref
+            .read(doctorRepositoryProvider)
+            .savePatientTriggerLog(
+              memberId: patient.memberId,
+              triggerName: tag,
+            );
+      }
       if (!mounted) {
         return;
       }
+      final mergedTags = <String>[
+        ...tags,
+        ...patient.triggerTags,
+      ].where((item) => item.trim().isNotEmpty).toSet().take(5).toList();
       setState(() {
-        _patientOverrides[patient.memberId] = updated;
+        _patientOverrides[patient.memberId] = patient.copyWith(
+          triggerTags: mergedTags,
+        );
       });
       ref.invalidate(doctorPatientsProvider);
-      context.showCenteredNotice(successMessage);
+      context.showCenteredNotice(
+        _t(context, '触发因素已配置', 'Key trigger configured'),
+      );
     } on Object catch (error) {
       if (mounted) {
         context.showCenteredNotice(error.toString());
