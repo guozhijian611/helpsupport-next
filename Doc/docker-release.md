@@ -170,6 +170,7 @@ REMOTE_REBUILD_ONLY=1 RUN_INSTALL=1 RUN_MIGRATE=0 bash docker.sh
 
 ```nginx
 location / {
+    client_max_body_size 500m;
     proxy_set_header Host $http_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header REMOTE-HOST $remote_addr;
@@ -178,6 +179,7 @@ location / {
 }
 
 location /admin/ {
+    client_max_body_size 500m;
     proxy_set_header Host $http_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header REMOTE-HOST $remote_addr;
@@ -186,6 +188,7 @@ location /admin/ {
 }
 
 location /h5/ {
+    client_max_body_size 500m;
     proxy_set_header Host $http_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header REMOTE-HOST $remote_addr;
@@ -193,6 +196,8 @@ location /h5/ {
     proxy_pass http://127.0.0.1:18787/h5/;
 }
 ```
+
+`client_max_body_size` 可以放在当前站点的 `server {}` 内统一生效。上传大文件遇到 Nginx `413 Request Entity Too Large` 时，确认站点配置已包含该值后执行 `nginx -t && nginx -s reload` 或在宝塔面板重载 Nginx。
 
 AI 实时 WebSocket 必须代理到实时端口，不能落到普通 HTTP 入口：
 

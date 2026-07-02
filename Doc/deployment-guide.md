@@ -101,6 +101,7 @@ Webman 默认监听 `127.0.0.1:8787`。如果前端请求统一走 `/prod/`，Ng
 
 ```nginx
 location /prod/ {
+    client_max_body_size 500m;
     proxy_set_header Host $http_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header REMOTE-HOST $remote_addr;
@@ -108,6 +109,8 @@ location /prod/ {
     proxy_pass http://127.0.0.1:8787/;
 }
 ```
+
+`client_max_body_size` 也可以放在当前站点的 `server {}` 内，对该站点所有接口生效。上传大文件出现 Nginx `413 Request Entity Too Large` 时，先确认该值已生效，再执行 `nginx -t && nginx -s reload` 或通过宝塔面板重载 Nginx。
 
 如果后续接口涉及 WebSocket，再补充升级头：
 
