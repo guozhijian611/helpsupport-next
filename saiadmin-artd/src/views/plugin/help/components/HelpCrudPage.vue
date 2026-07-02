@@ -545,7 +545,7 @@
     return field.options?.find((option) => String(option.value) === String(value))
   }
 
-  const zeroRelationOption = (field: HelpCrudField) => {
+  function zeroRelationOption(field: HelpCrudField) {
     if (field.default !== 0 && field.required) {
       return null
     }
