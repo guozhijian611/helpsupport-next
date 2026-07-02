@@ -37,6 +37,8 @@ class MemberPointsLogController extends BaseController
         $where = $request->more([
             ['member_id', ''],
             ['operate_type', ''],
+            ['change_type', ''],
+            ['source_type', ''],
             ['username', ''],
             ['create_time', ''],
         ]);
@@ -51,7 +53,7 @@ class MemberPointsLogController extends BaseController
      * @param Request $request
      * @return Response
      */
-    #[Permission('积分日志读取', 'saiuser:member:points:index')]
+    #[Permission('积分日志读取', 'saiuser:member:points:read')]
     public function read(Request $request): Response
     {
         $id = $request->input('id', '');
@@ -72,15 +74,6 @@ class MemberPointsLogController extends BaseController
     #[Permission('积分日志删除', 'saiuser:member:points:destroy')]
     public function destroy(Request $request): Response
     {
-        $ids = $request->post('ids', '');
-        if (empty($ids)) {
-            return $this->fail('请选择要删除的数据');
-        }
-        $result = $this->logic->destroy($ids);
-        if ($result) {
-            return $this->success('删除成功');
-        } else {
-            return $this->fail('删除失败');
-        }
+        return $this->fail('积分日志不支持删除');
     }
 }

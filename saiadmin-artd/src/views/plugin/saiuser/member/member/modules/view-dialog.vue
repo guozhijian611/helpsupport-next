@@ -71,15 +71,18 @@
       <el-tab-pane label="积分日志" name="points">
         <el-table :data="pointsData" border>
           <el-table-column prop="create_time" label="发生时间" width="180" />
-          <el-table-column label="积分类型" width="120">
+          <el-table-column label="变动类型" width="120">
             <template #default="{ row }">
-              <sa-dict :value="row.operate_type" dict="saiuser_operate_type" render="span" />
+              <ElTag :type="changeTypeTag(row.change_type)">
+                {{ changeTypeText(row.change_type) }}
+              </ElTag>
             </template>
           </el-table-column>
-          <el-table-column prop="operate_desc" label="积分说明" show-overflow-tooltip />
-          <el-table-column prop="points_before" label="变动前积分" width="120" />
-          <el-table-column prop="points_change" label="积分变动" width="120" />
-          <el-table-column prop="points_after" label="变动后积分" width="120" />
+          <el-table-column prop="source_type" label="来源类型" width="150" />
+          <el-table-column prop="title" label="积分标题" show-overflow-tooltip />
+          <el-table-column prop="remark" label="备注" show-overflow-tooltip />
+          <el-table-column prop="points" label="积分变动" width="120" />
+          <el-table-column prop="balance_after" label="变动后积分" width="120" />
         </el-table>
       </el-tab-pane>
     </el-tabs>
@@ -89,6 +92,23 @@
 
 <script setup lang="ts">
   import api from '../../../api/member/member'
+
+  type TagType = 'success' | 'warning' | 'info'
+
+  const changeTypeText = (value: string) => {
+    const map: Record<string, string> = {
+      income: '收入',
+      expense: '支出',
+      adjust: '调整'
+    }
+    return map[value] || value || '-'
+  }
+
+  const changeTypeTag = (value: string): TagType => {
+    if (value === 'income') return 'success'
+    if (value === 'expense') return 'warning'
+    return 'info'
+  }
 
   interface Props {
     modelValue: boolean

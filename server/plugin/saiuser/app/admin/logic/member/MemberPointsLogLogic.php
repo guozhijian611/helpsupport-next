@@ -8,7 +8,6 @@ namespace plugin\saiuser\app\admin\logic\member;
 
 use plugin\saiadmin\basic\think\BaseLogic;
 use plugin\saiadmin\exception\ApiException;
-use plugin\saiadmin\utils\Helper;
 use plugin\saiuser\app\model\member\MemberPointsLog;
 
 /**
@@ -22,6 +21,13 @@ class MemberPointsLogLogic extends BaseLogic
     public function __construct()
     {
         $this->model = new MemberPointsLog();
+        $this->orderField = 'id';
+        $this->orderType = 'DESC';
+    }
+
+    public function destroy($ids): bool
+    {
+        throw new ApiException('积分日志不支持删除');
     }
 
 }

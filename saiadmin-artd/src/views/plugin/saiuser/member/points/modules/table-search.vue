@@ -13,8 +13,17 @@
       </el-form-item>
     </el-col>
     <el-col v-bind="setSpan(6)">
-      <el-form-item label="积分类型" prop="operate_type">
-        <sa-select v-model="formData.operate_type" dict="saiuser_operate_type" />
+      <el-form-item label="变动类型" prop="change_type">
+        <el-select v-model="formData.change_type" placeholder="请选择变动类型" clearable>
+          <el-option label="收入" value="income" />
+          <el-option label="支出" value="expense" />
+          <el-option label="调整" value="adjust" />
+        </el-select>
+      </el-form-item>
+    </el-col>
+    <el-col v-bind="setSpan(6)">
+      <el-form-item label="来源类型" prop="source_type">
+        <el-input v-model="formData.source_type" placeholder="请输入来源类型" clearable />
       </el-form-item>
     </el-col>
     <el-col v-bind="setSpan(8)">

@@ -116,6 +116,8 @@ class UserController extends BaseController
     {
         $where = $request->more([
             ['operate_type', ''],
+            ['change_type', ''],
+            ['source_type', ''],
             ['order_no', ''],
             ['create_time', []],
         ]);

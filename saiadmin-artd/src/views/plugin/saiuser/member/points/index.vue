@@ -5,23 +5,7 @@
 
     <ElCard class="art-table-card" shadow="never">
       <!-- 表格头部 -->
-      <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData">
-        <template #left>
-          <ElSpace wrap>
-            <ElButton
-              v-permission="'saidoc:project:destroy'"
-              :disabled="selectedRows.length === 0"
-              @click="deleteSelectedRows(api.delete, refreshData)"
-              v-ripple
-            >
-              <template #icon>
-                <ArtSvgIcon icon="ri:delete-bin-5-line" />
-              </template>
-              删除
-            </ElButton>
-          </ElSpace>
-        </template>
-      </ArtTableHeader>
+      <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData" />
 
       <!-- 表格 -->
       <ArtTable
@@ -32,19 +16,13 @@
         :columns="columns"
         :pagination="pagination"
         @sort-change="handleSortChange"
-        @selection-change="handleSelectionChange"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       >
-        <!-- 操作列 -->
-        <template #operation="{ row }">
-          <div class="flex gap-2">
-            <SaButton
-              v-permission="'saidoc:points:destroy'"
-              type="error"
-              @click="deleteRow(row, api.delete, refreshData)"
-            />
-          </div>
+        <template #change_type="{ row }">
+          <ElTag :type="changeTypeTag(row.change_type)">
+            {{ changeTypeText(row.change_type) }}
+          </ElTag>
         </template>
       </ArtTable>
     </ElCard>
@@ -53,13 +31,30 @@
 
 <script setup lang="ts">
   import { useTable } from '@/hooks/core/useTable'
-  import { useSaiAdmin } from '@/composables/useSaiAdmin'
   import api from '../../api/member/points'
   import TableSearch from './modules/table-search.vue'
 
+  type TagType = 'success' | 'warning' | 'info'
+
+  const changeTypeText = (value: string) => {
+    const map: Record<string, string> = {
+      income: '收入',
+      expense: '支出',
+      adjust: '调整'
+    }
+    return map[value] || value || '-'
+  }
+
+  const changeTypeTag = (value: string): TagType => {
+    if (value === 'income') return 'success'
+    if (value === 'expense') return 'warning'
+    return 'info'
+  }
+
   // 搜索表单
   const searchForm = ref({
-    operate_type: undefined,
+    change_type: undefined,
+    source_type: undefined,
     username: undefined,
     create_time: [],
     orderType: 'desc'
@@ -92,25 +87,21 @@
         ...searchForm.value
       },
       columnsFactory: () => [
-        { type: 'selection' },
         { prop: 'id', label: '编号', width: 80 },
         { prop: 'create_time', label: '发生时间', width: 180 },
         { prop: 'username', label: '会员账号', width: 120 },
         {
-          prop: 'operate_type',
-          label: '积分类型',
+          prop: 'change_type',
+          label: '变动类型',
           width: 120,
-          saiType: 'dict',
-          saiDict: 'saiuser_operate_type'
+          useSlot: true
         },
-        { prop: 'operate_desc', label: '积分说明' },
-        { prop: 'points_before', label: '变动前积分', width: 120 },
-        { prop: 'points_change', label: '积分变动', width: 120 },
-        { prop: 'points_after', label: '变动后积分', width: 120 },
-        { prop: 'operation', label: '操作', width: 80, fixed: 'right', useSlot: true }
+        { prop: 'source_type', label: '来源类型', width: 150 },
+        { prop: 'title', label: '积分标题', minWidth: 180 },
+        { prop: 'remark', label: '备注', minWidth: 180 },
+        { prop: 'points', label: '积分变动', width: 120 },
+        { prop: 'balance_after', label: '变动后积分', width: 120 }
       ]
     }
   })
-
-  const { deleteRow, deleteSelectedRows, handleSelectionChange, selectedRows } = useSaiAdmin()
 </script>
