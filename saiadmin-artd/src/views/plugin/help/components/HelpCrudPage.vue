@@ -106,6 +106,16 @@
             :field-prop="field.prop"
           />
           <ImagePreview v-else-if="field.type === 'image'" :url="row[field.prop]" />
+          <div v-else-if="isIconField(field)" class="help-icon-cell">
+            <span class="help-icon-preview">
+              <ArtSvgIcon
+                v-if="row[field.prop]"
+                :icon="String(row[field.prop])"
+                class="help-icon-svg"
+              />
+            </span>
+            <span class="help-icon-code">{{ formatValue(field, row[field.prop]) }}</span>
+          </div>
           <ElTooltip
             v-else-if="isLongValue(field, row[field.prop])"
             :content="formatValue(field, row[field.prop])"
@@ -224,6 +234,24 @@
                 :limit="1"
                 :disabled="isFieldDisabled(field)"
               />
+              <ElInput
+                v-else-if="isIconField(field)"
+                v-model="formData[field.prop]"
+                clearable
+                :placeholder="field.placeholder || '请输入' + field.label"
+                :disabled="isFieldDisabled(field)"
+                class="help-form-control"
+              >
+                <template #prepend>
+                  <span class="help-icon-input-preview">
+                    <ArtSvgIcon
+                      v-if="formData[field.prop]"
+                      :icon="String(formData[field.prop])"
+                      class="help-icon-svg"
+                    />
+                  </span>
+                </template>
+              </ElInput>
               <div v-else-if="field.type === 'file'" class="help-file-field">
                 <SaFileUpload
                   v-model="formData[field.prop]"
@@ -272,6 +300,16 @@
             detail
           />
           <ImagePreview v-else-if="field.type === 'image'" :url="detailData[field.prop]" detail />
+          <div v-else-if="isIconField(field)" class="help-icon-cell">
+            <span class="help-icon-preview">
+              <ArtSvgIcon
+                v-if="detailData[field.prop]"
+                :icon="String(detailData[field.prop])"
+                class="help-icon-svg"
+              />
+            </span>
+            <span class="help-icon-code">{{ formatValue(field, detailData[field.prop]) }}</span>
+          </div>
           <span v-else>{{ formatValue(field, detailData[field.prop]) }}</span>
         </ElDescriptionsItem>
       </ElDescriptions>
@@ -595,6 +633,10 @@
     )
   }
 
+  const isIconField = (field: HelpCrudField) => {
+    return field.type === 'icon' || field.prop === 'icon'
+  }
+
   const shouldUseTag = (field: HelpCrudField) => {
     return (
       field.options !== undefined &&
@@ -800,6 +842,48 @@
     flex-direction: column;
     gap: 10px;
     width: 100%;
+  }
+
+  .help-icon-cell {
+    display: inline-flex;
+    max-width: 100%;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+    vertical-align: middle;
+  }
+
+  .help-icon-preview,
+  .help-icon-input-preview {
+    display: inline-flex;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 6px;
+    background: var(--el-fill-color-light);
+    color: var(--el-color-primary);
+  }
+
+  .help-icon-input-preview {
+    width: 22px;
+    height: 22px;
+    border: 0;
+    background: transparent;
+  }
+
+  .help-icon-svg {
+    font-size: 18px;
+  }
+
+  .help-icon-code {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--el-text-color-regular);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .help-row-actions {

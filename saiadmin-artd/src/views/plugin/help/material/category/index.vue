@@ -73,9 +73,10 @@
     {
       prop: 'icon',
       label: '图标/标识',
+      type: 'icon',
       form: true,
       placeholder: '如 ri:book-2-line',
-      minWidth: 180
+      minWidth: 220
     },
     {
       prop: 'sort',
