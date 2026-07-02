@@ -67,7 +67,7 @@ class HelpCenterRepository {
     );
     final article = result.data;
     if (article == null || article.id <= 0) {
-      throw const FormatException('文章不存在');
+      throw const FormatException('帮助内容不存在');
     }
     return article;
   }

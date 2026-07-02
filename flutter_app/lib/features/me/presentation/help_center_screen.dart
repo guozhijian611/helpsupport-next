@@ -31,7 +31,7 @@ class HelpCenterScreen extends ConsumerWidget {
               ? _HelpStateView(
                   text: _t(
                     context,
-                    '暂无帮助分类，请先在 saiuser 文章管理中维护分类。',
+                    '暂无帮助分类，请先在后台帮助与反馈中维护分类。',
                     'No help categories yet.',
                   ),
                 )
@@ -81,7 +81,9 @@ class HelpArticleListScreen extends ConsumerWidget {
       backgroundColor: palette.pageBackground,
       appBar: AppBar(
         title: Text(
-          categoryName.isEmpty ? _t(context, '文章列表', 'Articles') : categoryName,
+          categoryName.isEmpty
+              ? _t(context, '帮助内容', 'Help articles')
+              : categoryName,
         ),
         backgroundColor: palette.pageBackground,
         foregroundColor: palette.primaryText,
@@ -92,7 +94,7 @@ class HelpArticleListScreen extends ConsumerWidget {
               ? _HelpStateView(
                   text: _t(
                     context,
-                    '该分类下暂无文章，请在 saiuser 文章管理中添加已发布文章。',
+                    '该分类下暂无帮助内容，请在后台帮助与反馈中添加已发布内容。',
                     'No published articles in this category yet.',
                   ),
                 )
@@ -138,7 +140,7 @@ class HelpArticleDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = _HelpPalette.of(context);
     final article = ref.watch(helpArticleDetailProvider(articleId));
-    final title = initialArticle?.title ?? _t(context, '文章详情', 'Article');
+    final title = initialArticle?.title ?? _t(context, '帮助详情', 'Help article');
     return Scaffold(
       backgroundColor: palette.pageBackground,
       appBar: AppBar(
