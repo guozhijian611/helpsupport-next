@@ -21,6 +21,25 @@ ANDROID_EMULATOR_ID=YourAvdName ./run_app.sh
 AUTO_LAUNCH_ANDROID_EMULATOR=0 ./run_app.sh
 ```
 
+## 正式包打包
+
+APK、AAB 和 IPA 统一使用发布脚本：
+
+```bash
+./tool/package_release.sh
+```
+
+可按需只打单个平台或单类产物：
+
+```bash
+./tool/package_release.sh android
+./tool/package_release.sh apk
+./tool/package_release.sh aab
+./tool/package_release.sh ipa --export-method ad-hoc
+```
+
+完整说明见 `../Doc/flutter-release-build.md`。
+
 ## iOS 模拟器构建安装
 
 ```bash
