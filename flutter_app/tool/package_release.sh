@@ -367,31 +367,23 @@ build_ipa() {
   log "Building iOS IPA (${EXPORT_METHOD})"
   run_cmd flutter build ipa --release --export-method "${EXPORT_METHOD}" --build-name "${BUILD_NAME}" --build-number "${BUILD_NUMBER}"
   if [[ "${EXPORT_METHOD}" == "app-store" ]]; then
-    add_swift_support_to_ipa
+    ensure_swift_support_matches_app_frameworks
   fi
 }
 
-add_swift_support_to_ipa() {
+ensure_swift_support_matches_app_frameworks() {
   [[ "${DRY_RUN}" == "1" ]] && return
 
   local ipa_path="${FLUTTER_APP_DIR}/build/ios/ipa/helpsupport_app.ipa"
-  local xcode_developer_dir
-  local toolchain_swift_dir
   local tmp_dir
   local app_dir
+  local frameworks_dir
   local support_dir
-  local needed_file
-  local copied_count=0
+  local swift_lib_count
 
   [[ -f "${ipa_path}" ]] || fail "IPA not found: ${ipa_path}"
   require_command unzip
   require_command zip
-  require_command otool
-  require_command xcode-select
-
-  xcode_developer_dir="$(xcode-select -p)"
-  toolchain_swift_dir="${xcode_developer_dir}/Toolchains/XcodeDefault.xctoolchain/usr/lib"
-  [[ -d "${toolchain_swift_dir}" ]] || fail "Xcode Swift library directory not found: ${toolchain_swift_dir}"
 
   tmp_dir="$(mktemp -d)"
   trap 'rm -rf "${tmp_dir}"' RETURN
@@ -400,39 +392,27 @@ add_swift_support_to_ipa() {
   app_dir="$(find "${tmp_dir}/Payload" -maxdepth 1 -name '*.app' -type d | head -n 1)"
   [[ -n "${app_dir}" && -d "${app_dir}" ]] || fail "App bundle not found in IPA"
 
-  support_dir="${tmp_dir}/SwiftSupport/iphoneos"
-  needed_file="${tmp_dir}/swift-dylibs.txt"
-  mkdir -p "${support_dir}"
-
-  find "${app_dir}" -type f -perm -111 -print | while IFS= read -r binary; do
-    otool -L "${binary}" 2>/dev/null | awk '/\/usr\/lib\/swift\/libswift.*\.dylib/ {
-      sub(/^.*\/usr\/lib\/swift\//, "");
-      sub(/ .*/, "");
-      print
-    }'
-  done | sort -u > "${needed_file}"
-
-  while IFS= read -r lib_name; do
-    [[ -n "${lib_name}" ]] || continue
-    local lib_path=""
-    lib_path="$(find "${toolchain_swift_dir}" -path '*/swift-*/iphoneos/*' -name "${lib_name}" -type f | sort | head -n 1)"
-    if [[ -n "${lib_path}" ]]; then
-      cp "${lib_path}" "${support_dir}/${lib_name}"
-      copied_count=$((copied_count + 1))
-    fi
-  done < "${needed_file}"
-
-  if [[ "${copied_count}" -eq 0 ]]; then
-    warn "No SwiftSupport dylibs were copied; IPA may still fail App Store validation."
-  else
-    log "Added SwiftSupport/iphoneos (${copied_count} dylibs)"
+  frameworks_dir="${app_dir}/Frameworks"
+  swift_lib_count="$(find "${frameworks_dir}" -maxdepth 1 -type f -name 'libswift*.dylib' | wc -l | tr -d ' ')"
+  if [[ "${swift_lib_count}" == "0" ]]; then
+    warn "No Swift dylibs found in Payload app Frameworks; SwiftSupport was not generated."
+    rm -rf "${tmp_dir}"
+    trap - RETURN
+    return
   fi
 
+  support_dir="${tmp_dir}/SwiftSupport/iphoneos"
+  rm -rf "${tmp_dir}/SwiftSupport"
+  mkdir -p "${support_dir}"
+  find "${frameworks_dir}" -maxdepth 1 -type f -name 'libswift*.dylib' -exec cp -f {} "${support_dir}/" \;
+
+  find "${tmp_dir}" -maxdepth 1 -type f -name '*.txt' -delete
   rm -f "${ipa_path}.tmp"
   (cd "${tmp_dir}" && zip -qry "${ipa_path}.tmp" .)
   mv "${ipa_path}.tmp" "${ipa_path}"
   rm -rf "${tmp_dir}"
   trap - RETURN
+  log "Synchronized SwiftSupport/iphoneos (${swift_lib_count} dylibs)"
 }
 
 run_cmd() {
