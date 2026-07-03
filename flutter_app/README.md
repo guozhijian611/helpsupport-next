@@ -83,8 +83,8 @@ GET /app/help/common/onboarding?scene=first_launch&version=&locale={locale}
 运行前需要准备 native 动态库：
 
 - Android：运行 `./tool/build_android_llama.sh`，脚本会按 `llama_cpp_dart` 绑定对应的 `llama.cpp` 提交构建 CPU 和 Vulkan GPU 后端 `libmtmd.so`、`libllama.so`、`libggml*.so`，并复制 NDK 运行时 `libc++_shared.so`、`libomp.so` 到 `android/app/src/main/jniLibs/<abi>/`。
-- iOS 模拟器：`flutter run -d ios` 和 `./tool/build_ios_simulator.sh` 会通过 Xcode 构建阶段从 `llama_cpp_dart` 的 pub cache 中复制当前模拟器架构的 `libllama.dylib`、`libggml*.dylib`、`libggml-metal.dylib` 和 `libmtmd.dylib` 到 `Runner.app/Frameworks`。如果需要使用自定义构建产物，可设置 `HELP_SUPPORT_LLAMA_IOS_RUNTIME_DIR=/absolute/path/to/dylibs`。
-- iOS 真机：默认同样会尝试复制 `llama_cpp_dart` 的 `OS64` CPU 和 Metal 产物；发布前仍需确认签名、嵌入方式和 App Store 分发要求。
+- iOS 模拟器：`flutter run -d ios` 和 `./tool/build_ios_simulator.sh` 会通过 Xcode 构建阶段从 `llama_cpp_dart` 的 pub cache 中读取当前模拟器架构的 `libllama.dylib`、`libggml*.dylib`、`libggml-metal.dylib` 和 `libmtmd.dylib`，再包装为 `Runner.app/Frameworks/*.framework`。如果需要使用自定义构建产物，可设置 `HELP_SUPPORT_LLAMA_IOS_RUNTIME_DIR=/absolute/path/to/dylibs`。
+- iOS 真机：默认读取 `llama_cpp_dart` 的 `OS64` CPU 和 Metal 产物并包装为 framework；App Store/TestFlight 包不能直接嵌入非 Swift 的裸 `.dylib`，`./tool/package_release.sh ipa` 和 `./tool/upload_ios_archive.sh` 会在上传前拦截这类结构。
 - 桌面或本机调试：可用 `--dart-define=HELP_SUPPORT_LLAMA_LIBRARY_PATH=/absolute/path/libllama.dylib` 指定动态库路径。
 
 默认使用 `auto` 加载本地模型。Android 的 `auto` 默认使用 CPU，避免模拟器、云手机或厂商 Vulkan 驱动在 native 初始化阶段直接崩溃；如需在 Android 真机上验证 GPU，必须显式传入 `HELP_SUPPORT_LLAMA_BACKEND=gpu`，并通过系统 API、Vulkan 1.1 和模拟器检测后才会启用 GPU offload。iOS / macOS 的 `auto` 默认允许 Metal GPU offload。CPU 模式会强制 `nGpuLayers=0` 并关闭 KQV / op offload。如需显式指定模式，可传入：

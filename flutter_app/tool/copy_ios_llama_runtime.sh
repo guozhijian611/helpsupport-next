@@ -90,6 +90,84 @@ sign_runtime_library() {
   codesign --force --sign - --timestamp=none "${library_path}" >/dev/null 2>&1
 }
 
+runtime_framework_name() {
+  local library_name="$1"
+  printf '%s\n' "${library_name%.dylib}"
+}
+
+runtime_framework_install_name() {
+  local library_name framework_name
+  library_name="$1"
+  framework_name="$(runtime_framework_name "${library_name}")"
+  printf '@rpath/%s.framework/%s\n' "${framework_name}" "${framework_name}"
+}
+
+write_framework_info_plist() {
+  local plist_path="$1"
+  local framework_name="$2"
+
+  cat > "${plist_path}" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleExecutable</key>
+  <string>${framework_name}</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.openb8.helpsupport.runtime.${framework_name}</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>${framework_name}</string>
+  <key>CFBundlePackageType</key>
+  <string>FMWK</string>
+  <key>CFBundleShortVersionString</key>
+  <string>1.0</string>
+  <key>CFBundleVersion</key>
+  <string>1</string>
+  <key>MinimumOSVersion</key>
+  <string>15.0</string>
+</dict>
+</plist>
+PLIST
+}
+
+copy_runtime_framework() {
+  local library="$1"
+  local runtime_dir="$2"
+  local target_dir="$3"
+  local library_name framework_name framework_dir executable_path dependency dependency_name
+
+  library_name="$(basename "${library}")"
+  framework_name="$(runtime_framework_name "${library_name}")"
+  framework_dir="${target_dir}/${framework_name}.framework"
+  executable_path="${framework_dir}/${framework_name}"
+
+  rm -rf "${framework_dir}"
+  rm -f "${target_dir}/${library_name}"
+  mkdir -p "${framework_dir}"
+  cp "${library}" "${executable_path}"
+  chmod 755 "${executable_path}"
+  codesign --remove-signature "${executable_path}" >/dev/null 2>&1 || true
+
+  install_name_tool -id "$(runtime_framework_install_name "${library_name}")" "${executable_path}"
+  for dependency in "${runtime_dir}"/lib*.dylib; do
+    [[ -f "${dependency}" ]] || continue
+    dependency_name="$(basename "${dependency}")"
+    if otool -L "${executable_path}" | grep -q "@rpath/${dependency_name}"; then
+      install_name_tool \
+        -change "@rpath/${dependency_name}" \
+        "$(runtime_framework_install_name "${dependency_name}")" \
+        "${executable_path}"
+    fi
+  done
+
+  write_framework_info_plist "${framework_dir}/Info.plist" "${framework_name}"
+  sign_runtime_library "${framework_dir}"
+}
+
 main() {
   local runtime_dir target_dir
   runtime_dir="$(select_runtime_dir)"
@@ -101,18 +179,16 @@ main() {
   local copied=0
   for library in "${runtime_dir}"/lib*.dylib; do
     [[ -f "${library}" ]] || continue
-    cp "${library}" "${target_dir}/"
-    chmod 755 "${target_dir}/$(basename "${library}")"
-    sign_runtime_library "${target_dir}/$(basename "${library}")"
+    copy_runtime_framework "${library}" "${runtime_dir}" "${target_dir}"
     copied=$((copied + 1))
   done
 
   [[ "${copied}" -gt 0 ]] ||
     fail "No llama runtime dylibs found in ${runtime_dir}"
-  [[ -f "${target_dir}/libllama.dylib" ]] ||
-    fail "libllama.dylib was not copied to ${target_dir}"
+  [[ -f "${target_dir}/libllama.framework/libllama" ]] ||
+    fail "libllama framework was not copied to ${target_dir}"
 
-  log "Copied ${copied} llama runtime dylibs to ${target_dir}"
+  log "Copied ${copied} llama runtime frameworks to ${target_dir}"
 }
 
 main "$@"

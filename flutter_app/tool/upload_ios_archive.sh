@@ -29,6 +29,25 @@ bool_plist_value() {
   fi
 }
 
+validate_archive_has_no_unsupported_dylibs() {
+  local app_dir dylib dylib_name
+  local -a unsupported_dylibs=()
+
+  while IFS= read -r -d '' app_dir; do
+    while IFS= read -r dylib; do
+      dylib_name="$(basename "${dylib}")"
+      [[ "${dylib_name}" == libswift* ]] && continue
+      unsupported_dylibs+=("${dylib#${ARCHIVE_PATH}/Products/Applications/}")
+    done < <(find "${app_dir}" -name '*.dylib' -print 2>/dev/null)
+  done < <(find "${ARCHIVE_PATH}/Products/Applications" -maxdepth 1 -type d -name '*.app' -print0)
+
+  if [[ "${#unsupported_dylibs[@]}" -gt 0 ]]; then
+    printf 'Error: Archive contains unsupported embedded dylibs. Package native libraries as .framework bundles and rebuild the archive before upload:\n' >&2
+    printf '  %s\n' "${unsupported_dylibs[@]}" >&2
+    exit 1
+  fi
+}
+
 usage() {
   cat <<'USAGE'
 Upload HelpSupport iOS archive directly to App Store Connect/TestFlight.
@@ -66,6 +85,7 @@ require_command xcodebuild
 require_command mktemp
 
 [[ -d "${ARCHIVE_PATH}" ]] || fail "Archive not found: ${ARCHIVE_PATH}. Build it first with ./tool/package_release.sh ipa --export-method app-store."
+validate_archive_has_no_unsupported_dylibs
 
 if [[ "${SKIP_DISTRIBUTION_SIGNING_CHECK:-0}" != "1" ]]; then
   require_command security

@@ -218,7 +218,7 @@ resolve_ios_packages() {
 }
 
 verify_ios_llama_runtime() {
-  local runtime_path="${APP_PATH}/Frameworks/libllama.dylib"
+  local runtime_path="${APP_PATH}/Frameworks/libllama.framework/libllama"
   [[ -f "${runtime_path}" ]] ||
     fail "iOS llama runtime not found in app bundle: ${runtime_path}"
   log "iOS llama runtime bundled: ${runtime_path}"

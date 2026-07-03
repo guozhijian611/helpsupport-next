@@ -257,7 +257,10 @@ class LlamaEngine {
     if (Platform.isLinux) {
       return 'libllama.so';
     }
-    if (Platform.isIOS || Platform.isMacOS) {
+    if (Platform.isIOS) {
+      return '@rpath/libllama.framework/libllama';
+    }
+    if (Platform.isMacOS) {
       return 'libllama.dylib';
     }
     if (Platform.isWindows) {

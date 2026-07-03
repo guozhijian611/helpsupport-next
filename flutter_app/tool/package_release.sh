@@ -370,6 +370,7 @@ build_ipa() {
     require_ios_distribution_signing
   fi
   run_cmd flutter build ipa --release --export-method "${EXPORT_METHOD}" --build-name "${BUILD_NAME}" --build-number "${BUILD_NUMBER}"
+  validate_ios_app_store_ipa
 }
 
 require_ios_distribution_signing() {
@@ -378,6 +379,38 @@ require_ios_distribution_signing() {
 
   if ! security find-identity -v -p codesigning | grep -Eq '"(Apple Distribution|iOS Distribution):'; then
     fail "Apple Distribution signing identity not found. TestFlight/App Store builds must be exported with a distribution certificate. Open Xcode > Settings > Accounts > Manage Certificates and create/download Apple Distribution first."
+  fi
+}
+
+validate_ios_app_store_ipa() {
+  [[ "${DRY_RUN}" != "1" ]] || return 0
+  [[ "${EXPORT_METHOD}" == "app-store" ]] || return 0
+  require_command unzip
+  require_command mktemp
+
+  local ipa_dir="${FLUTTER_APP_DIR}/build/ios/ipa"
+  local ipa ipa_count=0 tmpdir dylib dylib_name
+  local -a unsupported_dylibs=()
+
+  [[ -d "${ipa_dir}" ]] || fail "iOS IPA output directory not found: ${ipa_dir}"
+
+  while IFS= read -r -d '' ipa; do
+    ipa_count=$((ipa_count + 1))
+    tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/helpsupport-ipa-check.XXXXXX")"
+    unzip -q "${ipa}" -d "${tmpdir}"
+    while IFS= read -r dylib; do
+      dylib_name="$(basename "${dylib}")"
+      [[ "${dylib_name}" == libswift* ]] && continue
+      unsupported_dylibs+=("$(basename "${ipa}"): ${dylib#${tmpdir}/}")
+    done < <(find "${tmpdir}/Payload" -name '*.dylib' -print 2>/dev/null)
+    rm -rf "${tmpdir}"
+  done < <(find "${ipa_dir}" -maxdepth 1 -type f -name '*.ipa' -print0)
+
+  [[ "${ipa_count}" -gt 0 ]] || fail "No IPA found in ${ipa_dir}"
+  if [[ "${#unsupported_dylibs[@]}" -gt 0 ]]; then
+    printf 'Error: App Store IPA contains unsupported embedded dylibs. Package native libraries as .framework bundles before upload:\n' >&2
+    printf '  %s\n' "${unsupported_dylibs[@]}" >&2
+    exit 1
   fi
 }
 
