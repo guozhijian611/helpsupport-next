@@ -200,7 +200,7 @@ export const useChatStore = defineStore('saiaiChat', () => {
     isConnected.value = true
 
     // 构建 API URL
-    const baseURL = import.meta.env.VITE_API_URL || ''
+    const baseURL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
     const url = `${baseURL}/app/saiai/api/index/index`
 
     // 取消之前的请求
