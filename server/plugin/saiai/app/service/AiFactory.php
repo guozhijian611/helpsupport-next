@@ -24,7 +24,7 @@ use plugin\saiai\app\model\config\AiConfig;
 
 class AiFactory
 {
-    private const REQUEST_TIMEOUT = 60;
+    private const REQUEST_TIMEOUT = 3600;
     private const IMAGE_REQUEST_TIMEOUT = 120;
 
     public const DEFAULT_CHAT_TYPE = 'openai';
@@ -52,9 +52,10 @@ class AiFactory
         $apiKey = $resolved['apiKey'];
         $resolvedModel = $resolved['model'];
         $platformType = $resolved['platformType'];
+        $requestTimeout = max(1, (int) env('SAIAI_REQUEST_TIMEOUT', self::REQUEST_TIMEOUT));
         $httpClient = HttpClient::create([
-            'timeout' => self::REQUEST_TIMEOUT,
-            'max_duration' => self::REQUEST_TIMEOUT + 5,
+            'timeout' => $requestTimeout,
+            'max_duration' => $requestTimeout + 60,
         ]);
 
         switch ($platformType) {

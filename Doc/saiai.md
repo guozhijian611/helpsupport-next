@@ -42,6 +42,7 @@
 写在 `server/.env`：
 
 ```ini
+SAIAI_REQUEST_TIMEOUT=3600
 DASHSCOPE_API_KEY=
 SAIAI_REALTIME_PUBLIC_URL=
 SAIAI_REALTIME_WS_PORT=8791
@@ -50,6 +51,7 @@ SAIAI_REALTIME_WS_COUNT=1
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
+| `SAIAI_REQUEST_TIMEOUT` | `3600` | AI 对话等待上游数据的空闲超时秒数；总请求时长为该值再加 60 秒，慢模型可按需调大。 |
 | `DASHSCOPE_API_KEY` | 空 | 当 `saiai_config.ai_key` 为空时作为兜底 API Key。 |
 | `SAIAI_REALTIME_PUBLIC_URL` | 空 | 对外可访问的实时代理地址。生产环境可显式配置为 `wss://{host}/v1/realtime`；为空时按请求协议自动生成。 |
 | `SAIAI_REALTIME_WS_PORT` | `8791` | 本地实时代理 WebSocket 监听端口。 |
