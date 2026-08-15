@@ -11,6 +11,13 @@ use support\Db;
  */
 class HelpRuntimeConfigLogic
 {
+    private const AI_AUDIT_PLATFORM_TYPES = [
+        'generic',
+        'openai',
+        'deepseek',
+        'gemini',
+    ];
+
     private const RUNTIME_GROUPS = [
         'help_google_oauth' => 'Google 登录',
         'help_apple_oauth' => 'Apple 登录',
@@ -53,8 +60,9 @@ class HelpRuntimeConfigLogic
     {
         return Db::table('saiai_config')
             ->where('status', 1)
+            ->whereIn('type', self::AI_AUDIT_PLATFORM_TYPES)
             ->whereNull('delete_time')
-            ->orderBy('is_default', 'desc')
+            ->orderBy('is_default')
             ->orderBy('id')
             ->get(['id', 'name', 'type', 'model', 'is_default'])
             ->map(static fn (object $item): array => [
@@ -265,8 +273,8 @@ class HelpRuntimeConfigLogic
                 if ($configId < 0) {
                     throw new ApiException('AI审核模型参数错误');
                 }
-                if ($configId > 0 && !Db::table('saiai_config')->where('id', $configId)->where('status', 1)->whereNull('delete_time')->exists()) {
-                    throw new ApiException('所选AI模型不存在或未启用');
+                if ($configId > 0 && !$this->isAvailableAiAuditConfig($configId)) {
+                    throw new ApiException('所选AI模型不存在、未启用或不支持文本审核');
                 }
                 return (string) $configId;
             }
@@ -317,9 +325,19 @@ class HelpRuntimeConfigLogic
         if ($configId <= 0) {
             throw new ApiException('启用AI内容审核前必须选择审核模型');
         }
-        if (!Db::table('saiai_config')->where('id', $configId)->where('status', 1)->whereNull('delete_time')->exists()) {
-            throw new ApiException('所选AI模型不存在或未启用');
+        if (!$this->isAvailableAiAuditConfig($configId)) {
+            throw new ApiException('所选AI模型不存在、未启用或不支持文本审核');
         }
+    }
+
+    private function isAvailableAiAuditConfig(int $configId): bool
+    {
+        return Db::table('saiai_config')
+            ->where('id', $configId)
+            ->where('status', 1)
+            ->whereIn('type', self::AI_AUDIT_PLATFORM_TYPES)
+            ->whereNull('delete_time')
+            ->exists();
     }
 
     private function formatRemark(string $remark): string

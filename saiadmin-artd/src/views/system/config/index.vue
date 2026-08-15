@@ -107,41 +107,61 @@
             <ElForm ref="formRef" :model="formData" label-width="140px">
               <template v-for="(item, index) in formArray" :key="index">
                 <ElFormItem :label="item.name" :prop="item.key" v-show="item.display">
-                  <template v-if="item.input_type === 'select'">
+                  <div class="config-field">
                     <el-select
+                      v-if="item.input_type === 'select'"
                       v-model="item.value"
+                      class="config-control"
                       :options="item.config_select_data"
+                      :no-data-text="selectNoDataText(item)"
                       @change="handleSelect($event, item)"
                       :placeholder="'请选择' + item.name"
                     />
-                  </template>
-                  <template v-if="item.input_type === 'input'">
-                    <el-input v-model="item.value" :placeholder="'请输入' + item.name" />
-                  </template>
-                  <template v-if="item.input_type === 'radio'">
-                    <el-radio-group v-model="item.value" :options="item.config_select_data" />
-                  </template>
-                  <template v-if="item.input_type === 'switch'">
-                    <sa-switch v-model="item.value" active-value="1" inactive-value="2" />
-                  </template>
-                  <template v-if="item.input_type === 'textarea'">
                     <el-input
-                      type="textarea"
+                      v-else-if="item.input_type === 'input'"
                       v-model="item.value"
+                      class="config-control"
                       :placeholder="'请输入' + item.name"
                     />
-                  </template>
-                  <template v-if="item.input_type === 'uploadImage'">
-                    <sa-image-picker v-model="item.value" />
-                  </template>
-                  <template v-if="item.input_type === 'uploadFile'">
-                    <sa-file-upload v-model="item.value" />
-                  </template>
-                  <template v-if="item.input_type === 'wangEditor'">
-                    <sa-editor v-model="item.value" />
-                  </template>
-                  <div v-if="formatConfigRemark(item.remark)" class="text-gray-400 text-xs py-2">
-                    {{ formatConfigRemark(item.remark) }}
+                    <el-input
+                      v-else-if="item.input_type === 'number'"
+                      v-model="item.value"
+                      class="config-control"
+                      type="number"
+                      v-bind="numberInputAttrs(item)"
+                      :placeholder="'请输入' + item.name"
+                    />
+                    <el-radio-group
+                      v-else-if="item.input_type === 'radio'"
+                      v-model="item.value"
+                      class="config-radio"
+                      :options="item.config_select_data"
+                    />
+                    <sa-switch
+                      v-else-if="item.input_type === 'switch'"
+                      v-model="item.value"
+                      active-value="1"
+                      inactive-value="2"
+                    />
+                    <el-input
+                      v-else-if="item.input_type === 'textarea'"
+                      type="textarea"
+                      v-model="item.value"
+                      class="config-control"
+                      :placeholder="'请输入' + item.name"
+                    />
+                    <sa-image-picker
+                      v-else-if="item.input_type === 'uploadImage'"
+                      v-model="item.value"
+                    />
+                    <sa-file-upload
+                      v-else-if="item.input_type === 'uploadFile'"
+                      v-model="item.value"
+                    />
+                    <sa-editor v-else-if="item.input_type === 'wangEditor'" v-model="item.value" />
+                    <div v-if="formatConfigRemark(item.remark)" class="config-remark">
+                      {{ formatConfigRemark(item.remark) }}
+                    </div>
                   </div>
                 </ElFormItem>
               </template>
@@ -193,6 +213,7 @@
   import { Search } from '@element-plus/icons-vue'
   import { ElMessage } from 'element-plus'
   import api from '@/api/system/config'
+  import helpRuntimeApi from '@/views/plugin/help/api/config/runtime'
   import GroupEditDialog from './modules/group-edit-dialog.vue'
   import ConfigList from './modules/config-list.vue'
 
@@ -241,6 +262,28 @@
     return match?.[1]?.trim() || ''
   }
 
+  const isAiAuditGroup = () => selectedRow.value.code === 'help_ai_audit'
+
+  const selectNoDataText = (item: Record<string, any>) => {
+    if (isAiAuditGroup() && item.key === 'ai_config_id') {
+      return '暂无可用于文本审核的已启用模型'
+    }
+    return '暂无数据'
+  }
+
+  const numberInputAttrs = (item: Record<string, any>) => {
+    if (!isAiAuditGroup()) {
+      return {}
+    }
+    const limits: Record<string, { min: number; max: number; step: number }> = {
+      auto_pass_confidence: { min: 0.5, max: 1, step: 0.01 },
+      auto_reject_confidence: { min: 0.8, max: 1, step: 0.01 },
+      max_attempts: { min: 1, max: 5, step: 1 },
+      retry_delay_seconds: { min: 1, max: 300, step: 1 }
+    }
+    return limits[item.key] || {}
+  }
+
   // 配置选中行
   const selectedId = ref(0)
   const selectedRow = ref<any>({})
@@ -272,30 +315,38 @@
     getConfigData()
   }
 
-  const getConfigData = () => {
-    api.configList({ group_id: selectedId.value, saiType: 'all' }).then((data) => {
-      formArray.value = data.map((item: any) => {
-        if (
-          item.key.indexOf('local_') !== -1 ||
-          item.key.indexOf('qiniu_') !== -1 ||
-          item.key.indexOf('cos_') !== -1 ||
-          item.key.indexOf('oss_') !== -1 ||
-          item.key.indexOf('s3_') !== -1
-        ) {
-          item.display = false
-        } else {
-          item.display = true
+  const getConfigData = async () => {
+    const [data, aiModels] = await Promise.all([
+      api.configList({ group_id: selectedId.value, saiType: 'all' }),
+      isAiAuditGroup() ? helpRuntimeApi.aiOptions() : Promise.resolve([])
+    ])
+    formArray.value = data.map((item: any) => {
+      if (isAiAuditGroup() && item.key === 'ai_config_id') {
+        item.config_select_data = aiModels
+        if (String(item.value || '') === '0') {
+          item.value = ''
         }
-        return item
-      })
-      if (selectedId.value === 2) {
-        formArray.value.map((item) => {
-          if (item.key === 'upload_mode') {
-            handleSelect(item.value, item)
-          }
-        })
       }
+      if (
+        item.key.indexOf('local_') !== -1 ||
+        item.key.indexOf('qiniu_') !== -1 ||
+        item.key.indexOf('cos_') !== -1 ||
+        item.key.indexOf('oss_') !== -1 ||
+        item.key.indexOf('s3_') !== -1
+      ) {
+        item.display = false
+      } else {
+        item.display = true
+      }
+      return item
     })
+    if (selectedId.value === 2) {
+      formArray.value.forEach((item) => {
+        if (item.key === 'upload_mode') {
+          handleSelect(item.value, item)
+        }
+      })
+    }
   }
 
   // 配置名称
@@ -426,6 +477,15 @@
   }
 
   const submit = async (params: any) => {
+    if (isAiAuditGroup()) {
+      const values = Object.fromEntries(
+        params.map((item: Record<string, any>) => [item.key, item.value ?? ''])
+      )
+      await helpRuntimeApi.update({ configs: { help_ai_audit: values } })
+      ElMessage.success('保存成功')
+      await getConfigData()
+      return
+    }
     const data = {
       group_id: selectedId.value,
       config: params
@@ -440,5 +500,28 @@
     flex: 1;
     min-height: 0;
     padding: 10px 2px 10px 10px;
+  }
+
+  .config-field {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .config-control {
+    width: 100%;
+    max-width: 720px;
+  }
+
+  .config-radio {
+    min-height: 32px;
+  }
+
+  .config-remark {
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    line-height: 1.5;
   }
 </style>

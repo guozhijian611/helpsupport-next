@@ -55,6 +55,7 @@
                   filterable
                   class="runtime-select"
                   placeholder="请选择审核模型"
+                  no-data-text="暂无可用于文本审核的已启用模型"
                 >
                   <ElOption
                     v-for="option in aiModelOptions"
@@ -139,7 +140,11 @@
       groups.value.forEach((group) => {
         formValues[group.code] = {}
         group.items.forEach((item) => {
-          formValues[group.code][item.key] = item.value ?? ''
+          const value = item.value ?? ''
+          formValues[group.code][item.key] =
+            group.code === 'help_ai_audit' && item.key === 'ai_config_id' && value === '0'
+              ? ''
+              : value
         })
       })
       activeGroup.value = groups.value[0]?.code ?? ''

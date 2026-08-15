@@ -104,6 +104,7 @@
 
   const inputComponent = [
     { label: '文本框', value: 'input' },
+    { label: '数字输入框', value: 'number' },
     { label: '文本域', value: 'textarea' },
     { label: '下拉选择框', value: 'select' },
     { label: '单选框', value: 'radio' },
