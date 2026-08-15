@@ -271,6 +271,12 @@ class ChatRecord {
     required this.role,
     required this.content,
     required this.contentType,
+    this.mediaUrl = '',
+    this.mediaMimeType = '',
+    this.durationSeconds = 0,
+    this.transcript = '',
+    this.audioUrl = '',
+    this.speechStatus = '',
     this.planTasks = const [],
     this.messageTime,
   });
@@ -281,6 +287,12 @@ class ChatRecord {
   final String role;
   final String content;
   final String contentType;
+  final String mediaUrl;
+  final String mediaMimeType;
+  final int durationSeconds;
+  final String transcript;
+  final String audioUrl;
+  final String speechStatus;
   final List<ChatPlanTaskSuggestion> planTasks;
   final String? messageTime;
 
@@ -293,6 +305,12 @@ class ChatRecord {
     String? role,
     String? content,
     String? contentType,
+    String? mediaUrl,
+    String? mediaMimeType,
+    int? durationSeconds,
+    String? transcript,
+    String? audioUrl,
+    String? speechStatus,
     List<ChatPlanTaskSuggestion>? planTasks,
     String? messageTime,
   }) {
@@ -303,6 +321,12 @@ class ChatRecord {
       role: role ?? this.role,
       content: content ?? this.content,
       contentType: contentType ?? this.contentType,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+      mediaMimeType: mediaMimeType ?? this.mediaMimeType,
+      durationSeconds: durationSeconds ?? this.durationSeconds,
+      transcript: transcript ?? this.transcript,
+      audioUrl: audioUrl ?? this.audioUrl,
+      speechStatus: speechStatus ?? this.speechStatus,
       planTasks: planTasks ?? this.planTasks,
       messageTime: messageTime ?? this.messageTime,
     );
@@ -317,8 +341,43 @@ class ChatRecord {
       role: (json['role'] as String?) ?? 'user',
       content: (json['content'] as String?) ?? '',
       contentType: (json['content_type'] as String?) ?? 'text',
+      mediaUrl: (ext['media_url'] ?? '').toString(),
+      mediaMimeType: (ext['media_mime_type'] ?? '').toString(),
+      durationSeconds: (ext['duration_seconds'] as num?)?.toInt() ?? 0,
+      transcript: (ext['transcript'] ?? '').toString(),
+      audioUrl: (ext['audio_url'] ?? '').toString(),
+      speechStatus: (ext['speech_status'] ?? '').toString(),
       planTasks: _list(ext['plan_tasks'], ChatPlanTaskSuggestion.fromJson),
       messageTime: json['message_time'] as String?,
+    );
+  }
+}
+
+class ChatMediaUpload {
+  const ChatMediaUpload({
+    required this.attachmentId,
+    required this.mediaType,
+    required this.url,
+    required this.mimeType,
+    required this.sizeByte,
+  });
+
+  final int attachmentId;
+  final String mediaType;
+  final String url;
+  final String mimeType;
+  final int sizeByte;
+
+  factory ChatMediaUpload.fromJson(Object? value) {
+    if (value is! Map<String, dynamic>) {
+      throw const FormatException('Unexpected chat media upload shape');
+    }
+    return ChatMediaUpload(
+      attachmentId: (value['attachment_id'] as num?)?.toInt() ?? 0,
+      mediaType: (value['media_type'] ?? '').toString(),
+      url: (value['url'] ?? '').toString(),
+      mimeType: (value['mime_type'] ?? '').toString(),
+      sizeByte: (value['size_byte'] as num?)?.toInt() ?? 0,
     );
   }
 }

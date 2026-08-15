@@ -37,6 +37,25 @@ void main() {
     expect(record.planTasks.first.requiresFeedback, isTrue);
   });
 
+  test('chat record parses voice and image metadata from ext', () {
+    final record = ChatRecord.fromJson(const {
+      'id': 11,
+      'session_id': 3,
+      'chat_mode': 'doctor',
+      'role': 'assistant',
+      'content': '今天可以先做一次缓慢呼吸。',
+      'content_type': 'voice',
+      'ext':
+          '{"media_url":"/storage/user.m4a","media_mime_type":"audio/mp4","duration_seconds":8,"transcript":"我有点紧张","audio_url":"/storage/chat-ai/reply.mp3","speech_status":"ready"}',
+    });
+
+    expect(record.mediaUrl, '/storage/user.m4a');
+    expect(record.durationSeconds, 8);
+    expect(record.transcript, '我有点紧张');
+    expect(record.audioUrl, '/storage/chat-ai/reply.mp3');
+    expect(record.speechStatus, 'ready');
+  });
+
   testWidgets('home shell renders bottom navigation', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final sharedPreferences = await SharedPreferences.getInstance();

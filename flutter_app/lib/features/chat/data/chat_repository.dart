@@ -168,6 +168,27 @@ class ChatRepository {
     return record;
   }
 
+  Future<ChatMediaUpload> uploadMedia({
+    required String path,
+    required String fileName,
+    required String mediaType,
+  }) async {
+    final result = await _apiClient.postApi<ChatMediaUpload>(
+      '/app/help/chat/media/upload',
+      data: FormData.fromMap({
+        'media_type': mediaType,
+        'file': await MultipartFile.fromFile(path, filename: fileName),
+      }),
+      options: Options(sendTimeout: const Duration(minutes: 2)),
+      decode: ChatMediaUpload.fromJson,
+    );
+    final upload = result.data;
+    if (upload == null || upload.attachmentId <= 0 || upload.url.isEmpty) {
+      throw const FormatException('聊天媒体上传失败');
+    }
+    return upload;
+  }
+
   Future<ChatRecord> saveRealtimeAssistantRecord({
     required int sessionId,
     required String content,
@@ -193,6 +214,9 @@ class ChatRepository {
     required int sessionId,
     required String chatMode,
     required String content,
+    String contentType = 'text',
+    int attachmentId = 0,
+    int durationSeconds = 0,
   }) async {
     final result = await _apiClient.postApi<ChatSendResult>(
       '/app/help/chat/send',
@@ -200,6 +224,9 @@ class ChatRepository {
         'session_id': sessionId,
         'chat_mode': chatMode,
         'content': content,
+        'content_type': contentType,
+        if (attachmentId > 0) 'attachment_id': attachmentId,
+        if (durationSeconds > 0) 'duration_seconds': durationSeconds,
       },
       options: Options(receiveTimeout: const Duration(seconds: 75)),
       decode: ChatSendResult.fromJson,
@@ -215,6 +242,9 @@ class ChatRepository {
     required int sessionId,
     required String chatMode,
     required String content,
+    String contentType = 'text',
+    int attachmentId = 0,
+    int durationSeconds = 0,
   }) async* {
     final response = await _apiClient.dio.post<ResponseBody>(
       '/app/help/chat/send/stream',
@@ -222,6 +252,9 @@ class ChatRepository {
         'session_id': sessionId,
         'chat_mode': chatMode,
         'content': content,
+        'content_type': contentType,
+        if (attachmentId > 0) 'attachment_id': attachmentId,
+        if (durationSeconds > 0) 'duration_seconds': durationSeconds,
       },
       options: Options(
         responseType: ResponseType.stream,

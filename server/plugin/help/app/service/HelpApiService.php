@@ -23,6 +23,10 @@ class HelpApiService
     private const SMS_CODE_EXPIRES_IN = 300;
     private const CODE_RESEND_AFTER = 120;
     private const ONLINE_CHAT_MODEL_TYPES = ['openai', 'gemini', 'deepseek', 'generic'];
+    private const CHAT_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+    private const CHAT_AUDIO_EXTENSIONS = ['m4a', 'aac', 'mp3', 'wav', 'ogg', 'webm'];
+    private const CHAT_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+    private const CHAT_AUDIO_MAX_BYTES = 20 * 1024 * 1024;
     private const MATERIAL_MEDIA_TYPES = [
         'article',
         'image',
@@ -1178,6 +1182,63 @@ class HelpApiService
         }, $params);
     }
 
+    public function uploadChatMedia(Request $request): array
+    {
+        $file = current($request->file());
+        if (!$file || !$file->isValid()) {
+            throw new ApiException('聊天媒体文件必须上传', 400);
+        }
+
+        $mediaType = strtolower(trim((string) $request->post('media_type', '')));
+        if (!in_array($mediaType, ['image', 'voice'], true)) {
+            throw new ApiException('聊天媒体类型只能是 image 或 voice', 400);
+        }
+
+        $extension = strtolower((string) ($file->getUploadExtension()
+            ?: pathinfo((string) $file->getUploadName(), PATHINFO_EXTENSION)));
+        $allowed = $mediaType === 'image' ? self::CHAT_IMAGE_EXTENSIONS : self::CHAT_AUDIO_EXTENSIONS;
+        if (!in_array($extension, $allowed, true)) {
+            throw new ApiException(
+                $mediaType === 'image'
+                    ? '聊天图片仅支持 jpg、jpeg、png、webp、gif'
+                    : '聊天语音仅支持 m4a、aac、mp3、wav、ogg、webm',
+                400
+            );
+        }
+
+        $size = (int) $file->getSize();
+        $limit = $mediaType === 'image' ? self::CHAT_IMAGE_MAX_BYTES : self::CHAT_AUDIO_MAX_BYTES;
+        if ($size <= 0 || $size > $limit) {
+            throw new ApiException($mediaType === 'image' ? '聊天图片不能超过 10MB' : '聊天语音不能超过 20MB', 400);
+        }
+
+        $upload = (new SystemAttachmentLogic())->uploadBase($mediaType === 'image' ? 'image' : 'file');
+        $url = trim((string) ($upload['url'] ?? ''));
+        if ($url === '') {
+            throw new ApiException('聊天媒体上传失败，请稍后重试', 500);
+        }
+
+        $attachment = Db::table('sa_system_attachment')
+            ->where('hash', (string) ($upload['hash'] ?? ''))
+            ->whereNull('delete_time')
+            ->order('id', 'desc')
+            ->find();
+
+        $clientUrl = (int) ($upload['storage_mode'] ?? 0) === 1
+            ? ((string) (parse_url($url, PHP_URL_PATH) ?: $url))
+            : $url;
+
+        return [
+            'attachment_id' => (int) ($attachment['id'] ?? 0),
+            'media_type' => $mediaType,
+            'url' => $clientUrl,
+            'origin_name' => (string) ($upload['origin_name'] ?? ''),
+            'mime_type' => (string) ($upload['mime_type'] ?? ''),
+            'suffix' => strtolower((string) ($upload['suffix'] ?? $extension)),
+            'size_byte' => (int) ($upload['size_byte'] ?? $size),
+        ];
+    }
+
     public function saveUserChatRecord(int $memberId, array $data): array
     {
         $sessionId = (int) ($data['session_id'] ?? 0);
@@ -1361,18 +1422,9 @@ class HelpApiService
     public function sendChatMessage(int $memberId, array $data): array
     {
         $sessionId = (int) ($data['session_id'] ?? 0);
-        $content = trim((string) ($data['content'] ?? $data['message'] ?? ''));
         $contentType = trim((string) ($data['content_type'] ?? 'text'));
-
-        if ($content === '') {
-            throw new ApiException('消息内容必须填写', 400);
-        }
-        $content = (new HelpRiskService())->filterText('chat', $content);
-        if ($content === '') {
-            throw new ApiException('消息内容必须填写', 400);
-        }
-        if ($contentType !== 'text') {
-            throw new ApiException('在线 AI 暂只支持文本消息', 400);
+        if (!in_array($contentType, ['text', 'image', 'voice'], true)) {
+            throw new ApiException('在线 AI 消息类型参数错误', 400);
         }
 
         if ($sessionId > 0) {
@@ -1386,18 +1438,21 @@ class HelpApiService
             $session = [];
         }
         $configId = $this->resolveOnlineChatConfigId($memberId, $chatMode, $data);
+        $input = $this->prepareOnlineChatInput($data, $contentType, $configId);
+        $content = $input['content'];
 
         $history = $sessionId > 0 ? $this->chatHistory($memberId, $sessionId) : [];
         $prompt = $this->chatSystemPrompt($memberId, $chatMode);
-        $aiResult = AiFactory::chatOnceByConfigId($this->chatAiMessage($prompt, $content), $history, $configId);
+        $aiResult = AiFactory::chatOnceByConfigId($this->chatAiMessage($prompt, $input['ai_content']), $history, $configId);
         $assistantContent = trim((string) ($aiResult['content'] ?? ''));
         if ($assistantContent === '') {
             throw new ApiException('AI 未返回有效内容', 502);
         }
         $assistantPayload = $this->extractAssistantPlanTasks($assistantContent);
+        $assistantSpeech = $this->synthesizeChatReply($assistantPayload['content'], $configId);
 
         $now = date('Y-m-d H:i:s');
-        return Db::transaction(function () use ($memberId, $session, $sessionId, $chatMode, $content, $contentType, $assistantPayload, $aiResult, $configId, $now) {
+        return Db::transaction(function () use ($memberId, $session, $sessionId, $chatMode, $content, $contentType, $input, $assistantPayload, $assistantSpeech, $aiResult, $configId, $now) {
             $activeSession = $session;
             if ($sessionId <= 0) {
                 $count = (int) Db::table('sa_member_chat_session')
@@ -1429,7 +1484,7 @@ class HelpApiService
                 'user',
                 $content,
                 $contentType,
-                null,
+                $this->jsonValue($input['ext']),
                 $now
             );
             $assistantRecord = $this->insertChatRecord(
@@ -1438,12 +1493,13 @@ class HelpApiService
                 $chatMode,
                 'assistant',
                 $assistantPayload['content'],
-                'text',
+                $assistantSpeech['audio_url'] !== '' ? 'voice' : 'text',
                 $this->jsonValue([
                     'ai_model' => (string) ($aiResult['model'] ?? ''),
                     'ai_type' => (string) ($aiResult['type'] ?? ''),
                     'config_id' => $configId,
                     'plan_tasks' => $assistantPayload['plan_tasks'],
+                    ...$assistantSpeech,
                 ]),
                 $now
             );
@@ -1467,18 +1523,9 @@ class HelpApiService
     public function beginChatStream(int $memberId, array $data): array
     {
         $sessionId = (int) ($data['session_id'] ?? 0);
-        $content = trim((string) ($data['content'] ?? $data['message'] ?? ''));
         $contentType = trim((string) ($data['content_type'] ?? 'text'));
-
-        if ($content === '') {
-            throw new ApiException('消息内容必须填写', 400);
-        }
-        $content = (new HelpRiskService())->filterText('chat', $content);
-        if ($content === '') {
-            throw new ApiException('消息内容必须填写', 400);
-        }
-        if ($contentType !== 'text') {
-            throw new ApiException('在线 AI 暂只支持文本消息', 400);
+        if (!in_array($contentType, ['text', 'image', 'voice'], true)) {
+            throw new ApiException('在线 AI 消息类型参数错误', 400);
         }
 
         if ($sessionId > 0) {
@@ -1492,12 +1539,14 @@ class HelpApiService
             $session = [];
         }
         $configId = $this->resolveOnlineChatConfigId($memberId, $chatMode, $data);
+        $input = $this->prepareOnlineChatInput($data, $contentType, $configId);
+        $content = $input['content'];
 
         $history = $sessionId > 0 ? $this->chatHistory($memberId, $sessionId) : [];
         $prompt = $this->chatSystemPrompt($memberId, $chatMode);
         $now = date('Y-m-d H:i:s');
 
-        $result = Db::transaction(function () use ($memberId, $session, $sessionId, $chatMode, $content, $contentType, $now) {
+        $result = Db::transaction(function () use ($memberId, $session, $sessionId, $chatMode, $content, $contentType, $input, $now) {
             $activeSession = $session;
             if ($sessionId <= 0) {
                 $count = (int) Db::table('sa_member_chat_session')
@@ -1529,7 +1578,7 @@ class HelpApiService
                 'user',
                 $content,
                 $contentType,
-                null,
+                $this->jsonValue($input['ext']),
                 $now
             );
 
@@ -1551,7 +1600,7 @@ class HelpApiService
             'chat_mode' => $chatMode,
             'content' => $content,
             'history' => $history,
-            'ai_message' => $this->chatAiMessage($prompt, $content),
+            'ai_message' => $this->chatAiMessage($prompt, $input['ai_content']),
             'config_id' => $configId,
         ];
     }
@@ -1574,21 +1623,23 @@ class HelpApiService
 
         $this->assertChatSession($memberId, $activeSessionId);
         $configId = (int) ($context['config_id'] ?? 0);
+        $assistantSpeech = $this->synthesizeChatReply($assistantPayload['content'], $configId);
         $now = date('Y-m-d H:i:s');
 
-        return Db::transaction(function () use ($memberId, $activeSessionId, $chatMode, $assistantPayload, $aiMeta, $configId, $now, $userRecord) {
+        return Db::transaction(function () use ($memberId, $activeSessionId, $chatMode, $assistantPayload, $assistantSpeech, $aiMeta, $configId, $now, $userRecord) {
             $assistantRecord = $this->insertChatRecord(
                 $memberId,
                 $activeSessionId,
                 $chatMode,
                 'assistant',
                 $assistantPayload['content'],
-                'text',
+                $assistantSpeech['audio_url'] !== '' ? 'voice' : 'text',
                 $this->jsonValue([
                     'ai_model' => (string) ($aiMeta['model'] ?? ''),
                     'ai_type' => (string) ($aiMeta['type'] ?? ''),
                     'config_id' => $configId,
                     'plan_tasks' => $assistantPayload['plan_tasks'],
+                    ...$assistantSpeech,
                 ]),
                 $now
             );
@@ -6993,6 +7044,96 @@ class HelpApiService
         }
 
         return $session;
+    }
+
+    /**
+     * @return array{content:string,ai_content:string,ext:array<string,mixed>}
+     */
+    private function prepareOnlineChatInput(array $data, string $contentType, int $configId): array
+    {
+        $content = trim((string) ($data['content'] ?? $data['message'] ?? ''));
+        if ($contentType === 'text') {
+            $content = (new HelpRiskService())->filterText('chat', $content);
+            if ($content === '') {
+                throw new ApiException('消息内容必须填写', 400);
+            }
+
+            return ['content' => $content, 'ai_content' => $content, 'ext' => []];
+        }
+
+        $attachmentId = (int) ($data['attachment_id'] ?? 0);
+        if ($attachmentId <= 0) {
+            throw new ApiException('媒体附件 ID 必须填写', 400);
+        }
+        $attachment = Db::table('sa_system_attachment')
+            ->where('id', $attachmentId)
+            ->whereNull('delete_time')
+            ->find();
+        if (!$attachment) {
+            throw new ApiException('聊天媒体附件不存在', 404);
+        }
+
+        $suffix = strtolower((string) ($attachment['suffix'] ?? ''));
+        $url = trim((string) ($attachment['url'] ?? ''));
+        if ($url === '') {
+            throw new ApiException('聊天媒体附件地址无效', 400);
+        }
+        $clientUrl = (int) ($attachment['storage_mode'] ?? 0) === 1
+            ? ((string) (parse_url($url, PHP_URL_PATH) ?: $url))
+            : $url;
+
+        $ext = [
+            'attachment_id' => $attachmentId,
+            'media_url' => $clientUrl,
+            'media_mime_type' => (string) ($attachment['mime_type'] ?? ''),
+            'media_name' => (string) ($attachment['origin_name'] ?? ''),
+        ];
+        if ($contentType === 'image') {
+            if (!in_array($suffix, self::CHAT_IMAGE_EXTENSIONS, true)) {
+                throw new ApiException('附件不是可用的聊天图片', 400);
+            }
+            $caption = (new HelpRiskService())->filterText('chat', $content);
+            $caption = $caption !== '' ? $caption : '请根据这张图片回应我。';
+
+            return [
+                'content' => $caption,
+                'ai_content' => "用户发送了一张图片：{$url}\n用户补充：{$caption}",
+                'ext' => $ext,
+            ];
+        }
+
+        if (!in_array($suffix, self::CHAT_AUDIO_EXTENSIONS, true)) {
+            throw new ApiException('附件不是可用的聊天语音', 400);
+        }
+        $durationSeconds = min(300, max(1, (int) ($data['duration_seconds'] ?? 1)));
+        $transcript = (new ChatSpeechService())->transcribe($attachment, $configId);
+        $transcript = (new HelpRiskService())->filterText('chat', $transcript);
+        if ($transcript === '') {
+            throw new ApiException('语音转写内容为空，请重新录音', 400);
+        }
+        $ext['duration_seconds'] = $durationSeconds;
+        $ext['transcript'] = $transcript;
+
+        return ['content' => $transcript, 'ai_content' => $transcript, 'ext' => $ext];
+    }
+
+    /**
+     * @return array{audio_url:string,audio_mime_type:string,speech_status:string}
+     */
+    private function synthesizeChatReply(string $content, int $configId): array
+    {
+        try {
+            return [
+                ...(new ChatSpeechService())->synthesize($content, $configId),
+                'speech_status' => 'ready',
+            ];
+        } catch (Throwable) {
+            return [
+                'audio_url' => '',
+                'audio_mime_type' => '',
+                'speech_status' => 'failed',
+            ];
+        }
     }
 
     private function chatHistory(int $memberId, int $sessionId, int $limit = 20): array

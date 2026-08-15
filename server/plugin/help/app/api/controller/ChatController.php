@@ -200,6 +200,20 @@ class ChatController extends BaseController
         return ok($this->service->chatRecords($this->memberId, $request->get()));
     }
 
+    #[Apidoc\Title('上传聊天图片或语音')]
+    #[Apidoc\Url('/app/help/chat/media/upload')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('file', type: 'file', require: true, desc: '聊天媒体文件')]
+    #[Apidoc\Param('media_type', type: 'string', require: true, desc: '媒体类型 image/voice')]
+    #[Apidoc\Returned('attachment_id', type: 'int', desc: '附件ID，发送聊天消息时回传')]
+    #[Apidoc\Returned('url', type: 'string', desc: '媒体访问地址')]
+    #[Apidoc\Returned('mime_type', type: 'string', desc: 'MIME 类型')]
+    #[Apidoc\Returned('size_byte', type: 'int', desc: '文件大小')]
+    public function uploadMedia(Request $request): Response
+    {
+        return ok($this->service->uploadChatMedia($request));
+    }
+
     #[Apidoc\Title('保存用户聊天消息')]
     #[Apidoc\Url('/app/help/chat/record')]
     #[Apidoc\Method('POST')]
@@ -242,7 +256,10 @@ class ChatController extends BaseController
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('session_id', type: 'int', require: false, desc: '会话ID，不传时按 chat_mode 创建新会话')]
     #[Apidoc\Param('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient/ai_doctor，创建新会话时必填')]
-    #[Apidoc\Param('content', type: 'string', require: true, desc: '用户消息内容')]
+    #[Apidoc\Param('content', type: 'string', require: false, desc: '文本消息或图片补充说明，语音可为空')]
+    #[Apidoc\Param('content_type', type: 'string', require: false, default: 'text', desc: '内容类型 text/image/voice')]
+    #[Apidoc\Param('attachment_id', type: 'int', require: false, desc: '图片或语音上传后的附件ID')]
+    #[Apidoc\Param('duration_seconds', type: 'int', require: false, desc: '语音时长，最长300秒')]
     #[Apidoc\Param('config_id', type: 'int', require: false, default: 0, desc: '可选 SaiAI 模型配置ID')]
     #[Apidoc\Returned('session', type: 'object', desc: '会话信息')]
     #[Apidoc\Returned('user_record', type: 'object', desc: '用户消息')]
@@ -257,7 +274,10 @@ class ChatController extends BaseController
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('session_id', type: 'int', require: false, desc: '会话ID，不传时按 chat_mode 创建新会话')]
     #[Apidoc\Param('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient/ai_doctor，创建新会话时必填')]
-    #[Apidoc\Param('content', type: 'string', require: true, desc: '用户消息内容')]
+    #[Apidoc\Param('content', type: 'string', require: false, desc: '文本消息或图片补充说明，语音可为空')]
+    #[Apidoc\Param('content_type', type: 'string', require: false, default: 'text', desc: '内容类型 text/image/voice')]
+    #[Apidoc\Param('attachment_id', type: 'int', require: false, desc: '图片或语音上传后的附件ID')]
+    #[Apidoc\Param('duration_seconds', type: 'int', require: false, desc: '语音时长，最长300秒')]
     #[Apidoc\Param('config_id', type: 'int', require: false, default: 0, desc: '可选 SaiAI 模型配置ID')]
     #[Apidoc\Returned('event:start', type: 'object', desc: '返回会话与用户消息记录')]
     #[Apidoc\Returned('event:delta', type: 'object', desc: '返回 AI 回复增量文本')]

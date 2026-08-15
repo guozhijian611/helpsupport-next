@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as image_lib;
+import 'package:image_picker/image_picker.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -57,9 +58,13 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   final _scrollController = ScrollController();
   final _callRecorder = AudioRecorder();
   final _callAudioPlayer = AudioPlayer();
+  final _messageRecorder = AudioRecorder();
+  final _messageAudioPlayer = AudioPlayer();
+  final _imagePicker = ImagePicker();
   final Set<int> _expandedVoiceTextIds = <int>{};
   StreamSubscription<ChatStreamEvent>? _streamSubscription;
   StreamSubscription<Uint8List>? _callAudioSubscription;
+  StreamSubscription<ProcessingState>? _messagePlayerSubscription;
   Timer? _streamSyncTimer;
   Timer? _recordingTicker;
   Timer? _callPingTimer;
@@ -68,6 +73,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   Timer? _callResponseTimeoutTimer;
   Duration _recordingElapsed = Duration.zero;
   DateTime? _recordingStartedAt;
+  String? _recordingPath;
+  int? _playingVoiceRecordId;
   DateTime? _callStartedAt;
   DateTime? _callLastVideoFrameAt;
   DateTime? _callPendingAudioTurnStartedAt;
@@ -107,6 +114,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   final Set<String> _assigningPlanTaskKeys = <String>{};
   List<ChatRecord> _streamingRecords = const <ChatRecord>[];
   int _sendGeneration = 0;
+  int _recordingGeneration = 0;
   int _callSentAudioChunks = 0;
   int _callSentVideoFrames = 0;
   int _callPlayedAudioSegments = 0;
@@ -118,6 +126,12 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _messagePlayerSubscription = _messageAudioPlayer.processingStateStream
+        .listen((state) {
+          if (state == ProcessingState.completed && mounted) {
+            setState(() => _playingVoiceRecordId = null);
+          }
+        });
   }
 
   @override
@@ -125,6 +139,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     WidgetsBinding.instance.removeObserver(this);
     _streamSyncTimer?.cancel();
     unawaited(_streamSubscription?.cancel() ?? Future<void>.value());
+    unawaited(_messagePlayerSubscription?.cancel() ?? Future<void>.value());
     unawaited(_stopRealtimeCall());
     _recordingTicker?.cancel();
     _stopCallDebugTicker();
@@ -133,6 +148,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     unawaited(_disposeCallCamera());
     unawaited(_callRecorder.dispose());
     unawaited(_callAudioPlayer.dispose());
+    unawaited(_messageRecorder.dispose());
+    unawaited(_messageAudioPlayer.dispose());
     _scrollController.dispose();
     _controller.dispose();
     super.dispose();
@@ -342,8 +359,12 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                             chatMode: widget.chatMode,
                             userAvatarUrl: userAvatarUrl,
                             assistantAvatarUrl: assistantAvatarUrl,
+                            resolveMediaUrl: apiClient.resolveUrl,
                             expandedVoiceTextIds: _expandedVoiceTextIds,
+                            playingVoiceRecordId: _playingVoiceRecordId,
                             onToggleTranscript: _toggleTranscript,
+                            onToggleVoicePlayback: (record) =>
+                                unawaited(_toggleVoicePlayback(record)),
                             onRecordActions: _openRecordActions,
                             assigningPlanTaskKeys: _assigningPlanTaskKeys,
                             onAssignPlanTask: _assignPlanTask,
@@ -366,6 +387,9 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                         onLongPressStart: _startVoiceRecording,
                         onLongPressEnd: _finishVoiceRecording,
                         onLongPressCancel: _cancelVoiceRecording,
+                        onTapRecording: () =>
+                            unawaited(_toggleTapVoiceRecording()),
+                        onPickImage: () => unawaited(_pickAndSendImage()),
                       ),
                     ],
                   ),
@@ -1781,10 +1805,57 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     if (_recording || _sending) {
       return;
     }
+    unawaited(_beginVoiceRecording());
+  }
+
+  Future<void> _beginVoiceRecording() async {
+    try {
+      await _beginVoiceRecordingImpl();
+    } on Object catch (error) {
+      if (mounted) {
+        _stopRecordingState();
+        context.showCenteredNotice(error.toString());
+      }
+    }
+  }
+
+  Future<void> _beginVoiceRecordingImpl() async {
+    final generation = ++_recordingGeneration;
+    final allowed = await _messageRecorder.hasPermission(request: true);
+    if (!allowed) {
+      if (mounted) {
+        context.showCenteredNotice(
+          _t(
+            context,
+            '需要麦克风权限才能发送语音',
+            'Microphone permission is required to send voice messages.',
+          ),
+        );
+      }
+      return;
+    }
+
+    final directory = await getTemporaryDirectory();
+    final path =
+        '${directory.path}/chat-voice-${DateTime.now().microsecondsSinceEpoch}.m4a';
+    await _messageRecorder.start(
+      const RecordConfig(
+        encoder: AudioEncoder.aacLc,
+        bitRate: 96000,
+        sampleRate: 44100,
+      ),
+      path: path,
+    );
+    if (!mounted || generation != _recordingGeneration) {
+      await _messageRecorder.stop();
+      await _deleteRecordingFile(path);
+      return;
+    }
     _recordingTicker?.cancel();
     setState(() {
       _voiceComposer = true;
       _recording = true;
+      _recordingPath = path;
       _recordingElapsed = const Duration(seconds: 1);
       _recordingStartedAt = DateTime.now();
     });
@@ -1793,14 +1864,17 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       if (startedAt == null || !mounted) {
         return;
       }
-      setState(() {
-        _recordingElapsed = DateTime.now().difference(startedAt);
-      });
+      final elapsed = DateTime.now().difference(startedAt);
+      setState(() => _recordingElapsed = elapsed);
+      if (elapsed.inSeconds >= 300) {
+        unawaited(_finishVoiceRecording());
+      }
     });
   }
 
   Future<void> _finishVoiceRecording() async {
     if (!_recording) {
+      _recordingGeneration++;
       return;
     }
     final seconds = math.max(
@@ -1810,29 +1884,66 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
               : DateTime.now().difference(_recordingStartedAt!))
           .inSeconds,
     );
-    _stopRecordingState();
+    String? recordedPath;
     try {
-      await ref
-          .read(chatRepositoryProvider)
-          .saveUserRecord(
-            sessionId: widget.sessionId,
-            content: '$seconds\'\'',
-            contentType: 'voice',
-          );
-      ref.invalidate(chatRecordsProvider(widget.sessionId));
-      ref.invalidate(chatOverviewProvider);
+      recordedPath = await _messageRecorder.stop() ?? _recordingPath;
     } on Object catch (error) {
+      _stopRecordingState();
       if (mounted) {
         context.showCenteredNotice(error.toString());
       }
+      return;
+    }
+    _stopRecordingState();
+    if (recordedPath == null || !File(recordedPath).existsSync()) {
+      if (mounted) {
+        context.showCenteredNotice(
+          _t(context, '录音文件生成失败', 'The recording file could not be created.'),
+        );
+      }
+      return;
+    }
+    try {
+      setState(() => _sending = true);
+      final upload = await ref
+          .read(chatRepositoryProvider)
+          .uploadMedia(
+            path: recordedPath,
+            fileName: 'voice-${DateTime.now().millisecondsSinceEpoch}.m4a',
+            mediaType: 'voice',
+          );
+      if (!mounted) {
+        return;
+      }
+      setState(() => _sending = false);
+      await _sendChatContent(
+        content: '',
+        contentType: 'voice',
+        attachmentId: upload.attachmentId,
+        durationSeconds: seconds,
+        mediaUrl: upload.url,
+      );
+    } on Object catch (error) {
+      if (mounted) {
+        setState(() => _sending = false);
+        context.showCenteredNotice(error.toString());
+      }
+    } finally {
+      unawaited(_deleteRecordingFile(recordedPath));
     }
   }
 
   void _cancelVoiceRecording() {
+    _recordingGeneration++;
     if (!_recording) {
       return;
     }
+    unawaited(_messageRecorder.stop());
+    final path = _recordingPath;
     _stopRecordingState();
+    if (path != null) {
+      unawaited(_deleteRecordingFile(path));
+    }
   }
 
   void _stopRecordingState() {
@@ -1841,18 +1952,148 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       setState(() {
         _recording = false;
         _recordingStartedAt = null;
+        _recordingPath = null;
         _recordingElapsed = Duration.zero;
       });
     } else {
       _recording = false;
       _recordingStartedAt = null;
+      _recordingPath = null;
       _recordingElapsed = Duration.zero;
+    }
+  }
+
+  Future<void> _toggleTapVoiceRecording() async {
+    if (_recording) {
+      await _finishVoiceRecording();
+      return;
+    }
+    if (!_sending) {
+      await _beginVoiceRecording();
+    }
+  }
+
+  Future<void> _pickAndSendImage() async {
+    if (_sending || _recording) {
+      return;
+    }
+    XFile? image;
+    try {
+      image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 88,
+        maxWidth: 1800,
+      );
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(error.toString());
+      }
+      return;
+    }
+    if (image == null || !mounted) {
+      return;
+    }
+
+    try {
+      setState(() => _sending = true);
+      final upload = await ref
+          .read(chatRepositoryProvider)
+          .uploadMedia(
+            path: image.path,
+            fileName: image.name,
+            mediaType: 'image',
+          );
+      if (!mounted) {
+        return;
+      }
+      setState(() => _sending = false);
+      await _sendChatContent(
+        content: _t(
+          context,
+          '请根据这张图片回应我。',
+          'Please respond based on this image.',
+        ),
+        contentType: 'image',
+        attachmentId: upload.attachmentId,
+        mediaUrl: upload.url,
+      );
+    } on Object catch (error) {
+      if (mounted) {
+        setState(() => _sending = false);
+        context.showCenteredNotice(error.toString());
+      }
+    }
+  }
+
+  Future<void> _toggleVoicePlayback(ChatRecord record) async {
+    final rawUrl = record.isUser ? record.mediaUrl : record.audioUrl;
+    final url = ref.read(apiClientProvider).resolveUrl(rawUrl);
+    if (url.isEmpty) {
+      if (mounted) {
+        context.showCenteredNotice(
+          _t(
+            context,
+            record.isUser ? '语音文件不可用' : 'AI 本次仅返回了文本',
+            record.isUser
+                ? 'The voice file is unavailable.'
+                : 'AI returned text only for this message.',
+          ),
+        );
+      }
+      return;
+    }
+
+    if (_playingVoiceRecordId == record.id) {
+      await _messageAudioPlayer.stop();
+      if (mounted) {
+        setState(() => _playingVoiceRecordId = null);
+      }
+      return;
+    }
+
+    try {
+      await _messageAudioPlayer.stop();
+      await _messageAudioPlayer.setUrl(url);
+      if (mounted) {
+        setState(() => _playingVoiceRecordId = record.id);
+      }
+      await _messageAudioPlayer.play();
+    } on Object catch (error) {
+      if (mounted) {
+        setState(() => _playingVoiceRecordId = null);
+        context.showCenteredNotice(error.toString());
+      }
+    }
+  }
+
+  Future<void> _deleteRecordingFile(String path) async {
+    try {
+      final file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } on FileSystemException {
+      // Temporary recording cleanup is best-effort.
     }
   }
 
   Future<void> _send() async {
     final content = _controller.text.trim();
     if (content.isEmpty || _sending) {
+      return;
+    }
+    _controller.clear();
+    await _sendChatContent(content: content);
+  }
+
+  Future<void> _sendChatContent({
+    required String content,
+    String contentType = 'text',
+    int attachmentId = 0,
+    int durationSeconds = 0,
+    String mediaUrl = '',
+  }) async {
+    if (_sending) {
       return;
     }
 
@@ -1870,8 +2111,12 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
           sessionId: widget.sessionId,
           chatMode: widget.chatMode,
           role: 'user',
-          content: content,
-          contentType: 'text',
+          content: contentType == 'voice' && content.isEmpty
+              ? '$durationSeconds\'\''
+              : content,
+          contentType: contentType,
+          mediaUrl: mediaUrl,
+          durationSeconds: durationSeconds,
           messageTime: now,
         ),
         ChatRecord(
@@ -1886,7 +2131,6 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       ];
     });
     _scrollToLatest();
-    _controller.clear();
     _startStreamRecordSync(generation, baseRecordId);
 
     _streamSubscription = ref
@@ -1895,6 +2139,9 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
           sessionId: widget.sessionId,
           chatMode: widget.chatMode,
           content: content,
+          contentType: contentType,
+          attachmentId: attachmentId,
+          durationSeconds: durationSeconds,
         )
         .listen(
           (event) {
@@ -2548,8 +2795,11 @@ class _RecordList extends StatelessWidget {
     required this.chatMode,
     required this.userAvatarUrl,
     required this.assistantAvatarUrl,
+    required this.resolveMediaUrl,
     required this.expandedVoiceTextIds,
+    required this.playingVoiceRecordId,
     required this.onToggleTranscript,
+    required this.onToggleVoicePlayback,
     required this.onRecordActions,
     required this.assigningPlanTaskKeys,
     required this.onAssignPlanTask,
@@ -2560,8 +2810,11 @@ class _RecordList extends StatelessWidget {
   final String chatMode;
   final String userAvatarUrl;
   final String assistantAvatarUrl;
+  final String Function(String value) resolveMediaUrl;
   final Set<int> expandedVoiceTextIds;
+  final int? playingVoiceRecordId;
   final ValueChanged<ChatRecord> onToggleTranscript;
+  final ValueChanged<ChatRecord> onToggleVoicePlayback;
   final ValueChanged<ChatRecord> onRecordActions;
   final Set<String> assigningPlanTaskKeys;
   final void Function(ChatRecord record, int taskIndex) onAssignPlanTask;
@@ -2585,8 +2838,11 @@ class _RecordList extends StatelessWidget {
             chatMode: chatMode,
             userAvatarUrl: userAvatarUrl,
             assistantAvatarUrl: assistantAvatarUrl,
+            resolvedMediaUrl: resolveMediaUrl(record.mediaUrl),
             transcriptExpanded: expandedVoiceTextIds.contains(record.id),
+            voicePlaying: playingVoiceRecordId == record.id,
             onToggleTranscript: () => onToggleTranscript(record),
+            onToggleVoicePlayback: () => onToggleVoicePlayback(record),
             onLongPress: () => onRecordActions(record),
             assigningPlanTaskKeys: assigningPlanTaskKeys,
             onAssignPlanTask: onAssignPlanTask,
@@ -2603,8 +2859,11 @@ class _MessageBubble extends StatelessWidget {
     required this.chatMode,
     required this.userAvatarUrl,
     required this.assistantAvatarUrl,
+    required this.resolvedMediaUrl,
     required this.transcriptExpanded,
+    required this.voicePlaying,
     required this.onToggleTranscript,
+    required this.onToggleVoicePlayback,
     required this.onLongPress,
     required this.assigningPlanTaskKeys,
     required this.onAssignPlanTask,
@@ -2614,8 +2873,11 @@ class _MessageBubble extends StatelessWidget {
   final String chatMode;
   final String userAvatarUrl;
   final String assistantAvatarUrl;
+  final String resolvedMediaUrl;
   final bool transcriptExpanded;
+  final bool voicePlaying;
   final VoidCallback onToggleTranscript;
+  final VoidCallback onToggleVoicePlayback;
   final VoidCallback onLongPress;
   final Set<String> assigningPlanTaskKeys;
   final void Function(ChatRecord record, int taskIndex) onAssignPlanTask;
@@ -2700,9 +2962,15 @@ class _MessageBubble extends StatelessWidget {
                         ? _VoiceRecordRow(
                             record: record,
                             textColor: textColor,
+                            playing: voicePlaying,
+                            onPlay: onToggleVoicePlayback,
                             onToggleTranscript: onToggleTranscript,
                           )
-                        : _RecordContent(record: record, textColor: textColor),
+                        : _RecordContent(
+                            record: record,
+                            textColor: textColor,
+                            resolvedMediaUrl: resolvedMediaUrl,
+                          ),
                   ),
                   if (transcriptExpanded && _hasTranscript(record)) ...[
                     const SizedBox(height: 10),
@@ -2785,31 +3053,42 @@ class _VoiceRecordRow extends StatelessWidget {
   const _VoiceRecordRow({
     required this.record,
     required this.textColor,
+    required this.playing,
+    required this.onPlay,
     required this.onToggleTranscript,
   });
 
   final ChatRecord record;
   final Color textColor;
+  final bool playing;
+  final VoidCallback onPlay;
   final VoidCallback onToggleTranscript;
 
   @override
   Widget build(BuildContext context) {
     final palette = _ChatSessionPalette.of(context);
     if (record.isUser) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            _voiceDisplayText(record.content),
-            style: TextStyle(
-              color: textColor,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
+      return GestureDetector(
+        onTap: onPlay,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _voiceDurationText(record),
+              style: TextStyle(
+                color: textColor,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Icon(Icons.wifi_tethering_rounded, color: textColor, size: 22),
-        ],
+            const SizedBox(width: 10),
+            Icon(
+              playing ? Icons.pause_rounded : Icons.wifi_tethering_rounded,
+              color: textColor,
+              size: 22,
+            ),
+          ],
+        ),
       );
     }
 
@@ -2819,7 +3098,7 @@ class _VoiceRecordRow extends StatelessWidget {
         Icon(Icons.multitrack_audio_rounded, color: textColor, size: 22),
         const SizedBox(width: 10),
         Text(
-          _voiceDisplayText(record.content),
+          _voiceDurationText(record),
           style: TextStyle(
             color: textColor,
             fontSize: 18,
@@ -2828,7 +3107,7 @@ class _VoiceRecordRow extends StatelessWidget {
         ),
         const SizedBox(width: 18),
         GestureDetector(
-          onTap: onToggleTranscript,
+          onTap: onPlay,
           child: Container(
             width: 30,
             height: 30,
@@ -2837,21 +3116,19 @@ class _VoiceRecordRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
             ),
             child: Icon(
-              Icons.play_arrow_rounded,
+              playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
               size: 18,
               color: palette.voiceActionForeground,
             ),
           ),
         ),
         const SizedBox(width: 12),
-        const SizedBox(
-          width: 10,
-          height: 10,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Color(0xFFFF5A5A),
-              shape: BoxShape.circle,
-            ),
+        GestureDetector(
+          onTap: onToggleTranscript,
+          child: Icon(
+            Icons.subject_rounded,
+            size: 20,
+            color: palette.voiceActionForeground,
           ),
         ),
       ],
@@ -2860,26 +3137,40 @@ class _VoiceRecordRow extends StatelessWidget {
 }
 
 class _RecordContent extends StatelessWidget {
-  const _RecordContent({required this.record, required this.textColor});
+  const _RecordContent({
+    required this.record,
+    required this.textColor,
+    required this.resolvedMediaUrl,
+  });
 
   final ChatRecord record;
   final Color textColor;
+  final String resolvedMediaUrl;
 
   @override
   Widget build(BuildContext context) {
     switch (record.contentType) {
       case 'image':
-        return Row(
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.image_outlined, color: textColor),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: CachedRemoteImage(
+                resolvedMediaUrl,
+                width: 220,
+                height: 220,
+                fit: BoxFit.cover,
+              ),
+            ),
+            if (record.content.trim().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
                 record.content,
                 style: TextStyle(color: textColor, height: 1.5),
               ),
-            ),
+            ],
           ],
         );
       case 'file':
@@ -3013,6 +3304,8 @@ class _ChatComposer extends StatelessWidget {
     required this.onLongPressStart,
     required this.onLongPressEnd,
     required this.onLongPressCancel,
+    required this.onTapRecording,
+    required this.onPickImage,
   });
 
   final bool voiceComposer;
@@ -3025,6 +3318,8 @@ class _ChatComposer extends StatelessWidget {
   final VoidCallback onLongPressStart;
   final VoidCallback onLongPressEnd;
   final VoidCallback onLongPressCancel;
+  final VoidCallback onTapRecording;
+  final VoidCallback onPickImage;
 
   @override
   Widget build(BuildContext context) {
@@ -3045,6 +3340,7 @@ class _ChatComposer extends StatelessWidget {
               children: [
                 Expanded(
                   child: GestureDetector(
+                    onTap: onTapRecording,
                     onLongPressStart: (_) => onLongPressStart(),
                     onLongPressEnd: (_) => onLongPressEnd(),
                     onLongPressCancel: onLongPressCancel,
@@ -3060,8 +3356,8 @@ class _ChatComposer extends StatelessWidget {
                       alignment: Alignment.center,
                       child: Text(
                         recording
-                            ? _t(context, '松开 发送', 'Release to send')
-                            : _t(context, '按住 说话', 'Hold to talk'),
+                            ? '${_t(context, '再次点击或松开发送', 'Tap again or release to send')}  $voiceDurationLabel'
+                            : _t(context, '点击或按住录音', 'Tap or hold to record'),
                         style: TextStyle(
                           color: recording
                               ? palette.activeButtonForeground
@@ -3092,6 +3388,17 @@ class _ChatComposer extends StatelessWidget {
             )
           : Row(
               children: [
+                IconButton.filledTonal(
+                  tooltip: _t(context, '发送图片', 'Send image'),
+                  onPressed: sending ? null : onPickImage,
+                  style: IconButton.styleFrom(
+                    minimumSize: const Size.square(48),
+                    backgroundColor: palette.softSurface,
+                    foregroundColor: palette.primaryText,
+                  ),
+                  icon: const Icon(Icons.add_photo_alternate_outlined),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
                     controller: controller,
@@ -4141,6 +4448,13 @@ String _voiceDisplayText(String value) {
     return '60\'\'';
   }
   return trimmed;
+}
+
+String _voiceDurationText(ChatRecord record) {
+  if (record.durationSeconds > 0) {
+    return '${record.durationSeconds}\'\'';
+  }
+  return _voiceDisplayText(record.content);
 }
 
 String _resolveUserAvatar(
