@@ -6,10 +6,12 @@
 // +----------------------------------------------------------------------
 namespace plugin\help\app\admin\controller\community;
 
+use hg\apidoc\annotation as Apidoc;
 use plugin\saiadmin\basic\BaseController;
 use plugin\help\app\admin\logic\community\SaCommunityPostLogic;
 use plugin\help\app\admin\validate\community\SaCommunityPostValidate;
 use plugin\help\app\service\HelpAuditLogService;
+use plugin\help\app\service\HelpAiAuditService;
 use plugin\saiadmin\service\Permission;
 use support\Request;
 use support\Response;
@@ -44,7 +46,7 @@ class SaCommunityPostController extends BaseController
             ['status', ''],
         ]);
         $query = $this->logic->search($where);
-        $data = $this->logic->getList($query);
+        $data = (new HelpAiAuditService())->decoratePage($this->logic->getList($query), 'community_post');
         return $this->success($data);
     }
 
@@ -60,6 +62,7 @@ class SaCommunityPostController extends BaseController
         $model = $this->logic->read($id);
         if ($model) {
             $data = is_array($model) ? $model : $model->toArray();
+            $data = (new HelpAiAuditService())->decorateRow($data, 'community_post');
             $data['audit_logs'] = (new HelpAuditLogService())->list('community_post', (int) $id);
             return $this->success($data);
         } else {
@@ -144,6 +147,21 @@ class SaCommunityPostController extends BaseController
         );
 
         return $result ? $this->success('审核成功') : $this->fail('审核失败');
+    }
+
+    #[Apidoc\Title('重新发起帖子AI审核')]
+    #[Apidoc\Url('/app/help/admin/community/SaCommunityPost/aiAudit')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('id', type: 'int', require: true, desc: '帖子ID')]
+    #[Permission('社区帖子重新AI审核', 'help:community:post:aiAudit')]
+    public function aiAudit(Request $request): Response
+    {
+        $id = (int) $request->post('id', 0);
+        if ($id <= 0) {
+            return $this->fail('请选择要审核的帖子');
+        }
+        $taskId = (new HelpAiAuditService())->retryTarget('community_post', $id, $this->adminId ?? 0);
+        return $this->success(['task_id' => $taskId], 'AI审核任务已提交');
     }
 
 }

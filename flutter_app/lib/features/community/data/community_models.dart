@@ -47,6 +47,7 @@ class CommunityPost {
     required this.isTop,
     required this.auditStatus,
     this.auditRemark = '',
+    this.aiAudit,
     required this.createTime,
     required this.isLiked,
     required this.isCollected,
@@ -71,13 +72,14 @@ class CommunityPost {
   final bool isTop;
   final int auditStatus;
   final String auditRemark;
+  final CommunityAiAudit? aiAudit;
   final String createTime;
   final bool isLiked;
   final bool isCollected;
   final bool isFollowedAuthor;
   final bool isMutualFollowAuthor;
 
-  bool get isPendingReview => auditStatus == 0;
+  bool get isPendingReview => auditStatus == 0 || auditStatus == 3;
   CommunityStructuredText get structuredText => _splitStructuredText(content);
   String get title => structuredText.title;
   String get body => structuredText.body;
@@ -102,11 +104,49 @@ class CommunityPost {
       isTop: _intValue(json['is_top'], fallback: 2) == 1,
       auditStatus: _intValue(json['audit_status']),
       auditRemark: _stringValue(json['audit_remark']),
+      aiAudit: CommunityAiAudit.fromValue(json['ai_audit']),
       createTime: _stringValue(json['create_time']),
       isLiked: _boolValue(json['is_liked']),
       isCollected: _boolValue(json['is_collected']),
       isFollowedAuthor: _boolValue(json['is_followed_author']),
       isMutualFollowAuthor: _boolValue(json['is_mutual_follow_author']),
+    );
+  }
+}
+
+class CommunityAiAudit {
+  const CommunityAiAudit({
+    required this.taskStatus,
+    required this.decision,
+    required this.riskLevel,
+    required this.confidence,
+    required this.categories,
+    required this.reason,
+    required this.errorMessage,
+  });
+
+  final int taskStatus;
+  final String decision;
+  final String riskLevel;
+  final double confidence;
+  final List<String> categories;
+  final String reason;
+  final String errorMessage;
+
+  bool get hasResult => decision.isNotEmpty || reason.isNotEmpty;
+
+  static CommunityAiAudit? fromValue(Object? value) {
+    if (value is! Map<String, dynamic>) {
+      return null;
+    }
+    return CommunityAiAudit(
+      taskStatus: _intValue(value['task_status']),
+      decision: _stringValue(value['decision']),
+      riskLevel: _stringValue(value['risk_level']),
+      confidence: _doubleValue(value['confidence']),
+      categories: _stringList(value['categories']),
+      reason: _stringValue(value['reason']),
+      errorMessage: _stringValue(value['error_message']),
     );
   }
 }
@@ -400,6 +440,16 @@ int _intValue(Object? value, {int fallback = 0}) {
   }
   if (value is String) {
     return int.tryParse(value) ?? fallback;
+  }
+  return fallback;
+}
+
+double _doubleValue(Object? value, {double fallback = 0}) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  if (value is String) {
+    return double.tryParse(value) ?? fallback;
   }
   return fallback;
 }

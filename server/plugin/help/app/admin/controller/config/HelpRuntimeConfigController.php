@@ -48,6 +48,17 @@ class HelpRuntimeConfigController extends BaseController
         return $this->success('保存成功');
     }
 
+    #[Apidoc\Title('读取AI审核模型选项')]
+    #[Apidoc\Url('/app/help/admin/config/HelpRuntimeConfig/aiOptions')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Returned('value', type: 'string', desc: 'AI配置ID')]
+    #[Apidoc\Returned('label', type: 'string', desc: '模型显示名称')]
+    #[Permission('AI审核模型选项', 'help:config:runtime:read')]
+    public function aiOptions(Request $request): Response
+    {
+        return $this->success($this->logic->aiOptions());
+    }
+
     /**
      * 读取 App 下载配置
      */

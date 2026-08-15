@@ -45,6 +45,9 @@
         <el-descriptions-item label="审核备注">
           <div v-text="formData?.audit_remark"></div>
         </el-descriptions-item>
+        <el-descriptions-item label="AI审核结论">
+          <AiAuditSummary :audit="formData.ai_audit" />
+        </el-descriptions-item>
         <el-descriptions-item label="审核人">
           <div v-text="formData?.audit_by"></div>
         </el-descriptions-item>
@@ -65,6 +68,7 @@
   import AuditLogTimeline from '../../../components/AuditLogTimeline.vue'
   import api from '../../../api/community/post'
   import HelpRelationText from '../../../components/HelpRelationText.vue'
+  import AiAuditSummary from '../../../components/AiAuditSummary.vue'
 
   interface Props {
     modelValue: boolean
@@ -113,7 +117,8 @@
     audit_remark: '',
     audit_by: null,
     audit_time: '',
-    audit_logs: []
+    audit_logs: [],
+    ai_audit: null
   }
 
   /**

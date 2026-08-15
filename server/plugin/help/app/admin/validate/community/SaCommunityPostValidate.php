@@ -46,7 +46,7 @@ class SaCommunityPostValidate extends BaseValidate
         'comment_count' => '评论数必须填写',
         'collect_count' => '收藏数必须填写',
         'is_top' => '是否置顶 1是 2否必须填写',
-        'audit_status' => '审核状态 0待审核 1已通过 2已拒绝 3AI预审标记必须填写',
+        'audit_status' => '审核状态 0人工待审 1已通过 2已拒绝 3AI审核中必须填写',
         'audit_remark' => '审核备注必须填写',
         'status' => '状态 1正常 2隐藏 3封禁必须填写',
     ];

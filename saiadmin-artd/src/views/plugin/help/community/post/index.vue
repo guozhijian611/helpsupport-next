@@ -46,6 +46,9 @@
             {{ auditStatusText(row.audit_status) }}
           </ElTag>
         </template>
+        <template #ai_audit="{ row }">
+          <AiAuditSummary :audit="row.ai_audit" compact />
+        </template>
         <template #status="{ row }">
           <ElTag :type="row.status === 1 ? 'success' : 'info'">
             {{ row.status === 1 ? '正常' : '隐藏' }}
@@ -54,6 +57,15 @@
         <template #operation="{ row }">
           <div class="flex gap-2">
             <SaButton type="success" @click="showViewDialog('view', row)" />
+            <ElButton
+              v-permission="'help:community:post:aiAudit'"
+              size="small"
+              type="primary"
+              :loading="aiAuditingId === row.id"
+              @click="retryAiAudit(row)"
+            >
+              AI审核
+            </ElButton>
             <ElButton
               v-if="row.audit_status !== 1"
               v-permission="'help:community:post:audit'"
@@ -94,6 +106,7 @@
   import TableSearch from './modules/table-search.vue'
   import ViewDialog from './modules/view-dialog.vue'
   import HelpRelationText from '../../components/HelpRelationText.vue'
+  import AiAuditSummary from '../../components/AiAuditSummary.vue'
 
   const searchForm = ref({
     member_id: undefined,
@@ -101,6 +114,7 @@
     audit_status: undefined,
     status: undefined
   })
+  const aiAuditingId = ref<number | null>(null)
 
   const handleSearch = (params: Record<string, any>) => {
     Object.assign(searchParams, params)
@@ -132,9 +146,10 @@
         { prop: 'like_count', label: '点赞', width: 80 },
         { prop: 'comment_count', label: '评论', width: 80 },
         { prop: 'audit_status', label: '审核', width: 110, useSlot: true },
+        { prop: 'ai_audit', label: 'AI结论', minWidth: 210, useSlot: true },
         { prop: 'status', label: '状态', width: 90, useSlot: true },
         { prop: 'create_time', label: '发布时间', width: 170 },
-        { prop: 'operation', label: '操作', width: 230, fixed: 'right', useSlot: true }
+        { prop: 'operation', label: '操作', width: 310, fixed: 'right', useSlot: true }
       ]
     }
   })
@@ -169,6 +184,20 @@
     refreshData()
   }
 
+  const retryAiAudit = async (row: Record<string, any>) => {
+    await ElMessageBox.confirm(`确定重新提交帖子 #${row.id} 进行AI审核吗？`, 'AI内容审核', {
+      type: 'warning'
+    })
+    aiAuditingId.value = Number(row.id)
+    try {
+      await api.aiAudit(Number(row.id))
+      ElMessage.success('AI审核任务已提交')
+      refreshData()
+    } finally {
+      aiAuditingId.value = null
+    }
+  }
+
   const plainText = (content: string | undefined) => {
     return String(content || '')
       .replace(/<[^>]+>/g, '')
@@ -180,7 +209,7 @@
       0: '待审核',
       1: '已通过',
       2: '已拒绝',
-      3: 'AI标记'
+      3: 'AI审核中'
     }
     return map[Number(status)] || '未知'
   }

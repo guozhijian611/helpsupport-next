@@ -53,6 +53,9 @@
             {{ auditStatusText(row.audit_status) }}
           </ElTag>
         </template>
+        <template #ai_audit="{ row }">
+          <AiAuditSummary :audit="row.ai_audit" compact />
+        </template>
         <template #status="{ row }">
           <ElTag :type="row.status === 1 ? 'success' : 'info'">
             {{ row.status === 1 ? '正常' : '隐藏' }}
@@ -61,6 +64,15 @@
         <template #operation="{ row }">
           <div class="flex gap-2">
             <ElButton size="small" @click="openDetail(row)">查看</ElButton>
+            <ElButton
+              v-permission="'help:community:comment:aiAudit'"
+              size="small"
+              type="primary"
+              :loading="aiAuditingId === row.id"
+              @click="retryAiAudit(row)"
+            >
+              AI审核
+            </ElButton>
             <ElButton
               v-if="row.audit_status !== 1"
               v-permission="'help:community:comment:audit'"
@@ -92,8 +104,12 @@
     <ElDrawer v-model="detailVisible" size="60%" title="评论详情">
       <ElDescriptions :column="1" border>
         <ElDescriptionsItem label="评论ID">{{ detail.id }}</ElDescriptionsItem>
-        <ElDescriptionsItem label="帖子">#{{ detail.post_id }} {{ detail.post_title }}</ElDescriptionsItem>
-        <ElDescriptionsItem label="会员">#{{ detail.member_id }} {{ detail.member_name }}</ElDescriptionsItem>
+        <ElDescriptionsItem label="帖子"
+          >#{{ detail.post_id }} {{ detail.post_title }}</ElDescriptionsItem
+        >
+        <ElDescriptionsItem label="会员"
+          >#{{ detail.member_id }} {{ detail.member_name }}</ElDescriptionsItem
+        >
         <ElDescriptionsItem label="父评论ID">{{ detail.parent_id }}</ElDescriptionsItem>
         <ElDescriptionsItem label="评论内容">
           <div class="content-text">{{ detail.content }}</div>
@@ -102,6 +118,9 @@
           {{ auditStatusText(detail.audit_status) }}
         </ElDescriptionsItem>
         <ElDescriptionsItem label="审核备注">{{ detail.audit_remark || '无' }}</ElDescriptionsItem>
+        <ElDescriptionsItem label="AI审核结论">
+          <AiAuditSummary :audit="detail.ai_audit" />
+        </ElDescriptionsItem>
         <ElDescriptionsItem label="审核人">{{ detail.audit_by || '无' }}</ElDescriptionsItem>
         <ElDescriptionsItem label="审核时间">{{ detail.audit_time || '无' }}</ElDescriptionsItem>
         <ElDescriptionsItem label="审核日志">
@@ -120,6 +139,7 @@
   import AuditLogTimeline from '../../components/AuditLogTimeline.vue'
   import api from '../../api/community/comment'
   import TableSearch from './modules/table-search.vue'
+  import AiAuditSummary from '../../components/AiAuditSummary.vue'
 
   const searchForm = ref({
     post_id: undefined,
@@ -131,6 +151,7 @@
 
   const detailVisible = ref(false)
   const detail = ref<Record<string, any>>({})
+  const aiAuditingId = ref<number | null>(null)
 
   const handleSearch = (params: Record<string, any>) => {
     Object.assign(searchParams, params)
@@ -161,11 +182,12 @@
         { prop: 'content', label: '评论内容', minWidth: 280, useSlot: true },
         { prop: 'like_count', label: '点赞', width: 80 },
         { prop: 'audit_status', label: '审核', width: 110, useSlot: true },
+        { prop: 'ai_audit', label: 'AI结论', minWidth: 210, useSlot: true },
         { prop: 'audit_by', label: '审核人', width: 100 },
         { prop: 'audit_time', label: '审核时间', width: 170 },
         { prop: 'status', label: '状态', width: 90, useSlot: true },
         { prop: 'create_time', label: '评论时间', width: 170 },
-        { prop: 'operation', label: '操作', width: 230, fixed: 'right', useSlot: true }
+        { prop: 'operation', label: '操作', width: 310, fixed: 'right', useSlot: true }
       ]
     }
   })
@@ -195,6 +217,20 @@
     refreshData()
   }
 
+  const retryAiAudit = async (row: Record<string, any>) => {
+    await ElMessageBox.confirm(`确定重新提交评论 #${row.id} 进行AI审核吗？`, 'AI内容审核', {
+      type: 'warning'
+    })
+    aiAuditingId.value = Number(row.id)
+    try {
+      await api.aiAudit(Number(row.id))
+      ElMessage.success('AI审核任务已提交')
+      refreshData()
+    } finally {
+      aiAuditingId.value = null
+    }
+  }
+
   const plainText = (content: string | undefined) => {
     return String(content || '')
       .replace(/<[^>]+>/g, '')
@@ -206,7 +242,7 @@
       0: '待审核',
       1: '已通过',
       2: '已拒绝',
-      3: 'AI预审'
+      3: 'AI审核中'
     }
     return map[Number(status)] || '未知'
   }

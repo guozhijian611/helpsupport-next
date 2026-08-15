@@ -491,6 +491,10 @@ class _ReviewPostCard extends StatelessWidget {
               ),
             ],
           ),
+          if (post.aiAudit case final aiAudit?) ...[
+            const SizedBox(height: 14),
+            _AiAuditInsight(audit: aiAudit),
+          ],
           const SizedBox(height: 14),
           Divider(height: 1, color: palette.outline),
           const SizedBox(height: 14),
@@ -539,6 +543,92 @@ class _ReviewPostCard extends StatelessWidget {
               auditRemark: post.auditRemark,
               createTime: post.createTime,
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AiAuditInsight extends StatelessWidget {
+  const _AiAuditInsight({required this.audit});
+
+  final CommunityAiAudit audit;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _DoctorCommunityReviewPalette.of(context);
+    final accent = switch (audit.decision) {
+      'pass' => const Color(0xFF5A81DA),
+      'reject' => const Color(0xFFFF9585),
+      _ => const Color(0xFFFFAE4D),
+    };
+    final decision = switch (audit.decision) {
+      'pass' => _t(context, '建议通过', 'Suggested pass'),
+      'review' => _t(context, '建议复核', 'Needs review'),
+      'reject' => _t(context, '建议拒绝', 'Suggested reject'),
+      _ =>
+        audit.taskStatus == 3
+            ? _t(context, 'AI审核失败', 'AI review failed')
+            : _t(context, 'AI审核中', 'AI reviewing'),
+    };
+    final percent = (audit.confidence * 100).round();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withValues(alpha: 0.26)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.auto_awesome_rounded, size: 16, color: accent),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  _t(context, 'AI审核参考', 'AI review insight'),
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              _ReviewStatusPill(
+                label: audit.confidence > 0
+                    ? '$decision · $percent%'
+                    : decision,
+                color: accent,
+              ),
+            ],
+          ),
+          if (audit.reason.trim().isNotEmpty) ...[
+            const SizedBox(height: 9),
+            Text(
+              audit.reason,
+              style: TextStyle(
+                color: palette.bodyText,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                height: 1.45,
+              ),
+            ),
+          ],
+          if (audit.errorMessage.trim().isNotEmpty) ...[
+            const SizedBox(height: 7),
+            Text(
+              _t(context, '已转人工处理', 'Routed to human review'),
+              style: const TextStyle(
+                color: Color(0xFFFF9585),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ],
       ),
     );

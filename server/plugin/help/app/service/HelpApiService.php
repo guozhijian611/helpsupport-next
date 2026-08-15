@@ -1927,6 +1927,8 @@ class HelpApiService
         }, $params);
 
         $page['list'] = $this->decorateCommunityPosts($page['list'], $doctorId);
+        $aiPage = (new HelpAiAuditService())->decoratePage(['list' => $page['list']], 'community_post');
+        $page['list'] = $aiPage['list'];
         return $page;
     }
 
@@ -1940,54 +1942,14 @@ class HelpApiService
             throw new ApiException('拒绝原因必须填写', 400);
         }
 
-        $post = Db::table('sa_community_post')
-            ->where('id', $postId)
-            ->whereNull('delete_time')
-            ->find();
-        if (!$post) {
-            throw new ApiException('帖子不存在', 404);
-        }
-
-        $now = date('Y-m-d H:i:s');
-        Db::transaction(function () use ($postId, $auditStatus, $auditRemark, $doctorId, $post, $now) {
-            Db::table('sa_community_post')->where('id', $postId)->update([
-                'audit_status' => $auditStatus,
-                'audit_remark' => $auditRemark,
-                'audit_by' => $doctorId,
-                'audit_time' => $now,
-                'status' => $auditStatus === 1 ? 1 : 2,
-                'updated_by' => $doctorId,
-                'update_time' => $now,
-            ]);
-            (new HelpAuditLogService())->record(
-                'community_post',
-                $postId,
-                'audit',
-                $post['audit_status'] ?? null,
-                $auditStatus,
-                $auditRemark,
-                $doctorId
-            );
-        });
-
-        $authorMemberId = (int) ($post['member_id'] ?? 0);
-        if ($authorMemberId > 0 && $authorMemberId !== $doctorId) {
-            $approved = $auditStatus === 1;
-            $this->notifyMemberSafely($authorMemberId, 'system_notice', [
-                'title' => $approved ? '社区帖子审核已通过' : '社区帖子审核未通过',
-                'content' => $approved
-                    ? '你发布的社区帖子已通过审核，现在可以在社区展示。'
-                    : '你发布的社区帖子未通过审核。' . ($auditRemark !== '' ? ' 原因：' . $auditRemark : ''),
-            ], [
-                'biz_type' => 'community_audit_result',
-                'biz_id' => $postId,
-                'route' => '/pages/community/detail',
-                'payload' => [
-                    'post_id' => $postId,
-                    'audit_status' => $auditStatus,
-                ],
-            ]);
-        }
+        (new HelpCommunityAuditService())->review(
+            'community_post',
+            $postId,
+            $auditStatus,
+            $auditRemark,
+            $doctorId,
+            'doctor'
+        );
 
         $updated = Db::table('sa_community_post')
             ->alias('p')
@@ -1996,7 +1958,8 @@ class HelpApiService
             ->field('p.*, m.nickname AS author_name, m.avatar AS author_avatar')
             ->find() ?: [];
 
-        return $this->decorateCommunityPosts([$updated], $doctorId)[0] ?? [];
+        $updated = $this->decorateCommunityPosts([$updated], $doctorId)[0] ?? [];
+        return (new HelpAiAuditService())->decorateRow($updated, 'community_post');
     }
 
     public function communityPosts(int $memberId, array $params): array
@@ -2098,6 +2061,7 @@ class HelpApiService
             throw new ApiException('帖子内容必须填写', 400);
         }
         $reviewRequired = (bool) ($riskResult['review_required'] ?? false);
+        $auditState = (new HelpAiAuditService())->submissionState('community_post', $reviewRequired);
 
         $payload = [
             'member_id' => $memberId,
@@ -2111,13 +2075,14 @@ class HelpApiService
                 '匿名参数错误'
             ),
             'is_doctor_post' => 2,
-            'audit_status' => $reviewRequired ? 3 : 1,
-            'audit_remark' => $reviewRequired ? self::RISK_REVIEW_REMARK : '',
-            'status' => 1,
+            'audit_status' => $auditState['audit_status'],
+            'audit_remark' => $auditState['audit_remark'],
+            'status' => $auditState['status'],
         ];
 
         $id = $this->saveRow('sa_community_post', $payload, $memberId);
-        return $this->communityPostDetail($memberId, $id);
+        (new HelpAiAuditService())->dispatchForSubmission('community_post', $id, $riskResult, $memberId);
+        return (new HelpAiAuditService())->decorateRow($this->communityPostDetail($memberId, $id), 'community_post');
     }
 
     public function communityComments(int $memberId, array $params): array
@@ -2177,6 +2142,7 @@ class HelpApiService
             throw new ApiException('评论内容必须填写', 400);
         }
         $reviewRequired = (bool) ($riskResult['review_required'] ?? false);
+        $auditState = (new HelpAiAuditService())->submissionState('community_comment', $reviewRequired);
 
         $commentId = $this->saveRow('sa_community_comment', [
             'post_id' => $postId,
@@ -2190,10 +2156,17 @@ class HelpApiService
                 [1, 2],
                 '匿名参数错误'
             ),
-            'audit_status' => $reviewRequired ? 3 : 1,
-            'audit_remark' => $reviewRequired ? self::RISK_REVIEW_REMARK : '',
-            'status' => 1,
+            'audit_status' => $auditState['audit_status'],
+            'audit_remark' => $auditState['audit_remark'],
+            'status' => $auditState['status'],
         ], $memberId);
+        (new HelpAiAuditService())->dispatchForSubmission('community_comment', $commentId, $riskResult, $memberId);
+        if ((int) $auditState['audit_status'] === HelpCommunityAuditService::STATUS_APPROVED) {
+            Db::execute(sprintf(
+                'UPDATE `sa_community_post` SET `comment_count` = `comment_count` + 1, `update_time` = NOW() WHERE `id` = %d',
+                $postId
+            ));
+        }
 
         $comment = Db::table('sa_community_comment')
             ->alias('c')
@@ -2202,7 +2175,8 @@ class HelpApiService
             ->field('c.*, m.nickname AS author_name, m.avatar AS author_avatar')
             ->find() ?: [];
 
-        return $this->decorateCommunityComments([$comment], $memberId)[0] ?? [];
+        $comment = $this->decorateCommunityComments([$comment], $memberId)[0] ?? [];
+        return (new HelpAiAuditService())->decorateRow($comment, 'community_comment');
     }
 
     public function toggleCommunityLike(int $memberId, array $data): array

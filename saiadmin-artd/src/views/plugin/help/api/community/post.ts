@@ -63,6 +63,13 @@ export default {
     })
   },
 
+  aiAudit(id: number) {
+    return request.post<{ task_id: number }>({
+      url: '/app/help/admin/community/SaCommunityPost/aiAudit',
+      data: { id }
+    })
+  },
+
   /**
    * 删除数据
    * @param id 数据ID

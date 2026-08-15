@@ -24,6 +24,13 @@ export default {
     })
   },
 
+  aiAudit(id: number) {
+    return request.post<{ task_id: number }>({
+      url: '/app/help/admin/community/SaCommunityComment/aiAudit',
+      data: { id }
+    })
+  },
+
   delete(params: Record<string, any>) {
     return request.del<any>({
       url: '/app/help/admin/community/SaCommunityComment/destroy',

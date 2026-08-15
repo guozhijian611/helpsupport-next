@@ -2,9 +2,11 @@
 
 namespace plugin\help\app\admin\controller\community;
 
+use hg\apidoc\annotation as Apidoc;
 use plugin\help\app\admin\logic\community\SaCommunityCommentLogic;
 use plugin\help\app\admin\validate\community\SaCommunityCommentValidate;
 use plugin\help\app\service\HelpAuditLogService;
+use plugin\help\app\service\HelpAiAuditService;
 use plugin\saiadmin\basic\BaseController;
 use plugin\saiadmin\service\Permission;
 use support\Request;
@@ -35,6 +37,7 @@ class SaCommunityCommentController extends BaseController
         ]);
         $query = $this->logic->search($where);
         $data = $this->withRelatedNames($this->logic->getList($query));
+        $data = (new HelpAiAuditService())->decoratePage($data, 'community_comment');
 
         return $this->success($data);
     }
@@ -45,6 +48,7 @@ class SaCommunityCommentController extends BaseController
         $model = $this->logic->read($request->input('id', ''));
         $data = is_array($model) ? $model : $model->toArray();
         $data = $this->appendRelatedNames([$data])[0] ?? $data;
+        $data = (new HelpAiAuditService())->decorateRow($data, 'community_comment');
         $data['audit_logs'] = (new HelpAuditLogService())->list('community_comment', (int) ($data['id'] ?? 0));
 
         return $this->success($data);
@@ -98,6 +102,21 @@ class SaCommunityCommentController extends BaseController
         );
 
         return $result ? $this->success('审核成功') : $this->fail('审核失败');
+    }
+
+    #[Apidoc\Title('重新发起评论AI审核')]
+    #[Apidoc\Url('/app/help/admin/community/SaCommunityComment/aiAudit')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('id', type: 'int', require: true, desc: '评论ID')]
+    #[Permission('社区评论重新AI审核', 'help:community:comment:aiAudit')]
+    public function aiAudit(Request $request): Response
+    {
+        $id = (int) $request->post('id', 0);
+        if ($id <= 0) {
+            return $this->fail('请选择要审核的评论');
+        }
+        $taskId = (new HelpAiAuditService())->retryTarget('community_comment', $id, $this->adminId ?? 0);
+        return $this->success(['task_id' => $taskId], 'AI审核任务已提交');
     }
 
     private function withRelatedNames(array $page): array

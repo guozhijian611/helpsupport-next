@@ -49,11 +49,27 @@
                   inactive-text="禁用"
                   inline-prompt
                 />
+                <ElSelect
+                  v-else-if="group.code === 'help_ai_audit' && item.key === 'ai_config_id'"
+                  v-model="formValues[group.code][item.key]"
+                  filterable
+                  class="runtime-select"
+                  placeholder="请选择审核模型"
+                >
+                  <ElOption
+                    v-for="option in aiModelOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </ElSelect>
                 <ElInput
                   v-else-if="item.input_type === 'number'"
                   v-model="formValues[group.code][item.key]"
                   type="number"
-                  min="1"
+                  :min="numberLimits(group.code, item.key).min"
+                  :max="numberLimits(group.code, item.key).max"
+                  :step="numberLimits(group.code, item.key).step"
                   clearable
                   :placeholder="secretPlaceholder(item)"
                 />
@@ -98,7 +114,11 @@
 
 <script setup lang="ts">
   import { ElMessage } from 'element-plus'
-  import api, { type RuntimeConfigGroup, type RuntimeConfigItem } from '../../api/config/runtime'
+  import api, {
+    type AiModelOption,
+    type RuntimeConfigGroup,
+    type RuntimeConfigItem
+  } from '../../api/config/runtime'
 
   defineOptions({ name: 'HelpRuntimeConfig' })
 
@@ -106,13 +126,15 @@
   const saving = ref(false)
   const groups = ref<RuntimeConfigGroup[]>([])
   const activeGroup = ref('')
+  const aiModelOptions = ref<AiModelOption[]>([])
   const formValues = reactive<Record<string, Record<string, string>>>({})
 
   const loadConfig = async () => {
     loading.value = true
     try {
-      const data = await api.read()
+      const [data, models] = await Promise.all([api.read(), api.aiOptions()])
       groups.value = data
+      aiModelOptions.value = models
       Object.keys(formValues).forEach((key) => delete formValues[key])
       groups.value.forEach((group) => {
         formValues[group.code] = {}
@@ -132,6 +154,22 @@
     }
 
     return item.has_value ? '已配置，留空则不修改' : '请输入' + item.name
+  }
+
+  const numberLimits = (groupCode: string, key: string) => {
+    if (groupCode === 'help_ai_audit' && key === 'auto_pass_confidence') {
+      return { min: 0.5, max: 1, step: 0.01 }
+    }
+    if (groupCode === 'help_ai_audit' && key === 'auto_reject_confidence') {
+      return { min: 0.8, max: 1, step: 0.01 }
+    }
+    if (groupCode === 'help_ai_audit' && key === 'max_attempts') {
+      return { min: 1, max: 5, step: 1 }
+    }
+    if (groupCode === 'help_ai_audit' && key === 'retry_delay_seconds') {
+      return { min: 1, max: 300, step: 1 }
+    }
+    return { min: 1, max: undefined, step: 1 }
   }
 
   const handleSubmit = async () => {

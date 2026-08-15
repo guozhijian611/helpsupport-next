@@ -218,9 +218,11 @@ Route::group('/app/help/admin/community', function () {
 
     fastRoute('SaCommunityPost', AdminCommunityPostController::class);
     Route::post('/SaCommunityPost/audit', [AdminCommunityPostController::class, 'audit']);
+    Route::post('/SaCommunityPost/aiAudit', [AdminCommunityPostController::class, 'aiAudit']);
 
     fastRoute('SaCommunityComment', AdminCommunityCommentController::class);
     Route::post('/SaCommunityComment/audit', [AdminCommunityCommentController::class, 'audit']);
+    Route::post('/SaCommunityComment/aiAudit', [AdminCommunityCommentController::class, 'aiAudit']);
 
     fastRoute('SaCommunityReport', AdminCommunityReportController::class);
     Route::post('/SaCommunityReport/handle', [AdminCommunityReportController::class, 'handle']);
@@ -230,6 +232,7 @@ Route::group('/app/help/admin/config', function () {
     fastRoute('SaAppOnboardingPage', AdminAppOnboardingPageController::class);
     Route::get('/HelpRuntimeConfig/read', [AdminHelpRuntimeConfigController::class, 'read']);
     Route::post('/HelpRuntimeConfig/update', [AdminHelpRuntimeConfigController::class, 'update']);
+    Route::get('/HelpRuntimeConfig/aiOptions', [AdminHelpRuntimeConfigController::class, 'aiOptions']);
     Route::get('/HelpRuntimeConfig/readDownload', [AdminHelpRuntimeConfigController::class, 'readDownload']);
     Route::post('/HelpRuntimeConfig/updateDownload', [AdminHelpRuntimeConfigController::class, 'updateDownload']);
 });

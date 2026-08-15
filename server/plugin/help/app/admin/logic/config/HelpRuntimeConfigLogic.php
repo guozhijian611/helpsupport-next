@@ -16,6 +16,7 @@ class HelpRuntimeConfigLogic
         'help_apple_oauth' => 'Apple 登录',
         'help_firebase_push' => 'Firebase 推送',
         'help_appointment_payment' => '预约积分',
+        'help_ai_audit' => 'AI 内容审核',
     ];
 
     private const APP_DOWNLOAD_GROUPS = [
@@ -46,6 +47,25 @@ class HelpRuntimeConfigLogic
             'remark' => '',
             'items' => [],
         ];
+    }
+
+    public function aiOptions(): array
+    {
+        return Db::table('saiai_config')
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->orderBy('is_default', 'desc')
+            ->orderBy('id')
+            ->get(['id', 'name', 'type', 'model', 'is_default'])
+            ->map(static fn (object $item): array => [
+                'value' => (string) $item->id,
+                'label' => sprintf('%s（%s / %s）', $item->name, $item->type, $item->model),
+                'name' => (string) $item->name,
+                'type' => (string) $item->type,
+                'model' => (string) $item->model,
+                'is_default' => (int) $item->is_default,
+            ])
+            ->all();
     }
 
     public function update(array $configs, int $adminId = 0): bool
@@ -128,7 +148,7 @@ class HelpRuntimeConfigLogic
                     if ($this->isSecretKey($groupCode, (string) $key) && $this->isBlank($value)) {
                         continue;
                     }
-                    $value = $this->normalizeValue((string) $key, $value);
+                    $value = $this->normalizeValue($groupCode, (string) $key, $value);
                     $this->assertAllowedOption($items[$key], $value);
 
                     Db::table('sa_system_config')
@@ -139,6 +159,10 @@ class HelpRuntimeConfigLogic
                             'update_time' => date('Y-m-d H:i:s'),
                         ]);
                     $touchedGroups[$groupCode] = true;
+                }
+
+                if ($groupCode === 'help_ai_audit') {
+                    $this->assertAiAuditReady((int) $group->id);
                 }
             }
         });
@@ -223,7 +247,7 @@ class HelpRuntimeConfigLogic
         return trim((string) $value);
     }
 
-    private function normalizeValue(string $key, mixed $value): string
+    private function normalizeValue(string $groupCode, string $key, mixed $value): string
     {
         $value = $this->stringValue($value);
         if ($key === 'points_cost') {
@@ -235,7 +259,67 @@ class HelpRuntimeConfigLogic
             return (string) $points;
         }
 
+        if ($groupCode === 'help_ai_audit') {
+            if ($key === 'ai_config_id') {
+                $configId = (int) $value;
+                if ($configId < 0) {
+                    throw new ApiException('AI审核模型参数错误');
+                }
+                if ($configId > 0 && !Db::table('saiai_config')->where('id', $configId)->where('status', 1)->whereNull('delete_time')->exists()) {
+                    throw new ApiException('所选AI模型不存在或未启用');
+                }
+                return (string) $configId;
+            }
+            if (in_array($key, ['auto_pass_confidence', 'auto_reject_confidence'], true)) {
+                if (!is_numeric($value)) {
+                    throw new ApiException('自动审核阈值必须是数字');
+                }
+                $threshold = (float) $value;
+                $min = $key === 'auto_pass_confidence' ? 0.50 : 0.80;
+                if ($threshold < $min || $threshold > 1.00) {
+                    throw new ApiException('自动审核阈值超出允许范围');
+                }
+                return rtrim(rtrim(number_format($threshold, 4, '.', ''), '0'), '.');
+            }
+            if ($key === 'max_attempts') {
+                $attempts = (int) $value;
+                if ($attempts < 1 || $attempts > 5) {
+                    throw new ApiException('最大尝试次数必须在1到5之间');
+                }
+                return (string) $attempts;
+            }
+            if ($key === 'retry_delay_seconds') {
+                $seconds = (int) $value;
+                if ($seconds < 1 || $seconds > 300) {
+                    throw new ApiException('重试间隔必须在1到300秒之间');
+                }
+                return (string) $seconds;
+            }
+            if ($key === 'prompt_policy') {
+                return mb_substr($value, 0, 3000);
+            }
+        }
+
         return $value;
+    }
+
+    private function assertAiAuditReady(int $groupId): void
+    {
+        $values = Db::table('sa_system_config')
+            ->where('group_id', $groupId)
+            ->whereNull('delete_time')
+            ->pluck('value', 'key')
+            ->all();
+        if ((int) ($values['enabled'] ?? 2) !== 1) {
+            return;
+        }
+        $configId = (int) ($values['ai_config_id'] ?? 0);
+        if ($configId <= 0) {
+            throw new ApiException('启用AI内容审核前必须选择审核模型');
+        }
+        if (!Db::table('saiai_config')->where('id', $configId)->where('status', 1)->whereNull('delete_time')->exists()) {
+            throw new ApiException('所选AI模型不存在或未启用');
+        }
     }
 
     private function formatRemark(string $remark): string

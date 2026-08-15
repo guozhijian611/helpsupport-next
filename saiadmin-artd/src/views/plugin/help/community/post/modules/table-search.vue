@@ -28,7 +28,7 @@
           <el-option label="待审核" :value="0" />
           <el-option label="已通过" :value="1" />
           <el-option label="已拒绝" :value="2" />
-          <el-option label="AI标记" :value="3" />
+          <el-option label="AI审核中" :value="3" />
         </el-select>
       </el-form-item>
     </el-col>
