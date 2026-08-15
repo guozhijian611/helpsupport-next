@@ -24,7 +24,7 @@ require_command() {
 
 add_path_dir() {
   local dir="$1"
-  [[ -d "${dir}" ]] || return
+  [[ -d "${dir}" ]] || return 0
   case ":${PATH}:" in
     *":${dir}:"*) ;;
     *) PATH="${dir}:${PATH}" ;;
