@@ -22,6 +22,11 @@ final aiRobotProfilesProvider = FutureProvider.autoDispose
       return ref.watch(chatRepositoryProvider).fetchRobotProfiles(runtimeMode);
     });
 
+final onlineChatModelsProvider =
+    FutureProvider.autoDispose<List<OnlineChatModel>>((ref) {
+      return ref.watch(chatRepositoryProvider).fetchOnlineModels();
+    });
+
 final chatRecordsProvider = FutureProvider.autoDispose
     .family<ChatPage<ChatRecord>, int>((ref, sessionId) {
       return ref.watch(chatRepositoryProvider).fetchRecords(sessionId);

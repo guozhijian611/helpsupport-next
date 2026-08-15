@@ -26,7 +26,7 @@ class ChatController extends BaseController
     #[Apidoc\Title('聊天模式概览')]
     #[Apidoc\Url('/app/help/chat/overview')]
     #[Apidoc\Method('GET')]
-    #[Apidoc\Returned('modes', type: 'array', desc: '三种聊天模式及最近会话')]
+    #[Apidoc\Returned('modes', type: 'array', desc: '四种聊天模式、temp_save及最近会话')]
     #[Apidoc\Returned('recent_sessions', type: 'array', desc: '最近会话')]
     public function overview(Request $request): Response
     {
@@ -36,8 +36,8 @@ class ChatController extends BaseController
     #[Apidoc\Title('聊天配置')]
     #[Apidoc\Url('/app/help/chat/config')]
     #[Apidoc\Method('GET')]
-    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient')]
-    #[Apidoc\Returned('list', type: 'array', desc: '会员自定义聊天提示词配置')]
+    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient/ai_doctor')]
+    #[Apidoc\Returned('list', type: 'array', desc: '会员聊天提示词和临时字符串配置')]
     public function configs(Request $request): Response
     {
         return ok($this->service->chatConfigs($this->memberId, $request->get()));
@@ -46,8 +46,9 @@ class ChatController extends BaseController
     #[Apidoc\Title('保存聊天配置')]
     #[Apidoc\Url('/app/help/chat/config')]
     #[Apidoc\Method('POST')]
-    #[Apidoc\Param('chat_mode', type: 'string', require: true, desc: '聊天模式 doctor/companion/patient')]
-    #[Apidoc\Param('prompt_text', type: 'string', require: true, desc: '用户自定义提示词')]
+    #[Apidoc\Param('chat_mode', type: 'string', require: true, desc: '聊天模式 doctor/companion/patient/ai_doctor')]
+    #[Apidoc\Param('prompt_text', type: 'string', require: false, desc: '用户自定义提示词，与temp_save至少传一项')]
+    #[Apidoc\Param('temp_save', type: 'string', require: false, desc: '临时字符串配置，在线聊天保存所选SAIAI配置ID')]
     #[Apidoc\Returned('id', type: 'int', desc: '配置ID')]
     #[Apidoc\Returned('chat_mode', type: 'string', desc: '聊天模式')]
     public function saveConfig(Request $request): Response
@@ -55,11 +56,24 @@ class ChatController extends BaseController
         return ok($this->service->saveChatConfig($this->memberId, $request->post()));
     }
 
+    #[Apidoc\Title('在线AI模型列表')]
+    #[Apidoc\Url('/app/help/chat/models')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Returned('id', type: 'int', desc: 'SAIAI配置ID')]
+    #[Apidoc\Returned('name', type: 'string', desc: '后台配置名称')]
+    #[Apidoc\Returned('type', type: 'string', desc: '平台类型')]
+    #[Apidoc\Returned('model', type: 'string', desc: '模型名称')]
+    #[Apidoc\Returned('is_default', type: 'boolean', desc: '是否默认模型')]
+    public function models(Request $request): Response
+    {
+        return ok($this->service->onlineChatModels());
+    }
+
     #[Apidoc\Title('AI机器人形象配置')]
     #[Apidoc\Url('/app/help/chat/robot-profiles')]
     #[Apidoc\Method('GET')]
     #[Apidoc\Query('runtime_mode', type: 'string', require: false, default: 'online', desc: '运行模式 online/local')]
-    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient')]
+    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient/ai_doctor')]
     #[Apidoc\Returned('list', type: 'array', desc: '按聊天模式返回机器人头像、显示名和简介')]
     public function robotProfiles(Request $request): Response
     {
@@ -136,7 +150,7 @@ class ChatController extends BaseController
     #[Apidoc\Title('聊天会话列表')]
     #[Apidoc\Url('/app/help/chat/sessions')]
     #[Apidoc\Method('GET')]
-    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient')]
+    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient/ai_doctor')]
     #[Apidoc\Query('keyword', type: 'string', require: false, desc: '关键词')]
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
@@ -151,7 +165,7 @@ class ChatController extends BaseController
     #[Apidoc\Url('/app/help/chat/session')]
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('id', type: 'int', require: false, desc: '会话ID，传入时更新')]
-    #[Apidoc\Param('chat_mode', type: 'string', require: true, desc: '聊天模式 doctor/companion/patient')]
+    #[Apidoc\Param('chat_mode', type: 'string', require: true, desc: '聊天模式 doctor/companion/patient/ai_doctor')]
     #[Apidoc\Param('session_name', type: 'string', require: false, desc: '会话名称')]
     #[Apidoc\Param('is_pinned', type: 'int', require: false, default: 2, desc: '是否置顶 1是 2否')]
     #[Apidoc\Param('locale', type: 'string', require: false, desc: '客户端语言，用于生成默认 AI 开场白')]
@@ -176,7 +190,7 @@ class ChatController extends BaseController
     #[Apidoc\Url('/app/help/chat/records')]
     #[Apidoc\Method('GET')]
     #[Apidoc\Query('session_id', type: 'int', require: false, desc: '会话ID')]
-    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient')]
+    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient/ai_doctor')]
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 50, desc: '每页数量')]
     #[Apidoc\Returned('list', type: 'array', desc: '聊天记录列表')]
@@ -227,7 +241,7 @@ class ChatController extends BaseController
     #[Apidoc\Url('/app/help/chat/send')]
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('session_id', type: 'int', require: false, desc: '会话ID，不传时按 chat_mode 创建新会话')]
-    #[Apidoc\Param('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient，创建新会话时必填')]
+    #[Apidoc\Param('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient/ai_doctor，创建新会话时必填')]
     #[Apidoc\Param('content', type: 'string', require: true, desc: '用户消息内容')]
     #[Apidoc\Param('config_id', type: 'int', require: false, default: 0, desc: '可选 SaiAI 模型配置ID')]
     #[Apidoc\Returned('session', type: 'object', desc: '会话信息')]
@@ -242,7 +256,7 @@ class ChatController extends BaseController
     #[Apidoc\Url('/app/help/chat/send/stream')]
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('session_id', type: 'int', require: false, desc: '会话ID，不传时按 chat_mode 创建新会话')]
-    #[Apidoc\Param('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient，创建新会话时必填')]
+    #[Apidoc\Param('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient/ai_doctor，创建新会话时必填')]
     #[Apidoc\Param('content', type: 'string', require: true, desc: '用户消息内容')]
     #[Apidoc\Param('config_id', type: 'int', require: false, default: 0, desc: '可选 SaiAI 模型配置ID')]
     #[Apidoc\Returned('event:start', type: 'object', desc: '返回会话与用户消息记录')]

@@ -15,8 +15,9 @@ use plugin\saiadmin\basic\think\BaseModel;
  *
  * @property  $id 主键
  * @property  $member_id 会员ID
- * @property  $chat_mode 模式 doctor/companion/patient
+ * @property  $chat_mode 模式 doctor/companion/patient/ai_doctor
  * @property  $prompt_text 用户模式描述和前置提示
+ * @property  $temp_save 临时字符串配置
  * @property  $created_by 创建者
  * @property  $updated_by 更新者
  * @property  $create_time 创建时间

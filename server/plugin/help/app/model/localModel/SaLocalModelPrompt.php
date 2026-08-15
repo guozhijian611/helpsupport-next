@@ -15,7 +15,7 @@ use plugin\saiadmin\basic\think\BaseModel;
  *
  * @property  $id 主键
  * @property  $model_id 关联模型ID，空表示通用提示词
- * @property  $chat_mode 聊天模式 doctor/companion/patient
+ * @property  $chat_mode 聊天模式 doctor/companion/patient/ai_doctor
  * @property  $locale 语言
  * @property  $title 提示词标题
  * @property  $system_prompt 系统提示词

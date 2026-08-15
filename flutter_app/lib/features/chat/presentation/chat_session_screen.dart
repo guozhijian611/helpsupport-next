@@ -28,6 +28,7 @@ import '../../auth/data/auth_models.dart';
 import '../../plan/application/plan_controller.dart';
 import '../application/chat_controller.dart';
 import '../data/chat_models.dart';
+import 'chat_online_model_sheet.dart';
 import 'chat_prompt_config_sheet.dart';
 
 class ChatSessionScreen extends ConsumerStatefulWidget {
@@ -161,6 +162,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     final promptConfig = widget.chatMode == 'doctor'
         ? null
         : ref.watch(chatConfigProvider(widget.chatMode));
+    final modelConfig = ref.watch(chatConfigProvider(widget.chatMode));
     final authState = ref.watch(authControllerProvider);
     final session = switch (authState) {
       AsyncData(:final value) => value,
@@ -203,6 +205,14 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                 ),
                 actions: _supportsDoctorCall
                     ? [
+                        IconButton(
+                          tooltip: _t(context, '选择在线模型', 'Choose online model'),
+                          onPressed: () => _selectOnlineModel(
+                            modelConfig.asData?.value?.selectedOnlineModelId ??
+                                0,
+                          ),
+                          icon: const Icon(Icons.tune_rounded),
+                        ),
                         _TopModeButton(
                           active: !_callActive,
                           icon: Icons.chat_bubble_outline_rounded,
@@ -221,6 +231,14 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                         const SizedBox(width: 18),
                       ]
                     : [
+                        IconButton(
+                          tooltip: _t(context, '选择在线模型', 'Choose online model'),
+                          onPressed: () => _selectOnlineModel(
+                            modelConfig.asData?.value?.selectedOnlineModelId ??
+                                0,
+                          ),
+                          icon: const Icon(Icons.tune_rounded),
+                        ),
                         IconButton.filled(
                           tooltip: _t(context, '会话说明', 'About chat'),
                           onPressed: () => context.showCenteredNotice(
@@ -2203,6 +2221,47 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     }
   }
 
+  Future<void> _selectOnlineModel(int selectedModelId) async {
+    try {
+      final models = await ref.read(onlineChatModelsProvider.future);
+      if (!mounted) {
+        return;
+      }
+      if (models.isEmpty) {
+        context.showCenteredNotice(
+          _t(context, '后台暂未启用在线文本模型', 'No online text model is enabled'),
+        );
+        return;
+      }
+      final selected = await showOnlineChatModelSheet(
+        context,
+        models: models,
+        selectedModelId: selectedModelId,
+      );
+      if (!mounted || selected == null) {
+        return;
+      }
+      await ref
+          .read(chatRepositoryProvider)
+          .saveConfig(chatMode: widget.chatMode, tempSave: '${selected.id}');
+      ref.invalidate(chatConfigProvider(widget.chatMode));
+      ref.invalidate(chatOverviewProvider);
+      if (mounted) {
+        context.showCenteredNotice(
+          _t(
+            context,
+            '已切换为 ${selected.displayName}',
+            'Switched to ${selected.displayName}',
+          ),
+        );
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        context.showCenteredNotice(error.toString());
+      }
+    }
+  }
+
   void _toggleTranscript(ChatRecord record) {
     if (!_hasTranscript(record)) {
       context.showCenteredNotice(
@@ -4031,6 +4090,7 @@ class _ConfirmDialog extends StatelessWidget {
 String _modeTitle(BuildContext context, String mode) {
   return switch (mode) {
     'doctor' => _t(context, 'AI 心理医生', 'AI doctor'),
+    'ai_doctor' => _t(context, 'AI 医生', 'AI clinician'),
     'patient' => _t(context, 'AI 模拟病人', 'AI patient'),
     _ => _t(context, 'AI 心理陪伴', 'AI companion'),
   };
@@ -4039,6 +4099,11 @@ String _modeTitle(BuildContext context, String mode) {
 String _modeDescription(BuildContext context, String mode) {
   return switch (mode) {
     'doctor' => context.l10n.doctorChatDescription,
+    'ai_doctor' => _t(
+      context,
+      '帮助整理健康问题、症状和就诊准备，不替代真实医生诊疗。',
+      'Organize health concerns, symptoms, and visit preparation without replacing clinical care.',
+    ),
     'patient' => context.l10n.patientChatDescription,
     _ => context.l10n.companionChatDescription,
   };

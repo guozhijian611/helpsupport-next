@@ -52,6 +52,7 @@ void main() {
                 ChatModeInfo(
                   chatMode: 'doctor',
                   promptText: 'Prepare questions',
+                  tempSave: '3',
                   robotProfile: AiRobotProfile(
                     id: 1,
                     chatMode: 'doctor',

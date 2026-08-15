@@ -337,6 +337,20 @@ List<_PromptPreset> _promptPresets(BuildContext context, String chatMode) {
             : 'Role-play as a simulated patient preparing for a follow-up visit. Interact around symptom changes, sleep, medication experience, triggers, and questions for the doctor so I can practice clearer clinical communication.',
       ),
     ],
+    'ai_doctor' => [
+      _PromptPreset(
+        title: _t(context, '就诊信息整理', 'Visit preparation'),
+        prompt: isZh
+            ? '请帮助我整理症状、持续时间、可能诱因、既往病史、用药情况和需要向医生提问的内容。不要做诊断、开药或调整处方；如发现紧急危险信号，请明确建议立即线下就医或联系急救。'
+            : 'Help me organize symptoms, duration, possible triggers, medical history, medications, and questions for a clinician. Do not diagnose, prescribe, or change medication; clearly advise urgent in-person care or emergency services for danger signs.',
+      ),
+      _PromptPreset(
+        title: _t(context, '健康问题清单', 'Health concern checklist'),
+        prompt: isZh
+            ? '请一次问我一个简短问题，帮助我把当前健康困扰整理成清晰的问题清单和时间线，最后给出可带去就诊的摘要。保持谨慎，不替代真实医生。'
+            : 'Ask one short question at a time to turn my current health concern into a clear checklist and timeline, then prepare a summary for a clinical visit. Stay cautious and do not replace a real clinician.',
+      ),
+    ],
     _ => [
       _PromptPreset(
         title: _t(context, '稳定陪伴', 'Steady companion'),

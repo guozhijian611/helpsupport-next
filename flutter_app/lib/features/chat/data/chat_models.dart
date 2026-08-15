@@ -22,6 +22,7 @@ class ChatModeInfo {
   const ChatModeInfo({
     required this.chatMode,
     required this.promptText,
+    required this.tempSave,
     required this.robotProfile,
     required this.sessionCount,
     this.latestSession,
@@ -29,6 +30,7 @@ class ChatModeInfo {
 
   final String chatMode;
   final String promptText;
+  final String tempSave;
   final AiRobotProfile robotProfile;
   final int sessionCount;
   final ChatSession? latestSession;
@@ -38,6 +40,7 @@ class ChatModeInfo {
     return ChatModeInfo(
       chatMode: chatMode,
       promptText: (json['prompt_text'] as String?) ?? '',
+      tempSave: (json['temp_save'] ?? '').toString(),
       robotProfile: AiRobotProfile.fromJson(
         _map(json['robot_profile']),
         fallbackChatMode: chatMode,
@@ -182,17 +185,50 @@ class ChatConfig {
     required this.id,
     required this.chatMode,
     required this.promptText,
+    required this.tempSave,
   });
 
   final int id;
   final String chatMode;
   final String promptText;
+  final String tempSave;
+
+  int get selectedOnlineModelId => int.tryParse(tempSave.trim()) ?? 0;
 
   factory ChatConfig.fromJson(Map<String, dynamic> json) {
     return ChatConfig(
       id: (json['id'] as num?)?.toInt() ?? 0,
       chatMode: (json['chat_mode'] as String?) ?? '',
       promptText: (json['prompt_text'] as String?) ?? '',
+      tempSave: (json['temp_save'] ?? '').toString(),
+    );
+  }
+}
+
+class OnlineChatModel {
+  const OnlineChatModel({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.model,
+    required this.isDefault,
+  });
+
+  final int id;
+  final String name;
+  final String type;
+  final String model;
+  final bool isDefault;
+
+  String get displayName => name.trim().isNotEmpty ? name : model;
+
+  factory OnlineChatModel.fromJson(Map<String, dynamic> json) {
+    return OnlineChatModel(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: (json['name'] ?? '').toString(),
+      type: (json['type'] ?? '').toString(),
+      model: (json['model'] ?? '').toString(),
+      isDefault: json['is_default'] == true || json['is_default'] == 1,
     );
   }
 }
@@ -462,6 +498,7 @@ List<T> _list<T>(Object? value, T Function(Map<String, dynamic> json) decode) {
 String _fallbackDisplayName(String mode, bool zh) {
   return switch (mode) {
     'doctor' => zh ? 'AI 心理医生' : 'AI doctor',
+    'ai_doctor' => zh ? 'AI 医生' : 'AI clinician',
     'patient' => zh ? 'AI 模拟病人' : 'AI patient',
     _ => zh ? 'AI 心理陪伴' : 'AI companion',
   };
@@ -475,6 +512,10 @@ String _fallbackDescription(String mode, bool zh) {
       zh
           ? '用于角色演练和沟通练习的模拟病人'
           : 'A simulated patient for role-play and communication practice',
+    'ai_doctor' =>
+      zh
+          ? '帮助整理健康问题、症状和就诊准备的 AI 助手'
+          : 'An AI assistant for organizing health concerns, symptoms, and visit preparation',
     _ => zh ? '稳定、耐心的陪伴式支持助手' : 'Steady and patient companion support',
   };
 }

@@ -22,6 +22,7 @@ class HelpApiService
     private const EMAIL_CODE_EXPIRES_IN = 600;
     private const SMS_CODE_EXPIRES_IN = 300;
     private const CODE_RESEND_AFTER = 120;
+    private const ONLINE_CHAT_MODEL_TYPES = ['openai', 'gemini', 'deepseek', 'generic'];
     private const MATERIAL_MEDIA_TYPES = [
         'article',
         'image',
@@ -870,6 +871,11 @@ class HelpApiService
         $modes = [];
         $robotProfiles = $this->aiRobotProfilesByRuntime('online');
         foreach ($this->chatModes() as $mode) {
+            $chatConfig = Db::table('sa_member_chat_config')
+                ->where('member_id', $memberId)
+                ->where('chat_mode', $mode)
+                ->whereNull('delete_time')
+                ->find() ?: [];
             $latestSession = Db::table('sa_member_chat_session')
                 ->where('member_id', $memberId)
                 ->where('chat_mode', $mode)
@@ -883,11 +889,8 @@ class HelpApiService
 
             $modes[] = [
                 'chat_mode' => $mode,
-                'prompt_text' => (string) Db::table('sa_member_chat_config')
-                    ->where('member_id', $memberId)
-                    ->where('chat_mode', $mode)
-                    ->whereNull('delete_time')
-                    ->value('prompt_text'),
+                'prompt_text' => (string) ($chatConfig['prompt_text'] ?? ''),
+                'temp_save' => (string) ($chatConfig['temp_save'] ?? ''),
                 'robot_profile' => $robotProfiles[$mode] ?? $this->defaultAiRobotProfile($mode, 'online'),
                 'session_count' => (int) Db::table('sa_member_chat_session')
                     ->where('member_id', $memberId)
@@ -913,6 +916,32 @@ class HelpApiService
                 ->select()
                 ->toArray(),
         ];
+    }
+
+    public function onlineChatModels(): array
+    {
+        if (!$this->tableExists('saiai_config')) {
+            return [];
+        }
+
+        $rows = Db::table('saiai_config')
+            ->whereIn('type', self::ONLINE_CHAT_MODEL_TYPES)
+            ->where('status', 1)
+            ->where('model', '<>', '')
+            ->whereNull('delete_time')
+            ->field('id, name, type, model, is_default')
+            ->orderRaw('CASE WHEN `is_default` = 1 THEN 0 ELSE 1 END ASC')
+            ->order('id', 'asc')
+            ->select()
+            ->toArray();
+
+        return array_map(static fn (array $row): array => [
+            'id' => (int) ($row['id'] ?? 0),
+            'name' => trim((string) ($row['name'] ?? '')),
+            'type' => trim((string) ($row['type'] ?? '')),
+            'model' => trim((string) ($row['model'] ?? '')),
+            'is_default' => (int) ($row['is_default'] ?? 0) === 1,
+        ], $rows);
     }
 
     public function aiRobotProfiles(array $params): array
@@ -947,9 +976,27 @@ class HelpApiService
     public function saveChatConfig(int $memberId, array $data): array
     {
         $chatMode = $this->chatMode($data['chat_mode'] ?? '');
+        $hasPromptText = array_key_exists('prompt_text', $data);
+        $hasTempSave = array_key_exists('temp_save', $data);
+        if (!$hasPromptText && !$hasTempSave) {
+            throw new ApiException('聊天提示词和临时配置至少填写一项', 400);
+        }
+
         $promptText = trim((string) ($data['prompt_text'] ?? ''));
-        if ($promptText === '') {
+        if ($hasPromptText && $promptText === '') {
             throw new ApiException('聊天提示词必须填写', 400);
+        }
+        $tempSave = trim((string) ($data['temp_save'] ?? ''));
+        if ($hasTempSave) {
+            if (mb_strlen($tempSave) > 500) {
+                throw new ApiException('临时配置不能超过500个字符', 400);
+            }
+            if ($tempSave !== '') {
+                if (!ctype_digit($tempSave) || (int) $tempSave <= 0) {
+                    throw new ApiException('在线模型配置ID格式错误', 400);
+                }
+                $this->assertOnlineChatModel((int) $tempSave);
+            }
         }
 
         $now = date('Y-m-d H:i:s');
@@ -960,18 +1007,25 @@ class HelpApiService
             ->find();
 
         if ($exists) {
-            Db::table('sa_member_chat_config')->where('id', $exists['id'])->update([
-                'prompt_text' => $promptText,
+            $payload = [
                 'updated_by' => $memberId,
                 'update_time' => $now,
-            ]);
+            ];
+            if ($hasPromptText) {
+                $payload['prompt_text'] = $promptText;
+            }
+            if ($hasTempSave) {
+                $payload['temp_save'] = $tempSave;
+            }
+            Db::table('sa_member_chat_config')->where('id', $exists['id'])->update($payload);
             return Db::table('sa_member_chat_config')->where('id', $exists['id'])->find() ?: [];
         }
 
         $id = Db::table('sa_member_chat_config')->insertGetId([
             'member_id' => $memberId,
             'chat_mode' => $chatMode,
-            'prompt_text' => $promptText,
+            'prompt_text' => $hasPromptText ? $promptText : '',
+            'temp_save' => $hasTempSave ? $tempSave : '',
             'created_by' => $memberId,
             'updated_by' => $memberId,
             'create_time' => $now,
@@ -1309,7 +1363,6 @@ class HelpApiService
         $sessionId = (int) ($data['session_id'] ?? 0);
         $content = trim((string) ($data['content'] ?? $data['message'] ?? ''));
         $contentType = trim((string) ($data['content_type'] ?? 'text'));
-        $configId = max(0, (int) ($data['config_id'] ?? 0));
 
         if ($content === '') {
             throw new ApiException('消息内容必须填写', 400);
@@ -1332,6 +1385,7 @@ class HelpApiService
             $chatMode = $this->chatMode($data['chat_mode'] ?? '');
             $session = [];
         }
+        $configId = $this->resolveOnlineChatConfigId($memberId, $chatMode, $data);
 
         $history = $sessionId > 0 ? $this->chatHistory($memberId, $sessionId) : [];
         $prompt = $this->chatSystemPrompt($memberId, $chatMode);
@@ -1415,7 +1469,6 @@ class HelpApiService
         $sessionId = (int) ($data['session_id'] ?? 0);
         $content = trim((string) ($data['content'] ?? $data['message'] ?? ''));
         $contentType = trim((string) ($data['content_type'] ?? 'text'));
-        $configId = max(0, (int) ($data['config_id'] ?? 0));
 
         if ($content === '') {
             throw new ApiException('消息内容必须填写', 400);
@@ -1438,6 +1491,7 @@ class HelpApiService
             $chatMode = $this->chatMode($data['chat_mode'] ?? '');
             $session = [];
         }
+        $configId = $this->resolveOnlineChatConfigId($memberId, $chatMode, $data);
 
         $history = $sessionId > 0 ? $this->chatHistory($memberId, $sessionId) : [];
         $prompt = $this->chatSystemPrompt($memberId, $chatMode);
@@ -6766,7 +6820,7 @@ class HelpApiService
 
     private function chatModes(): array
     {
-        return ['doctor', 'companion', 'patient'];
+        return ['doctor', 'companion', 'patient', 'ai_doctor'];
     }
 
     private function runtimeMode(mixed $value): string
@@ -6854,11 +6908,13 @@ class HelpApiService
             'doctor' => ['AI 心理医生', 'AI doctor'],
             'patient' => ['AI 模拟病人', 'AI patient'],
             'companion' => ['AI 心理陪伴', 'AI companion'],
+            'ai_doctor' => ['AI 医生', 'AI clinician'],
         ];
         $descriptions = [
             'doctor' => ['谨慎、温和的心理支持助手', 'Careful and gentle mental health support'],
             'patient' => ['用于角色演练和沟通练习的模拟病人', 'A simulated patient for role-play and communication practice'],
             'companion' => ['稳定、耐心的陪伴式支持助手', 'Steady and patient companion support'],
+            'ai_doctor' => ['帮助整理健康问题、症状和就诊准备的 AI 助手', 'An AI assistant for organizing health concerns, symptoms, and visit preparation'],
         ];
         $chatMode = in_array($chatMode, $this->chatModes(), true) ? $chatMode : 'companion';
         $name = $displayNames[$chatMode];
@@ -6887,6 +6943,41 @@ class HelpApiService
         }
 
         return $value;
+    }
+
+    private function resolveOnlineChatConfigId(int $memberId, string $chatMode, array $data): int
+    {
+        $configId = max(0, (int) ($data['config_id'] ?? 0));
+        if ($configId <= 0) {
+            $tempSave = trim((string) Db::table('sa_member_chat_config')
+                ->where('member_id', $memberId)
+                ->where('chat_mode', $chatMode)
+                ->whereNull('delete_time')
+                ->value('temp_save'));
+            $configId = ctype_digit($tempSave) ? (int) $tempSave : 0;
+        }
+        if ($configId > 0) {
+            $this->assertOnlineChatModel($configId);
+        }
+
+        return $configId;
+    }
+
+    private function assertOnlineChatModel(int $configId): array
+    {
+        $model = Db::table('saiai_config')
+            ->where('id', $configId)
+            ->whereIn('type', self::ONLINE_CHAT_MODEL_TYPES)
+            ->where('status', 1)
+            ->where('model', '<>', '')
+            ->whereNull('delete_time')
+            ->field('id, name, type, model, is_default')
+            ->find();
+        if (!$model) {
+            throw new ApiException('所选在线 AI 模型不存在或未启用，请重新选择', 400);
+        }
+
+        return $model;
     }
 
     private function assertChatSession(int $memberId, int $sessionId): array
@@ -6928,6 +7019,7 @@ class HelpApiService
             'doctor' => '你是一位谨慎、温和的 AI 心理医生助手。请优先安抚情绪、澄清问题、给出可执行建议。你不能冒充真实执业诊断，不要给出绝对化结论。如用户出现自伤、自杀、伤人、幻觉、失控等高风险信号，必须明确建议立刻联系家属、当地急救电话或尽快前往线下精神心理专科就医。',
             'companion' => '你是一位温柔、稳定、耐心的 AI 心理陪伴助手。请多倾听、多共情，避免说教，并帮助用户把当下感受表达清楚。',
             'patient' => '你是一位帮助用户整理病情和感受的 AI 助手。请帮助用户梳理症状、情绪、诱因和需要补充给医生的信息。',
+            'ai_doctor' => '你是一位谨慎的 AI 健康信息助手。请帮助用户整理症状、持续时间、诱因、用药情况和需要向医生询问的问题，并提供可靠的健康常识。你不能做诊断、开药、调整处方或替代真实医生。如出现呼吸困难、胸痛、意识异常、大量出血、自伤风险或其他紧急情况，必须明确建议立即联系当地急救服务并尽快线下就医。',
         ];
         $prompt = $prompts[$chatMode] ?? $prompts['companion'];
         $customPrompt = trim((string) Db::table('sa_member_chat_config')
@@ -7108,6 +7200,10 @@ class HelpApiService
             'patient' => [
                 'zh' => '今天你在情绪、身体或想法上注意到了什么？',
                 'en-US' => 'What did you notice about your mood, body, or thoughts today?',
+            ],
+            'ai_doctor' => [
+                'zh' => '请告诉我你现在最想整理的健康问题，我会帮你准备清晰的就诊信息。',
+                'en-US' => 'Tell me the health concern you want to organize, and I will help prepare clear information for a clinical visit.',
             ],
         ];
         $chatMode = in_array($chatMode, $this->chatModes(), true) ? $chatMode : 'companion';

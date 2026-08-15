@@ -737,6 +737,7 @@ AiRobotProfile _robotProfileFor(
 
 IconData _modeAvatarIcon(String mode) {
   return switch (mode) {
+    'ai_doctor' => Icons.medical_services_rounded,
     'patient' => Icons.healing_rounded,
     'companion' => Icons.volunteer_activism_rounded,
     _ => Icons.smart_toy_rounded,

@@ -12,6 +12,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../chat/application/chat_controller.dart';
 import '../../chat/data/chat_models.dart';
 import '../../chat/presentation/chat_launch_sheet.dart';
+import '../../chat/presentation/chat_online_model_sheet.dart';
 import '../../chat/presentation/chat_prompt_config_sheet.dart';
 import '../../message/application/message_controller.dart';
 
@@ -202,6 +203,10 @@ class HomeDashboardScreen extends ConsumerWidget {
       );
       return;
     }
+    final modelReady = await _selectOnlineModel(context, ref, mode);
+    if (!modelReady || !context.mounted) {
+      return;
+    }
     final promptReady = await _ensureOnlinePrompt(context, ref, mode);
     if (!promptReady || !context.mounted) {
       return;
@@ -223,6 +228,44 @@ class HomeDashboardScreen extends ConsumerWidget {
         return;
       }
       context.showCenteredNotice(error.toString());
+    }
+  }
+
+  Future<bool> _selectOnlineModel(
+    BuildContext context,
+    WidgetRef ref,
+    ChatModeInfo mode,
+  ) async {
+    try {
+      final models = await ref.read(onlineChatModelsProvider.future);
+      if (!context.mounted) {
+        return false;
+      }
+      if (models.isEmpty) {
+        context.showCenteredNotice(
+          _t(context, '后台暂未启用在线文本模型', 'No online text model is enabled'),
+        );
+        return false;
+      }
+      final selected = await showOnlineChatModelSheet(
+        context,
+        models: models,
+        selectedModelId: int.tryParse(mode.tempSave) ?? 0,
+      );
+      if (selected == null || !context.mounted) {
+        return false;
+      }
+      await ref
+          .read(chatRepositoryProvider)
+          .saveConfig(chatMode: mode.chatMode, tempSave: '${selected.id}');
+      ref.invalidate(chatOverviewProvider);
+      ref.invalidate(chatConfigProvider(mode.chatMode));
+      return true;
+    } on Object catch (error) {
+      if (context.mounted) {
+        context.showCenteredNotice(error.toString());
+      }
+      return false;
     }
   }
 
@@ -1031,6 +1074,18 @@ class _ModeVisualData {
           _t(context, '任务建议', 'Tasks'),
         ],
       ),
+      'ai_doctor' => _ModeVisualData(
+        colors: const [Color(0xFF69B9AA), Color(0xFF3F9B8A)],
+        icon: Icons.medical_services_rounded,
+        circleColor: const Color(0xFF8ACBBD),
+        buttonColor: const Color(0xFF3F9B8A),
+        tagColor: const Color(0x33FFFFFF),
+        tags: [
+          _t(context, '症状整理', 'Symptoms'),
+          _t(context, '就诊准备', 'Visit prep'),
+          _t(context, '健康信息', 'Health info'),
+        ],
+      ),
       'patient' => _ModeVisualData(
         colors: const [Color(0xFFFFB24F), Color(0xFFF39C38)],
         icon: Icons.healing_rounded,
@@ -1102,6 +1157,11 @@ class _HomeDashboardPalette {
 String _modeDescription(BuildContext context, String mode) {
   return switch (mode) {
     'doctor' => context.l10n.doctorChatDescription,
+    'ai_doctor' => _t(
+      context,
+      '帮助整理健康问题、症状和就诊准备，不替代真实医生诊疗。',
+      'Organize health concerns, symptoms, and visit preparation without replacing clinical care.',
+    ),
     'patient' => context.l10n.patientChatDescription,
     _ => context.l10n.companionChatDescription,
   };
@@ -1110,6 +1170,7 @@ String _modeDescription(BuildContext context, String mode) {
 String _modeTitle(BuildContext context, String mode) {
   return switch (mode) {
     'doctor' => _t(context, 'AI 心理医生', 'AI doctor'),
+    'ai_doctor' => _t(context, 'AI 医生', 'AI clinician'),
     'patient' => _t(context, 'AI 模拟病人', 'AI patient'),
     _ => _t(context, 'AI 心理陪伴', 'AI companion'),
   };
@@ -1118,6 +1179,7 @@ String _modeTitle(BuildContext context, String mode) {
 Color _modeAccent(String mode) {
   return switch (mode) {
     'doctor' => const Color(0xFF5B86DB),
+    'ai_doctor' => const Color(0xFF3F9B8A),
     'patient' => const Color(0xFFF39C38),
     _ => const Color(0xFFE78B81),
   };

@@ -42,6 +42,14 @@ class ChatRepository {
     return result.data ?? const [];
   }
 
+  Future<List<OnlineChatModel>> fetchOnlineModels() async {
+    final result = await _apiClient.getApi<List<OnlineChatModel>>(
+      '/app/help/chat/models',
+      decode: (value) => _decodeList(value, OnlineChatModel.fromJson),
+    );
+    return result.data ?? const [];
+  }
+
   Future<ChatRealtimeConfig> fetchRealtimeConfig() async {
     final result = await _apiClient.getApi<ChatRealtimeConfig>(
       '/app/help/chat/realtime-config',
@@ -60,11 +68,19 @@ class ChatRepository {
 
   Future<ChatConfig> saveConfig({
     required String chatMode,
-    required String promptText,
+    String? promptText,
+    String? tempSave,
   }) async {
+    if (promptText == null && tempSave == null) {
+      throw ArgumentError('promptText and tempSave cannot both be null');
+    }
     final result = await _apiClient.postApi<ChatConfig>(
       '/app/help/chat/config',
-      data: {'chat_mode': chatMode, 'prompt_text': promptText},
+      data: {
+        'chat_mode': chatMode,
+        if (promptText != null) 'prompt_text': promptText,
+        if (tempSave != null) 'temp_save': tempSave,
+      },
       decode: (value) {
         if (value is Map<String, dynamic>) {
           return ChatConfig.fromJson(value);
@@ -73,8 +89,8 @@ class ChatRepository {
       },
     );
     final config = result.data;
-    if (config == null || config.promptText.trim().isEmpty) {
-      throw const FormatException('聊天提示词保存失败');
+    if (config == null || config.chatMode != chatMode) {
+      throw const FormatException('聊天配置保存失败');
     }
     return config;
   }

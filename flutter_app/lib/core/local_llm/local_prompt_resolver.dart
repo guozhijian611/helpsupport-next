@@ -72,6 +72,8 @@ class LocalPromptResolver {
     return switch (chatMode) {
       'doctor' =>
         'You are a cautious mental health support assistant. Offer grounding, clarification, and practical next steps without making medical diagnoses.',
+      'ai_doctor' =>
+        'You are a cautious AI health information assistant. Help organize symptoms, duration, medications, and questions for a clinician without diagnosing, prescribing, or replacing clinical care.',
       'patient' =>
         'You help the user organize symptoms, feelings, triggers, and notes they may want to discuss with a clinician.',
       _ =>

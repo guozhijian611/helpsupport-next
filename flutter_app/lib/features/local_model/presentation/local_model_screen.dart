@@ -230,6 +230,16 @@ class _EntryBanner extends StatelessWidget {
         const [Color(0xFFFFC46D), Color(0xFFFFAB48)],
         Icons.healing_rounded,
       ),
+      'ai_doctor' => (
+        _t(context, '已切换到本地 AI 医生', 'Local AI clinician ready'),
+        _t(
+          context,
+          '使用本地模型整理健康问题和就诊准备。',
+          'Use an on-device model to organize health concerns and visit preparation.',
+        ),
+        const [Color(0xFF69B9AA), Color(0xFF3F9B8A)],
+        Icons.medical_services_rounded,
+      ),
       _ => (
         _t(context, '已切换到本地心理陪伴', 'Local AI companion ready'),
         _t(
