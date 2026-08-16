@@ -1,15 +1,122 @@
-# OpenB8AiAdmin开发框架
+# HelpSupport Next
 
-# 下一步集成
-1. rabbitmq https://www.workerman.net/plugin/67 ✅
-2. log-reader https://www.workerman.net/plugin/73✅
-3. 后台 redis 和 rabbitmq 队列管理 ✅ 
-4. open-telemetry trace 集成 ✅
-5. xhprof性能分析插件 https://www.workerman.net/plugin/140
-6. Apidoc 通过注解自动生成API接口文档  https://www.workerman.net/plugin/147 ✅
-7. nacos 客户端集成  https://www.workerman.net/plugin/137
-8. ffmpeg
-9. 离线推送通知
-10. mysql 一键导入导出 https://www.workerman.net/plugin/134 ✅
-11. 海报，水印，行为验证图片，HTML转图片
-12. 授权入口、版本切换
+HelpSupport Next 是基于 B8AIAdmin 框架开发的智能健康支持平台，包含 Webman 后端、Vue 3 管理端和 Flutter 移动端。项目围绕 AI 对话、康复计划、医患协作、内容社区与个人健康档案建设，当前仍在持续开发。
+
+## 核心能力
+
+- AI 互动聊天：在线模型、本地 GGUF 模型、会话记录与 AI 医生配置。
+- 多媒体消息：图片上传、点击/长按录音、异步语音输入、AI 语音播放和文本展开。
+- 康复管理：治疗计划、阶段目标、每日任务、评估结果和成长风险追踪。
+- 医生与预约：医生资料、患者管理、排班、预约与积分支付。
+- 内容与社区：素材分类、收藏历史、帖子评论、关注、举报和 AI 内容审核。
+- 个人中心：康复目标、重点触发、日记、回忆录、积分徽章和消息通知。
+- 运营管理：SaiAdmin 后台 CRUD、菜单权限、数据迁移、OpenAPI 文档和调用链路追踪。
+
+## 技术栈
+
+| 层级     | 技术                                                        |
+| -------- | ----------------------------------------------------------- |
+| 后端     | PHP 8.3、Webman、SaiAdmin、ThinkORM、MySQL 8.0、Phinx       |
+| 管理端   | Vue 3、TypeScript、Art Design Pro、Element Plus、Vite、pnpm |
+| 移动端   | Flutter、Riverpod、Dio、Firebase、llama.cpp                 |
+| 基础能力 | RabbitMQ、Redis Queue、OpenTelemetry、hg/apidoc、OpenAPI    |
+
+## 目录结构
+
+```text
+helpsupport-next/
+├── server/          Webman/SaiAdmin 后端与插件运行时
+├── saiadmin-artd/  Vue 3 管理端
+├── flutter_app/    Flutter 用户端
+├── Database/       安装基线、Phinx 迁移与种子数据
+├── OpenAPI/        各应用的 OpenAPI 契约快照
+├── Doc/            部署、接口、队列、支付等专题文档
+├── Project_Doc/    当前项目梳理与历史评审资料
+└── packages/       本仓库维护的扩展包
+```
+
+## 环境要求
+
+- PHP 8.3、Composer
+- MySQL 8.0
+- Node.js 24、pnpm
+- Flutter SDK（需要移动端开发时）
+- Redis / RabbitMQ（需要相关队列功能时）
+
+## 快速开始
+
+### 1. 后端
+
+```bash
+cd server
+composer install
+php webman b8:install
+php start.php start
+```
+
+`b8:install` 用于配置数据库、导入安装基线并执行后续迁移。已安装环境升级时，请使用 `php webman b8:migrate` 处理新迁移。
+
+### 2. 管理端
+
+```bash
+cd saiadmin-artd
+pnpm install
+pnpm dev
+```
+
+生产构建：
+
+```bash
+pnpm build
+```
+
+### 3. Flutter 移动端
+
+```bash
+cd flutter_app
+flutter pub get
+cd ..
+./run_app.sh
+```
+
+`run_app.sh` 会列出可用设备并启动 Flutter 应用。API 基础地址由 `flutter_app/lib/core/api/api_client.dart` 中的 `ApiClient.apiBaseUrl` 统一管理。
+
+## 常用验证
+
+```bash
+# 查看后端路由
+cd server
+php webman route:list
+
+# 检查迁移状态和 dry-run
+php webman b8:migrate:status
+php webman b8:migrate --dry-run
+
+# 验证管理端
+cd ../saiadmin-artd
+pnpm build
+```
+
+Flutter 真机、模拟器与发布构建请参考 [`flutter_app/README.md`](flutter_app/README.md) 和 [`Doc/flutter-release-build.md`](Doc/flutter-release-build.md)。
+
+## 文档导航
+
+- [当前项目梳理](Project_Doc/helpsupport-next-当前项目梳理.md)
+- [互动聊天图片与语音消息](Doc/互动聊天图片与语音消息.md)
+- [Help API 契约](OpenAPI/help/README.md)
+- [APIDOC 与移动端代码生成](Doc/apidoc-unibest.md)
+- [部署指南](Doc/deployment-guide.md)
+- [SAIAI 插件说明](Doc/saiai.md)
+- [通知架构](Doc/notification-architecture.md)
+- [数据库结构规范](Doc/database-schema-standard.md)
+
+## 协作约定
+
+- 后端业务能力优先以 `server/plugin/help/` 的实际路由和实现为准。
+- 数据库变更通过 `Database/migrations/` 中的 Phinx 迁移交付。
+- 接口变更同步更新 APIDOC 注解与 `OpenAPI/` 契约。
+- 不要提交 `.env`、Token、私钥或其他敏感配置。
+
+## 仓库
+
+[https://github.com/guozhijian611/helpsupport-next](https://github.com/guozhijian611/helpsupport-next)
