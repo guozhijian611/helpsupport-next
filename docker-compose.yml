@@ -1,6 +1,44 @@
 name: helpsupport-next
 
 services:
+  secrets-init:
+    image: alpine:3.22
+    restart: "no"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-}
+      DB_PASSWORD: ${DB_PASSWORD:-}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-}
+    command:
+      - sh
+      - -ec
+      - |
+        create_secret() {
+          secret_file="$$1"
+          configured_value="$$2"
+
+          if [ ! -s "$$secret_file" ]; then
+            if [ -n "$$configured_value" ]; then
+              printf '%s' "$$configured_value" > "$$secret_file"
+            else
+              head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$$secret_file"
+            fi
+          fi
+
+          chmod 0444 "$$secret_file"
+        }
+
+        umask 077
+        create_secret /secrets/mysql-root/password "$$MYSQL_ROOT_PASSWORD"
+        create_secret /secrets/database/password "$$DB_PASSWORD"
+        create_secret /secrets/redis/password "$$REDIS_PASSWORD"
+        create_secret /secrets/rabbitmq/password "$$RABBITMQ_PASSWORD"
+    volumes:
+      - mysql_root_secret:/secrets/mysql-root
+      - db_secret:/secrets/database
+      - redis_secret:/secrets/redis
+      - rabbitmq_secret:/secrets/rabbitmq
+
   gateway:
     image: nginx:1.27-alpine
     restart: unless-stopped
@@ -32,14 +70,12 @@ services:
       DB_PORT: 3306
       DB_NAME: ${DB_NAME:-helpsupport}
       DB_USER: ${DB_USER:-helpsupport}
-      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       DB_PREFIX: ""
       DB_CHARSET: utf8mb4
       DB_COLLATION: utf8mb4_general_ci
       CACHE_MODE: redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
       REDIS_DB: ${REDIS_DB:-0}
       REDIS_QUEUE_PREFIX: ${REDIS_QUEUE_PREFIX:-helpsupport_}
       REDIS_QUEUE_MAX_ATTEMPTS: ${REDIS_QUEUE_MAX_ATTEMPTS:-5}
@@ -48,7 +84,6 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_VHOST: /
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-helpsupport}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
       RABBITMQ_DEBUG: "false"
       RABBITMQ_TIMEOUT: ${RABBITMQ_TIMEOUT:-10}
       RABBITMQ_RESTART_INTERVAL: ${RABBITMQ_RESTART_INTERVAL:-5}
@@ -56,7 +91,6 @@ services:
       RABBITMQ_MANAGEMENT_HOST: rabbitmq
       RABBITMQ_MANAGEMENT_PORT: 15672
       RABBITMQ_MANAGEMENT_USERNAME: ${RABBITMQ_USERNAME:-helpsupport}
-      RABBITMQ_MANAGEMENT_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
       RABBITMQ_MANAGEMENT_TIMEOUT: ${RABBITMQ_MANAGEMENT_TIMEOUT:-3}
       WEBMAN_EVENT_LOOP: 'Workerman\Events\Fiber'
       WEBMAN_HTTP_WORKERS: ${WEBMAN_HTTP_WORKERS:-4}
@@ -80,6 +114,8 @@ services:
       OTEL_REQUEST_LOG_MASK_SENSITIVE: "true"
       B8_RUN_MIGRATIONS: ${B8_RUN_MIGRATIONS:-0}
     depends_on:
+      secrets-init:
+        condition: service_completed_successfully
       mysql:
         condition: service_healthy
       redis:
@@ -92,6 +128,9 @@ services:
     volumes:
       - app_runtime:/app/server/runtime
       - app_storage:/app/server/public/storage
+      - db_secret:/run/secrets/helpsupport-database:ro
+      - redis_secret:/run/secrets/helpsupport-redis:ro
+      - rabbitmq_secret:/run/secrets/helpsupport-rabbitmq:ro
     healthcheck:
       test: ["CMD", "php", "/usr/local/bin/helpsupport-healthcheck.php", "8787"]
       interval: 15s
@@ -104,11 +143,14 @@ services:
     image: mysql:8.0.45
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/helpsupport-mysql-root/password
       MYSQL_DATABASE: ${DB_NAME:-helpsupport}
       MYSQL_USER: ${DB_USER:-helpsupport}
-      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      MYSQL_PASSWORD_FILE: /run/secrets/helpsupport-database/password
       TZ: Asia/Shanghai
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_general_ci
@@ -117,11 +159,13 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./Database/b8aiadmin.sql:/docker-entrypoint-initdb.d/001-b8aiadmin.sql:ro
+      - mysql_root_secret:/run/secrets/helpsupport-mysql-root:ro
+      - db_secret:/run/secrets/helpsupport-database:ro
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          'MYSQL_PWD="$${MYSQL_ROOT_PASSWORD}" mysqladmin ping -h 127.0.0.1 -uroot --silent',
+          'MYSQL_PWD="$$(cat /run/secrets/helpsupport-mysql-root/password)" mysqladmin ping -h 127.0.0.1 -uroot --silent',
         ]
       interval: 10s
       timeout: 5s
@@ -131,21 +175,23 @@ services:
   redis:
     image: redis:7.4-alpine
     restart: unless-stopped
-    environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
     command:
       - sh
       - -ec
-      - exec redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"
+      - exec redis-server --appendonly yes --requirepass "$$(cat /run/secrets/helpsupport-redis/password)"
     expose:
       - "6379"
     volumes:
       - redis_data:/data
+      - redis_secret:/run/secrets/helpsupport-redis:ro
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          'redis-cli -a "$${REDIS_PASSWORD}" ping 2>/dev/null | grep -q PONG',
+          'redis-cli -a "$$(cat /run/secrets/helpsupport-redis/password)" ping 2>/dev/null | grep -q PONG',
         ]
       interval: 10s
       timeout: 5s
@@ -156,13 +202,23 @@ services:
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-helpsupport}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
       RABBITMQ_DEFAULT_VHOST: /
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+    entrypoint:
+      - sh
+      - -ec
+    command:
+      - |
+        export RABBITMQ_DEFAULT_PASS="$$(cat /run/secrets/helpsupport-rabbitmq/password)"
+        exec docker-entrypoint.sh rabbitmq-server
     expose:
       - "5672"
       - "15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      - rabbitmq_secret:/run/secrets/helpsupport-rabbitmq:ro
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 15s
@@ -171,6 +227,10 @@ services:
       start_period: 30s
 
 volumes:
+  mysql_root_secret:
+  db_secret:
+  redis_secret:
+  rabbitmq_secret:
   app_runtime:
   app_storage:
   mysql_data:

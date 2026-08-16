@@ -6,13 +6,14 @@ PHP 运行层基于 Alpine 3.22 的预编译 PHP 8.3 软件包，`gd`、`intl`�
 
 ## 服务结构
 
-| 服务       | 作用                                              | 对外端口                    |
-| ---------- | ------------------------------------------------- | --------------------------- |
-| `gateway`  | Nginx 入口，转发 HTTP、上传、SSE 和实时 WebSocket | `8080`                      |
-| `app`      | Webman、SaiAdmin、Help 业务和管理端静态资源       | 仅 Compose 内网 `8787/8791` |
-| `mysql`    | MySQL 8.0 业务数据                                | 仅 Compose 内网             |
-| `redis`    | 缓存和 Redis Queue                                | 仅 Compose 内网             |
-| `rabbitmq` | RabbitMQ 及其管理 API                             | 仅 Compose 内网             |
+| 服务           | 作用                                              | 对外端口                    |
+| -------------- | ------------------------------------------------- | --------------------------- |
+| `secrets-init` | 首次部署时生成并持久化内部服务密码                | 无                          |
+| `gateway`      | Nginx 入口，转发 HTTP、上传、SSE 和实时 WebSocket | `8080`                      |
+| `app`          | Webman、SaiAdmin、Help 业务和管理端静态资源       | 仅 Compose 内网 `8787/8791` |
+| `mysql`        | MySQL 8.0 业务数据                                | 仅 Compose 内网             |
+| `redis`        | 缓存和 Redis Queue                                | 仅 Compose 内网             |
+| `rabbitmq`     | RabbitMQ 及其管理 API                             | 仅 Compose 内网             |
 
 Openship 的域名应路由到 `gateway` 服务的容器端口 `8080`。`/v1/realtime` 会由网关自动转发到 Webman 的 `8791` 实时语音端口，其余请求转发到 `8787`。
 网关根路径会直接加载管理端入口，`/healthz` 仅用于容器健康检查。
@@ -21,7 +22,7 @@ Openship 的域名应路由到 `gateway` 服务的容器端口 `8080`。`/v1/rea
 
 1. 在 Openship 中创建项目并连接本 Git 仓库。
 2. 选择 Compose 部署，配置文件使用根目录的 `docker-compose.yml`。
-3. 在项目环境变量中设置下表的必填项。
+3. 无需填写数据库、Redis 或 RabbitMQ 密码，首次部署会自动生成。
 4. 将域名或 Openship 预览域名绑定到 `gateway:8080`。
 5. 首次空库部署时，确认目标数据库和卷后，临时设置 `B8_RUN_MIGRATIONS=1`。
 6. 迁移成功后将 `B8_RUN_MIGRATIONS` 改回 `0`，避免之后每次重建都自动执行生产迁移。
@@ -33,16 +34,13 @@ openship init
 openship deploy
 ```
 
-## 必填环境变量
+## 自动生成的内部密码
 
-| 变量                  | 说明                                        |
-| --------------------- | ------------------------------------------- |
-| `MYSQL_ROOT_PASSWORD` | MySQL root 密码，仅用于容器初始化和健康检查 |
-| `DB_PASSWORD`         | HelpSupport 业务数据库账号密码              |
-| `REDIS_PASSWORD`      | Redis 访问密码                              |
-| `RABBITMQ_PASSWORD`   | RabbitMQ 业务账号密码                       |
+`secrets-init` 会在首次启动时为 MySQL root、业务数据库账号、Redis 和 RabbitMQ 分别生成 64 位十六进制随机密码。密码存放在四个独立命名卷中，业务容器只读挂载自身所需的密钥卷；后续重新构建或启动会继续复用已有密码。
 
-其他可选项可从 `.env.openship.example` 复制。不要将真实密码、Token 或 AI Key 提交到 Git，应在 Openship 的项目环境变量/密钥管理中配置。
+部署前不需要在 Openship 填写任何密码变量。如需在全新数据卷上指定密码，可在第一次部署前选填 `MYSQL_ROOT_PASSWORD`、`DB_PASSWORD`、`REDIS_PASSWORD` 和 `RABBITMQ_PASSWORD`；密钥卷一旦生成，后续修改这些变量不会覆盖已有密码。
+
+其他可选项可从 `.env.openship.example` 复制。不要将真实密码、Token 或 AI Key 提交到 Git。
 
 AI 功能按需配置：
 
@@ -66,20 +64,21 @@ B8_RUN_MIGRATIONS=1
 
 Compose 定义了以下命名卷：
 
+- `mysql_root_secret`：MySQL root 密码。
+- `db_secret`：业务数据库账号密码。
+- `redis_secret`：Redis 密码。
+- `rabbitmq_secret`：RabbitMQ 密码。
 - `mysql_data`：MySQL 数据。
 - `redis_data`：Redis AOF 数据。
 - `rabbitmq_data`：RabbitMQ 队列与元数据。
 - `app_storage`：用户上传文件。
 - `app_runtime`：Webman 日志、指标和运行状态。
 
-删除 Compose 项目或卷会丢失业务数据。在 Openship 中重建、迁移或清理服务前，请先备份 `mysql_data` 和 `app_storage`。
+删除 Compose 项目或卷会丢失业务数据或内部密码。在 Openship 中重建、迁移或清理服务前，请同时备份四个密钥卷、`mysql_data` 和 `app_storage`。不能只删除密钥卷并保留对应的数据卷，否则自动生成的新密码将无法访问已有数据。
 
 ## 本地验证
 
 ```bash
-cp .env.openship.example .env
-# 先替换 .env 中的所有示例密码
-
 docker compose config
 docker compose build app
 docker compose up -d
@@ -90,7 +89,7 @@ docker compose ps
 
 ```bash
 curl -I http://127.0.0.1:8080/
-docker compose exec app php webman b8:migrate:status
+docker compose exec app helpsupport-entrypoint php webman b8:migrate:status
 docker compose logs --tail=200 app gateway
 ```
 
