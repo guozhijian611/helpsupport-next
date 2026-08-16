@@ -105,6 +105,7 @@ Flutter 真机、模拟器与发布构建请参考 [`flutter_app/README.md`](flu
 - [互动聊天图片与语音消息](Doc/互动聊天图片与语音消息.md)
 - [Help API 契约](OpenAPI/help/README.md)
 - [APIDOC 与移动端代码生成](Doc/apidoc-unibest.md)
+- [Openship Docker Compose 部署](Doc/openship-compose.md)
 - [部署指南](Doc/deployment-guide.md)
 - [SAIAI 插件说明](Doc/saiai.md)
 - [通知架构](Doc/notification-architecture.md)

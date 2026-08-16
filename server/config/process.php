@@ -22,7 +22,7 @@ return [
     'webman' => [
         'handler' => Http::class,
         'listen' => 'http://0.0.0.0:8787',
-        'count' => cpu_count() * 4,
+        'count' => max(1, (int) env('WEBMAN_HTTP_WORKERS', cpu_count() * 4)),
         'user' => '',
         'group' => '',
         'reusePort' => false,
@@ -54,7 +54,10 @@ return [
                 'php', 'html', 'htm', 'env'
             ],
             'options' => [
-                'enable_file_monitor' => !in_array('-d', $argv) && DIRECTORY_SEPARATOR === '/',
+                'enable_file_monitor' => filter_var(
+                    env('WEBMAN_FILE_MONITOR', !in_array('-d', $argv) && DIRECTORY_SEPARATOR === '/'),
+                    FILTER_VALIDATE_BOOLEAN
+                ),
                 'enable_memory_monitor' => DIRECTORY_SEPARATOR === '/',
             ]
         ]
