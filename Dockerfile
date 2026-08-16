@@ -21,6 +21,7 @@ ENV APP_ENV=production \
 
 RUN apk add --no-cache \
         ca-certificates \
+        su-exec \
         php83 \
         php83-bcmath \
         php83-curl \
@@ -86,8 +87,6 @@ RUN rm -f /app/server/.env \
     && mkdir -p /app/server/runtime/logs /app/server/public/storage \
     && chown -R app:app /app \
     && chmod 0755 /usr/local/bin/helpsupport-entrypoint
-
-USER app
 
 EXPOSE 8787 8791
 

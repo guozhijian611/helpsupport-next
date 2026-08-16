@@ -2,37 +2,15 @@ name: helpsupport-next
 
 services:
   secrets-init:
-    image: alpine:3.22
+    image: ${APP_IMAGE:-helpsupport-next:local}
     restart: "no"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-}
       DB_PASSWORD: ${DB_PASSWORD:-}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-helpsupport}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-}
-    command:
-      - sh
-      - -ec
-      - |
-        create_secret() {
-          secret_file="$$1"
-          configured_value="$$2"
-
-          if [ ! -s "$$secret_file" ]; then
-            if [ -n "$$configured_value" ]; then
-              printf '%s' "$$configured_value" > "$$secret_file"
-            else
-              head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$$secret_file"
-            fi
-          fi
-
-          chmod 0444 "$$secret_file"
-        }
-
-        umask 077
-        create_secret /secrets/mysql-root/password "$$MYSQL_ROOT_PASSWORD"
-        create_secret /secrets/database/password "$$DB_PASSWORD"
-        create_secret /secrets/redis/password "$$REDIS_PASSWORD"
-        create_secret /secrets/rabbitmq/password "$$RABBITMQ_PASSWORD"
+    command: ["init-secrets"]
     volumes:
       - mysql_root_secret:/secrets/mysql-root
       - db_secret:/secrets/database
@@ -178,10 +156,7 @@ services:
     depends_on:
       secrets-init:
         condition: service_completed_successfully
-    command:
-      - sh
-      - -ec
-      - exec redis-server --appendonly yes --requirepass "$$(cat /run/secrets/helpsupport-redis/password)"
+    command: ["redis-server", "/run/secrets/helpsupport-redis/redis.conf"]
     expose:
       - "6379"
     volumes:
@@ -201,18 +176,10 @@ services:
     image: rabbitmq:4.1-management-alpine
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-helpsupport}
-      RABBITMQ_DEFAULT_VHOST: /
+      RABBITMQ_CONFIG_FILE: /run/secrets/helpsupport-rabbitmq/rabbitmq
     depends_on:
       secrets-init:
         condition: service_completed_successfully
-    entrypoint:
-      - sh
-      - -ec
-    command:
-      - |
-        export RABBITMQ_DEFAULT_PASS="$$(cat /run/secrets/helpsupport-rabbitmq/password)"
-        exec docker-entrypoint.sh rabbitmq-server
     expose:
       - "5672"
       - "15672"

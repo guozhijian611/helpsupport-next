@@ -38,6 +38,8 @@ openship deploy
 
 `secrets-init` 会在首次启动时为 MySQL root、业务数据库账号、Redis 和 RabbitMQ 分别生成 64 位十六进制随机密码。密码存放在四个独立命名卷中，业务容器只读挂载自身所需的密钥卷；后续重新构建或启动会继续复用已有密码。
 
+初始化逻辑由应用镜像内置的 `init-secrets` 命令执行。Redis 和 RabbitMQ 直接读取密钥卷中的生成配置文件，不依赖 Compose 内的 shell、变量替换或自定义 entrypoint，避免 Openship 将多行启动命令拆成错误参数。
+
 部署前不需要在 Openship 填写任何密码变量。如需在全新数据卷上指定密码，可在第一次部署前选填 `MYSQL_ROOT_PASSWORD`、`DB_PASSWORD`、`REDIS_PASSWORD` 和 `RABBITMQ_PASSWORD`；密钥卷一旦生成，后续修改这些变量不会覆盖已有密码。
 
 其他可选项可从 `.env.openship.example` 复制。不要将真实密码、Token 或 AI Key 提交到 Git。
