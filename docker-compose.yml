@@ -2,7 +2,10 @@ name: helpsupport-next
 
 services:
   secrets-init:
-    image: ${APP_IMAGE:-helpsupport-next:local}
+    image: ${SECRETS_IMAGE:-helpsupport-secrets:local}
+    build:
+      context: .
+      dockerfile: docker/secrets.Dockerfile
     restart: "no"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-}
