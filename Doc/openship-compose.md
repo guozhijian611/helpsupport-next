@@ -1,6 +1,6 @@
 # Openship Docker Compose 部署
 
-本仓库根目录的 `docker-compose.yml` 用于在 Openship 中以 Compose 多服务项目运行 HelpSupport Next。构建过程会同时完成 PHP 依赖安装和 Vue 管理端编译，运行时不需要在容器内再执行 Composer 或 pnpm。
+本仓库根目录的 `docker-compose.yml` 用于在 Openship 中以 Compose 多服务项目运行 HelpSupport Next。构建过程会同时完成 PHP 依赖安装和 Vue 管理端编译，并将 Nginx 配置与 MySQL 初始化 SQL 烘焙进对应镜像；运行时不需要仓库 bind mount，也不需要在容器内再执行 Composer 或 pnpm。
 
 PHP 运行层基于 Alpine 3.22 的预编译 PHP 8.3 软件包，`gd`、`intl`、MySQL、Redis 和 OpenTelemetry 等扩展均直接安装二进制包，不在 Openship 服务器上执行 `phpize`、PECL 或 C/C++ 源码编译。
 
