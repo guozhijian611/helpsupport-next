@@ -7,6 +7,8 @@
 **/.env
 **/.env.*
 !server/.env.example
+!saiadmin-artd/.env
+!saiadmin-artd/.env.production
 
 **/node_modules
 **/vendor
