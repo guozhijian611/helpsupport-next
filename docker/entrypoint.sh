@@ -100,9 +100,6 @@ run_migrations() {
   printf '%s\n' 'Checking database migration status...'
   run_as_app php webman b8:migrate:status
 
-  printf '%s\n' 'Previewing database migrations...'
-  run_as_app php webman b8:migrate --dry-run
-
   printf '%s\n' 'Applying database migrations...'
   run_as_app php webman b8:migrate
 }
@@ -113,7 +110,7 @@ case "${1:-serve}" in
     ;;
   serve)
     load_application_secrets
-    if [ "${B8_RUN_MIGRATIONS:-0}" = "1" ]; then
+    if [ "${B8_RUN_MIGRATIONS:-1}" = "1" ]; then
       run_migrations
     else
       printf '%s\n' 'Database migrations are disabled (B8_RUN_MIGRATIONS=0).'

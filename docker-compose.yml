@@ -94,7 +94,7 @@ services:
       OTEL_REQUEST_LOG_CONSOLE: "false"
       OTEL_REQUEST_LOG_INCLUDE_HEADERS: "false"
       OTEL_REQUEST_LOG_MASK_SENSITIVE: "true"
-      B8_RUN_MIGRATIONS: ${B8_RUN_MIGRATIONS:-0}
+      B8_RUN_MIGRATIONS: ${B8_RUN_MIGRATIONS:-1}
     depends_on:
       secrets-init:
         condition: service_completed_successfully
