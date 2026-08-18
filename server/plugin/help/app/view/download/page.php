@@ -8,12 +8,15 @@ $pageUrl = $e($data['page_url'] ?? '');
 $qrSvg = (string) ($data['qr_svg'] ?? '');
 $appStoreUrl = $e($data['store']['app_store_url'] ?? '');
 $googlePlayUrl = $e($data['store']['google_play_url'] ?? '');
+$testflightPublicUrl = $e($data['testflight']['public_url'] ?? '');
+$testflightInternalUrl = $e($data['testflight']['internal_url'] ?? '');
 $apkUrl = $e($data['dev']['apk_url'] ?? '');
 $ipaUrl = $e($data['dev']['ipa_url'] ?? '');
 $otaUrl = $e($data['ota_url'] ?? '');
 $hasStore = !empty($data['has_store']);
+$hasTestflight = !empty($data['has_testflight']);
 $hasDev = !empty($data['has_dev']);
-$hasAny = $hasStore || $hasDev;
+$hasAny = $hasStore || $hasTestflight || $hasDev;
 $initial = $e(mb_substr((string) ($data['name'] ?? 'H'), 0, 1));
 ?>
 <!DOCTYPE html>
@@ -211,6 +214,18 @@ $initial = $e(mb_substr((string) ($data['name'] ?? 'H'), 0, 1));
                 <svg viewBox="0 0 24 24"><path d="M4.2 2.8 14.7 12 4.2 21.2c-.5-.3-.8-.8-.8-1.4V4.2c0-.6.3-1.1.8-1.4zm12.1 10.6 2.4 2.4c.8-.5 2.3-1.4 2.3-3.8s-1.5-3.3-2.3-3.8l-2.4 2.4 1.2 1.4-1.2 1.4zm-1.6-1.4L5.6 3.4l9.6 9.6-2.5 2.4z"/></svg>
                 Google Play
               </a>
+            <?php endif; ?>
+          </div>
+        <?php endif; ?>
+
+        <?php if ($hasTestflight): ?>
+          <h2 class="section-title">TestFlight</h2>
+          <div class="actions" style="margin-bottom: 22px;">
+            <?php if ($testflightPublicUrl !== ''): ?>
+              <a class="btn ios" data-platform="ios" href="<?= $testflightPublicUrl ?>">TestFlight 公共测试</a>
+            <?php endif; ?>
+            <?php if ($testflightInternalUrl !== ''): ?>
+              <a class="btn secondary" data-platform="ios" href="<?= $testflightInternalUrl ?>">TestFlight 内部测试</a>
             <?php endif; ?>
           </div>
         <?php endif; ?>

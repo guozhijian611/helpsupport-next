@@ -32,6 +32,8 @@ class CommonController extends OpenController
     #[Apidoc\Returned('download', type: 'object', desc: 'App 下载配置')]
     #[Apidoc\Returned('download.google_play_url', type: 'string', desc: 'Google Play 商店链接')]
     #[Apidoc\Returned('download.app_store_url', type: 'string', desc: 'App Store 商店链接')]
+    #[Apidoc\Returned('download.testflight_public_url', type: 'string', desc: 'TestFlight 公共测试链接')]
+    #[Apidoc\Returned('download.testflight_internal_url', type: 'string', desc: 'TestFlight 内部测试链接')]
     #[Apidoc\Returned('download.dev_apk_url', type: 'string', desc: '开发版 APK 下载链接')]
     #[Apidoc\Returned('download.dev_ipa_url', type: 'string', desc: '开发版 IPA 下载链接')]
     #[Apidoc\Returned('member_platforms', type: 'array', desc: '已初始化的第三方会员平台')]
