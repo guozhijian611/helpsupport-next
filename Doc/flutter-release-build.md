@@ -251,6 +251,18 @@ Android 签名失败：
 - 检查 `android/key.properties` 的路径和密码。
 - 检查 `android/app/build.gradle.kts` 是否仍使用 debug signing。
 
+Android 打包时从 Maven Central 下载中断（`Remote host terminated the handshake`、`Premature end of Content-Length`）：
+
+- Gradle 默认会直连 `repo.maven.apache.org`。仓库已在 `android/settings.gradle.kts` 与 `android/build.gradle.kts` 优先使用阿里云 Maven 镜像。
+- 若仍失败，删除可能损坏的半截缓存后再打：
+
+```bash
+rm -rf ~/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-compiler-embeddable
+rm -rf ~/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-build-tools-compat
+```
+
+- 然后不要重编 llama，直接重跑 `./package_release.sh`。
+
 iOS 导出失败：
 
 - 打开 `ios/Runner.xcworkspace`，确认 Xcode 登录账号、Team、Bundle ID 和 Signing & Capabilities。
