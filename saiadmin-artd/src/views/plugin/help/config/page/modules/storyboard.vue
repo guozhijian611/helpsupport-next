@@ -43,6 +43,9 @@
           <div v-else class="storyboard-thumb-empty">未上传图片</div>
         </div>
         <div class="storyboard-title">{{ cardTitle(slide) }}</div>
+        <div class="storyboard-action">
+          {{ cardButton(slide) }}
+        </div>
         <div class="storyboard-locales">
           <ElTag
             v-for="item in localeChips(slide)"
@@ -90,6 +93,7 @@
   import { VueDraggable } from 'vue-draggable-plus'
   import {
     LOCALE_OPTIONS,
+    actionTypeLabel,
     localeLabel,
     missingPreferredLocales,
     normalizeImageUrl,
@@ -144,6 +148,14 @@
 
   const cardTitle = (slide: OnboardingSlide) => {
     return pickSlidePage(slide, props.locale)?.title || '未命名页面'
+  }
+
+  const cardButton = (slide: OnboardingSlide) => {
+    const page = pickSlidePage(slide, props.locale)
+    if (!page) return '未配置按钮'
+    const action = actionTypeLabel(page.action_type)
+    const text = page.button_text || '未填写文案'
+    return `${text} · ${action}`
   }
 
   const localeChips = (slide: OnboardingSlide) => {
@@ -255,6 +267,15 @@
   .storyboard-title {
     overflow: hidden;
     font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .storyboard-action {
+    overflow: hidden;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
     text-overflow: ellipsis;
     white-space: nowrap;
   }

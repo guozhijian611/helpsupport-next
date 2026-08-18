@@ -2,7 +2,7 @@
   <div class="phone-preview">
     <div class="phone-head">
       <b>手机预览</b>
-      <span>{{ localeLabel(locale) }} · 第 {{ pageNumber }} / {{ total }} 页</span>
+      <span>{{ localeLabel(locale) }} · 第 {{ pageNumber }} / {{ total }} 页{{ actionHint ? ` · ${actionHint}` : '' }}</span>
     </div>
     <div class="phone-shell">
       <div class="phone-screen">
@@ -19,7 +19,7 @@
           <img v-if="imageSrc" :src="imageSrc" alt="" />
           <ArtSvgIcon v-else icon="ri:image-line" class="phone-image-empty" />
         </div>
-        <div v-if="isLast && page" class="phone-button">
+        <div v-if="page" class="phone-button">
           {{ page.button_text || continueText }}
         </div>
         <div class="phone-dots">
@@ -41,6 +41,7 @@
 <script setup lang="ts">
   import { computed } from 'vue'
   import {
+    actionTypeLabel,
     localeLabel,
     normalizeImageUrl,
     pickSlidePage,
@@ -61,15 +62,20 @@
 
   const total = computed(() => Math.max(props.slides.length, 1))
   const pageNumber = computed(() => (props.slides.length === 0 ? 0 : props.selectedIndex + 1))
-  const isLast = computed(
-    () => props.slides.length > 0 && props.selectedIndex === props.slides.length - 1
-  )
   const slide = computed(() => props.slides[props.selectedIndex])
   const page = computed(() => pickSlidePage(slide.value, props.locale))
   const imageSrc = computed(() => (page.value?.image ? normalizeImageUrl(page.value.image) : ''))
   const skipText = computed(() => (props.locale.startsWith('zh') ? '跳过' : 'Skip'))
   const languageText = computed(() => (props.locale.startsWith('zh') ? '中文' : 'EN'))
   const continueText = computed(() => (props.locale.startsWith('zh') ? '继续' : 'Continue'))
+  const actionHint = computed(() => {
+    if (!page.value) return ''
+    const action = actionTypeLabel(page.value.action_type)
+    if (page.value.action_type === 'route' || page.value.action_type === 'external_url') {
+      return page.value.action_value ? `${action} · ${page.value.action_value}` : action
+    }
+    return action
+  })
   const fallbackHint = computed(() => {
     if (!page.value || page.value.locale === props.locale) return ''
     if (props.locale === 'zh-CN' && page.value.locale === 'zh') return ''

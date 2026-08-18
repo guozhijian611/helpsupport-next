@@ -152,42 +152,41 @@ class _OnboardingPagerState extends State<_OnboardingPager> {
               }),
             ),
           ),
-          if (isLast)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 124 * scale,
-              child: Center(
-                child: SizedBox(
-                  width: 256 * scale,
-                  height: 64 * scale,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: BorderSide(color: Colors.white, width: 2 * scale),
-                      padding: EdgeInsets.symmetric(horizontal: 18 * scale),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(50 * scale),
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 17,
-                        height: 1.15,
-                        fontWeight: FontWeight.w700,
-                      ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 124 * scale,
+            child: Center(
+              child: SizedBox(
+                width: 256 * scale,
+                height: 64 * scale,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: BorderSide(color: Colors.white, width: 2 * scale),
+                    padding: EdgeInsets.symmetric(horizontal: 18 * scale),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50 * scale),
                     ),
-                    onPressed: () => _handleAction(context, item, isLast),
-                    child: Text(
-                      item.buttonText.isNotEmpty
-                          ? item.buttonText
-                          : context.l10n.continueLabel,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    textStyle: const TextStyle(
+                      fontSize: 17,
+                      height: 1.15,
+                      fontWeight: FontWeight.w700,
                     ),
+                  ),
+                  onPressed: () => _handleAction(context, item, isLast),
+                  child: Text(
+                    item.buttonText.isNotEmpty
+                        ? item.buttonText
+                        : context.l10n.continueLabel,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
             ),
+          ),
         ],
       ),
     );

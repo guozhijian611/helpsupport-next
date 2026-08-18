@@ -38,7 +38,7 @@
         <sa-image-upload v-model="formData.image" :limit="1" :multiple="false" />
       </el-form-item>
       <el-form-item label="按钮文案" prop="button_text">
-        <el-input v-model="formData.button_text" placeholder="最后一页会显示这个按钮" />
+        <el-input v-model="formData.button_text" placeholder="当前页底部按钮文案" />
       </el-form-item>
       <el-form-item label="按钮动作" prop="action_type">
         <el-select v-model="formData.action_type" placeholder="请选择动作类型">
