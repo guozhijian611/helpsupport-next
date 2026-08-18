@@ -78,7 +78,7 @@ cd ..
 ./run_app.sh
 ```
 
-`run_app.sh` 会列出可用设备并启动 Flutter 应用。API 基础地址由 `flutter_app/lib/core/api/api_client.dart` 中的 `ApiClient.apiBaseUrl` 统一管理。
+`run_app.sh` 会列出可用设备并启动 Flutter 应用。API 基础地址由 `flutter_app/lib/core/api/api_client.dart` 中的 `ApiClient.apiBaseUrl` 统一管理。正式包可用根目录 `./package_release.sh` 打包 APK、AAB 和 IPA。
 
 ## 常用验证
 

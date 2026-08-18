@@ -23,7 +23,13 @@ AUTO_LAUNCH_ANDROID_EMULATOR=0 ./run_app.sh
 
 ## 正式包打包
 
-APK、AAB 和 IPA 统一使用发布脚本：
+APK、AAB 和 IPA 统一使用发布脚本。仓库根目录可以直接执行别名：
+
+```bash
+./package_release.sh
+```
+
+也可以在 `flutter_app/` 目录执行：
 
 ```bash
 ./tool/package_release.sh
@@ -37,6 +43,8 @@ APK、AAB 和 IPA 统一使用发布脚本：
 ./tool/package_release.sh aab
 ./tool/package_release.sh ipa --export-method ad-hoc
 ```
+
+仓库根目录对应命令是 `./package_release.sh`，参数相同。
 
 完整说明见 `../Doc/flutter-release-build.md`。
 

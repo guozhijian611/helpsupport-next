@@ -1,10 +1,18 @@
 # Flutter 正式包打包说明
 
-本文档说明 `flutter_app/` 的 Android APK、Android App Bundle 和 iOS IPA 打包流程。打包脚本位于：
+本文档说明 `flutter_app/` 的 Android APK、Android App Bundle 和 iOS IPA 打包流程。仓库根目录提供打包脚本别名：
+
+```bash
+./package_release.sh
+```
+
+实际实现位于：
 
 ```bash
 flutter_app/tool/package_release.sh
 ```
+
+根目录脚本会把全部参数原样转给上述实现，用法完全一致。
 
 Debug 与正式包默认都走 `ApiClient.packagedApiBaseUrl`：
 
@@ -14,7 +22,13 @@ https://help.openb8.org
 
 ## 快速打包和交互选择
 
-在 `flutter_app/` 目录执行：
+在仓库根目录执行：
+
+```bash
+./package_release.sh
+```
+
+也可以在 `flutter_app/` 目录执行：
 
 ```bash
 ./tool/package_release.sh
@@ -40,70 +54,72 @@ https://help.openb8.org
 
 ## 常用命令
 
+下列命令在仓库根目录用 `./package_release.sh`，在 `flutter_app/` 目录用 `./tool/package_release.sh`，参数相同。
+
 只打 Android APK 和 AAB：
 
 ```bash
-./tool/package_release.sh android
+./package_release.sh android
 ```
 
 只打 APK：
 
 ```bash
-./tool/package_release.sh apk
+./package_release.sh apk
 ```
 
 只打 AAB：
 
 ```bash
-./tool/package_release.sh aab
+./package_release.sh aab
 ```
 
 只打 iOS IPA：
 
 ```bash
-./tool/package_release.sh ipa
+./package_release.sh ipa
 ```
 
 指定版本号和构建号：
 
 ```bash
-./tool/package_release.sh --build-name 1.0.0 --build-number 2
+./package_release.sh --build-name 1.0.0 --build-number 2
 ```
 
 iOS 内部分发包：
 
 ```bash
-./tool/package_release.sh ipa --export-method ad-hoc
+./package_release.sh ipa --export-method ad-hoc
 ```
 
 iOS 开发签名包：
 
 ```bash
-./tool/package_release.sh ipa --export-method development
+./package_release.sh ipa --export-method development
 ```
 
 Android 按 ABI 拆分 APK：
 
 ```bash
-./tool/package_release.sh apk --split-per-abi
+./package_release.sh apk --split-per-abi
 ```
 
 强制清理后重新打包：
 
 ```bash
-./tool/package_release.sh --clean
+./package_release.sh --clean
 ```
 
 跳过 `flutter pub get`：
 
 ```bash
-./tool/package_release.sh --no-pub-get
+./package_release.sh --no-pub-get
 ```
 
 只打印将执行的命令，不实际构建：
 
 ```bash
-./tool/package_release.sh android --dry-run
+./package_release.sh android --dry-run
 ```
 
 也可以在交互菜单最后选择 dry-run。
@@ -134,13 +150,13 @@ keyPassword=你的 key 密码
 仓库已有 `android/app/src/main/jniLibs/arm64-v8a/` 动态库。需要重新构建本地模型 native runtime 时，再显式执行：
 
 ```bash
-BUILD_ANDROID_LLAMA=1 ./tool/package_release.sh android
+BUILD_ANDROID_LLAMA=1 ./package_release.sh android
 ```
 
 或：
 
 ```bash
-./tool/package_release.sh apk --android-llama
+./package_release.sh apk --android-llama
 ```
 
 该过程会拉取和编译 `llama.cpp`，耗时明显长于普通 Flutter 打包。
@@ -148,7 +164,7 @@ BUILD_ANDROID_LLAMA=1 ./tool/package_release.sh android
 如需额外打 x86_64 模拟器动态库：
 
 ```bash
-LLAMA_ANDROID_ABIS="arm64-v8a x86_64" BUILD_ANDROID_LLAMA=1 ./tool/package_release.sh apk
+LLAMA_ANDROID_ABIS="arm64-v8a x86_64" BUILD_ANDROID_LLAMA=1 ./package_release.sh apk
 ```
 
 ## iOS 签名和导出方式
@@ -187,13 +203,13 @@ security find-identity -v -p codesigning | grep -E 'Apple Distribution|iOS Distr
 脚本默认使用 `app-store`：
 
 ```bash
-./tool/package_release.sh ipa
+./package_release.sh ipa
 ```
 
 如需 ad-hoc：
 
 ```bash
-./tool/package_release.sh ipa --export-method ad-hoc
+./package_release.sh ipa --export-method ad-hoc
 ```
 
 ## 版本号
@@ -214,7 +230,7 @@ version: 1.0.0+1
 发布新包时必须递增 `--build-number`。例如：
 
 ```bash
-./tool/package_release.sh all --build-name 1.0.0 --build-number 3
+./package_release.sh all --build-name 1.0.0 --build-number 3
 ```
 
 ## 打包前检查
