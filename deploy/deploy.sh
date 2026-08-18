@@ -7,6 +7,7 @@ ROOT_DIR="$(cd "$DEPLOY_DIR/.." && pwd)"
 FRONTEND_DIR="$ROOT_DIR/saiadmin-artd"
 SERVER_DIR="$ROOT_DIR/server"
 PACKAGES_DIR="$ROOT_DIR/packages"
+DATABASE_DIR="$ROOT_DIR/Database"
 
 REMOTE="${REMOTE:-b8org}"
 REMOTE_ENV="${REMOTE_ENV:-LC_ALL=C LANG=C}"
@@ -17,6 +18,7 @@ REMOTE_ROOT="${REMOTE_ROOT:-/www/wwwroot/helpsupport-next}"
 REMOTE_ROOT="${REMOTE_ROOT%/}"
 REMOTE_SERVER_DIR="$REMOTE_ROOT/server"
 REMOTE_PACKAGES_DIR="$REMOTE_ROOT/packages"
+REMOTE_DATABASE_DIR="$REMOTE_ROOT/Database"
 REMOTE_PUBLIC_DIR="$REMOTE_SERVER_DIR/public"
 REMOTE_ADMIN_DIR="$REMOTE_PUBLIC_DIR/admin"
 REMOTE_STORAGE_DIR="$REMOTE_PUBLIC_DIR/storage"
@@ -136,6 +138,7 @@ echo "rsync SSH：${RSYNC_SSH}"
 echo "目标目录：${REMOTE_ROOT}"
 echo "server 目标：${REMOTE_SERVER_DIR}"
 echo "packages 目标：${REMOTE_PACKAGES_DIR}"
+echo "Database 目标：${REMOTE_DATABASE_DIR}"
 echo "admin 目标：${REMOTE_ADMIN_DIR}"
 echo "编译 admin：${BUILD_ADMIN}"
 echo "同步数据库：${SYNC_DB}"
@@ -212,10 +215,10 @@ fi
 
 if [[ "$DRY_RUN" == "1" ]]; then
   log "预览模式：跳过创建服务器目录"
-  echo "将执行：ssh ${REMOTE} \"${REMOTE_ENV} mkdir -p '${REMOTE_SERVER_DIR}' '${REMOTE_PACKAGES_DIR}' '${REMOTE_PUBLIC_DIR}' '${REMOTE_ADMIN_DIR}' '${REMOTE_STORAGE_DIR}'\""
+  echo "将执行：ssh ${REMOTE} \"${REMOTE_ENV} mkdir -p '${REMOTE_SERVER_DIR}' '${REMOTE_PACKAGES_DIR}' '${REMOTE_DATABASE_DIR}' '${REMOTE_PUBLIC_DIR}' '${REMOTE_ADMIN_DIR}' '${REMOTE_STORAGE_DIR}'\""
 else
   log "创建服务器目录"
-  ssh "${SSH_OPTS[@]}" "$REMOTE" "${REMOTE_ENV} mkdir -p '$REMOTE_SERVER_DIR' '$REMOTE_PACKAGES_DIR' '$REMOTE_PUBLIC_DIR' '$REMOTE_ADMIN_DIR' '$REMOTE_STORAGE_DIR'"
+  ssh "${SSH_OPTS[@]}" "$REMOTE" "${REMOTE_ENV} mkdir -p '$REMOTE_SERVER_DIR' '$REMOTE_PACKAGES_DIR' '$REMOTE_DATABASE_DIR' '$REMOTE_PUBLIC_DIR' '$REMOTE_ADMIN_DIR' '$REMOTE_STORAGE_DIR'"
 fi
 
 if [[ -d "$PACKAGES_DIR" ]]; then
@@ -224,6 +227,14 @@ if [[ -d "$PACKAGES_DIR" ]]; then
 else
   log "跳过 packages 同步"
   echo "本地目录不存在：$PACKAGES_DIR"
+fi
+
+if [[ -d "$DATABASE_DIR" ]]; then
+  log "同步 Database 到 ${REMOTE}:${REMOTE_DATABASE_DIR}"
+  rsync "${RSYNC_FLAGS[@]}" "$DATABASE_DIR/" "$REMOTE:$REMOTE_DATABASE_DIR/"
+else
+  log "跳过 Database 同步"
+  echo "本地目录不存在：$DATABASE_DIR"
 fi
 
 log "同步 server 到 ${REMOTE}:${REMOTE_SERVER_DIR}"
@@ -247,12 +258,12 @@ fi
 
 if [[ "$DRY_RUN" == "1" ]]; then
   log "预览模式：跳过权限修复和前端检查"
-  echo "将执行：ssh ${REMOTE} \"${REMOTE_ENV} find '${REMOTE_SERVER_DIR}' '${REMOTE_PACKAGES_DIR}' -path '${REMOTE_PUBLIC_DIR}/.user.ini' -prune -o -exec chown -h www:www {} +\""
+  echo "将执行：ssh ${REMOTE} \"${REMOTE_ENV} find '${REMOTE_SERVER_DIR}' '${REMOTE_PACKAGES_DIR}' '${REMOTE_DATABASE_DIR}' -path '${REMOTE_PUBLIC_DIR}/.user.ini' -prune -o -exec chown -h www:www {} +\""
   echo "将检查：${REMOTE_ADMIN_DIR}/index.html、${REMOTE_ADMIN_DIR}/assets"
 else
   if [[ "$FIX_PERMS" == "1" ]]; then
-    log "修复 server 和 packages 文件归属"
-    ssh "${SSH_OPTS[@]}" "$REMOTE" "${REMOTE_ENV} find '$REMOTE_SERVER_DIR' '$REMOTE_PACKAGES_DIR' -path '$REMOTE_PUBLIC_DIR/.user.ini' -prune -o -exec chown -h www:www {} +"
+    log "修复 server、packages 和 Database 文件归属"
+    ssh "${SSH_OPTS[@]}" "$REMOTE" "${REMOTE_ENV} find '$REMOTE_SERVER_DIR' '$REMOTE_PACKAGES_DIR' '$REMOTE_DATABASE_DIR' -path '$REMOTE_PUBLIC_DIR/.user.ini' -prune -o -exec chown -h www:www {} +"
   fi
 
   log "检查 admin 同步结果"

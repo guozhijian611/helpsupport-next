@@ -189,7 +189,7 @@ CHECK_WEBMAN_DISABLED_FUNCTIONS=0 ./deploy/deploy.sh
 REMOTE_ROOT=/www/wwwroot/justai ./deploy/deploy.sh
 ```
 
-`SYNC_DB=1` 会把本地数据库同步到远端数据库，生产环境执行前必须确认备份和覆盖风险。
+脚本会把本地 `server/`、`packages/`、`Database/`（基线 SQL、Phinx 配置、迁移和种子）以及 admin 静态资源和 `public/storage` 同步到远端。`Database/` 与 `server/` 平级，供远端 `php webman b8:migrate` 读取。`SYNC_DB=1` 会把本地数据库同步到远端数据库，生产环境执行前必须确认备份和覆盖风险。
 
 ## Docker 二进制镜像发布
 
