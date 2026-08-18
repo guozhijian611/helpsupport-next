@@ -253,7 +253,7 @@ Android 签名失败：
 
 Android 打包时从 Maven Central 下载中断（`Remote host terminated the handshake`、`Premature end of Content-Length`）：
 
-- 仓库通过 `android/gradle/init.aliyun.gradle` 把 Maven Central / Plugin Portal / Google Maven 改成阿里云镜像。`package_release.sh` 打包 Android 时会把它安装到 `~/.gradle/init.d/helpsupport-aliyun.gradle`，这样 Flutter 自带 `:gradle` 和 `file_picker` 也会走镜像。
+- 仓库通过 `android/gradle/init.aliyun.gradle` 把 Maven Central / Plugin Portal / Google Maven 改成阿里云镜像，包括 Flutter 自带 `:gradle` 的 `dependencyResolutionManagement`。`package_release.sh` 打包 Android 时会安装到 `~/.gradle/init.d/helpsupport-aliyun.gradle`。
 - 若仍失败，删除可能损坏的半截 Kotlin 缓存后再打：
 
 ```bash

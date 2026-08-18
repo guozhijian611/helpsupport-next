@@ -17,12 +17,17 @@ def watchRepos(RepositoryHandler repos) {
     repos.each { rewriteRepo(it) }
 }
 
-gradle.beforeSettings { settings ->
+def watchSettings(settings) {
     watchRepos(settings.pluginManagement.repositories)
+    watchRepos(settings.dependencyResolutionManagement.repositories)
+}
+
+gradle.beforeSettings { settings ->
+    watchSettings(settings)
 }
 
 gradle.settingsEvaluated { settings ->
-    watchRepos(settings.pluginManagement.repositories)
+    watchSettings(settings)
 }
 
 gradle.beforeProject { project ->

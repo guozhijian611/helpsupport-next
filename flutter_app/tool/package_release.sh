@@ -182,6 +182,7 @@ has_android_target() {
 install_aliyun_gradle_init() {
   local source="${FLUTTER_APP_DIR}/android/gradle/init.aliyun.gradle"
   local dest="${HOME}/.gradle/init.d/helpsupport-aliyun.gradle"
+  local gradlew="${FLUTTER_APP_DIR}/android/gradlew"
   [[ -f "${source}" ]] || fail "Gradle Aliyun init script not found: ${source}"
   if [[ "${DRY_RUN}" == "1" ]]; then
     log "Would install Gradle Aliyun init script to ${dest}"
@@ -190,6 +191,33 @@ install_aliyun_gradle_init() {
   mkdir -p "$(dirname "${dest}")"
   cp "${source}" "${dest}"
   log "Installed Gradle Aliyun init script: ${dest}"
+  ensure_gradlew_loads_aliyun_init "${gradlew}"
+}
+
+ensure_gradlew_loads_aliyun_init() {
+  local gradlew="$1"
+  local marker='init.aliyun.gradle'
+  local tmp
+  [[ -f "${gradlew}" ]] || return 0
+  if grep -q "${marker}" "${gradlew}"; then
+    return 0
+  fi
+  tmp="$(mktemp)"
+  awk '
+    /exec "\$JAVACMD"/ && !done {
+      print "INIT_SCRIPT=\"$APP_HOME/gradle/init.aliyun.gradle\""
+      print "if [ -f \"$INIT_SCRIPT\" ]; then"
+      print "  set -- --init-script \"$INIT_SCRIPT\" \"$@\""
+      print "fi"
+      print ""
+      done=1
+    }
+    { print }
+  ' "${gradlew}" > "${tmp}"
+  cat "${tmp}" > "${gradlew}"
+  rm -f "${tmp}"
+  chmod +x "${gradlew}"
+  log "Patched android/gradlew to load Aliyun init script"
 }
 
 prompt_value() {
