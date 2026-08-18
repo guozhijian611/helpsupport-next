@@ -12,8 +12,16 @@ DATABASE_DIR="$ROOT_DIR/Database"
 REMOTE="${REMOTE:-b8org}"
 REMOTE_ENV="${REMOTE_ENV:-LC_ALL=C LANG=C}"
 REMOTE_OTEL_DISABLED_INSTRUMENTATIONS="${REMOTE_OTEL_DISABLED_INSTRUMENTATIONS:-pdo}"
-SSH_OPTS=(-o SendEnv=NONE -o SetEnv=LC_ALL=C -o SetEnv=LANG=C)
-RSYNC_SSH="${RSYNC_SSH:-ssh -o SendEnv=NONE -o SetEnv=LC_ALL=C -o SetEnv=LANG=C}"
+SSH_OPTS=(
+  -o SendEnv=NONE
+  -o SetEnv=LC_ALL=C
+  -o SetEnv=LANG=C
+  -o TCPKeepAlive=yes
+  -o ServerAliveInterval=15
+  -o ServerAliveCountMax=8
+  -o ConnectTimeout=15
+)
+RSYNC_SSH="${RSYNC_SSH:-ssh -o SendEnv=NONE -o SetEnv=LC_ALL=C -o SetEnv=LANG=C -o TCPKeepAlive=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=8 -o ConnectTimeout=15}"
 REMOTE_ROOT="${REMOTE_ROOT:-/www/wwwroot/helpsupport-next}"
 REMOTE_ROOT="${REMOTE_ROOT%/}"
 REMOTE_SERVER_DIR="$REMOTE_ROOT/server"
@@ -37,12 +45,14 @@ REMOTE_DB_USER="${REMOTE_DB_USER:-help}"
 REMOTE_DB_PASS="${REMOTE_DB_PASS:-help}"
 
 BUILD_ADMIN="${BUILD_ADMIN:-}"
+SYNC_ADMIN="${SYNC_ADMIN:-}"
 SYNC_DB="${SYNC_DB:-}"
 ADMIN_PUBLIC_BASE="${ADMIN_PUBLIC_BASE:-/admin/}"
 DRY_RUN="${DRY_RUN:-}"
 FIX_PERMS="${FIX_PERMS:-1}"
 RESTART_WEBMAN="${RESTART_WEBMAN:-1}"
 CHECK_WEBMAN_DISABLED_FUNCTIONS="${CHECK_WEBMAN_DISABLED_FUNCTIONS:-1}"
+RSYNC_RETRIES="${RSYNC_RETRIES:-3}"
 if [[ -t 0 ]]; then
   INTERACTIVE="${INTERACTIVE:-1}"
 else
@@ -73,6 +83,26 @@ log() {
   printf '\n==> %s\n' "$1"
 }
 
+rsync_with_retry() {
+  local attempt=1
+  local delay=3
+  local retries="$RSYNC_RETRIES"
+
+  while true; do
+    if rsync "$@"; then
+      return 0
+    fi
+    if (( attempt >= retries )); then
+      echo "rsync 连续失败 ${retries} 次，放弃。" >&2
+      return 1
+    fi
+    echo "rsync 被中断，${delay}s 后重试（${attempt}/${retries}）" >&2
+    sleep "$delay"
+    delay=$((delay * 2))
+    attempt=$((attempt + 1))
+  done
+}
+
 prompt_yes_no() {
   local question="$1"
   local default_answer="$2"
@@ -101,6 +131,16 @@ if [[ "$INTERACTIVE" == "1" ]]; then
     fi
   fi
 
+  if [[ -z "$SYNC_ADMIN" ]]; then
+    if [[ "$BUILD_ADMIN" == "1" ]]; then
+      SYNC_ADMIN=1
+    elif prompt_yes_no "本次未编译 admin，是否仍同步已有 dist？中断时会挡住 Webman 重启" "n"; then
+      SYNC_ADMIN=1
+    else
+      SYNC_ADMIN=0
+    fi
+  fi
+
   if [[ -z "$SYNC_DB" ]]; then
     if prompt_yes_no "是否同步本地数据库到服务器？这会覆盖服务器 ${REMOTE_DB_NAME} 库" "n"; then
       SYNC_DB=1
@@ -118,13 +158,15 @@ if [[ "$INTERACTIVE" == "1" ]]; then
   fi
 else
   BUILD_ADMIN="${BUILD_ADMIN:-0}"
+  SYNC_ADMIN="${SYNC_ADMIN:-$BUILD_ADMIN}"
   SYNC_DB="${SYNC_DB:-0}"
   DRY_RUN="${DRY_RUN:-0}"
 fi
 
-RSYNC_FLAGS=(-azh --delete -e "$RSYNC_SSH")
-ADMIN_RSYNC_FLAGS=(-azh --delete -e "$RSYNC_SSH")
-STORAGE_RSYNC_FLAGS=(-azh --progress -e "$RSYNC_SSH")
+RSYNC_FLAGS=(-azh --delete --partial --timeout=120 -e "$RSYNC_SSH")
+# admin dist 多为已压缩的 JS/CSS/字体，再走 -z 容易把 SSH 拖死后被对端断开。
+ADMIN_RSYNC_FLAGS=(-ah --delete --partial --timeout=120 -e "$RSYNC_SSH")
+STORAGE_RSYNC_FLAGS=(-azh --partial --timeout=120 --progress -e "$RSYNC_SSH")
 if [[ "$DRY_RUN" == "1" ]]; then
   RSYNC_FLAGS+=(-n)
   ADMIN_RSYNC_FLAGS+=(-n)
@@ -141,12 +183,14 @@ echo "packages 目标：${REMOTE_PACKAGES_DIR}"
 echo "Database 目标：${REMOTE_DATABASE_DIR}"
 echo "admin 目标：${REMOTE_ADMIN_DIR}"
 echo "编译 admin：${BUILD_ADMIN}"
+echo "同步 admin：${SYNC_ADMIN}"
 echo "同步数据库：${SYNC_DB}"
 echo "admin 基础路径：${ADMIN_PUBLIC_BASE}"
 echo "预览模式：${DRY_RUN}"
 echo "修复权限：${FIX_PERMS}"
 echo "重启 Webman：${RESTART_WEBMAN}"
 echo "检查 Webman 禁用函数：${CHECK_WEBMAN_DISABLED_FUNCTIONS}"
+echo "rsync 重试次数：${RSYNC_RETRIES}"
 echo "远程禁用 OpenTelemetry 自动埋点：${REMOTE_OTEL_DISABLED_INSTRUMENTATIONS}"
 echo "OpenTelemetry 提醒：服务端 PHP 如需上报链路或指标，需要安装并启用 opentelemetry 扩展。"
 echo "同步 storage：增量同步 ${SERVER_DIR}/public/storage -> ${REMOTE_STORAGE_DIR}（不删除远程已有文件）"
@@ -205,11 +249,13 @@ ADMIN_DIST_READY=1
 if [[ ! -d "$FRONTEND_DIR/dist" ]]; then
   ADMIN_DIST_READY=0
   echo "前端构建目录不存在：$FRONTEND_DIR/dist" >&2
-  if [[ "$DRY_RUN" == "1" ]]; then
-    echo "预览模式下继续执行；实际部署前请生成 dist，或使用 BUILD_ADMIN=1 ./deploy/deploy.sh" >&2
-  else
-    echo "请先在 $FRONTEND_DIR 生成 dist，或使用 BUILD_ADMIN=1 ./deploy/deploy.sh" >&2
-    exit 1
+  if [[ "$SYNC_ADMIN" == "1" ]]; then
+    if [[ "$DRY_RUN" == "1" ]]; then
+      echo "预览模式下继续执行；实际部署前请生成 dist，或使用 BUILD_ADMIN=1 ./deploy/deploy.sh" >&2
+    else
+      echo "请先在 $FRONTEND_DIR 生成 dist，或使用 BUILD_ADMIN=1 ./deploy/deploy.sh" >&2
+      exit 1
+    fi
   fi
 fi
 
@@ -223,7 +269,7 @@ fi
 
 if [[ -d "$PACKAGES_DIR" ]]; then
   log "同步 packages 到 ${REMOTE}:${REMOTE_PACKAGES_DIR}"
-  rsync "${RSYNC_FLAGS[@]}" "$PACKAGES_DIR/" "$REMOTE:$REMOTE_PACKAGES_DIR/"
+  rsync_with_retry "${RSYNC_FLAGS[@]}" "$PACKAGES_DIR/" "$REMOTE:$REMOTE_PACKAGES_DIR/"
 else
   log "跳过 packages 同步"
   echo "本地目录不存在：$PACKAGES_DIR"
@@ -231,26 +277,34 @@ fi
 
 if [[ -d "$DATABASE_DIR" ]]; then
   log "同步 Database 到 ${REMOTE}:${REMOTE_DATABASE_DIR}"
-  rsync "${RSYNC_FLAGS[@]}" "$DATABASE_DIR/" "$REMOTE:$REMOTE_DATABASE_DIR/"
+  rsync_with_retry "${RSYNC_FLAGS[@]}" "$DATABASE_DIR/" "$REMOTE:$REMOTE_DATABASE_DIR/"
 else
   log "跳过 Database 同步"
   echo "本地目录不存在：$DATABASE_DIR"
 fi
 
 log "同步 server 到 ${REMOTE}:${REMOTE_SERVER_DIR}"
-rsync "${RSYNC_FLAGS[@]}" "${SERVER_EXCLUDES[@]}" "$SERVER_DIR/" "$REMOTE:$REMOTE_SERVER_DIR/"
+rsync_with_retry "${RSYNC_FLAGS[@]}" "${SERVER_EXCLUDES[@]}" "$SERVER_DIR/" "$REMOTE:$REMOTE_SERVER_DIR/"
 
 if [[ -d "$SERVER_DIR/public/storage" ]]; then
   log "增量同步 storage 到 ${REMOTE}:${REMOTE_STORAGE_DIR}"
-  rsync "${STORAGE_RSYNC_FLAGS[@]}" "$SERVER_DIR/public/storage/" "$REMOTE:$REMOTE_STORAGE_DIR/"
+  rsync_with_retry "${STORAGE_RSYNC_FLAGS[@]}" "$SERVER_DIR/public/storage/" "$REMOTE:$REMOTE_STORAGE_DIR/"
 else
   log "跳过 storage 同步"
   echo "本地目录不存在：$SERVER_DIR/public/storage"
 fi
 
-if [[ "$ADMIN_DIST_READY" == "1" ]]; then
+ADMIN_SYNC_FAILED=0
+if [[ "$SYNC_ADMIN" == "1" && "$ADMIN_DIST_READY" == "1" ]]; then
   log "同步 admin 到 ${REMOTE}:${REMOTE_ADMIN_DIR}"
-  rsync "${ADMIN_RSYNC_FLAGS[@]}" "${ADMIN_EXCLUDES[@]}" "$FRONTEND_DIR/dist/" "$REMOTE:$REMOTE_ADMIN_DIR/"
+  if ! rsync_with_retry "${ADMIN_RSYNC_FLAGS[@]}" "${ADMIN_EXCLUDES[@]}" "$FRONTEND_DIR/dist/" "$REMOTE:$REMOTE_ADMIN_DIR/"; then
+    ADMIN_SYNC_FAILED=1
+    echo "admin 同步失败，不中断后续权限修复和 Webman 重启。" >&2
+    echo "稍后可单独重试：SYNC_ADMIN=1 BUILD_ADMIN=0 ./deploy/deploy.sh" >&2
+  fi
+elif [[ "$SYNC_ADMIN" != "1" ]]; then
+  log "跳过 admin 同步"
+  echo "本次只发布服务端。需要更新后台静态资源时执行：BUILD_ADMIN=1 ./deploy/deploy.sh"
 else
   log "预览模式：跳过 admin 同步"
   echo "本地目录不存在：$FRONTEND_DIR/dist"
@@ -266,13 +320,15 @@ else
     ssh "${SSH_OPTS[@]}" "$REMOTE" "${REMOTE_ENV} find '$REMOTE_SERVER_DIR' '$REMOTE_PACKAGES_DIR' '$REMOTE_DATABASE_DIR' -path '$REMOTE_PUBLIC_DIR/.user.ini' -prune -o -exec chown -h www:www {} +"
   fi
 
-  log "检查 admin 同步结果"
-  ssh "${SSH_OPTS[@]}" "$REMOTE" "${REMOTE_ENV} bash -s" <<EOF
+  if [[ "$SYNC_ADMIN" == "1" && "$ADMIN_DIST_READY" == "1" && "$ADMIN_SYNC_FAILED" != "1" ]]; then
+    log "检查 admin 同步结果"
+    ssh "${SSH_OPTS[@]}" "$REMOTE" "${REMOTE_ENV} bash -s" <<EOF
     set -e
     test -f '$REMOTE_ADMIN_DIR/index.html'
     test -d '$REMOTE_ADMIN_DIR/assets'
     ls -ld '$REMOTE_ADMIN_DIR' '$REMOTE_ADMIN_DIR/index.html' '$REMOTE_ADMIN_DIR/assets'
 EOF
+  fi
 fi
 
 if [[ "$SYNC_DB" == "1" ]]; then
@@ -332,6 +388,10 @@ fi
 
 if [[ "$DRY_RUN" == "1" ]]; then
   log "预览完成，未实际同步。确认无误后执行：./deploy/deploy.sh"
+elif [[ "$ADMIN_SYNC_FAILED" == "1" ]]; then
+  log "服务端已同步，但 admin 静态资源同步失败"
+  echo "Webman 如已重启，新的 PHP 接口可用。admin 可稍后单独重试：SYNC_ADMIN=1 BUILD_ADMIN=0 ./deploy/deploy.sh" >&2
+  exit 1
 else
   log "部署完成"
 fi
