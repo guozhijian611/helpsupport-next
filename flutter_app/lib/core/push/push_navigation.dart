@@ -12,9 +12,19 @@ import 'firebase_push_diagnostics.dart';
 import 'firebase_push_service.dart';
 import 'push_route_resolver.dart';
 
-final pendingPushDataProvider = StateProvider<Map<String, String>?>(
-  (ref) => null,
-);
+final pendingPushDataProvider =
+    NotifierProvider<PendingPushDataController, Map<String, String>?>(
+      PendingPushDataController.new,
+    );
+
+class PendingPushDataController extends Notifier<Map<String, String>?> {
+  @override
+  Map<String, String>? build() => null;
+
+  void setData(Map<String, String>? value) {
+    state = value;
+  }
+}
 
 class PushNavigationHost extends ConsumerStatefulWidget {
   const PushNavigationHost({super.key, required this.child});
@@ -77,8 +87,8 @@ class _PushNavigationHostState extends ConsumerState<PushNavigationHost> {
       if (!_handledEventKeys.add(key)) {
         continue;
       }
-      ref.read(pendingPushDataProvider.notifier).state = Map<String, String>.from(
-        event.data,
+      ref.read(pendingPushDataProvider.notifier).setData(
+        Map<String, String>.from(event.data),
       );
       _scheduleFlush();
     }
@@ -124,7 +134,7 @@ class _PushNavigationHostState extends ConsumerState<PushNavigationHost> {
       pending,
       role: auth.value?.currentRole,
     );
-    ref.read(pendingPushDataProvider.notifier).state = null;
+    ref.read(pendingPushDataProvider.notifier).setData(null);
     _flushing = true;
     _markMessageRead(pending);
     _openRoute(router, location, route);
