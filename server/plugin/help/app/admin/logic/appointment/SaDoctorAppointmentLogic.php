@@ -468,7 +468,7 @@ class SaDoctorAppointmentLogic extends BaseLogic
             ], [
                 'biz_type' => 'appointment',
                 'biz_id' => $appointmentId,
-                'route' => '/pages/appointment/detail',
+                'route' => '/appointments/mine',
                 'payload' => ['appointment_id' => $appointmentId],
             ]);
         } catch (Throwable) {

@@ -299,6 +299,18 @@ LIMIT 20;
 
 iOS 远程推送仍以真机为准。模拟器上的本地通知成功不能代替 APNs/FCM。
 
+点击测试推送应进入「消息详情」(`/me/messages`)。业务推送按 `scene` / `biz_type` / `route` 跳转：社区帖子、社区资料、计划任务、预约列表或医生认证页。旧版 uni-app 路径（如 `/pages/community/detail`）由客户端映射到 Flutter 路由。
+
+### 9.5 每日任务提醒定时任务
+
+后台「工具 / 定时任务」会注册类任务 `\plugin\help\process\TaskReminderPush`，默认每天 08:00 扫描当天 `status=0` 的待办任务，按会员去重后调用 `task_reminder` 模板。同一会员当天已有任务提醒则跳过。
+
+上线后需要：
+
+1. 执行 Phinx 迁移 `20260819070000_seed_help_task_reminder_crontab`。
+2. `php webman restart -d`，让 SaiAdmin crontab 进程加载新任务。
+3. 在定时任务列表确认任务已启用；可用「执行」立即跑一次并查看执行日志。
+
 ## 10. 常见错误
 
 ### `missing_fcm_token_or_project_id`

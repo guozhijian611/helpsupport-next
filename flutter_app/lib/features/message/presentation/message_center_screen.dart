@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/push/push_route_resolver.dart';
 import '../../auth/application/auth_controller.dart';
 import '../application/message_controller.dart';
 import '../data/message_models.dart';
@@ -136,8 +137,17 @@ class _MessageCenterScreenState extends ConsumerState<MessageCenterScreen> {
       return;
     }
 
-    final route = _resolveRoute(role, item);
-    if (route == null) {
+    final route = PushRouteResolver.resolve(
+      bizType: item.bizType,
+      bizId: item.bizId,
+      route: item.route,
+      payload: item.payload,
+      scene: item.ext['scene']?.toString(),
+      templateCode: item.ext['template_code']?.toString(),
+      messageType: item.messageType,
+      role: role,
+    );
+    if (route == null || route == PushRouteResolver.messagesRoute) {
       return;
     }
     if (route.startsWith('/home')) {
@@ -458,52 +468,8 @@ String _formatTime(String value) {
   return '$month-$day $hour:$minute';
 }
 
-String? _resolveRoute(String? role, MessageItem item) {
-  if (item.bizType == 'community_follow_member') {
-    final memberId = _payloadInt(
-      item.payload['member_id'],
-      fallback: item.bizId,
-    );
-    if (memberId > 0) {
-      return '/community/profile/$memberId';
-    }
-  }
-  if (item.bizType == 'community_comment' ||
-      item.bizType == 'community_audit_result') {
-    final postId = _payloadInt(item.payload['post_id'], fallback: item.bizId);
-    if (postId > 0) {
-      return '/community/post/$postId';
-    }
-  }
-  if (item.messageType == 1 ||
-      item.messageType == 2 ||
-      item.bizType.startsWith('community_')) {
-    return '/home?tab=community';
-  }
-  if (item.messageType == 3) {
-    return role == 'doctor' ? '/doctor/plan' : '/home?tab=plan';
-  }
-  if (item.messageType == 4) {
-    return role == 'doctor' ? '/doctor/patients' : '/appointments/mine';
-  }
-  if (item.bizType == 'doctor_profile') {
-    return '/me/settings';
-  }
-  return null;
-}
-
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
-}
-
-int _payloadInt(Object? value, {int fallback = 0}) {
-  if (value is num) {
-    return value.toInt();
-  }
-  if (value is String) {
-    return int.tryParse(value) ?? fallback;
-  }
-  return fallback;
 }
 
 class _MessageCenterPalette {

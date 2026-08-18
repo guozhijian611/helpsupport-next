@@ -178,6 +178,7 @@ class HelpPushService
             'developer_test' => '1',
             'scene' => 'developer_test',
             'sent_at' => date(DATE_ATOM),
+            'route' => '/me/messages',
         ];
         $results = [];
         foreach ($devices as $device) {
@@ -199,6 +200,99 @@ class HelpPushService
         }
 
         return $result;
+    }
+
+    /**
+     * 扫描指定日期的待办任务，按会员去重后各发一条 task_reminder。
+     */
+    public function dispatchDailyTaskReminders(?string $taskDate = null, int $limit = 500): string
+    {
+        $taskDate = $taskDate !== null && $taskDate !== '' ? $taskDate : date('Y-m-d');
+        $limit = max(1, $limit);
+        $rows = Db::table('sa_daily_task')
+            ->where('task_date', $taskDate)
+            ->where('status', 0)
+            ->whereNull('delete_time')
+            ->field('id, member_id, title, start_time')
+            ->order('start_time', 'asc')
+            ->order('id', 'asc')
+            ->select()
+            ->toArray();
+
+        $grouped = [];
+        foreach ($rows as $row) {
+            $memberId = (int) ($row['member_id'] ?? 0);
+            if ($memberId <= 0) {
+                continue;
+            }
+            if (!isset($grouped[$memberId])) {
+                $grouped[$memberId] = [
+                    'first_id' => (int) ($row['id'] ?? 0),
+                    'first_title' => trim((string) ($row['title'] ?? '')),
+                    'count' => 0,
+                ];
+            }
+            $grouped[$memberId]['count']++;
+        }
+
+        $pushed = 0;
+        $skipped = 0;
+        $failed = 0;
+        $index = 0;
+        foreach ($grouped as $memberId => $info) {
+            if ($index >= $limit) {
+                $skipped += count($grouped) - $index;
+                break;
+            }
+            $index++;
+            if ($this->hasTodayTaskReminder((int) $memberId, $taskDate)) {
+                $skipped++;
+                continue;
+            }
+
+            $title = $info['first_title'] !== '' ? $info['first_title'] : 'today\'s task';
+            try {
+                $message = $this->notifyMember((int) $memberId, 'task_reminder', [
+                    'task_title' => $title,
+                ], [
+                    'biz_type' => 'task_reminder',
+                    'biz_id' => (int) $info['first_id'],
+                    'route' => '/home?tab=plan',
+                    'payload' => [
+                        'task_id' => (int) $info['first_id'],
+                        'task_count' => (int) $info['count'],
+                        'task_date' => $taskDate,
+                    ],
+                ]);
+                if ($message === []) {
+                    $skipped++;
+                } else {
+                    $pushed++;
+                }
+            } catch (Throwable) {
+                $failed++;
+            }
+        }
+
+        return sprintf(
+            'date=%s members=%d pushed=%d skipped=%d failed=%d',
+            $taskDate,
+            count($grouped),
+            $pushed,
+            $skipped,
+            $failed
+        );
+    }
+
+    private function hasTodayTaskReminder(int $memberId, string $taskDate): bool
+    {
+        return (int) Db::table('sa_member_message')
+            ->where('member_id', $memberId)
+            ->where('biz_type', 'task_reminder')
+            ->where('create_time', '>=', $taskDate . ' 00:00:00')
+            ->where('create_time', '<=', $taskDate . ' 23:59:59')
+            ->whereNull('delete_time')
+            ->value('id') > 0;
     }
 
     private function developerTestDevices(int $memberId, string $clientDeviceId): array

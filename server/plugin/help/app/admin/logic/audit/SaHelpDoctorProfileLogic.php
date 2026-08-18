@@ -126,7 +126,7 @@ class SaHelpDoctorProfileLogic extends BaseLogic
             ], [
                 'biz_type' => 'doctor_audit',
                 'biz_id' => $id,
-                'route' => '/pages/me/doctor-certification',
+                'route' => '/register/doctor-certification',
                 'payload' => [
                     'audit_status' => $auditStatus,
                     'profile_id' => $id,

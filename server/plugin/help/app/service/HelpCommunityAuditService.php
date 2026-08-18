@@ -171,7 +171,7 @@ class HelpCommunityAuditService
             ], [
                 'biz_type' => 'community_audit_result',
                 'biz_id' => (int) ($record['id'] ?? 0),
-                'route' => '/pages/community/detail',
+                'route' => '/community/post/' . (int) ($record['id'] ?? 0),
                 'payload' => [
                     'post_id' => (int) ($record['id'] ?? 0),
                     'audit_status' => $auditStatus,
@@ -215,7 +215,7 @@ class HelpCommunityAuditService
         (new HelpPushService())->notifyMember($receiverId, 'community_reply', ['nickname' => $nickname], [
             'biz_type' => 'community_comment',
             'biz_id' => (int) ($comment['id'] ?? 0),
-            'route' => '/pages/community/detail',
+            'route' => '/community/post/' . $postId,
             'payload' => [
                 'post_id' => $postId,
                 'comment_id' => (int) ($comment['id'] ?? 0),

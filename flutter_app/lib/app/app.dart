@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/config/app_config.dart';
 import '../core/i18n/app_locale_controller.dart';
+import '../core/push/push_navigation.dart';
 import '../core/settings/app_display_preferences.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../l10n/generated/app_localizations.dart';
@@ -44,9 +45,11 @@ class HelpSupportApp extends ConsumerWidget {
       supportedLocales: AppLocalizations.supportedLocales,
       builder: (context, child) {
         final media = MediaQuery.of(context);
-        return MediaQuery(
-          data: media.copyWith(textScaler: TextScaler.linear(textScale)),
-          child: child ?? const SizedBox.shrink(),
+        return PushNavigationHost(
+          child: MediaQuery(
+            data: media.copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );

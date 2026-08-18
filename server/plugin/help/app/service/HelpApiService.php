@@ -3364,7 +3364,7 @@ class HelpApiService
         ], [
             'biz_type' => 'appointment',
             'biz_id' => $id,
-            'route' => '/pages/doctor/appointments',
+            'route' => '/doctor/patients',
             'payload' => ['appointment_id' => $id],
         ]);
 
@@ -3401,7 +3401,7 @@ class HelpApiService
         ], [
             'biz_type' => 'appointment',
             'biz_id' => $appointmentId,
-            'route' => '/pages/doctor/appointments',
+            'route' => '/doctor/patients',
             'payload' => ['appointment_id' => $appointmentId],
         ]);
 
@@ -4316,7 +4316,7 @@ class HelpApiService
         ], [
             'biz_type' => 'appointment',
             'biz_id' => (int) $appointment['id'],
-            'route' => '/pages/appointment/detail',
+            'route' => '/appointments/mine',
             'payload' => ['appointment_id' => (int) $appointment['id']],
         ]);
 
@@ -4342,7 +4342,7 @@ class HelpApiService
         ], [
             'biz_type' => 'appointment',
             'biz_id' => (int) $appointment['id'],
-            'route' => '/pages/appointment/detail',
+            'route' => '/appointments/mine',
             'payload' => ['appointment_id' => (int) $appointment['id']],
         ]);
 
@@ -4371,7 +4371,7 @@ class HelpApiService
         ], [
             'biz_type' => 'appointment',
             'biz_id' => (int) $appointment['id'],
-            'route' => '/pages/appointment/detail',
+            'route' => '/appointments/mine',
             'payload' => ['appointment_id' => (int) $appointment['id']],
         ]);
 
@@ -4398,7 +4398,7 @@ class HelpApiService
         ], [
             'biz_type' => 'appointment',
             'biz_id' => (int) $appointment['id'],
-            'route' => '/pages/appointment/detail',
+            'route' => '/appointments/mine',
             'payload' => ['appointment_id' => (int) $appointment['id']],
         ]);
 
@@ -5513,7 +5513,7 @@ class HelpApiService
         ], [
             'biz_type' => 'community_follow_member',
             'biz_id' => $memberId,
-            'route' => '/pages/community/profile',
+            'route' => '/community/profile/' . $memberId,
             'payload' => [
                 'member_id' => $memberId,
             ],
