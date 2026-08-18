@@ -18,6 +18,7 @@ const PREVIEWABLE_MEDIA_TYPES = [
   'video',
   'audio',
   'txt',
+  'lrc',
   'epub',
   'pdf',
   'mp4',
@@ -49,7 +50,7 @@ const MIME_BY_EXT: Record<string, string> = {
   m4a: 'audio/mp4',
   flac: 'audio/flac',
   txt: 'text/plain',
-  lrc: 'text/plain',
+  lrc: 'application/x-lrc',
   md: 'text/markdown',
   json: 'application/json',
   csv: 'text/csv',
@@ -75,11 +76,19 @@ const MEDIA_TYPE_META: Record<string, { ext: string; mime: string }> = {
   video: { ext: 'mp4', mime: 'video/mp4' },
   audio: { ext: 'mp3', mime: 'audio/mpeg' },
   txt: { ext: 'txt', mime: 'text/plain' },
+  lrc: { ext: 'lrc', mime: 'application/x-lrc' },
   epub: { ext: 'epub', mime: 'application/epub+zip' },
   pdf: { ext: 'pdf', mime: 'application/pdf' },
   mp4: { ext: 'mp4', mime: 'video/mp4' },
   mov: { ext: 'mov', mime: 'video/quicktime' },
   mp3: { ext: 'mp3', mime: 'audio/mpeg' }
+}
+
+const FIELD_PREVIEW_META: Record<string, { ext: string; mime: string; mediaType: string }> = {
+  lyric_url: { ext: 'lrc', mime: 'application/x-lrc', mediaType: 'lrc' },
+  cover_url: { ext: 'jpg', mime: 'image/jpeg', mediaType: 'image' },
+  image_urls: { ext: 'jpg', mime: 'image/jpeg', mediaType: 'image' },
+  badge_icon: { ext: 'png', mime: 'image/png', mediaType: 'image' }
 }
 
 const PREVIEWABLE_EXTENSIONS = [
@@ -252,30 +261,38 @@ const ensureExtension = (fileName: string, extension: string) => {
   return `${name}.${extension}`
 }
 
+export const resolveFieldPreviewKind = (fieldProp?: string) => {
+  return FIELD_PREVIEW_META[String(fieldProp || '').trim()]
+}
+
 export const resolvePreviewMeta = (input: {
   url?: string
   fileName?: string
   mimeType?: string
   mediaType?: string
+  fieldProp?: string
 }) => {
   const url = String(input.url || '').trim()
+  const field = resolveFieldPreviewKind(input.fieldProp)
   const media =
     MEDIA_TYPE_META[
-      String(input.mediaType || '')
+      String(field?.mediaType || input.mediaType || '')
         .trim()
         .toLowerCase()
     ]
   const urlExt = fileExtension(url)
   const nameExt = fileExtension(input.fileName || '')
-  const mime = cleanMimeType(input.mimeType)
+  const mime = field ? '' : cleanMimeType(input.mimeType)
   const mimeExt = mime ? EXT_BY_MIME[mime] || '' : ''
-  const extension = urlExt || nameExt || mimeExt || media?.ext || ''
-  const mimeType = mime || (extension ? MIME_BY_EXT[extension] || '' : '') || media?.mime || ''
+  const extension = urlExt || nameExt || field?.ext || mimeExt || media?.ext || ''
+  const mimeType =
+    (extension ? MIME_BY_EXT[extension] || '' : '') || mime || field?.mime || media?.mime || ''
   const baseName = String(input.fileName || '').trim() || fileNameFromUrl(url)
 
   return {
     fileName: ensureExtension(baseName, extension),
     mimeType: mimeType || undefined,
-    extension
+    extension,
+    mediaType: field?.mediaType || input.mediaType
   }
 }

@@ -6,12 +6,14 @@ export interface FileViewerItem {
   fileName?: string
   mimeType?: string
   mediaType?: string
+  fieldProp?: string
 }
 
 export interface FileViewerOptions {
   fileName?: string
   mimeType?: string
   mediaType?: string
+  fieldProp?: string
   title?: string
   index?: number
 }
@@ -30,13 +32,15 @@ const toItem = (input: FileViewerInput, options?: FileViewerOptions): FileViewer
           file: input,
           fileName: options?.fileName || (input instanceof File ? input.name : undefined),
           mimeType: options?.mimeType || (input instanceof File ? input.type : undefined),
-          mediaType: options?.mediaType
+          mediaType: options?.mediaType,
+          fieldProp: options?.fieldProp
         }
       : {
           file: input.file,
           fileName: input.fileName || options?.fileName,
           mimeType: input.mimeType || options?.mimeType,
-          mediaType: input.mediaType || options?.mediaType
+          mediaType: input.mediaType || options?.mediaType,
+          fieldProp: input.fieldProp || options?.fieldProp
         }
 
   const url = typeof raw.file === 'string' ? raw.file : ''
@@ -44,14 +48,16 @@ const toItem = (input: FileViewerInput, options?: FileViewerOptions): FileViewer
     url,
     fileName: raw.fileName || (raw.file instanceof File ? raw.file.name : undefined),
     mimeType: raw.mimeType,
-    mediaType: raw.mediaType
+    mediaType: raw.mediaType,
+    fieldProp: raw.fieldProp
   })
 
   return {
     file: raw.file,
     fileName: meta.fileName,
     mimeType: meta.mimeType,
-    mediaType: raw.mediaType
+    mediaType: meta.mediaType,
+    fieldProp: raw.fieldProp
   }
 }
 

@@ -50,7 +50,8 @@
         url,
         fileName: item.fileName,
         mimeType: item.mimeType,
-        mediaType: item.mediaType
+        mediaType: item.mediaType,
+        fieldProp: item.fieldProp
       })
       return {
         file: item.file,
@@ -100,5 +101,28 @@
     overflow: hidden;
     border-radius: 8px;
     background: var(--el-fill-color-blank);
+
+    .ofv-root,
+    .ofv-host {
+      height: 100%;
+    }
+
+    .ofv-image-stage {
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ofv-image-scrollbox {
+      width: 100%;
+      height: 100%;
+    }
+
+    .ofv-image-content.ofv-media {
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
   }
 </style>

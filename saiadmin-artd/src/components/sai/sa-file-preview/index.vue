@@ -31,7 +31,8 @@
     fileNameFromUrl,
     isExternalLink,
     isImageFile,
-    parseUrlList
+    parseUrlList,
+    resolveFieldPreviewKind
   } from '@/components/sai/sa-file-viewer/utils'
 
   defineOptions({ name: 'SaFilePreview' })
@@ -51,18 +52,21 @@
   )
 
   const { preview } = useFileViewer()
+  const fieldKind = computed(() => resolveFieldPreviewKind(props.fieldProp))
 
   const urls = computed(() => parseUrlList(props.url))
+  const previewMediaType = computed(() => fieldKind.value?.mediaType || props.mediaType)
+  const previewMimeType = computed(() => (fieldKind.value ? undefined : props.mimeType))
   const isLink = computed(() => {
     if (urls.value.length === 0) {
       return false
     }
-    return isExternalLink(urls.value[0], props.mediaType)
+    return isExternalLink(urls.value[0], previewMediaType.value)
   })
   const isImage = computed(() => {
     return (
       urls.value.length > 0 &&
-      (props.mediaType === 'image' || isImageFile(urls.value[0], props.mimeType))
+      (previewMediaType.value === 'image' || isImageFile(urls.value[0], previewMimeType.value))
     )
   })
   const showGallery = computed(() => {
@@ -75,8 +79,9 @@
       urls.value.map((item) => ({
         file: item,
         fileName: props.fileName || fileNameFromUrl(item),
-        mimeType: props.mimeType || undefined,
-        mediaType: props.mediaType
+        mimeType: previewMimeType.value || undefined,
+        mediaType: previewMediaType.value,
+        fieldProp: props.fieldProp
       })),
       {
         index,
@@ -103,16 +108,16 @@
   }
 
   .sa-file-preview-image {
-    width: 38px;
-    height: 38px;
+    width: 64px;
+    height: 64px;
     border: 1px solid var(--el-border-color-lighter);
     border-radius: 6px;
     background: var(--el-fill-color-light);
   }
 
   .sa-file-preview.is-detail .sa-file-preview-image {
-    width: 160px;
-    height: 120px;
+    width: 280px;
+    height: 210px;
   }
 
   .sa-file-preview-count {
