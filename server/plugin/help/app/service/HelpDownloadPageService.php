@@ -34,6 +34,10 @@ class HelpDownloadPageService
             'app_store_url' => $this->absoluteUrl((string) ($download['app_store_url'] ?? ''), $baseUrl),
             'google_play_url' => $this->absoluteUrl((string) ($download['google_play_url'] ?? ''), $baseUrl),
         ];
+        $testflight = [
+            'public_url' => $this->absoluteUrl((string) ($download['testflight_public_url'] ?? ''), $baseUrl),
+            'internal_url' => $this->absoluteUrl((string) ($download['testflight_internal_url'] ?? ''), $baseUrl),
+        ];
         $dev = [
             'apk_url' => $this->absoluteUrl((string) ($download['dev_apk_url'] ?? ''), $baseUrl),
             'ipa_url' => $this->absoluteUrl((string) ($download['dev_ipa_url'] ?? ''), $baseUrl),
@@ -52,9 +56,11 @@ class HelpDownloadPageService
             'page_url' => $pageUrl,
             'qr_svg' => HelpQrSvg::svg($pageUrl),
             'store' => $store,
+            'testflight' => $testflight,
             'dev' => $dev,
             'ota_url' => $otaUrl,
             'has_store' => $store['app_store_url'] !== '' || $store['google_play_url'] !== '',
+            'has_testflight' => $testflight['public_url'] !== '' || $testflight['internal_url'] !== '',
             'has_dev' => $dev['apk_url'] !== '' || $dev['ipa_url'] !== '',
             'bundle_id' => $this->filled($oauth['bundle_id'] ?? null, self::DEFAULT_BUNDLE_ID),
         ];

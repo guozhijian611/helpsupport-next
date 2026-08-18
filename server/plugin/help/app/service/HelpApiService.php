@@ -102,6 +102,8 @@ class HelpApiService
             'download' => [
                 'google_play_url' => $groups['help_app_download']['google_play_url'] ?? '',
                 'app_store_url' => $groups['help_app_download']['app_store_url'] ?? '',
+                'testflight_public_url' => $groups['help_app_download']['testflight_public_url'] ?? '',
+                'testflight_internal_url' => $groups['help_app_download']['testflight_internal_url'] ?? '',
                 'dev_apk_url' => $groups['help_app_download']['dev_apk_url'] ?? '',
                 'dev_ipa_url' => $groups['help_app_download']['dev_ipa_url'] ?? '',
             ],

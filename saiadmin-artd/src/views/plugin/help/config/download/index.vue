@@ -95,6 +95,50 @@
           </section>
 
           <section class="download-section">
+            <div class="section-title">TestFlight</div>
+            <ElRow :gutter="20">
+              <ElCol :xs="24" :lg="18">
+                <ElFormItem label="公共测试链接" prop="testflight_public_url">
+                  <ElInput
+                    v-model="formValues.testflight_public_url"
+                    clearable
+                    placeholder="请输入 TestFlight 公共测试链接，如 https://testflight.apple.com/join/xxxx"
+                  >
+                    <template #append>
+                      <ElButton
+                        :disabled="!formValues.testflight_public_url"
+                        @click="openUrl(formValues.testflight_public_url)"
+                      >
+                        打开
+                      </ElButton>
+                    </template>
+                  </ElInput>
+                  <div class="download-help">{{ itemRemark('testflight_public_url') }}</div>
+                </ElFormItem>
+              </ElCol>
+              <ElCol :xs="24" :lg="18">
+                <ElFormItem label="内部测试链接" prop="testflight_internal_url">
+                  <ElInput
+                    v-model="formValues.testflight_internal_url"
+                    clearable
+                    placeholder="请输入 TestFlight 内部测试链接，如 https://testflight.apple.com/join/xxxx"
+                  >
+                    <template #append>
+                      <ElButton
+                        :disabled="!formValues.testflight_internal_url"
+                        @click="openUrl(formValues.testflight_internal_url)"
+                      >
+                        打开
+                      </ElButton>
+                    </template>
+                  </ElInput>
+                  <div class="download-help">{{ itemRemark('testflight_internal_url') }}</div>
+                </ElFormItem>
+              </ElCol>
+            </ElRow>
+          </section>
+
+          <section class="download-section">
             <div class="section-title">开发版安装包</div>
             <ElRow :gutter="20">
               <ElCol :xs="24" :lg="18">
@@ -183,6 +227,8 @@
   const formValues = reactive<Record<string, string>>({
     google_play_url: '',
     app_store_url: '',
+    testflight_public_url: '',
+    testflight_internal_url: '',
     dev_apk_url: '',
     dev_ipa_url: ''
   })
