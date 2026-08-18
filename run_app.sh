@@ -441,13 +441,13 @@ main() {
 
   local device_id api_base_url
   device_id="$(select_device "${SELECTED_DEVICE_INDEX}")"
-  api_base_url="$(sed -n "s/.*apiBaseUrl = '\\([^']*\\)'.*/\\1/p" "${API_CONFIG_FILE}" | head -n 1)"
+  api_base_url="$(sed -n "s/.*localApiBaseUrl = '\\([^']*\\)'.*/\\1/p" "${API_CONFIG_FILE}" | head -n 1)"
 
   printf '使用设备: %s\n' "${device_id}"
   if [[ -n "${api_base_url}" ]]; then
-    printf 'API Base URL: %s\n' "${api_base_url}"
+    printf 'Debug API Base URL: %s\n' "${api_base_url}"
   fi
-  printf '如需修改 API 地址，请编辑 %s。\n' "${API_CONFIG_FILE}"
+  printf '如需修改 API 地址，请编辑 %s 中的 localApiBaseUrl。\n' "${API_CONFIG_FILE}"
   print_flutter_run_help
 
   if ((${#FLUTTER_RUN_ARGS[@]} > 0)); then

@@ -36,7 +36,7 @@ class ApiClient {
     }
   }
 
-  static const localApiBaseUrl = 'http://10.0.0.6:8787';
+  static const localApiBaseUrl = 'https://help.openb8.org';
   static const packagedApiBaseUrl = 'https://help.openb8.chat';
   static const apiBaseUrl = kDebugMode ? localApiBaseUrl : packagedApiBaseUrl;
   static const aiCallDebugOverlayEnabled = true;
