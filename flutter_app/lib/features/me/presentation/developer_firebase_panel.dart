@@ -107,7 +107,7 @@ class DeveloperFirebasePanelState
   }
 
   bool get _isLoggedIn {
-    final session = ref.read(authControllerProvider).valueOrNull;
+    final session = ref.read(authControllerProvider).asData?.value;
     return session is AuthSession;
   }
 
@@ -509,7 +509,7 @@ class DeveloperFirebasePanelState
     BuildContext context,
     FirebasePushDiagnostics diagnostics,
   ) {
-    final appConfig = ref.watch(appConfigProvider).valueOrNull;
+    final appConfig = ref.watch(appConfigProvider).asData?.value;
     final serverEnabled = _serverDebug['firebase_enabled'] == true;
     final serverProjectId =
         (_serverDebug['firebase_project_id'] as String?)?.trim() ??
