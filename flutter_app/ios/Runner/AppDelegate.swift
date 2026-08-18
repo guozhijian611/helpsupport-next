@@ -1,6 +1,5 @@
 import Flutter
 import AVFoundation
-import Security
 import UIKit
 import UserNotifications
 
@@ -101,20 +100,54 @@ import UserNotifications
   }
 
   private func readApsEnvironment() -> String {
-    var entitlementError: Unmanaged<CFError>?
-    guard let task = SecTaskCreateFromSelf(nil) else {
-      return "missing"
-    }
-    guard let value = SecTaskCopyValueForEntitlement(
-      task,
-      "aps-environment" as CFString,
-      &entitlementError
-    ) as? String,
-      !value.isEmpty
+    #if targetEnvironment(simulator)
+    return "simulator"
+    #else
+    guard
+      let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),
+      let data = try? Data(contentsOf: url),
+      let raw = String(data: data, encoding: .isoLatin1)
     else {
       return "missing"
     }
-    return value
+    if let entitlements = provisionEntitlements(from: raw),
+       let environment = entitlements["aps-environment"] as? String,
+       !environment.isEmpty {
+      return environment
+    }
+    return extractApsEnvironment(from: raw) ?? "missing"
+    #endif
+  }
+
+  private func provisionEntitlements(from raw: String) -> [String: Any]? {
+    guard let start = raw.range(of: "<?xml"),
+          let end = raw.range(of: "</plist>") else {
+      return nil
+    }
+    let xml = String(raw[start.lowerBound..<end.upperBound])
+    guard let xmlData = xml.data(using: .utf8),
+          let plist = try? PropertyListSerialization.propertyList(
+            from: xmlData,
+            options: [],
+            format: nil
+          ) as? [String: Any] else {
+      return nil
+    }
+    return plist["Entitlements"] as? [String: Any]
+  }
+
+  private func extractApsEnvironment(from raw: String) -> String? {
+    guard let keyRange = raw.range(of: "<key>aps-environment</key>") else {
+      return nil
+    }
+    let remainder = raw[keyRange.upperBound...]
+    guard let start = remainder.range(of: "<string>"),
+          let end = remainder.range(of: "</string>") else {
+      return nil
+    }
+    let value = remainder[start.upperBound..<end.lowerBound]
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    return value.isEmpty ? nil : value
   }
 
   private func readNotificationDiagnostics(result: @escaping FlutterResult) {
