@@ -1,14 +1,17 @@
 import { ref } from 'vue'
+import { resolvePreviewMeta } from '@/components/sai/sa-file-viewer/utils'
 
 export interface FileViewerItem {
   file: string | File | Blob
   fileName?: string
   mimeType?: string
+  mediaType?: string
 }
 
 export interface FileViewerOptions {
   fileName?: string
   mimeType?: string
+  mediaType?: string
   title?: string
   index?: number
 }
@@ -21,18 +24,34 @@ const initialIndex = ref(0)
 const title = ref('文件预览')
 
 const toItem = (input: FileViewerInput, options?: FileViewerOptions): FileViewerItem => {
-  if (typeof input === 'string' || input instanceof File || input instanceof Blob) {
-    const fileName = options?.fileName || (input instanceof File ? input.name : undefined)
-    return {
-      file: input,
-      fileName,
-      mimeType: options?.mimeType || (input instanceof File ? input.type : undefined)
-    }
-  }
+  const raw =
+    typeof input === 'string' || input instanceof File || input instanceof Blob
+      ? {
+          file: input,
+          fileName: options?.fileName || (input instanceof File ? input.name : undefined),
+          mimeType: options?.mimeType || (input instanceof File ? input.type : undefined),
+          mediaType: options?.mediaType
+        }
+      : {
+          file: input.file,
+          fileName: input.fileName || options?.fileName,
+          mimeType: input.mimeType || options?.mimeType,
+          mediaType: input.mediaType || options?.mediaType
+        }
+
+  const url = typeof raw.file === 'string' ? raw.file : ''
+  const meta = resolvePreviewMeta({
+    url,
+    fileName: raw.fileName || (raw.file instanceof File ? raw.file.name : undefined),
+    mimeType: raw.mimeType,
+    mediaType: raw.mediaType
+  })
+
   return {
-    file: input.file,
-    fileName: input.fileName || options?.fileName,
-    mimeType: input.mimeType || options?.mimeType
+    file: raw.file,
+    fileName: meta.fileName,
+    mimeType: meta.mimeType,
+    mediaType: raw.mediaType
   }
 }
 

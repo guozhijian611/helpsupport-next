@@ -103,6 +103,7 @@
             v-else-if="isPreviewField(field)"
             :url="row[field.prop]"
             :file-name="row.title || row.origin_name"
+            :mime-type="row.mime_type"
             :media-type="row.media_type"
             :field-prop="field.prop"
           />
@@ -261,6 +262,7 @@
                   v-if="formData[field.prop]"
                   :url="formData[field.prop]"
                   :file-name="formData.title"
+                  :mime-type="formData.mime_type"
                   :media-type="formData.media_type"
                   :field-prop="field.prop"
                   detail
@@ -293,6 +295,7 @@
             v-else-if="isPreviewField(field)"
             :url="detailData[field.prop]"
             :file-name="detailData.title || detailData.origin_name"
+            :mime-type="detailData.mime_type"
             :media-type="detailData.media_type"
             :field-prop="field.prop"
             detail

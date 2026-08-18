@@ -75,7 +75,8 @@
       urls.value.map((item) => ({
         file: item,
         fileName: props.fileName || fileNameFromUrl(item),
-        mimeType: props.mimeType || undefined
+        mimeType: props.mimeType || undefined,
+        mediaType: props.mediaType
       })),
       {
         index,

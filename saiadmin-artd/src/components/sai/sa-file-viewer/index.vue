@@ -12,7 +12,8 @@
     <div v-loading="pluginLoading" class="sa-file-viewer-body">
       <OpenFileViewer
         v-if="visible && plugins.length > 0 && viewerFiles.length > 0"
-        :files="viewerFiles"
+        :file="singleFile"
+        :files="queueFiles"
         :initial-index="initialIndex"
         :file-name="currentFileName"
         :mime-type="currentMimeType"
@@ -34,7 +35,7 @@
   import '@open-file-viewer/core/style.css'
   import { useFileViewer } from '@/composables/useFileViewer'
   import { getFileViewerPlugins } from './plugins'
-  import { fileNameFromUrl } from './utils'
+  import { resolvePreviewMeta } from './utils'
 
   defineOptions({ name: 'SaFileViewer' })
 
@@ -43,29 +44,29 @@
   const pluginLoading = ref(false)
 
   const viewerFiles = computed<PreviewItem[]>(() =>
-    items.value.map((item) => ({
-      file: item.file,
-      fileName: resolveFileName(item.file, item.fileName),
-      mimeType: item.mimeType
-    }))
+    items.value.map((item) => {
+      const url = typeof item.file === 'string' ? item.file : ''
+      const meta = resolvePreviewMeta({
+        url,
+        fileName: item.fileName,
+        mimeType: item.mimeType,
+        mediaType: item.mediaType
+      })
+      return {
+        file: item.file,
+        fileName: meta.fileName,
+        mimeType: meta.mimeType
+      }
+    })
   )
 
   const currentFile = computed(() => viewerFiles.value[initialIndex.value] || viewerFiles.value[0])
   const currentFileName = computed(() => currentFile.value?.fileName)
   const currentMimeType = computed(() => currentFile.value?.mimeType)
-
-  const resolveFileName = (file: string | File | Blob, fileName?: string) => {
-    if (fileName) {
-      return fileName
-    }
-    if (file instanceof File) {
-      return file.name
-    }
-    if (typeof file === 'string') {
-      return fileNameFromUrl(file)
-    }
-    return '未命名文件'
-  }
+  const singleFile = computed(() =>
+    viewerFiles.value.length === 1 ? viewerFiles.value[0]?.file : undefined
+  )
+  const queueFiles = computed(() => (viewerFiles.value.length > 1 ? viewerFiles.value : undefined))
 
   const loadPlugins = async () => {
     if (plugins.value.length > 0) {
