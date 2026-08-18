@@ -699,7 +699,7 @@ class _ReviewedPostMeta extends StatelessWidget {
           _ReviewedMetaRow(
             label: _t(context, '发布时间', 'Published at'),
             child: Text(
-              createTime,
+              formatCommunityDateTime(createTime),
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: palette.secondaryText,

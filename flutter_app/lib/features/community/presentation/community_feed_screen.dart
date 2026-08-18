@@ -1451,18 +1451,19 @@ String _authorSubtitle(
   CommunityPost post, {
   required bool hideRecoveryStage,
 }) {
+  final postedAt = formatCommunityDateTime(post.createTime);
   if (hideRecoveryStage) {
-    return post.createTime.trim().isEmpty
+    return postedAt.isEmpty
         ? _t(context, '社区成员', 'Community member')
-        : post.createTime;
+        : postedAt;
   }
   final role = post.isDoctorPost
       ? _t(context, '医生作者', 'Doctor author')
       : _t(context, '坚持治疗', 'Recovery journal');
-  if (post.createTime.trim().isEmpty) {
+  if (postedAt.isEmpty) {
     return role;
   }
-  return '$role  ${post.createTime}';
+  return '$role  $postedAt';
 }
 
 String _scopeLabel(BuildContext context, _CommunityFeedScope scope) {

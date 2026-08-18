@@ -454,6 +454,29 @@ double _doubleValue(Object? value, {double fallback = 0}) {
   return fallback;
 }
 
+String formatCommunityDateTime(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) {
+    return '';
+  }
+
+  final parsed = DateTime.tryParse(trimmed);
+  if (parsed != null) {
+    final local = parsed.isUtc ? parsed.toLocal() : parsed;
+    final year = local.year.toString().padLeft(4, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final day = local.day.toString().padLeft(2, '0');
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute';
+  }
+
+  if (trimmed.length >= 16) {
+    return trimmed.substring(0, 16).replaceFirst('T', ' ');
+  }
+  return trimmed;
+}
+
 String _stringValue(Object? value, {String fallback = ''}) {
   if (value == null) {
     return fallback;
