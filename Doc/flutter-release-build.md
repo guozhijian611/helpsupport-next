@@ -253,12 +253,11 @@ Android 签名失败：
 
 Android 打包时从 Maven Central 下载中断（`Remote host terminated the handshake`、`Premature end of Content-Length`）：
 
-- Gradle 默认会直连 `repo.maven.apache.org`。仓库已在 `android/settings.gradle.kts` 与 `android/build.gradle.kts` 优先使用阿里云 Maven 镜像。
-- 若仍失败，删除可能损坏的半截缓存后再打：
+- Gradle 默认会直连 `repo.maven.apache.org`。仓库已把 `org.jetbrains.kotlin` 强制走阿里云 Maven；`file_picker` 等插件自己的 classpath 也会走镜像。
+- 若仍失败，删除可能损坏的半截 Kotlin 缓存后再打：
 
 ```bash
-rm -rf ~/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-compiler-embeddable
-rm -rf ~/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-build-tools-compat
+rm -rf ~/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin
 ```
 
 - 然后不要重编 llama，直接重跑 `./package_release.sh`。

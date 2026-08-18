@@ -11,6 +11,14 @@ pluginManagement {
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
     repositories {
+        exclusiveContent {
+            forRepository {
+                maven { url = uri("https://maven.aliyun.com/repository/central") }
+            }
+            filter {
+                includeGroup("org.jetbrains.kotlin")
+            }
+        }
         maven { url = uri("https://maven.aliyun.com/repository/google") }
         maven { url = uri("https://maven.aliyun.com/repository/central") }
         maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
@@ -29,3 +37,23 @@ plugins {
 }
 
 include(":app")
+
+// file_picker 等插件会在自己的 buildscript 里直连 Maven Central。
+// 必须在工程求值前把 Kotlin 构件强制到阿里云，否则仍会下到半截 jar。
+gradle.beforeProject {
+    buildscript.repositories {
+        exclusiveContent {
+            forRepository {
+                maven { url = uri("https://maven.aliyun.com/repository/central") }
+            }
+            filter {
+                includeGroup("org.jetbrains.kotlin")
+            }
+        }
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        maven { url = uri("https://maven.aliyun.com/repository/central") }
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        google()
+        mavenCentral()
+    }
+}

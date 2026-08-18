@@ -1,5 +1,30 @@
 allprojects {
+    buildscript {
+        repositories {
+            exclusiveContent {
+                forRepository {
+                    maven { url = uri("https://maven.aliyun.com/repository/central") }
+                }
+                filter {
+                    includeGroup("org.jetbrains.kotlin")
+                }
+            }
+            maven { url = uri("https://maven.aliyun.com/repository/google") }
+            maven { url = uri("https://maven.aliyun.com/repository/central") }
+            maven { url = uri("https://maven.aliyun.com/repository/public") }
+            google()
+            mavenCentral()
+        }
+    }
     repositories {
+        exclusiveContent {
+            forRepository {
+                maven { url = uri("https://maven.aliyun.com/repository/central") }
+            }
+            filter {
+                includeGroup("org.jetbrains.kotlin")
+            }
+        }
         maven { url = uri("https://maven.aliyun.com/repository/google") }
         maven { url = uri("https://maven.aliyun.com/repository/central") }
         maven { url = uri("https://maven.aliyun.com/repository/public") }
