@@ -216,6 +216,8 @@ Route::group('/app/help', function () {
 
     Route::post('/push/device/register', [PushController::class, 'registerDevice']);
     Route::post('/push/device/unregister', [PushController::class, 'unregisterDevice']);
+    Route::get('/push/device/debug', [PushController::class, 'debugDevice']);
+    Route::post('/push/device/test', [PushController::class, 'testDevice']);
     Route::get('/push/preference', [PushController::class, 'preference']);
     Route::post('/push/preference', [PushController::class, 'savePreference']);
 });

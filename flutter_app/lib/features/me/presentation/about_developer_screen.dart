@@ -13,9 +13,9 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 
 import '../../../core/config/build_info.dart';
-import '../../../core/diagnostics/diagnostic_log_service.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
+import 'developer_firebase_panel.dart';
 
 class AboutDeveloperScreen extends ConsumerStatefulWidget {
   const AboutDeveloperScreen({super.key});
@@ -54,6 +54,7 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
   List<CameraDescription> _availableCameras = const [];
   Map<Permission, PermissionStatus> _permissionStatuses =
       const <Permission, PermissionStatus>{};
+  final _firebasePanelKey = GlobalKey<DeveloperFirebasePanelState>();
 
   @override
   void initState() {
@@ -108,6 +109,13 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
       _lastPermissionCheckAt = DateTime.now();
       _permissionRefreshing = false;
     });
+  }
+
+  Future<void> _refreshDeveloperTools() async {
+    await Future.wait([
+      _loadPermissionStatuses(),
+      _firebasePanelKey.currentState?.refresh() ?? Future<void>.value(),
+    ]);
   }
 
   Future<void> _requestAllPermissions() async {
@@ -879,7 +887,7 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
         foregroundColor: palette.primaryText,
         actions: [
           IconButton(
-            onPressed: _permissionRefreshing ? null : _loadPermissionStatuses,
+            onPressed: _permissionRefreshing ? null : _refreshDeveloperTools,
             icon: const Icon(Icons.refresh_rounded),
             tooltip: _t(context, '刷新状态', 'Refresh status'),
           ),
@@ -887,7 +895,7 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
       ),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _loadPermissionStatuses,
+          onRefresh: _refreshDeveloperTools,
           color: palette.accent,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
@@ -932,8 +940,8 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
                               Text(
                                 _t(
                                   context,
-                                  '集中验证 AI、自诊断、通知、相机、闪光灯、图片/文件选择与权限状态。',
-                                  'Validate AI, diagnostics, notifications, camera, flashlight, pickers, and permission state in one place.',
+                                  '集中验证 AI、自诊断、Firebase 推送、通知、相机、闪光灯、图片/文件选择与权限状态。',
+                                  'Validate AI, diagnostics, Firebase push, notifications, camera, flashlight, pickers, and permission state in one place.',
                                 ),
                                 style: Theme.of(context).textTheme.bodyMedium
                                     ?.copyWith(
@@ -1012,6 +1020,8 @@ class _AboutDeveloperScreenState extends ConsumerState<AboutDeveloperScreen> {
                   ],
                 ),
               ),
+              const SizedBox(height: 18),
+              DeveloperFirebasePanel(key: _firebasePanelKey),
               const SizedBox(height: 18),
               _SectionLabel(
                 palette: palette,

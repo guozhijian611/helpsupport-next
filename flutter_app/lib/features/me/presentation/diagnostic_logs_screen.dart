@@ -46,7 +46,7 @@ class _DiagnosticLogsScreenState extends ConsumerState<DiagnosticLogsScreen> {
     final deviceService = ref.read(deviceRegistrationServiceProvider);
     try {
       final entries = await diagnosticService.readEntries();
-      final deviceId = await deviceService.readCurrentDeviceId() ?? '';
+      final deviceId = await deviceService.readCurrentDeviceId();
       final locale =
           ref.read(appLocaleProvider)?.toLanguageTag() ??
           PlatformDispatcher.instance.locale.toLanguageTag();
@@ -96,7 +96,7 @@ class _DiagnosticLogsScreenState extends ConsumerState<DiagnosticLogsScreen> {
           .read(meSettingsRepositoryProvider)
           .uploadDiagnosticLogs(
             deviceId: _deviceId.isEmpty
-                ? await deviceService.readCurrentDeviceId() ?? ''
+                ? await deviceService.readCurrentDeviceId()
                 : _deviceId,
             platform: _platform.isEmpty
                 ? deviceService.currentPlatform() ?? ''

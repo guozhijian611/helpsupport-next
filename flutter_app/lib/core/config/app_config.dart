@@ -10,6 +10,8 @@ class AppConfig {
     required this.description,
     required this.defaultLocale,
     required this.supportedLocales,
+    this.firebaseEnabled = false,
+    this.firebaseProjectId = '',
   });
 
   static const fallback = AppConfig(
@@ -25,6 +27,8 @@ class AppConfig {
   final String description;
   final String defaultLocale;
   final List<String> supportedLocales;
+  final bool firebaseEnabled;
+  final String firebaseProjectId;
 
   factory AppConfig.fromJson(Object? value, ApiClient apiClient) {
     if (value is! Map<String, dynamic>) {
@@ -37,6 +41,10 @@ class AppConfig {
     }
 
     final supportedLocales = app['supported_locales'];
+    final push = value['push'];
+    final pushMap = push is Map<String, dynamic>
+        ? push
+        : const <String, dynamic>{};
 
     return AppConfig(
       name: _stringValue(app['name'], fallback.name),
@@ -52,6 +60,8 @@ class AppConfig {
                 .where((value) => value.isNotEmpty)
                 .toList(growable: false)
           : fallback.supportedLocales,
+      firebaseEnabled: pushMap['firebase_enabled'] == true,
+      firebaseProjectId: _stringValue(pushMap['firebase_project_id']),
     );
   }
 

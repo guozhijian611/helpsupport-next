@@ -82,4 +82,31 @@ class PushController extends BaseController
     {
         return ok($this->service->savePushPreference($this->memberId, $request->all()));
     }
+
+    #[Apidoc\Title('读取当前推送设备诊断')]
+    #[Apidoc\Url('/app/help/push/device/debug')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('device_id', type: 'string', require: false, desc: '当前客户端设备标识')]
+    #[Apidoc\Returned('firebase_enabled', type: 'bool', desc: '后台是否启用 Firebase 推送')]
+    #[Apidoc\Returned('firebase_project_id', type: 'string', desc: '后台 Firebase Project ID')]
+    #[Apidoc\Returned('has_service_account', type: 'bool', desc: '服务端是否已加载服务账号')]
+    #[Apidoc\Returned('current_device_registered', type: 'bool', desc: '当前设备是否已登记')]
+    #[Apidoc\Returned('devices', type: 'array', desc: '当前会员设备列表，不含 Token 原文')]
+    public function debugDevice(Request $request): Response
+    {
+        return ok($this->service->pushDeviceDebug($this->memberId, $request->all()));
+    }
+
+    #[Apidoc\Title('发送开发者测试推送')]
+    #[Apidoc\Url('/app/help/push/device/test')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('device_id', type: 'string', require: false, desc: '当前客户端设备标识')]
+    #[Apidoc\Param('platform', type: 'string', require: false, desc: 'ios/android')]
+    #[Apidoc\Returned('sent', type: 'bool', desc: '是否已向 FCM 发起发送')]
+    #[Apidoc\Returned('error', type: 'string', desc: '公开错误码')]
+    #[Apidoc\Returned('results', type: 'array', desc: '各设备 FCM 发送结果，不含 Token 原文')]
+    public function testDevice(Request $request): Response
+    {
+        return ok($this->service->sendPushDeviceTest($this->memberId, $request->post()));
+    }
 }

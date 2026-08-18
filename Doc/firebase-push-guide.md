@@ -288,6 +288,17 @@ LIMIT 20;
 
 成功必须同时满足：FCM 返回 HTTP 2xx、消息记录保存成功、目标真机实际收到通知。任意一项缺失都不能判定端到端完成。
 
+### 9.4 App 开发者工具
+
+登录后进入“关于 / 开发者工具”，可在本机对照推送链路：
+
+- 查看 Firebase 初始化、Project ID、Sender ID、通知授权、APNs 环境、APNs/FCM Token 长度。
+- 核对服务器是否启用 Firebase、服务账号是否加载、当前设备是否已登记。
+- 点“发送测试推送”调用 `POST /app/help/push/device/test`，页面会显示 FCM HTTP 结果；接口不返回 Token 原文。
+- 前台收到的远程消息会列在同一卡片中，便于确认到达而不是只看发送成功。
+
+iOS 远程推送仍以真机为准。模拟器上的本地通知成功不能代替 APNs/FCM。
+
 ## 10. 常见错误
 
 ### `missing_fcm_token_or_project_id`

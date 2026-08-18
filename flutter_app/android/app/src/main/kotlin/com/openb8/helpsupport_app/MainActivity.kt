@@ -22,6 +22,7 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "getTimeZone" -> result.success(TimeZone.getDefault().id)
                 "getNotificationDiagnostics" -> result.success(notificationDiagnostics())
+                "getFirebasePushDiagnostics" -> result.success(firebasePushDiagnostics())
                 "getLocalLlmDiagnostics" -> result.success(localLlmDiagnostics())
                 "setCallSpeakerEnabled" -> {
                     val enabled = call.argument<Boolean>("enabled") ?: true
@@ -43,6 +44,29 @@ class MainActivity : FlutterActivity() {
             audioManager.isSpeakerphoneOn = false
             audioManager.mode = AudioManager.MODE_NORMAL
         }
+    }
+
+    private fun firebasePushDiagnostics(): Map<String, Any?> {
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationsEnabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            notificationManager.areNotificationsEnabled()
+        } else {
+            true
+        }
+        val importance = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            notificationManager.importance
+        } else {
+            -1
+        }
+        return mapOf(
+            "platform" to "android",
+            "packageName" to packageName,
+            "isEmulator" to isProbablyEmulator(),
+            "sdkInt" to Build.VERSION.SDK_INT,
+            "notificationsEnabled" to notificationsEnabled,
+            "importance" to importance,
+        )
     }
 
     private fun notificationDiagnostics(): Map<String, Any?> {

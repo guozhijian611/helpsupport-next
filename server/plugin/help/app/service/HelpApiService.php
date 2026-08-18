@@ -1737,6 +1737,20 @@ class HelpApiService
         return true;
     }
 
+    public function pushDeviceDebug(int $memberId, array $data): array
+    {
+        $deviceId = trim((string) ($data['device_id'] ?? ''));
+        return (new HelpPushService())->developerSnapshot(
+            $memberId,
+            $deviceId === '' ? null : $deviceId
+        );
+    }
+
+    public function sendPushDeviceTest(int $memberId, array $data): array
+    {
+        return (new HelpPushService())->sendDeveloperTest($memberId, $data);
+    }
+
     private function deactivateOtherPushDevices(int $memberId, int $activeDeviceId, string $now): void
     {
         if ($activeDeviceId <= 0) {

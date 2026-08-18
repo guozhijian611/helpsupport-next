@@ -1,5 +1,6 @@
 import Flutter
 import AVFoundation
+import Security
 import UIKit
 import UserNotifications
 
@@ -40,6 +41,8 @@ import UserNotifications
       result(TimeZone.current.identifier)
     case "getNotificationDiagnostics":
       readNotificationDiagnostics(result: result)
+    case "getFirebasePushDiagnostics":
+      result(readFirebasePushDiagnostics())
     case "setCallSpeakerEnabled":
       setCallSpeakerEnabled(call: call, result: result)
     default:
@@ -77,6 +80,41 @@ import UserNotifications
         details: nil
       ))
     }
+  }
+
+  private func readFirebasePushDiagnostics() -> [String: Any] {
+    #if targetEnvironment(simulator)
+    let isSimulator = true
+    #else
+    let isSimulator = false
+    #endif
+    let backgroundModes = Bundle.main.object(forInfoDictionaryKey: "UIBackgroundModes") as? [String] ?? []
+    return [
+      "platform": "ios",
+      "bundleId": Bundle.main.bundleIdentifier ?? "",
+      "isSimulator": isSimulator,
+      "apsEnvironment": readApsEnvironment(),
+      "isRegisteredForRemoteNotifications": UIApplication.shared.isRegisteredForRemoteNotifications,
+      "backgroundModes": backgroundModes,
+      "hasRemoteNotificationBackgroundMode": backgroundModes.contains("remote-notification"),
+    ]
+  }
+
+  private func readApsEnvironment() -> String {
+    var entitlementError: Unmanaged<CFError>?
+    guard let task = SecTaskCreateFromSelf(nil) else {
+      return "missing"
+    }
+    guard let value = SecTaskCopyValueForEntitlement(
+      task,
+      "aps-environment" as CFString,
+      &entitlementError
+    ) as? String,
+      !value.isEmpty
+    else {
+      return "missing"
+    }
+    return value
   }
 
   private func readNotificationDiagnostics(result: @escaping FlutterResult) {

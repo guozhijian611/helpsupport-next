@@ -105,6 +105,153 @@ class HelpPushService
         return $this->pushMessageToDevices($message, $devices, $templateCode, $scene, $payload);
     }
 
+    /**
+     * 开发者诊断快照：不返回 Token 原文，只返回状态、长度和公开配置。
+     */
+    public function developerSnapshot(int $memberId, ?string $clientDeviceId = null): array
+    {
+        $config = $this->firebaseConfig();
+        $preference = Db::table('sa_member_push_preference')
+            ->where('member_id', $memberId)
+            ->whereNull('delete_time')
+            ->find() ?: [];
+        $devices = Db::table('sa_member_push_device')
+            ->where('member_id', $memberId)
+            ->whereNull('delete_time')
+            ->order('last_active_time', 'desc')
+            ->select()
+            ->toArray();
+        $publicDevices = array_map([$this, 'publicDevice'], $devices);
+        $matched = $this->matchPublicDevice($publicDevices, $clientDeviceId);
+
+        return [
+            'firebase_enabled' => ($config['enabled'] ?? '2') === '1',
+            'firebase_project_id' => trim((string) ($config['project_id'] ?? '')),
+            'has_service_account' => $this->serviceAccount($config) !== [],
+            'is_push_enabled' => (int) ($preference['is_push_enabled'] ?? 1) === 1,
+            'in_quiet_hours' => $this->inQuietHours($preference),
+            'quiet_start_time' => (string) ($preference['quiet_start_time'] ?? ''),
+            'quiet_end_time' => (string) ($preference['quiet_end_time'] ?? ''),
+            'current_device_registered' => $matched !== null,
+            'current_device' => $matched,
+            'device_count' => count($publicDevices),
+            'devices' => $publicDevices,
+        ];
+    }
+
+    /**
+     * 向当前会员已登记设备发送一条开发者测试推送，并返回 FCM 发送结果。
+     */
+    public function sendDeveloperTest(int $memberId, array $data): array
+    {
+        $clientDeviceId = trim((string) ($data['device_id'] ?? ''));
+        $snapshot = $this->developerSnapshot($memberId, $clientDeviceId === '' ? null : $clientDeviceId);
+        $result = array_merge($snapshot, [
+            'sent' => false,
+            'sent_at' => null,
+            'error' => '',
+            'results' => [],
+        ]);
+
+        if ($snapshot['firebase_enabled'] !== true) {
+            $result['error'] = 'firebase_disabled';
+            return $result;
+        }
+        if ($snapshot['firebase_project_id'] === '') {
+            $result['error'] = 'missing_fcm_token_or_project_id';
+            return $result;
+        }
+        if ($snapshot['has_service_account'] !== true) {
+            $result['error'] = 'missing_firebase_access_token';
+            return $result;
+        }
+
+        $devices = $this->developerTestDevices($memberId, $clientDeviceId);
+        if ($devices === []) {
+            $result['error'] = 'no_active_push_device';
+            return $result;
+        }
+
+        $title = 'HelpSupport developer test';
+        $body = 'Firebase Cloud Messaging test from developer tools.';
+        $payload = [
+            'developer_test' => '1',
+            'scene' => 'developer_test',
+            'sent_at' => date(DATE_ATOM),
+        ];
+        $results = [];
+        foreach ($devices as $device) {
+            $send = $this->sendFcm(
+                (string) ($device['fcm_token'] ?? ''),
+                $title,
+                $body,
+                $payload
+            );
+            $results[] = array_merge($this->publicDevice($device), $send);
+        }
+
+        $result['sent'] = true;
+        $result['sent_at'] = date(DATE_ATOM);
+        $result['results'] = $results;
+        $successCount = count(array_filter($results, static fn (array $row) => ($row['success'] ?? false) === true));
+        if ($successCount === 0) {
+            $result['error'] = (string) ($results[0]['error'] ?? 'fcm_send_failed');
+        }
+
+        return $result;
+    }
+
+    private function developerTestDevices(int $memberId, string $clientDeviceId): array
+    {
+        $query = Db::table('sa_member_push_device')
+            ->where('member_id', $memberId)
+            ->where('fcm_token', '<>', '')
+            ->whereNull('delete_time');
+        if ($clientDeviceId !== '') {
+            $matched = $query->where('device_id', $clientDeviceId)->select()->toArray();
+            if ($matched !== []) {
+                return $matched;
+            }
+        }
+
+        return Db::table('sa_member_push_device')
+            ->where('member_id', $memberId)
+            ->where('is_active', 1)
+            ->where('fcm_token', '<>', '')
+            ->whereNull('delete_time')
+            ->order('last_active_time', 'desc')
+            ->select()
+            ->toArray();
+    }
+
+    private function publicDevice(array $device): array
+    {
+        return [
+            'id' => (int) ($device['id'] ?? 0),
+            'device_id' => (string) ($device['device_id'] ?? ''),
+            'platform' => (string) ($device['platform'] ?? ''),
+            'is_active' => (int) ($device['is_active'] ?? 0),
+            'fcm_token_length' => strlen((string) ($device['fcm_token'] ?? '')),
+            'apns_token_length' => strlen((string) ($device['apns_token'] ?? '')),
+            'app_version' => (string) ($device['app_version'] ?? ''),
+            'last_active_time' => (string) ($device['last_active_time'] ?? ''),
+        ];
+    }
+
+    private function matchPublicDevice(array $devices, ?string $clientDeviceId): ?array
+    {
+        if ($clientDeviceId === null || $clientDeviceId === '') {
+            return null;
+        }
+        foreach ($devices as $device) {
+            if ((string) ($device['device_id'] ?? '') === $clientDeviceId) {
+                return $device;
+            }
+        }
+
+        return null;
+    }
+
     private function template(string $templateCode, string $locale): array
     {
         $template = Db::table('sa_push_template')

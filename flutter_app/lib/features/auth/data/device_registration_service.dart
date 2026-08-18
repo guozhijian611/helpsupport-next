@@ -21,16 +21,16 @@ class DeviceRegistrationService {
   final FirebasePushService _firebasePushService;
   final SharedPreferences _preferences;
 
-  Future<void> registerCurrentDevice() async {
+  Future<Map<String, dynamic>> registerCurrentDevice() async {
     final platform = _platformName();
     if (platform == null) {
-      return;
+      return const <String, dynamic>{};
     }
 
     final fcmToken = await _firebasePushService.readToken();
     final apnsToken = await _firebasePushService.readApnsToken();
 
-    await _apiClient.postApi<Map<String, dynamic>>(
+    final result = await _apiClient.postApi<Map<String, dynamic>>(
       '/app/help/push/device/register',
       data: {
         'device_id': await _deviceId(),
@@ -43,6 +43,7 @@ class DeviceRegistrationService {
       },
       decode: _map,
     );
+    return result.data ?? const <String, dynamic>{};
   }
 
   Future<void> unregisterCurrentDevice() async {
@@ -59,12 +60,33 @@ class DeviceRegistrationService {
     );
   }
 
-  Future<String?> readCurrentDeviceId() async {
+  Future<String> readCurrentDeviceId() async {
     final existing = _preferences.getString(_deviceIdKey);
     if (existing != null && existing.isNotEmpty) {
       return existing;
     }
     return _deviceId();
+  }
+
+  Future<Map<String, dynamic>> readServerPushDebug() async {
+    final result = await _apiClient.getApi<Map<String, dynamic>>(
+      '/app/help/push/device/debug',
+      queryParameters: {
+        'device_id': await _deviceId(),
+        if (currentPlatform() != null) 'platform': currentPlatform(),
+      },
+      decode: _map,
+    );
+    return result.data ?? const <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> sendDeveloperTestPush() async {
+    final result = await _apiClient.postApi<Map<String, dynamic>>(
+      '/app/help/push/device/test',
+      data: {'device_id': await _deviceId(), 'platform': currentPlatform()},
+      decode: _map,
+    );
+    return result.data ?? const <String, dynamic>{};
   }
 
   String? currentPlatform() => _platformName();
