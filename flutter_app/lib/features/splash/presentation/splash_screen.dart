@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../auth/application/auth_controller.dart';
 import '../../auth/data/auth_models.dart';
-import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/providers/app_providers.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -76,45 +75,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                width: 96,
-                height: 96,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: scheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Icon(
-                  Icons.volunteer_activism_outlined,
-                  size: 52,
-                  color: scheme.onPrimaryContainer,
-                ),
-              ),
-              const SizedBox(height: 28),
-              Text(
-                context.l10n.splashTitle,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                context.l10n.splashSubtitle,
-                textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
-              ),
-            ],
-          ),
-        ),
-      ),
+      backgroundColor: scheme.surface,
+      body: const SizedBox.expand(),
     );
   }
 }
