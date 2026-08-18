@@ -1,0 +1,80 @@
+import { ref } from 'vue'
+
+export interface FileViewerItem {
+  file: string | File | Blob
+  fileName?: string
+  mimeType?: string
+}
+
+export interface FileViewerOptions {
+  fileName?: string
+  mimeType?: string
+  title?: string
+  index?: number
+}
+
+type FileViewerInput = string | File | Blob | FileViewerItem
+
+const visible = ref(false)
+const items = ref<FileViewerItem[]>([])
+const initialIndex = ref(0)
+const title = ref('文件预览')
+
+const toItem = (input: FileViewerInput, options?: FileViewerOptions): FileViewerItem => {
+  if (typeof input === 'string' || input instanceof File || input instanceof Blob) {
+    const fileName = options?.fileName || (input instanceof File ? input.name : undefined)
+    return {
+      file: input,
+      fileName,
+      mimeType: options?.mimeType || (input instanceof File ? input.type : undefined)
+    }
+  }
+  return {
+    file: input.file,
+    fileName: input.fileName || options?.fileName,
+    mimeType: input.mimeType || options?.mimeType
+  }
+}
+
+export function useFileViewer() {
+  const preview = (file: FileViewerInput | FileViewerInput[], options?: FileViewerOptions) => {
+    const list = Array.isArray(file) ? file : [file]
+    const nextItems = list
+      .map((item) => toItem(item, options))
+      .filter((item) => {
+        if (typeof item.file === 'string') {
+          return item.file.trim().length > 0
+        }
+        return Boolean(item.file)
+      })
+
+    if (nextItems.length === 0) {
+      return
+    }
+
+    items.value = nextItems
+    initialIndex.value = Math.min(Math.max(options?.index || 0, 0), nextItems.length - 1)
+    title.value = options?.title || nextItems[0]?.fileName || '文件预览'
+    visible.value = true
+  }
+
+  const close = () => {
+    visible.value = false
+  }
+
+  const handleClosed = () => {
+    items.value = []
+    initialIndex.value = 0
+    title.value = '文件预览'
+  }
+
+  return {
+    visible,
+    items,
+    initialIndex,
+    title,
+    preview,
+    close,
+    handleClosed
+  }
+}

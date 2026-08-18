@@ -52,6 +52,7 @@
   import type { UploadProps, UploadUserFile, UploadRequestOptions } from 'element-plus'
   import type { AxiosProgressEvent } from 'axios'
   import { uploadFile } from '@/api/auth'
+  import { useFileViewer } from '@/composables/useFileViewer'
 
   defineOptions({ name: 'SaFileUpload' })
 
@@ -247,11 +248,15 @@
     ElMessage.warning(`最多只能上传 ${props.limit} 个文件，请先删除已有文件后再上传`)
   }
 
+  const { preview } = useFileViewer()
+
   // 预览文件
   const handlePreview: UploadProps['onPreview'] = (file) => {
     if (file.url) {
-      // 在新窗口打开文件
-      window.open(file.url, '_blank')
+      preview(file.url, {
+        fileName: file.name,
+        mimeType: file.raw?.type
+      })
     }
   }
 

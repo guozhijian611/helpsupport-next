@@ -68,6 +68,12 @@ export const globalComponentsConfig: GlobalComponentConfig[] = [
       () => import('@/components/core/others/art-watermark/index.vue')
     ),
     enabled: true
+  },
+  {
+    name: '文件预览',
+    key: 'file-viewer',
+    component: defineAsyncComponent(() => import('@/components/sai/sa-file-viewer/index.vue')),
+    enabled: true
   }
 ]
 

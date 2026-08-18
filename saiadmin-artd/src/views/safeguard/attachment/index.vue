@@ -116,8 +116,16 @@
             @pagination:current-change="handleCurrentChange"
           >
             <!-- 操作列 -->
+            <template #url="{ row }">
+              <SaFilePreview
+                :url="row.url"
+                :file-name="row.origin_name"
+                :mime-type="row.mime_type"
+              />
+            </template>
             <template #operation="{ row }">
               <div class="flex gap-2">
+                <SaButton type="success" @click="previewAttachment(row)" />
                 <SaButton
                   v-permission="'core:attachment:edit'"
                   type="secondary"
@@ -162,7 +170,11 @@
   import { uploadImage } from '@/api/auth'
   import { useTable } from '@/hooks/core/useTable'
   import { useSaiAdmin } from '@/composables/useSaiAdmin'
+  import { useFileViewer } from '@/composables/useFileViewer'
+  import { fileNameFromUrl } from '@/components/sai/sa-file-viewer/utils'
+  import SaFilePreview from '@/components/sai/sa-file-preview/index.vue'
   import { Search, UploadFilled } from '@element-plus/icons-vue'
+  import { ElMessage } from 'element-plus'
   import type { UploadRequestOptions, UploadProps } from 'element-plus'
   import EditDialog from './modules/edit-dialog.vue'
   import CategoryDialog from './modules/category-dialog.vue'
@@ -215,6 +227,21 @@
     deleteSelectedRows
   } = useSaiAdmin()
 
+  const { preview } = useFileViewer()
+
+  const previewAttachment = (row: Record<string, any>) => {
+    const url = String(row.url || '').trim()
+    if (!url) {
+      ElMessage.warning('该附件没有可预览地址')
+      return
+    }
+    preview(url, {
+      fileName: row.origin_name || fileNameFromUrl(url),
+      mimeType: row.mime_type || undefined,
+      title: row.origin_name || '附件预览'
+    })
+  }
+
   /** 附件搜索表单 */
   const searchForm = ref({
     origin_name: undefined,
@@ -244,7 +271,7 @@
       },
       columnsFactory: () => [
         { type: 'selection' },
-        { prop: 'url', label: '预览', saiType: 'image', width: 80 },
+        { prop: 'url', label: '预览', width: 80, useSlot: true },
         { prop: 'origin_name', label: '文件名称', minWidth: 160, showOverflowTooltip: true },
         {
           prop: 'storage_mode',
@@ -256,7 +283,7 @@
         { prop: 'mime_type', label: '文件类型', width: 160, showOverflowTooltip: true },
         { prop: 'size_info', label: '文件大小', width: 100 },
         { prop: 'create_time', label: '上传时间', width: 180, sortable: true },
-        { prop: 'operation', label: '操作', width: 100, fixed: 'right', useSlot: true }
+        { prop: 'operation', label: '操作', width: 140, fixed: 'right', useSlot: true }
       ]
     }
   })

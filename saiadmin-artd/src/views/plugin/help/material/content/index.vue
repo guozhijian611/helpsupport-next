@@ -141,6 +141,7 @@
     {
       prop: 'content_url',
       label: '文件地址/游戏外链',
+      type: 'materialPreview',
       form: true,
       placeholder: 'txt/epub/pdf/mp4/mov/mp3 文件地址，游戏填 https 外链',
       minWidth: 220

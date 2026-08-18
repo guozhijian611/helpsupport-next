@@ -99,13 +99,13 @@
           <ElTag v-if="shouldUseTag(field)" :type="tagType(field, row[field.prop])">
             {{ formatValue(field, row[field.prop]) }}
           </ElTag>
-          <MaterialPreview
-            v-else-if="field.type === 'materialPreview'"
-            :row="row"
+          <SaFilePreview
+            v-else-if="isPreviewField(field)"
             :url="row[field.prop]"
+            :file-name="row.title || row.origin_name"
+            :media-type="row.media_type"
             :field-prop="field.prop"
           />
-          <ImagePreview v-else-if="field.type === 'image'" :url="row[field.prop]" />
           <div v-else-if="isIconField(field)" class="help-icon-cell">
             <span class="help-icon-preview">
               <ArtSvgIcon
@@ -257,6 +257,14 @@
                   :placeholder="field.placeholder || '上传文件后自动填入，也可手动粘贴地址'"
                   :disabled="isFieldDisabled(field)"
                 />
+                <SaFilePreview
+                  v-if="formData[field.prop]"
+                  :url="formData[field.prop]"
+                  :file-name="formData.title"
+                  :media-type="formData.media_type"
+                  :field-prop="field.prop"
+                  detail
+                />
               </div>
               <ElInput
                 v-else
@@ -281,14 +289,14 @@
           <pre v-if="field.type === 'json' || field.type === 'textarea'" class="help-detail-pre">{{
             formatValue(field, detailData[field.prop])
           }}</pre>
-          <MaterialPreview
-            v-else-if="field.type === 'materialPreview'"
-            :row="detailData"
+          <SaFilePreview
+            v-else-if="isPreviewField(field)"
             :url="detailData[field.prop]"
+            :file-name="detailData.title || detailData.origin_name"
+            :media-type="detailData.media_type"
             :field-prop="field.prop"
             detail
           />
-          <ImagePreview v-else-if="field.type === 'image'" :url="detailData[field.prop]" detail />
           <div v-else-if="isIconField(field)" class="help-icon-cell">
             <span class="help-icon-preview">
               <ArtSvgIcon
@@ -307,11 +315,11 @@
 </template>
 
 <script setup lang="ts">
-  import { h } from 'vue'
-  import { ElImage, ElLink, ElMessage, ElMessageBox } from 'element-plus'
+  import { ElMessage, ElMessageBox } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
   import { useTable } from '@/hooks/core/useTable'
   import { useSaiAdmin } from '@/composables/useSaiAdmin'
+  import SaFilePreview from '@/components/sai/sa-file-preview/index.vue'
   import type { CrudApi, HelpCrudAction, HelpCrudField } from './helpCrudTypes'
   import { inferRelationType, loadRelationOptions } from './relationOptions'
   import type { HelpRelationType } from './relationOptions'
@@ -626,6 +634,10 @@
     return field.type === 'icon' || field.prop === 'icon'
   }
 
+  const isPreviewField = (field: HelpCrudField) => {
+    return field.type === 'materialPreview' || field.type === 'file' || field.type === 'image'
+  }
+
   const shouldUseTag = (field: HelpCrudField) => {
     return (
       field.options !== undefined &&
@@ -647,169 +659,6 @@
 
   const tagType = (field: HelpCrudField, value: unknown) => {
     return optionOf(field, value)?.tagType || 'info'
-  }
-
-  const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'bmp']
-  const videoTypes = ['video', 'mp4', 'mov']
-  const audioTypes = ['audio', 'mp3']
-
-  const fileExtension = (url: string) => {
-    const cleanUrl = url.split('?')[0].split('#')[0]
-    const match = cleanUrl.match(/\.([a-z0-9]+)$/i)
-    return match ? match[1].toLowerCase() : ''
-  }
-
-  const isImageMaterial = (row: Record<string, any>, url: string) => {
-    return row.media_type === 'image' || imageExtensions.includes(fileExtension(url))
-  }
-
-  const isVideoMaterial = (row: Record<string, any>, url: string) => {
-    return (
-      videoTypes.includes(String(row.media_type || '')) ||
-      ['mp4', 'mov'].includes(fileExtension(url))
-    )
-  }
-
-  const isAudioMaterial = (row: Record<string, any>, url: string) => {
-    return audioTypes.includes(String(row.media_type || '')) || ['mp3'].includes(fileExtension(url))
-  }
-
-  const parseUrlList = (value: unknown) => {
-    if (Array.isArray(value)) {
-      return value.map((item) => String(item || '').trim()).filter(Boolean)
-    }
-    if (typeof value !== 'string') {
-      return []
-    }
-    const text = value.trim()
-    if (!text) {
-      return []
-    }
-    try {
-      const parsed = JSON.parse(text)
-      return parseUrlList(parsed)
-    } catch {
-      return [text]
-    }
-  }
-
-  const isUrlListValue = (value: unknown) => {
-    if (Array.isArray(value)) {
-      return true
-    }
-    if (typeof value !== 'string') {
-      return false
-    }
-    const text = value.trim()
-    return text.startsWith('[') && text.endsWith(']')
-  }
-
-  const MaterialImageGallery = (props: { urls: string[]; detail?: boolean }) => {
-    const visibleUrls = props.detail ? props.urls : props.urls.slice(0, 3)
-    return h(
-      'div',
-      {
-        class: props.detail ? 'help-material-gallery is-detail' : 'help-material-gallery'
-      },
-      [
-        ...visibleUrls.map((url, index) =>
-          h(ElImage, {
-            key: url + index,
-            src: url,
-            previewSrcList: props.urls,
-            initialIndex: index,
-            previewTeleported: true,
-            fit: 'cover',
-            class: props.detail ? 'help-material-image is-gallery-detail' : 'help-material-image'
-          })
-        ),
-        !props.detail && props.urls.length > 1
-          ? h('span', { class: 'help-material-gallery-count' }, props.urls.length + '张')
-          : null
-      ]
-    )
-  }
-
-  const MaterialPreview = (props: {
-    row: Record<string, any>
-    url: unknown
-    fieldProp?: string
-    detail?: boolean
-  }) => {
-    if (
-      props.fieldProp === 'image_urls' ||
-      Reflect.get(props, 'field-prop') === 'image_urls' ||
-      isUrlListValue(props.url)
-    ) {
-      const urls = parseUrlList(props.url).filter((url) => isImageMaterial(props.row, url))
-      if (urls.length === 0) {
-        return h('span', '-')
-      }
-      return MaterialImageGallery({ urls, detail: props.detail })
-    }
-
-    const url = String(props.url || '').trim()
-    if (!url) {
-      return h('span', '-')
-    }
-
-    if (isImageMaterial(props.row, url)) {
-      return h(ElImage, {
-        src: url,
-        previewSrcList: [url],
-        previewTeleported: true,
-        fit: 'cover',
-        class: props.detail ? 'help-material-image is-detail' : 'help-material-image'
-      })
-    }
-
-    if (isVideoMaterial(props.row, url)) {
-      return h('video', {
-        src: url,
-        controls: true,
-        class: props.detail ? 'help-material-video is-detail' : 'help-material-video'
-      })
-    }
-
-    if (isAudioMaterial(props.row, url)) {
-      return h('audio', {
-        src: url,
-        controls: true,
-        class: 'help-material-audio'
-      })
-    }
-
-    return h(
-      ElLink,
-      {
-        href: url,
-        target: '_blank',
-        type: props.row.media_type === 'link' ? 'primary' : 'default',
-        underline: false
-      },
-      () => (props.row.media_type === 'link' ? '打开外链' : shortUrl(url))
-    )
-  }
-
-  const ImagePreview = (props: { url: unknown; detail?: boolean }) => {
-    const urls = parseUrlList(props.url).filter((url) =>
-      imageExtensions.includes(fileExtension(url))
-    )
-    const url = urls[0] || String(props.url || '').trim()
-    if (!url) {
-      return h('span', '-')
-    }
-    return h(ElImage, {
-      src: url,
-      previewSrcList: [url],
-      previewTeleported: true,
-      fit: 'cover',
-      class: props.detail ? 'help-material-image is-detail' : 'help-material-image'
-    })
-  }
-
-  const shortUrl = (url: string) => {
-    return url.length > 48 ? url.slice(0, 45) + '...' : url
   }
 </script>
 
@@ -879,85 +728,5 @@
     white-space: pre-wrap;
     word-break: break-word;
     font-family: inherit;
-  }
-
-  .help-material-image {
-    width: 64px;
-    height: 64px;
-    border-radius: 6px;
-    border: 1px solid var(--el-border-color-lighter);
-    background: var(--el-fill-color-light);
-  }
-
-  .help-material-image.is-detail {
-    width: 220px;
-    height: 160px;
-  }
-
-  .help-material-gallery {
-    position: relative;
-    display: flex;
-    width: 146px;
-    height: 52px;
-    overflow: hidden;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .help-material-gallery.is-detail {
-    width: auto;
-    height: auto;
-    max-width: 100%;
-    overflow: visible;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .help-material-gallery .help-material-image {
-    width: 46px;
-    height: 46px;
-    flex: 0 0 46px;
-    border-radius: 6px;
-  }
-
-  .help-material-gallery .help-material-image.is-gallery-detail {
-    width: 140px;
-    height: 104px;
-    flex-basis: 140px;
-  }
-
-  .help-material-gallery-count {
-    position: absolute;
-    right: 4px;
-    bottom: 4px;
-    display: inline-flex;
-    height: 20px;
-    padding: 0 7px;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    background: rgb(0 0 0 / 62%);
-    color: #fff;
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 20px;
-  }
-
-  .help-material-video {
-    width: 140px;
-    height: 78px;
-    border-radius: 6px;
-    background: #111;
-  }
-
-  .help-material-video.is-detail {
-    width: min(100%, 520px);
-    height: 292px;
-  }
-
-  .help-material-audio {
-    width: 220px;
-    max-width: 100%;
   }
 </style>
