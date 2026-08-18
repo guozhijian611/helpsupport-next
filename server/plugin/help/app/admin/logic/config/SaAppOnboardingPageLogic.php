@@ -35,6 +35,24 @@ class SaAppOnboardingPageLogic extends BaseLogic
     }
 
     /**
+     * 删除引导页。已软删的记录不再假装成功。
+     */
+    public function destroy($ids): bool
+    {
+        $idList = $this->normalizeIds($ids);
+        if ($idList === []) {
+            throw new ApiException('请选择要删除的数据');
+        }
+
+        $alive = (int) $this->model->whereIn($this->model->getPk(), $idList)->count();
+        if ($alive === 0) {
+            throw new ApiException('要删除的数据不存在或已删除');
+        }
+
+        return parent::destroy($idList);
+    }
+
+    /**
      * 按场景 + 版本组装故事板，并附带全部流程摘要
      *
      * @return array{
@@ -50,9 +68,7 @@ class SaAppOnboardingPageLogic extends BaseLogic
     {
         $scene = $scene !== '' ? $scene : 'first_launch';
 
-        $rows = $this->model->newQuery()
-            ->where('scene', $scene)
-            ->where('version', $version)
+        $rows = $this->flowQuery($scene, $version)
             ->order('sort', 'asc')
             ->order('id', 'asc')
             ->select()
@@ -96,9 +112,7 @@ class SaAppOnboardingPageLogic extends BaseLogic
         }
 
         return (bool) $this->transaction(function () use ($scene, $version, $ids) {
-            $rows = $this->model->newQuery()
-                ->where('scene', $scene)
-                ->where('version', $version)
+            $rows = $this->flowQuery($scene, $version)
                 ->order('sort', 'asc')
                 ->order('id', 'asc')
                 ->select();
@@ -152,17 +166,12 @@ class SaAppOnboardingPageLogic extends BaseLogic
         $sourceScene = $sourceScene !== '' ? $sourceScene : 'first_launch';
         $scene = $scene !== '' ? $scene : 'first_launch';
 
-        $exists = (int) $this->model->newQuery()
-            ->where('scene', $scene)
-            ->where('version', $version)
-            ->count();
+        $exists = (int) $this->flowQuery($scene, $version)->count();
         if ($exists > 0) {
             throw new ApiException('目标流程已存在页面，请换一个版本号');
         }
 
-        $rows = $this->model->newQuery()
-            ->where('scene', $sourceScene)
-            ->where('version', $sourceVersion)
+        $rows = $this->flowQuery($sourceScene, $sourceVersion)
             ->order('sort', 'asc')
             ->order('id', 'asc')
             ->select()
@@ -241,7 +250,7 @@ class SaAppOnboardingPageLogic extends BaseLogic
      */
     private function listFlows(): array
     {
-        $rows = $this->model->newQuery()
+        $rows = $this->model
             ->field(['id', 'scene', 'version', 'locale', 'sort'])
             ->order('scene', 'asc')
             ->order('version', 'asc')
@@ -282,6 +291,32 @@ class SaAppOnboardingPageLogic extends BaseLogic
         }
 
         return $result;
+    }
+
+    private function flowQuery(string $scene, string $version)
+    {
+        return $this->model->where('scene', $scene)->where('version', $version);
+    }
+
+    /**
+     * @param mixed $ids
+     * @return array<int, int>
+     */
+    private function normalizeIds(mixed $ids): array
+    {
+        if (!is_array($ids)) {
+            $ids = explode(',', (string) $ids);
+        }
+
+        $idList = [];
+        foreach ($ids as $id) {
+            $id = (int) $id;
+            if ($id > 0 && !in_array($id, $idList, true)) {
+                $idList[] = $id;
+            }
+        }
+
+        return $idList;
     }
 
     /**
