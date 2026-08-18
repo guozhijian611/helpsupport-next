@@ -253,7 +253,7 @@ Android 签名失败：
 
 Android 打包时从 Maven Central 下载中断（`Remote host terminated the handshake`、`Premature end of Content-Length`）：
 
-- Gradle 默认会直连 `repo.maven.apache.org`。仓库已把 `org.jetbrains.kotlin` 强制走阿里云 Maven；`file_picker` 等插件自己的 classpath 也会走镜像。
+- 仓库通过 `android/gradle/init.aliyun.gradle` 把 Maven Central / Plugin Portal / Google Maven 改成阿里云镜像。`package_release.sh` 打包 Android 时会把它安装到 `~/.gradle/init.d/helpsupport-aliyun.gradle`，这样 Flutter 自带 `:gradle` 和 `file_picker` 也会走镜像。
 - 若仍失败，删除可能损坏的半截 Kotlin 缓存后再打：
 
 ```bash
@@ -261,6 +261,7 @@ rm -rf ~/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin
 ```
 
 - 然后不要重编 llama，直接重跑 `./package_release.sh`。
+- 打包过程中不要只看 Flutter 自动 Retry；网络掐断后应停掉、清缓存、用最新仓库配置重打。
 
 iOS 导出失败：
 

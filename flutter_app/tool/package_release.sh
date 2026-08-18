@@ -179,6 +179,19 @@ has_android_target() {
   target_enabled apk || target_enabled aab
 }
 
+install_aliyun_gradle_init() {
+  local source="${FLUTTER_APP_DIR}/android/gradle/init.aliyun.gradle"
+  local dest="${HOME}/.gradle/init.d/helpsupport-aliyun.gradle"
+  [[ -f "${source}" ]] || fail "Gradle Aliyun init script not found: ${source}"
+  if [[ "${DRY_RUN}" == "1" ]]; then
+    log "Would install Gradle Aliyun init script to ${dest}"
+    return
+  fi
+  mkdir -p "$(dirname "${dest}")"
+  cp "${source}" "${dest}"
+  log "Installed Gradle Aliyun init script: ${dest}"
+}
+
 prompt_value() {
   local label="$1"
   local current="$2"
@@ -469,6 +482,7 @@ main() {
   run_flutter_pub_get
 
   if has_android_target; then
+    install_aliyun_gradle_init
     warn_android_release_signing
     build_android_llama_runtime
   fi
