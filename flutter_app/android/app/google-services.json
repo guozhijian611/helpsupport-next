@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "1020489387914",
+    "project_id": "helpsupport-499505",
+    "storage_bucket": "helpsupport-499505.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1020489387914:android:7ccd30e3a23bb4e51ec273",
+        "android_client_info": {
+          "package_name": "com.openb8.helpsupport_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1020489387914-avjt5l5js2s41up03rertberrc0bg41e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzj2aFaYLZQixQMqdejxnKRAQ_r4FGYoc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1020489387914-avjt5l5js2s41up03rertberrc0bg41e.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1020489387914-boc2emhbapt84i7gm5165c31do7mj95r.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.openb8.helpsupportApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

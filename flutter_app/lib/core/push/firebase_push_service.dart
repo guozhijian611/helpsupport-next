@@ -2,9 +2,13 @@ import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 
 class FirebasePushService {
   FirebasePushService([this._messaging]);
+
+  static const _apnsTokenWaitAttempts = 20;
+  static const _apnsTokenWaitInterval = Duration(milliseconds: 250);
 
   FirebaseMessaging? _messaging;
   bool _available = false;
@@ -44,6 +48,10 @@ class FirebasePushService {
     if (!_available) {
       return null;
     }
+    if (defaultTargetPlatform == TargetPlatform.iOS &&
+        await _waitForApnsToken() == null) {
+      return null;
+    }
     return _messaging?.getToken();
   }
 
@@ -51,6 +59,19 @@ class FirebasePushService {
     if (!_available) {
       return null;
     }
-    return _messaging?.getAPNSToken();
+    return _waitForApnsToken();
+  }
+
+  Future<String?> _waitForApnsToken() async {
+    for (var attempt = 0; attempt < _apnsTokenWaitAttempts; attempt += 1) {
+      final token = await _messaging?.getAPNSToken();
+      if (token != null && token.isNotEmpty) {
+        return token;
+      }
+      if (attempt + 1 < _apnsTokenWaitAttempts) {
+        await Future<void>.delayed(_apnsTokenWaitInterval);
+      }
+    }
+    return null;
   }
 }

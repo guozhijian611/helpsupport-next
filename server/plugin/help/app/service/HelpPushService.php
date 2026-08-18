@@ -315,7 +315,7 @@ class HelpPushService
 
     private function accessToken(array $config): string
     {
-        $serviceAccount = json_decode((string) ($config['service_account_json'] ?? ''), true);
+        $serviceAccount = $this->serviceAccount($config);
         if (!is_array($serviceAccount)) {
             return '';
         }
@@ -346,6 +346,26 @@ class HelpPushService
         $body = json_decode((string) $response->getBody(), true);
 
         return is_array($body) ? (string) ($body['access_token'] ?? '') : '';
+    }
+
+    private function serviceAccount(array $config): array
+    {
+        $credentialsFile = trim((string) getenv('GOOGLE_APPLICATION_CREDENTIALS'));
+        if ($credentialsFile !== '') {
+            if (!is_file($credentialsFile) || !is_readable($credentialsFile)) {
+                return [];
+            }
+            $contents = file_get_contents($credentialsFile);
+            if ($contents === false) {
+                return [];
+            }
+        } else {
+            $contents = (string) ($config['service_account_json'] ?? '');
+        }
+
+        $serviceAccount = json_decode($contents, true);
+
+        return is_array($serviceAccount) ? $serviceAccount : [];
     }
 
     private function firebaseConfig(): array

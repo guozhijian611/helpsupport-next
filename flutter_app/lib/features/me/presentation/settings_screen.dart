@@ -1925,6 +1925,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     final localGranted = await ref
         .read(localNotificationServiceProvider)
         .requestPermissions();
+    await ref.read(firebasePushServiceProvider).requestPermission();
     final permission = await ref
         .read(permissionServiceProvider)
         .requestNotifications();
@@ -1936,6 +1937,15 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         permission == PermissionStatus.granted ||
         permission == PermissionStatus.provisional ||
         permission == PermissionStatus.limited;
+    if (granted) {
+      try {
+        await ref
+            .read(deviceRegistrationServiceProvider)
+            .registerCurrentDevice();
+      } on Object {
+        // The permission result remains valid even when token registration fails.
+      }
+    }
     context.showCenteredNotice(
       granted
           ? _t(context, '通知权限已开启', 'Notification permission is enabled')
