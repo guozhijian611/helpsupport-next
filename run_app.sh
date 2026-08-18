@@ -5,6 +5,10 @@ fi
 
 set -euo pipefail
 
+# 未显式覆盖时使用 Flutter 中国社区镜像，加速 pub get 与引擎下载。
+export PUB_HOSTED_URL="${PUB_HOSTED_URL:-https://pub.flutter-io.cn}"
+export FLUTTER_STORAGE_BASE_URL="${FLUTTER_STORAGE_BASE_URL:-https://storage.flutter-io.cn}"
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FLUTTER_APP_DIR="${ROOT_DIR}/flutter_app"
 API_CONFIG_FILE="${FLUTTER_APP_DIR}/lib/core/api/api_client.dart"
