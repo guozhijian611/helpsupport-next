@@ -25,6 +25,17 @@ class AuthSession {
 
   bool get isDoctorApproved => roleFlags.doctorApproved;
 
+  Map<String, dynamic> toJson() {
+    return {
+      'token': token.toJson(),
+      'member': member,
+      'profile': profile,
+      'doctor_profile': doctorProfile,
+      'current_role': currentRole,
+      'role_flags': roleFlags.toJson(),
+    };
+  }
+
   factory AuthSession.fromJson(Object? value) {
     if (value is! Map<String, dynamic>) {
       throw const FormatException('Unexpected auth session shape');
@@ -150,6 +161,16 @@ class AuthRoleFlags {
       doctorApproved: doctorApproved,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'profile_role': profileRole,
+      'is_patient': isPatient,
+      'is_doctor': isDoctor,
+      'doctor_profile_submitted': doctorProfileSubmitted,
+      'doctor_approved': doctorApproved,
+    };
+  }
 }
 
 class AuthToken {
@@ -176,6 +197,15 @@ class AuthToken {
       tokenType: (value['token_type'] as String?) ?? 'Bearer',
       expiresIn: (value['expires_in'] as num?)?.toInt() ?? 0,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'access_token': accessToken,
+      'refresh_token': refreshToken,
+      'token_type': tokenType,
+      'expires_in': expiresIn,
+    };
   }
 }
 

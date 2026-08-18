@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../auth/application/auth_controller.dart';
-import '../../auth/data/auth_models.dart';
 import '../../../core/providers/app_providers.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -14,48 +12,35 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
-  bool _hasLocalSession = false;
-  bool _localSessionReady = false;
   bool _hasRouted = false;
 
   @override
   void initState() {
     super.initState();
-    _primeLocalSessionFlag();
+    _routeFromLocalSession();
   }
 
-  Future<void> _primeLocalSessionFlag() async {
+  Future<void> _routeFromLocalSession() async {
     final tokenStorage = ref.read(tokenStorageProvider);
-    final accessToken = await tokenStorage.readAccessToken();
-    final refreshToken = await tokenStorage.readRefreshToken();
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _hasLocalSession =
-          (accessToken?.isNotEmpty ?? false) ||
-          (refreshToken?.isNotEmpty ?? false);
-      _localSessionReady = true;
-    });
-  }
-
-  void _routeWhenReady(AsyncValue<AuthSession?> authState) {
-    if (_hasRouted || !_localSessionReady) {
+    final tokens = await Future.wait([
+      tokenStorage.readAccessToken(),
+      tokenStorage.readRefreshToken(),
+    ]);
+    if (!mounted || _hasRouted) {
       return;
     }
 
-    switch (authState) {
-      case AsyncLoading():
-        return;
-      case AsyncData(:final value):
-        _scheduleRoute(
-          value != null
-              ? '/home'
-              : (_hasLocalSession ? '/login' : '/onboarding'),
-        );
-      case AsyncError():
-        _scheduleRoute(_hasLocalSession ? '/login' : '/onboarding');
-    }
+    final accessToken = tokens[0];
+    final refreshToken = tokens[1];
+    final hasAccess = accessToken != null && accessToken.isNotEmpty;
+    final hasRefresh = refreshToken != null && refreshToken.isNotEmpty;
+    _scheduleRoute(
+      hasAccess
+          ? '/home'
+          : hasRefresh
+          ? '/login'
+          : '/onboarding',
+    );
   }
 
   void _scheduleRoute(String location) {
@@ -70,10 +55,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authControllerProvider);
-    _routeWhenReady(authState);
     final scheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       backgroundColor: scheme.surface,
       body: const SizedBox.expand(),

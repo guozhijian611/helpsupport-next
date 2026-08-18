@@ -20,7 +20,6 @@ import 'app.dart';
 
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
-  timezone.initializeTimeZones();
 
   final sharedPreferences = await SharedPreferences.getInstance();
   const tokenStorage = SecureTokenStorage();
@@ -103,4 +102,8 @@ Future<void> bootstrap() async {
       child: const HelpSupportApp(),
     ),
   );
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    timezone.initializeTimeZones();
+  });
 }

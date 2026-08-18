@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,6 +29,8 @@ final authControllerProvider =
     AsyncNotifierProvider<AuthController, AuthSession?>(AuthController.new);
 
 class AuthController extends AsyncNotifier<AuthSession?> {
+  static const _sessionCacheKey = 'helpsupport.session_cache';
+
   StreamSubscription<void>? _sessionInvalidationSubscription;
 
   @override
@@ -35,17 +38,17 @@ class AuthController extends AsyncNotifier<AuthSession?> {
     _bindSessionInvalidation();
     final accessToken = await ref.read(tokenStorageProvider).readAccessToken();
     if (accessToken == null || accessToken.isEmpty) {
+      await _writeCachedSession(null);
       return null;
     }
 
-    try {
-      final session = await ref.read(authRepositoryProvider).refreshSession();
-      await ref.read(authRepositoryProvider).saveSession(session);
-      return session;
-    } on Object {
-      await ref.read(authRepositoryProvider).clearSession();
-      return null;
+    final cachedSession = _readCachedSession();
+    if (cachedSession != null) {
+      unawaited(_refreshInBackground());
+      return cachedSession;
     }
+
+    return _refreshSessionOrClear();
   }
 
   Future<void> accountLogin({
@@ -127,7 +130,7 @@ class AuthController extends AsyncNotifier<AuthSession?> {
 
   Future<AuthSession> refreshCurrentSession() async {
     final session = await ref.read(authRepositoryProvider).refreshSession();
-    await ref.read(authRepositoryProvider).saveSession(session);
+    await _persistSession(session);
     state = AsyncValue.data(session);
     return session;
   }
@@ -143,6 +146,7 @@ class AuthController extends AsyncNotifier<AuthSession?> {
         // Local logout must still clear credentials if device unregister fails.
       }
       await ref.read(authRepositoryProvider).clearSession();
+      await _writeCachedSession(null);
       try {
         await ref.read(authRepositoryProvider).signOutIdentityProviders();
       } on Object {
@@ -156,7 +160,7 @@ class AuthController extends AsyncNotifier<AuthSession?> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final session = await action();
-      await ref.read(authRepositoryProvider).saveSession(session);
+      await _persistSession(session);
       unawaited(_registerCurrentDeviceSafely());
       return session;
     });
@@ -196,6 +200,53 @@ class AuthController extends AsyncNotifier<AuthSession?> {
 
   Future<void> _handleSessionInvalidation() async {
     await ref.read(authRepositoryProvider).clearSession();
+    await _writeCachedSession(null);
     state = const AsyncValue.data(null);
+  }
+
+  Future<AuthSession?> _refreshSessionOrClear() async {
+    try {
+      final session = await ref.read(authRepositoryProvider).refreshSession();
+      await _persistSession(session);
+      return session;
+    } on Object {
+      await ref.read(authRepositoryProvider).clearSession();
+      await _writeCachedSession(null);
+      return null;
+    }
+  }
+
+  Future<void> _refreshInBackground() async {
+    final session = await _refreshSessionOrClear();
+    if (!ref.mounted) {
+      return;
+    }
+    state = AsyncValue.data(session);
+  }
+
+  Future<void> _persistSession(AuthSession session) async {
+    await ref.read(authRepositoryProvider).saveSession(session);
+    await _writeCachedSession(session);
+  }
+
+  AuthSession? _readCachedSession() {
+    final raw = ref.read(sharedPreferencesProvider).getString(_sessionCacheKey);
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      return AuthSession.fromJson(decoded);
+    } on Object {
+      return null;
+    }
+  }
+
+  Future<void> _writeCachedSession(AuthSession? session) {
+    final prefs = ref.read(sharedPreferencesProvider);
+    if (session == null) {
+      return prefs.remove(_sessionCacheKey);
+    }
+    return prefs.setString(_sessionCacheKey, jsonEncode(session.toJson()));
   }
 }
