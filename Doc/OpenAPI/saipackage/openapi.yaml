@@ -1,0 +1,627 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "B8AIadmin SaiPackage 插件管理接口",
+    "version": "1.0.0",
+    "description": "基于 saipackage 插件源码、控制器和前端调用层整理的 OpenAPI 文档。"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "当前站点根地址，前端通过 VITE_API_URL 配置实际域名"
+    }
+  ],
+  "tags": [
+    {
+      "name": "AI 对话"
+    },
+    {
+      "name": "在线商店"
+    },
+    {
+      "name": "插件管理"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": {}
+    }
+  ],
+  "paths": {
+    "/app/saipackage/index/terminal": {
+      "get": {
+        "tags": [
+          "AI 对话"
+        ],
+        "summary": "AI 对话终端事件流",
+        "description": "来源：saiadmin-artd/src/views/plugin/saipackage/store/terminal.ts",
+        "responses": {
+          "200": {
+            "description": "Server-Sent Events 事件流",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "command",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "uuid",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "extend",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/app/saipackage/install/appList": {
+      "get": {
+        "tags": [
+          "插件管理"
+        ],
+        "summary": "插件管理在线应用列表",
+        "description": "来源：server/plugin/saipackage/app/controller/InstallController.php",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ]
+      }
+    },
+    "/app/saipackage/install/index": {
+      "get": {
+        "tags": [
+          "插件管理"
+        ],
+        "summary": "插件管理列表",
+        "description": "来源：saiadmin-artd/src/views/plugin/saipackage/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ]
+      }
+    },
+    "/app/saipackage/install/install": {
+      "post": {
+        "tags": [
+          "插件管理"
+        ],
+        "summary": "插件管理安装插件",
+        "description": "来源：saiadmin-artd/src/views/plugin/saipackage/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FreeForm"
+        }
+      }
+    },
+    "/app/saipackage/install/reload": {
+      "post": {
+        "tags": [
+          "插件管理"
+        ],
+        "summary": "插件管理重载后端",
+        "description": "来源：saiadmin-artd/src/views/plugin/saipackage/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FreeForm"
+        }
+      }
+    },
+    "/app/saipackage/install/storeAppVersions": {
+      "get": {
+        "tags": [
+          "插件管理"
+        ],
+        "summary": "插件管理应用版本列表",
+        "description": "来源：server/plugin/saipackage/app/controller/InstallController.php",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "app_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/app/saipackage/install/storeCaptcha": {
+      "get": {
+        "tags": [
+          "插件管理"
+        ],
+        "summary": "插件管理商店验证码",
+        "description": "来源：server/plugin/saipackage/app/controller/InstallController.php",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        }
+      }
+    },
+    "/app/saipackage/install/storeDownloadApp": {
+      "post": {
+        "tags": [
+          "插件管理"
+        ],
+        "summary": "插件管理下载应用",
+        "description": "来源：server/plugin/saipackage/app/controller/InstallController.php",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FreeForm"
+        }
+      }
+    },
+    "/app/saipackage/install/storeLogin": {
+      "post": {
+        "tags": [
+          "插件管理"
+        ],
+        "summary": "插件管理商店登录",
+        "description": "来源：server/plugin/saipackage/app/controller/InstallController.php",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FreeForm"
+        }
+      }
+    },
+    "/app/saipackage/install/storePurchasedApps": {
+      "get": {
+        "tags": [
+          "插件管理"
+        ],
+        "summary": "插件管理已购应用列表",
+        "description": "来源：server/plugin/saipackage/app/controller/InstallController.php",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/app/saipackage/install/storeUserInfo": {
+      "get": {
+        "tags": [
+          "插件管理"
+        ],
+        "summary": "插件管理商店用户信息",
+        "description": "来源：server/plugin/saipackage/app/controller/InstallController.php",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/app/saipackage/install/uninstall": {
+      "post": {
+        "tags": [
+          "插件管理"
+        ],
+        "summary": "插件管理卸载插件",
+        "description": "来源：saiadmin-artd/src/views/plugin/saipackage/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FreeForm"
+        }
+      }
+    },
+    "/app/saipackage/install/upload": {
+      "post": {
+        "tags": [
+          "插件管理"
+        ],
+        "summary": "插件管理上传插件包",
+        "description": "来源：saiadmin-artd/src/views/plugin/saipackage/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/MultipartUpload"
+        }
+      }
+    },
+    "/tool/install/online/appList": {
+      "get": {
+        "tags": [
+          "在线商店"
+        ],
+        "summary": "在线商店在线应用列表",
+        "description": "来源：saiadmin-artd/src/views/plugin/saipackage/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ]
+      }
+    },
+    "/tool/install/online/storeAppVersions": {
+      "get": {
+        "tags": [
+          "在线商店"
+        ],
+        "summary": "在线商店应用版本列表",
+        "description": "来源：saiadmin-artd/src/views/plugin/saipackage/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "app_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/tool/install/online/storeCaptcha": {
+      "get": {
+        "tags": [
+          "在线商店"
+        ],
+        "summary": "在线商店商店验证码",
+        "description": "来源：saiadmin-artd/src/views/plugin/saipackage/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "security": []
+      }
+    },
+    "/tool/install/online/storeDownloadApp": {
+      "post": {
+        "tags": [
+          "在线商店"
+        ],
+        "summary": "在线商店下载应用",
+        "description": "来源：saiadmin-artd/src/views/plugin/saipackage/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FreeForm"
+        }
+      }
+    },
+    "/tool/install/online/storeLogin": {
+      "post": {
+        "tags": [
+          "在线商店"
+        ],
+        "summary": "在线商店商店登录",
+        "description": "来源：saiadmin-artd/src/views/plugin/saipackage/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FreeForm"
+        },
+        "security": []
+      }
+    },
+    "/tool/install/online/storePurchasedApps": {
+      "get": {
+        "tags": [
+          "在线商店"
+        ],
+        "summary": "在线商店已购应用列表",
+        "description": "来源：saiadmin-artd/src/views/plugin/saipackage/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/tool/install/online/storeUserInfo": {
+      "get": {
+        "tags": [
+          "在线商店"
+        ],
+        "summary": "在线商店商店用户信息",
+        "description": "来源：saiadmin-artd/src/views/plugin/saipackage/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "parameters": {
+      "Id": {
+        "name": "id",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        }
+      },
+      "Limit": {
+        "name": "limit",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 15
+        }
+      }
+    },
+    "requestBodies": {
+      "FreeForm": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "Ids": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "ids"
+              ],
+              "properties": {
+                "ids": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "string"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "MultipartUpload": {
+        "required": true,
+        "content": {
+          "multipart/form-data": {
+            "schema": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "format": "binary"
+                },
+                "mode": {
+                  "type": "string",
+                  "description": "system 或 local"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "ApiResponse": {
+        "description": "SaiAdmin 统一 JSON 响应",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponse"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ApiResponse": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "example": 200
+          },
+          "message": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "nullable": true,
+            "description": "业务数据，结构由具体接口决定。"
+          }
+        }
+      }
+    }
+  }
+}

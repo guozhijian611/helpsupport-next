@@ -1,0 +1,629 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "B8AIadmin SAI AI 插件接口",
+    "version": "1.0.0",
+    "description": "基于 saiai 插件源码、控制器和前端调用层整理的 OpenAPI 文档。"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "当前站点根地址，前端通过 VITE_API_URL 配置实际域名"
+    }
+  ],
+  "tags": [
+    {
+      "name": "AI 会话"
+    },
+    {
+      "name": "AI 对话"
+    },
+    {
+      "name": "AI 对话分组"
+    },
+    {
+      "name": "AI 配置"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": {}
+    }
+  ],
+  "paths": {
+    "/app/saiai/admin/chat/AiChatGroup/chatList": {
+      "get": {
+        "tags": [
+          "AI 对话分组"
+        ],
+        "summary": "AI 对话分组聊天记录列表",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/chat/group.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ]
+      }
+    },
+    "/app/saiai/admin/chat/AiChatGroup/deleteChat": {
+      "delete": {
+        "tags": [
+          "AI 对话分组"
+        ],
+        "summary": "AI 对话分组删除聊天记录",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/chat/group.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Ids"
+        }
+      }
+    },
+    "/app/saiai/admin/chat/AiChatGroup/destroy": {
+      "delete": {
+        "tags": [
+          "AI 对话分组"
+        ],
+        "summary": "AI 对话分组删除",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/chat/group.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Ids"
+        }
+      }
+    },
+    "/app/saiai/admin/chat/AiChatGroup/index": {
+      "get": {
+        "tags": [
+          "AI 对话分组"
+        ],
+        "summary": "AI 对话分组列表",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/chat/group.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ]
+      }
+    },
+    "/app/saiai/admin/chat/AiChatGroup/read": {
+      "get": {
+        "tags": [
+          "AI 对话分组"
+        ],
+        "summary": "AI 对话分组详情",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/chat/group.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ]
+      }
+    },
+    "/app/saiai/admin/chat/AiChatGroup/save": {
+      "post": {
+        "tags": [
+          "AI 对话分组"
+        ],
+        "summary": "AI 对话分组新增",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/chat/group.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FreeForm"
+        }
+      }
+    },
+    "/app/saiai/admin/chat/AiChatGroup/update": {
+      "put": {
+        "tags": [
+          "AI 对话分组"
+        ],
+        "summary": "AI 对话分组更新",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/chat/group.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FreeForm"
+        }
+      }
+    },
+    "/app/saiai/admin/config/AiConfig/destroy": {
+      "delete": {
+        "tags": [
+          "AI 配置"
+        ],
+        "summary": "AI 配置删除",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/config/config.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Ids"
+        }
+      }
+    },
+    "/app/saiai/admin/config/AiConfig/getAiList": {
+      "get": {
+        "tags": [
+          "AI 配置"
+        ],
+        "summary": "AI 配置AI 平台列表",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/config/config.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        }
+      }
+    },
+    "/app/saiai/admin/config/AiConfig/getModel": {
+      "get": {
+        "tags": [
+          "AI 配置"
+        ],
+        "summary": "AI 配置模型列表",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/config/config.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "parameters": [
+          {
+            "name": "platform",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/app/saiai/admin/config/AiConfig/realtimeTestConfig": {
+      "get": {
+        "tags": [
+          "AI 配置"
+        ],
+        "summary": "AI 配置实时测试默认配置",
+        "description": "来源：server/plugin/saiai/app/admin/controller/config/AiConfigController.php 与 saiadmin-artd/src/views/plugin/saiai/api/config/config.ts。返回 SAI Realtime 代理地址（生产 HTTPS 同源使用 wss://{host}/v1/realtime，本地开发使用 ws://{host}:8791/v1/realtime）、默认模型、默认上游地址和默认会话参数。",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        }
+      }
+    },
+    "/app/saiai/admin/config/AiConfig/index": {
+      "get": {
+        "tags": [
+          "AI 配置"
+        ],
+        "summary": "AI 配置列表",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/config/config.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ]
+      }
+    },
+    "/app/saiai/admin/config/AiConfig/read": {
+      "get": {
+        "tags": [
+          "AI 配置"
+        ],
+        "summary": "AI 配置详情",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/config/config.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ]
+      }
+    },
+    "/app/saiai/admin/config/AiConfig/save": {
+      "post": {
+        "tags": [
+          "AI 配置"
+        ],
+        "summary": "AI 配置新增",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/config/config.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FreeForm"
+        }
+      }
+    },
+    "/app/saiai/admin/config/AiConfig/update": {
+      "put": {
+        "tags": [
+          "AI 配置"
+        ],
+        "summary": "AI 配置更新",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/config/config.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FreeForm"
+        }
+      }
+    },
+    "/app/saiai/api/ChatGroup/create": {
+      "post": {
+        "tags": [
+          "AI 会话"
+        ],
+        "summary": "AI 会话创建",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FreeForm"
+        }
+      }
+    },
+    "/app/saiai/api/ChatGroup/delete": {
+      "delete": {
+        "tags": [
+          "AI 会话"
+        ],
+        "summary": "AI 会话删除",
+        "description": "来源：server/plugin/saiai/app/api/controller/ChatGroupController.php",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Ids"
+        }
+      },
+      "post": {
+        "tags": [
+          "AI 会话"
+        ],
+        "summary": "AI 会话删除",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Ids"
+        }
+      }
+    },
+    "/app/saiai/api/ChatGroup/detail": {
+      "get": {
+        "tags": [
+          "AI 会话"
+        ],
+        "summary": "AI 会话详情",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ]
+      }
+    },
+    "/app/saiai/api/ChatGroup/getList": {
+      "get": {
+        "tags": [
+          "AI 会话"
+        ],
+        "summary": "AI 会话列表",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        }
+      }
+    },
+    "/app/saiai/api/ChatGroup/update": {
+      "post": {
+        "tags": [
+          "AI 会话"
+        ],
+        "summary": "AI 会话更新",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FreeForm"
+        }
+      },
+      "put": {
+        "tags": [
+          "AI 会话"
+        ],
+        "summary": "AI 会话更新",
+        "description": "来源：server/plugin/saiai/app/api/controller/ChatGroupController.php",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FreeForm"
+        }
+      }
+    },
+    "/app/saiai/api/index/defaultModel": {
+      "get": {
+        "tags": [
+          "AI 对话"
+        ],
+        "summary": "AI 对话默认模型",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        }
+      }
+    },
+    "/app/saiai/api/index/index": {
+      "get": {
+        "tags": [
+          "AI 对话"
+        ],
+        "summary": "AI 对话列表",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/store/chat.ts",
+        "responses": {
+          "200": {
+            "description": "Server-Sent Events 事件流",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ]
+      }
+    },
+    "/app/saiai/api/index/modelList": {
+      "get": {
+        "tags": [
+          "AI 对话"
+        ],
+        "summary": "AI 对话模型列表",
+        "description": "来源：saiadmin-artd/src/views/plugin/saiai/api/index.ts",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ApiResponse"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "parameters": {
+      "Id": {
+        "name": "id",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        }
+      },
+      "Limit": {
+        "name": "limit",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 15
+        }
+      }
+    },
+    "requestBodies": {
+      "FreeForm": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "Ids": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "ids"
+              ],
+              "properties": {
+                "ids": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "string"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "MultipartUpload": {
+        "required": true,
+        "content": {
+          "multipart/form-data": {
+            "schema": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "format": "binary"
+                },
+                "mode": {
+                  "type": "string",
+                  "description": "system 或 local"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "ApiResponse": {
+        "description": "SaiAdmin 统一 JSON 响应",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponse"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ApiResponse": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "example": 200
+          },
+          "message": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "nullable": true,
+            "description": "业务数据，结构由具体接口决定。"
+          }
+        }
+      }
+    }
+  }
+}

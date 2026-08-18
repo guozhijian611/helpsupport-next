@@ -1,6 +1,6 @@
 # Openship Docker Compose 部署
 
-本仓库根目录的 `docker-compose.yml` 用于在 Openship 中以 Compose 多服务项目运行 HelpSupport Next。构建过程会同时完成 PHP 依赖安装和 Vue 管理端编译，并将 Nginx 配置与 MySQL 初始化 SQL 烘焙进对应镜像；运行时不需要仓库 bind mount，也不需要在容器内再执行 Composer 或 pnpm。
+本仓库 `deploy/docker-compose.yml` 用于在 Openship 中以 Compose 多服务项目运行 HelpSupport Next。构建过程会同时完成 PHP 依赖安装和 Vue 管理端编译，并将 Nginx 配置与 MySQL 初始化 SQL 烘焙进对应镜像；运行时不需要仓库 bind mount，也不需要在容器内再执行 Composer 或 pnpm。
 
 PHP 运行层基于 Alpine 3.22 的预编译 PHP 8.3 软件包，`gd`、`intl`、MySQL、Redis 和 OpenTelemetry 等扩展均直接安装二进制包，不在 Openship 服务器上执行 `phpize`、PECL 或 C/C++ 源码编译。
 
@@ -21,13 +21,13 @@ Openship 的域名应路由到 `gateway` 服务的容器端口 `8080`。`/v1/rea
 ## Openship 部署步骤
 
 1. 在 Openship 中创建项目并连接本 Git 仓库。
-2. 选择 Compose 部署，配置文件使用根目录的 `docker-compose.yml`。
+2. 选择 Compose 部署，配置文件使用 `deploy/docker-compose.yml`。
 3. 无需填写数据库、Redis 或 RabbitMQ 密码，首次部署会自动生成。
 4. 将域名或 Openship 预览域名绑定到 `gateway:8080`。
 5. 本测试环境默认使用 `B8_RUN_MIGRATIONS=1`，应用启动时会自动执行所有待处理迁移。
 6. 生产环境应显式设置 `B8_RUN_MIGRATIONS=0`，在完成数据库备份、目标确认和回滚窗口确认后再手动迁移。
 
-Openship 可直接识别仓库中的 Compose 文件。如使用 CLI，可在项目根目录执行：
+Openship 可直接识别仓库中指定的 Compose 文件。如使用 CLI，可在项目根目录执行：
 
 ```bash
 openship init
@@ -42,7 +42,7 @@ openship deploy
 
 部署前不需要在 Openship 填写任何密码变量。如需在全新数据卷上指定密码，可在第一次部署前选填 `MYSQL_ROOT_PASSWORD`、`DB_PASSWORD`、`REDIS_PASSWORD` 和 `RABBITMQ_PASSWORD`；密钥卷一旦生成，后续修改这些变量不会覆盖已有密码。
 
-其他可选项可从 `.env.openship.example` 复制。不要将真实密码、Token 或 AI Key 提交到 Git。
+其他可选项可从 `deploy/.env.openship.example` 复制到 `deploy/.env`。不要将真实密码、Token 或 AI Key 提交到 Git。
 
 AI 功能按需配置：
 
@@ -81,27 +81,27 @@ Compose 定义了以下命名卷：
 ## 本地验证
 
 ```bash
-docker compose config
-docker compose build app
-docker compose up -d
-docker compose ps
+docker compose -f deploy/docker-compose.yml config
+docker compose -f deploy/docker-compose.yml build app
+docker compose -f deploy/docker-compose.yml up -d
+docker compose -f deploy/docker-compose.yml ps
 ```
 
 检查服务：
 
 ```bash
 curl -I http://127.0.0.1:8080/
-docker compose exec app helpsupport-entrypoint php webman b8:migrate:status
-docker compose logs --tail=200 app gateway
+docker compose -f deploy/docker-compose.yml exec app helpsupport-entrypoint php webman b8:migrate:status
+docker compose -f deploy/docker-compose.yml logs --tail=200 app gateway
 ```
 
 本地调试完成后可停止服务：
 
 ```bash
-docker compose down
+docker compose -f deploy/docker-compose.yml down
 ```
 
-`docker compose down -v` 会同时删除数据卷，仅可用于明确不需要保留数据的临时环境。
+`docker compose -f deploy/docker-compose.yml down -v` 会同时删除数据卷，仅可用于明确不需要保留数据的临时环境。
 
 ## 运行安全
 

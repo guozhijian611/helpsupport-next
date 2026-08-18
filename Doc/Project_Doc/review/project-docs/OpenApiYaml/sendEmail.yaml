@@ -1,0 +1,136 @@
+openapi: 3.0.3
+info:
+  title: 帮助中心 - 邮箱验证码接口
+  description: 发送邮箱验证码，用于注册账号或找回密码场景
+  version: 1.0.0
+
+servers:
+  - url: http://127.0.0.1:8787
+    description: 本地开发环境
+
+paths:
+  /app/help/auth/sendEmail:
+    post:
+      summary: 发送邮箱验证码
+      description: |
+        向指定邮箱发送6位数字验证码。
+
+        **业务规则：**
+        - 验证码为6位随机数字
+        - 同一邮箱发送间隔不得少于 **2分钟**
+        - `type=1`（注册）：邮箱不能已注册
+        - `type=2`（找回密码）：邮箱必须已注册
+
+        **验证码记录：**
+        - 发送记录存储在 `sa_system_mail` 表
+        - 记录包含发送状态（success/failure）和响应信息
+      operationId: sendEmail
+      tags:
+        - 邮箱验证码
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: 接收验证码的邮箱地址
+                  example: "user@example.com"
+                type:
+                  type: integer
+                  description: |
+                    验证码用途类型：
+                    - `1` — 注册账号（默认值，邮箱不能已注册）
+                    - `2` — 找回密码（邮箱必须已注册）
+                  enum: [1, 2]
+                  default: 1
+                  example: 1
+      responses:
+        "200":
+          description: 请求响应
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                发送成功:
+                  summary: 验证码发送成功
+                  value:
+                    code: 200
+                    message: "发送成功"
+                    data: null
+                邮箱格式错误:
+                  summary: 邮箱格式不正确
+                  value:
+                    code: 400
+                    message: "请输入正确的邮箱格式"
+                    data: null
+                邮箱已注册:
+                  summary: 注册时邮箱已存在
+                  value:
+                    code: 500
+                    message: "该邮箱账号已经注册，请更换邮箱或者直接登录！"
+                    data: null
+                邮箱未注册:
+                  summary: 找回密码时邮箱不存在
+                  value:
+                    code: 500
+                    message: "邮箱查找失败，请检查邮箱是否正确"
+                    data: null
+                频繁发送:
+                  summary: 发送过于频繁
+                  value:
+                    code: 500
+                    message: "请勿频繁发送验证码，等待2分钟后再操作"
+                    data: null
+                发送失败:
+                  summary: 邮件发送失败
+                  value:
+                    code: 500
+                    message: "发送失败，请查看日志"
+                    data: null
+
+components:
+  schemas:
+    SuccessResponse:
+      type: object
+      description: 发送成功响应
+      properties:
+        code:
+          type: integer
+          description: 状态码
+          example: 200
+        message:
+          type: string
+          description: 响应消息
+          example: "发送成功"
+        data:
+          type: "null"
+          example: null
+
+    ErrorResponse:
+      type: object
+      description: 错误响应
+      properties:
+        code:
+          type: integer
+          description: |
+            错误码：
+            - `400` — 参数错误（邮箱格式不正确）
+            - `500` — 业务错误（邮箱已注册/未注册/频繁发送/发送失败）
+          enum: [400, 500]
+          example: 400
+        message:
+          type: string
+          description: 错误信息
+          example: "请输入正确的邮箱格式"
+        data:
+          type: "null"
+          example: null

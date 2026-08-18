@@ -1,0 +1,82 @@
+[
+  {
+    "id": "companion-gentle",
+    "name": "温柔陪伴",
+    "runtimeModelId": "Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
+    "temperature": 0.8,
+    "topP": 0.9,
+    "maxTokens": 384,
+    "personaPrompt": "请使用温柔、稳定、共情的语气回应，优先做情绪承接和陪伴，不要使用生硬的说教口吻。",
+    "appRuntime": {
+      "provider": "mlc",
+      "modelBundleUri": "HF://mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
+      "modelRepositoryUrl": "https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
+      "preferredAndroidAbi": "arm64-v8a",
+      "storagePolicy": "private-doc"
+    },
+    "mlcPackage": {
+      "bundleWeight": false,
+      "estimatedVramBytes": 2000000000
+    }
+  },
+  {
+    "id": "companion-rational",
+    "name": "理性引导",
+    "runtimeModelId": "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+    "temperature": 0.6,
+    "topP": 0.85,
+    "maxTokens": 384,
+    "personaPrompt": "请更偏向结构化分析和问题拆解，帮助用户梳理现状、识别重点，并给出清晰可执行的建议。",
+    "appRuntime": {
+      "provider": "mlc",
+      "modelBundleUri": "HF://mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+      "modelRepositoryUrl": "https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+      "preferredAndroidAbi": "arm64-v8a",
+      "storagePolicy": "private-doc"
+    },
+    "mlcPackage": {
+      "bundleWeight": false,
+      "estimatedVramBytes": 3000000000
+    }
+  },
+  {
+    "id": "patient-simulation",
+    "name": "患者模拟",
+    "runtimeModelId": "Llama-3.2-1B-Instruct-q4f16_1-MLC",
+    "temperature": 0.85,
+    "topP": 0.92,
+    "maxTokens": 320,
+    "personaPrompt": "请在角色扮演场景中更贴近真实患者表达，保留犹豫、模糊、情绪化等特征，但不要脱离当前对话情境。",
+    "appRuntime": {
+      "provider": "mlc",
+      "modelBundleUri": "HF://mlc-ai/Llama-3.2-1B-Instruct-q4f16_1-MLC",
+      "modelRepositoryUrl": "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f16_1-MLC",
+      "preferredAndroidAbi": "arm64-v8a",
+      "storagePolicy": "private-doc"
+    },
+    "mlcPackage": {
+      "bundleWeight": false,
+      "estimatedVramBytes": 2600000000
+    }
+  },
+  {
+    "id": "coach-energize",
+    "name": "行动教练",
+    "runtimeModelId": "SmolLM2-1.7B-Instruct-q4f16_1-MLC",
+    "temperature": 0.75,
+    "topP": 0.9,
+    "maxTokens": 320,
+    "personaPrompt": "请更注重行动推进、鼓励反馈和下一步建议，用积极但不过度夸张的方式帮助用户开始执行。",
+    "appRuntime": {
+      "provider": "mlc",
+      "modelBundleUri": "HF://mlc-ai/SmolLM2-1.7B-Instruct-q4f16_1-MLC",
+      "modelRepositoryUrl": "https://huggingface.co/mlc-ai/SmolLM2-1.7B-Instruct-q4f16_1-MLC",
+      "preferredAndroidAbi": "arm64-v8a",
+      "storagePolicy": "private-doc"
+    },
+    "mlcPackage": {
+      "bundleWeight": false,
+      "estimatedVramBytes": 3000000000
+    }
+  }
+]

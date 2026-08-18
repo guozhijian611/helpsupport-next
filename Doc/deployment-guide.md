@@ -159,7 +159,7 @@ REDIS_DB=0
 
 ## 部署脚本
 
-父框架提供 `deploy.sh`，默认目标为：
+父框架提供 `deploy/deploy.sh`，默认目标为：
 
 - 服务器别名：`shanghai`
 - 远端目录：`/www/wwwroot/b8aiadmin`
@@ -170,30 +170,30 @@ REDIS_DB=0
 预览部署：
 
 ```bash
-DRY_RUN=1 ./deploy.sh
+DRY_RUN=1 ./deploy/deploy.sh
 ```
 
 正式部署：
 
 ```bash
-./deploy.sh
+./deploy/deploy.sh
 ```
 
 常用开关：
 
 ```bash
-BUILD_ADMIN=1 ./deploy.sh
-BUILD_H5=1 ./deploy.sh
-SYNC_DB=1 ./deploy.sh
-CHECK_WEBMAN_DISABLED_FUNCTIONS=0 ./deploy.sh
-REMOTE_ROOT=/www/wwwroot/justai ./deploy.sh
+BUILD_ADMIN=1 ./deploy/deploy.sh
+BUILD_H5=1 ./deploy/deploy.sh
+SYNC_DB=1 ./deploy/deploy.sh
+CHECK_WEBMAN_DISABLED_FUNCTIONS=0 ./deploy/deploy.sh
+REMOTE_ROOT=/www/wwwroot/justai ./deploy/deploy.sh
 ```
 
 `SYNC_DB=1` 会把本地数据库同步到远端数据库，生产环境执行前必须确认备份和覆盖风险。
 
 ## Docker 二进制镜像发布
 
-如果目标环境希望以 Docker 运行 Webman 二进制镜像，使用根目录 `docker.sh`。该脚本会构建 `.bin`、打包生产 `.env`、复制 `Database/`、压缩 admin/H5 静态资源、构建 Linux x86_64 镜像、导出 tar 包，并可自动上传服务器重建容器。
+如果目标环境希望以 Docker 运行 Webman 二进制镜像，使用 `deploy/docker.sh`。该脚本会构建 `.bin`、打包生产 `.env`、复制 `Database/`、压缩 admin/H5 静态资源、构建 Linux x86_64 镜像、导出 tar 包，并可自动上传服务器重建容器。
 
 详细流程、首次安装、增量迁移、Nginx 反代和 Redis 队列排障见：
 

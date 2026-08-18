@@ -29,9 +29,8 @@ helpsupport-next/
 ├── saiadmin-artd/  Vue 3 管理端
 ├── flutter_app/    Flutter 用户端
 ├── Database/       安装基线、Phinx 迁移与种子数据
-├── OpenAPI/        各应用的 OpenAPI 契约快照
-├── Doc/            部署、接口、队列、支付等专题文档
-├── Project_Doc/    当前项目梳理与历史评审资料
+├── Doc/            专题文档、OpenAPI 契约与项目梳理资料
+├── deploy/         Docker Compose、镜像构建与发布脚本
 └── packages/       本仓库维护的扩展包
 ```
 
@@ -101,9 +100,9 @@ Flutter 真机、模拟器与发布构建请参考 [`flutter_app/README.md`](flu
 
 ## 文档导航
 
-- [当前项目梳理](Project_Doc/helpsupport-next-当前项目梳理.md)
+- [当前项目梳理](Doc/Project_Doc/helpsupport-next-当前项目梳理.md)
 - [互动聊天图片与语音消息](Doc/互动聊天图片与语音消息.md)
-- [Help API 契约](OpenAPI/help/README.md)
+- [Help API 契约](Doc/OpenAPI/help/README.md)
 - [APIDOC 与移动端代码生成](Doc/apidoc-unibest.md)
 - [Openship Docker Compose 部署](Doc/openship-compose.md)
 - [部署指南](Doc/deployment-guide.md)
@@ -115,7 +114,7 @@ Flutter 真机、模拟器与发布构建请参考 [`flutter_app/README.md`](flu
 
 - 后端业务能力优先以 `server/plugin/help/` 的实际路由和实现为准。
 - 数据库变更通过 `Database/migrations/` 中的 Phinx 迁移交付。
-- 接口变更同步更新 APIDOC 注解与 `OpenAPI/` 契约。
+- 接口变更同步更新 APIDOC 注解与 `Doc/OpenAPI/` 契约。
 - 不要提交 `.env`、Token、私钥或其他敏感配置。
 
 ## 仓库

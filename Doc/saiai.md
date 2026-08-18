@@ -527,7 +527,7 @@ VAD 模式不需要点击提交。
   - `server/plugin/saiai/app/process/RealtimeGateway.php`
   - `server/plugin/saiai/app/realtime/adapter/*`
   - 后台测试台页面
-  - `OpenAPI/saiai/openapi.yaml`
+  - `Doc/OpenAPI/saiai/openapi.yaml`
   - 本文档
 - 后端 PHP 变更至少执行 `php -l`，进程或路由变更需重启 Webman 并检查 `php start.php status`。
 - 前端变更至少执行 `pnpm exec vue-tsc --noEmit`，页面级变更建议执行单文件 ESLint。

@@ -1,12 +1,12 @@
 # B8AIadmin Docker 二进制镜像发布说明
 
-本文档说明根目录 `docker.sh` 的发布流程。该脚本用于把 `server/` 打成 Linux x86_64 二进制文件，再构建 Docker 镜像、导出 tar 包，并可自动上传服务器、执行首次安装或增量迁移、重建线上容器。
+本文档说明 `deploy/docker.sh` 的发布流程。该脚本用于把 `server/` 打成 Linux x86_64 二进制文件，再构建 Docker 镜像、导出 tar 包，并可自动上传服务器、执行首次安装或增量迁移、重建线上容器。
 
-`docker.sh` 是发布编排脚本，不替代底层 `build:bin` 文档。二进制打包细节见 `Doc/webman-binary-build.md`。
+`deploy/docker.sh` 是发布编排脚本，不替代底层 `build:bin` 文档。二进制打包细节见 `Doc/webman-binary-build.md`。
 
 ## 核心原则
 
-- 使用 `bash docker.sh` 或 `./docker.sh`，不要用 `sh docker.sh`。
+- 使用 `bash deploy/docker.sh` 或 `./deploy/docker.sh`，不要用 `sh deploy/docker.sh`。
 - 生产数据库操作必须显式选择：首次空库用 `RUN_INSTALL=1`，已有库升级用 `RUN_MIGRATE=1`。
 - `RUN_INSTALL=1` 和 `RUN_MIGRATE=1` 不要同时使用。首次安装会自动执行迁移。
 - 自动发布前必须确认目标数据库、备份和回滚窗口。
@@ -35,7 +35,7 @@
 
 ## 关键配置
 
-所有参数都可以在命令前用环境变量覆盖，也可以直接修改 `docker.sh` 的用户配置区。
+所有参数都可以在命令前用环境变量覆盖，也可以直接修改 `deploy/docker.sh` 的用户配置区。
 
 | 参数 | 说明 |
 | --- | --- |
@@ -102,7 +102,7 @@ RuntimeException: NOAUTH Authentication required.
 交互方式：
 
 ```bash
-bash docker.sh
+bash deploy/docker.sh
 ```
 
 选择：
@@ -117,7 +117,7 @@ bash docker.sh
 非交互方式：
 
 ```bash
-RUN_INSTALL=1 RUN_MIGRATE=0 AUTO_REMOTE_UPDATE=1 bash docker.sh
+RUN_INSTALL=1 RUN_MIGRATE=0 AUTO_REMOTE_UPDATE=1 bash deploy/docker.sh
 ```
 
 配置摘要中必须看到：
@@ -134,7 +134,7 @@ RUN_INSTALL=1 RUN_MIGRATE=0 AUTO_REMOTE_UPDATE=1 bash docker.sh
 已有线上库只需要执行增量迁移时使用：
 
 ```bash
-RUN_INSTALL=0 RUN_MIGRATE=1 AUTO_REMOTE_UPDATE=1 bash docker.sh
+RUN_INSTALL=0 RUN_MIGRATE=1 AUTO_REMOTE_UPDATE=1 bash deploy/docker.sh
 ```
 
 脚本会依次执行：
@@ -152,13 +152,13 @@ RUN_INSTALL=0 RUN_MIGRATE=1 AUTO_REMOTE_UPDATE=1 bash docker.sh
 如果镜像已经上传并 `docker load` 到服务器，只想用服务器已有镜像重建容器：
 
 ```bash
-REMOTE_REBUILD_ONLY=1 RUN_INSTALL=0 RUN_MIGRATE=0 bash docker.sh
+REMOTE_REBUILD_ONLY=1 RUN_INSTALL=0 RUN_MIGRATE=0 bash deploy/docker.sh
 ```
 
 如果服务器已有镜像还没有执行首次安装，也可以：
 
 ```bash
-REMOTE_REBUILD_ONLY=1 RUN_INSTALL=1 RUN_MIGRATE=0 bash docker.sh
+REMOTE_REBUILD_ONLY=1 RUN_INSTALL=1 RUN_MIGRATE=0 bash deploy/docker.sh
 ```
 注意：如果本地代码刚改过并且新 `.bin` 还没有构建上传，不能使用 `REMOTE_REBUILD_ONLY=1`。
 
@@ -212,7 +212,7 @@ location /v1/realtime {
 }
 ```
 
-如果实际宿主机端口不是 `18787` 或 `18791`，以 `docker.sh` 配置摘要里的端口映射为准。
+如果实际宿主机端口不是 `18787` 或 `18791`，以 `deploy/docker.sh` 配置摘要里的端口映射为准。
 
 ## 发布后验证
 
@@ -258,7 +258,7 @@ curl -I http://127.0.0.1:18787/h5/
 这是目标库没有导入基线 SQL。确认目标库是空库且已备份后，使用首次安装模式：
 
 ```bash
-RUN_INSTALL=1 RUN_MIGRATE=0 AUTO_REMOTE_UPDATE=1 bash docker.sh
+RUN_INSTALL=1 RUN_MIGRATE=0 AUTO_REMOTE_UPDATE=1 bash deploy/docker.sh
 ```
 
 不要对已有业务数据的库盲目执行首次安装。
@@ -301,11 +301,11 @@ REDIS_DB=0
 迁移失败时脚本会停止在容器重建前。修复迁移或配置后，可以直接使用服务器已有镜像重建：
 
 ```bash
-REMOTE_REBUILD_ONLY=1 RUN_INSTALL=0 RUN_MIGRATE=0 bash docker.sh
+REMOTE_REBUILD_ONLY=1 RUN_INSTALL=0 RUN_MIGRATE=0 bash deploy/docker.sh
 ```
 
 如果还需要执行首次安装：
 
 ```bash
-REMOTE_REBUILD_ONLY=1 RUN_INSTALL=1 RUN_MIGRATE=0 bash docker.sh
+REMOTE_REBUILD_ONLY=1 RUN_INSTALL=1 RUN_MIGRATE=0 bash deploy/docker.sh
 ```

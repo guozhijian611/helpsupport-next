@@ -1,0 +1,6910 @@
+{
+  "host": "",
+  "basePath": "",
+  "schemes": [
+    "http"
+  ],
+  "openapi": "3.0.1",
+  "info": {
+    "title": "B8AIadmin 接口文档",
+    "description": "基于 SaiAdmin/Webman 控制器注解生成，供接口调试与 uniapp 自动接口生成使用。",
+    "version": "1.0.7"
+  },
+  "tags": [
+    {
+      "name": "helpsupport-api.AI聊天.ChatController",
+      "description": "HelpSupport AI聊天"
+    },
+    {
+      "name": "helpsupport-api.会员认证.AuthController",
+      "description": "HelpSupport会员认证"
+    },
+    {
+      "name": "helpsupport-api.公共配置.CommonController",
+      "description": "HelpSupport公共配置"
+    },
+    {
+      "name": "helpsupport-api.医生端.DoctorController",
+      "description": "HelpSupport医生端"
+    },
+    {
+      "name": "helpsupport-api.我的.MeController",
+      "description": "HelpSupport我的资料"
+    },
+    {
+      "name": "helpsupport-api.推送.PushController",
+      "description": "HelpSupport推送设备"
+    },
+    {
+      "name": "helpsupport-api.本地模型.LocalModelController",
+      "description": "HelpSupport本地模型"
+    },
+    {
+      "name": "helpsupport-api.社区.CommunityController",
+      "description": "HelpSupport社区"
+    },
+    {
+      "name": "helpsupport-api.素材.MaterialController",
+      "description": "HelpSupport素材"
+    },
+    {
+      "name": "helpsupport-api.计划.PlanController",
+      "description": "HelpSupport计划任务"
+    },
+    {
+      "name": "helpsupport-api.预约.AppointmentController",
+      "description": "HelpSupport预约"
+    },
+    {
+      "name": "helpsupport-api.首页.HomeController",
+      "description": "HelpSupport首页"
+    }
+  ],
+  "paths": {
+    "/app/help/chat/overview": {
+      "get": {
+        "tags": [
+          "helpsupport-api.AI聊天.ChatController"
+        ],
+        "summary": "聊天模式概览",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "modes": {
+                      "type": "array",
+                      "description": "三种聊天模式及最近会话",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "recent_sessions": {
+                      "type": "array",
+                      "description": "最近会话",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/chat/config": {
+      "get": {
+        "tags": [
+          "helpsupport-api.AI聊天.ChatController"
+        ],
+        "summary": "聊天配置",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "chat_mode",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "聊天模式 doctor/companion/patient"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "会员自定义聊天提示词配置",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "helpsupport-api.AI聊天.ChatController"
+        ],
+        "summary": "保存聊天配置",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "chat_mode": {
+                    "type": "string",
+                    "description": "聊天模式 doctor/companion/patient"
+                  },
+                  "prompt_text": {
+                    "type": "string",
+                    "description": "用户自定义提示词"
+                  }
+                },
+                "required": [
+                  "chat_mode",
+                  "prompt_text"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "配置ID",
+                      "format": "int32"
+                    },
+                    "chat_mode": {
+                      "type": "string",
+                      "description": "聊天模式"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/chat/sessions": {
+      "get": {
+        "tags": [
+          "helpsupport-api.AI聊天.ChatController"
+        ],
+        "summary": "聊天会话列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "chat_mode",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "聊天模式 doctor/companion/patient"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "关键词"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "会话列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/chat/session": {
+      "post": {
+        "tags": [
+          "helpsupport-api.AI聊天.ChatController"
+        ],
+        "summary": "创建或更新聊天会话",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "会话ID，传入时更新",
+                    "format": "int32"
+                  },
+                  "chat_mode": {
+                    "type": "string",
+                    "description": "聊天模式 doctor/companion/patient"
+                  },
+                  "session_name": {
+                    "type": "string",
+                    "description": "会话名称"
+                  },
+                  "is_pinned": {
+                    "type": "integer",
+                    "description": "是否置顶 1是 2否",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "chat_mode"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "会话ID",
+                      "format": "int32"
+                    },
+                    "session_name": {
+                      "type": "string",
+                      "description": "会话名称"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/chat/session/delete": {
+      "post": {
+        "tags": [
+          "helpsupport-api.AI聊天.ChatController"
+        ],
+        "summary": "删除聊天会话",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "会话ID",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deleted": {
+                      "type": "string",
+                      "description": "是否删除"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/chat/records": {
+      "get": {
+        "tags": [
+          "helpsupport-api.AI聊天.ChatController"
+        ],
+        "summary": "聊天记录列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "session_id",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "会话ID",
+            "format": "int32"
+          },
+          {
+            "name": "chat_mode",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "聊天模式 doctor/companion/patient"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "聊天记录列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/chat/record": {
+      "post": {
+        "tags": [
+          "helpsupport-api.AI聊天.ChatController"
+        ],
+        "summary": "保存用户聊天消息",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "session_id": {
+                    "type": "integer",
+                    "description": "会话ID",
+                    "format": "int32"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "消息内容"
+                  },
+                  "content_type": {
+                    "type": "string",
+                    "description": "内容类型 text/image/file/voice"
+                  }
+                },
+                "required": [
+                  "session_id",
+                  "content"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "消息ID",
+                      "format": "int32"
+                    },
+                    "message_time": {
+                      "type": "string",
+                      "description": "消息时间",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/chat/send": {
+      "post": {
+        "tags": [
+          "helpsupport-api.AI聊天.ChatController"
+        ],
+        "summary": "发送在线AI消息",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "session_id": {
+                    "type": "integer",
+                    "description": "会话ID，不传时按 chat_mode 创建新会话",
+                    "format": "int32"
+                  },
+                  "chat_mode": {
+                    "type": "string",
+                    "description": "聊天模式 doctor/companion/patient，创建新会话时必填"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "用户消息内容"
+                  },
+                  "config_id": {
+                    "type": "integer",
+                    "description": "可选 SaiAI 模型配置ID",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "content"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "session": {
+                      "type": "object",
+                      "description": "会话信息"
+                    },
+                    "user_record": {
+                      "type": "object",
+                      "description": "用户消息"
+                    },
+                    "assistant_record": {
+                      "type": "object",
+                      "description": "AI 回复消息"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/auth/account-login": {
+      "post": {
+        "tags": [
+          "helpsupport-api.会员认证.AuthController"
+        ],
+        "summary": "账号密码登录",
+        "description": "",
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "description": "会员用户名"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "会员密码"
+                  }
+                },
+                "required": [
+                  "username",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "object",
+                      "description": "Bearer access_token 与 refresh_token"
+                    },
+                    "member": {
+                      "type": "object",
+                      "description": "会员基础资料"
+                    },
+                    "profile": {
+                      "type": "object",
+                      "description": "HelpSupport会员扩展资料"
+                    },
+                    "doctor_profile": {
+                      "type": "object",
+                      "description": "医生认证资料"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/auth/register-email-code": {
+      "post": {
+        "tags": [
+          "helpsupport-api.会员认证.AuthController"
+        ],
+        "summary": "发送注册邮箱验证码",
+        "description": "",
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "description": "注册邮箱"
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sent": {
+                      "type": "string",
+                      "description": "是否发送成功"
+                    },
+                    "email": {
+                      "type": "string",
+                      "description": "脱敏邮箱"
+                    },
+                    "expires_in": {
+                      "type": "integer",
+                      "description": "验证码有效期秒数",
+                      "format": "int32"
+                    },
+                    "resend_after": {
+                      "type": "integer",
+                      "description": "再次发送等待秒数",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/auth/account-register": {
+      "post": {
+        "tags": [
+          "helpsupport-api.会员认证.AuthController"
+        ],
+        "summary": "邮箱账号注册",
+        "description": "",
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "description": "会员用户名"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "注册邮箱"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "登录密码"
+                  },
+                  "email_code": {
+                    "type": "string",
+                    "description": "邮箱验证码"
+                  },
+                  "nickname": {
+                    "type": "string",
+                    "description": "会员昵称"
+                  },
+                  "member_role": {
+                    "type": "string",
+                    "description": "业务身份 patient/doctor"
+                  },
+                  "locale": {
+                    "type": "string",
+                    "description": "语言"
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "description": "时区"
+                  }
+                },
+                "required": [
+                  "username",
+                  "email",
+                  "password",
+                  "email_code"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "object",
+                      "description": "Bearer access_token 与 refresh_token"
+                    },
+                    "member": {
+                      "type": "object",
+                      "description": "会员基础资料"
+                    },
+                    "profile": {
+                      "type": "object",
+                      "description": "HelpSupport会员扩展资料"
+                    },
+                    "doctor_profile": {
+                      "type": "object",
+                      "description": "医生认证资料"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/auth/google": {
+      "post": {
+        "tags": [
+          "helpsupport-api.会员认证.AuthController"
+        ],
+        "summary": "Google登录",
+        "description": "",
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id_token": {
+                    "type": "string",
+                    "description": "Google Sign-In 返回的 ID Token"
+                  },
+                  "member_role": {
+                    "type": "string",
+                    "description": "业务身份 patient/doctor"
+                  },
+                  "locale": {
+                    "type": "string",
+                    "description": "语言"
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "description": "时区"
+                  }
+                },
+                "required": [
+                  "id_token"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "object",
+                      "description": "Bearer access_token 与 refresh_token"
+                    },
+                    "member": {
+                      "type": "object",
+                      "description": "会员基础资料"
+                    },
+                    "profile": {
+                      "type": "object",
+                      "description": "HelpSupport会员扩展资料"
+                    },
+                    "doctor_profile": {
+                      "type": "object",
+                      "description": "医生认证资料"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/auth/apple": {
+      "post": {
+        "tags": [
+          "helpsupport-api.会员认证.AuthController"
+        ],
+        "summary": "Apple登录",
+        "description": "",
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "identity_token": {
+                    "type": "string",
+                    "description": "Sign in with Apple 返回的 identityToken"
+                  },
+                  "full_name": {
+                    "type": "string",
+                    "description": "Apple 首次授权返回的姓名"
+                  },
+                  "member_role": {
+                    "type": "string",
+                    "description": "业务身份 patient/doctor"
+                  },
+                  "locale": {
+                    "type": "string",
+                    "description": "语言"
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "description": "时区"
+                  }
+                },
+                "required": [
+                  "identity_token"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "object",
+                      "description": "Bearer access_token 与 refresh_token"
+                    },
+                    "member": {
+                      "type": "object",
+                      "description": "会员基础资料"
+                    },
+                    "profile": {
+                      "type": "object",
+                      "description": "HelpSupport会员扩展资料"
+                    },
+                    "doctor_profile": {
+                      "type": "object",
+                      "description": "医生认证资料"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/auth/refresh": {
+      "post": {
+        "tags": [
+          "helpsupport-api.会员认证.AuthController"
+        ],
+        "summary": "刷新会员Token",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "object",
+                      "description": "新的 Bearer access_token 与 refresh_token"
+                    },
+                    "member": {
+                      "type": "object",
+                      "description": "会员基础资料"
+                    },
+                    "profile": {
+                      "type": "object",
+                      "description": "HelpSupport会员扩展资料"
+                    },
+                    "doctor_profile": {
+                      "type": "object",
+                      "description": "医生认证资料"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/common/app-config": {
+      "get": {
+        "tags": [
+          "helpsupport-api.公共配置.CommonController"
+        ],
+        "summary": "App运行配置",
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "app": {
+                      "type": "object",
+                      "description": "App基础配置",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "description": "App名称，读取 SAIUSER 站点配置"
+                        },
+                        "logo": {
+                          "type": "string",
+                          "description": "App logo，读取 SAIUSER 站点配置"
+                        },
+                        "description": {
+                          "type": "string",
+                          "description": "App描述，读取 SAIUSER 站点配置"
+                        }
+                      }
+                    },
+                    "oauth": {
+                      "type": "object",
+                      "description": "第三方登录客户端配置，不包含服务端私钥"
+                    },
+                    "push": {
+                      "type": "object",
+                      "description": "推送公开配置"
+                    },
+                    "download": {
+                      "type": "object",
+                      "description": "App 下载配置",
+                      "properties": {
+                        "google_play_url": {
+                          "type": "string",
+                          "description": "Google Play 商店链接"
+                        },
+                        "app_store_url": {
+                          "type": "string",
+                          "description": "App Store 商店链接"
+                        },
+                        "dev_apk_url": {
+                          "type": "string",
+                          "description": "开发版 APK 下载链接"
+                        },
+                        "dev_ipa_url": {
+                          "type": "string",
+                          "description": "开发版 IPA 下载链接"
+                        }
+                      }
+                    },
+                    "member_platforms": {
+                      "type": "array",
+                      "description": "已初始化的第三方会员平台",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/common/onboarding": {
+      "get": {
+        "tags": [
+          "helpsupport-api.公共配置.CommonController"
+        ],
+        "summary": "App引导页",
+        "description": "",
+        "parameters": [
+          {
+            "name": "scene",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "引导场景"
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "配置版本，空值读取通用配置"
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "语言"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "引导页列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/patients": {
+      "get": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "我的患者列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "绑定状态 1绑定中 2已解绑",
+            "format": "int32"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "患者昵称关键词"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "患者列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/patient/bind": {
+      "post": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "绑定患者",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "member_id": {
+                    "type": "integer",
+                    "description": "患者会员ID",
+                    "format": "int32"
+                  },
+                  "bind_source": {
+                    "type": "string",
+                    "description": "绑定来源 manual/system/appointment"
+                  }
+                },
+                "required": [
+                  "member_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "绑定关系ID",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/patient/unbind": {
+      "post": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "解绑患者",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "member_id": {
+                    "type": "integer",
+                    "description": "患者会员ID",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "member_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "绑定关系ID",
+                      "format": "int32"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "description": "解绑后的状态",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/patient/plans": {
+      "get": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "患者治疗计划",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "member_id",
+            "in": "query",
+            "required": true,
+            "type": "integer",
+            "description": "患者会员ID",
+            "format": "int32"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "计划状态",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "治疗计划及阶段",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/treatment-plan": {
+      "post": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "保存患者治疗计划",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "member_id": {
+                    "type": "integer",
+                    "description": "患者会员ID",
+                    "format": "int32"
+                  },
+                  "id": {
+                    "type": "integer",
+                    "description": "计划ID，空为新增",
+                    "format": "int32"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "计划标题"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "计划说明"
+                  },
+                  "start_date": {
+                    "type": "string",
+                    "description": "开始日期"
+                  },
+                  "end_date": {
+                    "type": "string",
+                    "description": "结束日期"
+                  },
+                  "status": {
+                    "type": "integer",
+                    "description": "状态 1进行中 2已完成 3已终止",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "member_id",
+                  "title"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "计划ID",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/daily-tasks": {
+      "get": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "患者每日任务",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "member_id",
+            "in": "query",
+            "required": true,
+            "type": "integer",
+            "description": "患者会员ID",
+            "format": "int32"
+          },
+          {
+            "name": "plan_id",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "计划ID",
+            "format": "int32"
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "任务日期"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "任务状态",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "任务列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/daily-task": {
+      "post": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "保存患者每日任务",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "member_id": {
+                    "type": "integer",
+                    "description": "患者会员ID",
+                    "format": "int32"
+                  },
+                  "id": {
+                    "type": "integer",
+                    "description": "任务ID，空为新增",
+                    "format": "int32"
+                  },
+                  "task_date": {
+                    "type": "string",
+                    "description": "任务日期"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "任务标题"
+                  },
+                  "task_type": {
+                    "type": "string",
+                    "description": "任务类型"
+                  },
+                  "reminders": {
+                    "type": "array",
+                    "description": "提醒规则",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "member_id",
+                  "task_date",
+                  "title"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "任务ID",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/task-template-folders": {
+      "get": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "任务模板文件夹",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "状态",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "文件夹列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/task-templates": {
+      "get": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "任务模板列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "folder_id",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "文件夹ID"
+          },
+          {
+            "name": "stage",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "阶段"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "状态",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "模板列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/task-template": {
+      "post": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "保存任务模板",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "模板ID，空为新增"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "模板名称"
+                  },
+                  "folder_id": {
+                    "type": "string",
+                    "description": "文件夹ID"
+                  },
+                  "reminder_rule": {
+                    "type": "array",
+                    "description": "提醒规则",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "title"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "模板ID"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/assessment-scales": {
+      "get": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "评估量表列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "stage",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "阶段"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "状态"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "量表列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/assessment-scale": {
+      "post": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "保存评估量表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "量表ID，空为新增"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "量表名称"
+                  },
+                  "questions": {
+                    "type": "array",
+                    "description": "题目配置",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "scoring_rule": {
+                    "type": "array",
+                    "description": "评分规则",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "title"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "量表ID"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/assessment-scale/publish": {
+      "post": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "发布评估量表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "量表ID"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "量表ID"
+                    },
+                    "status": {
+                      "type": "string",
+                      "description": "发布后的状态"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/appointments": {
+      "get": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "医生预约列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "member_id",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "患者会员ID",
+            "format": "int32"
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "预约日期"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "预约状态",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "预约列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/appointment/confirm": {
+      "post": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "确认预约",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointment_id": {
+                    "type": "integer",
+                    "description": "预约ID",
+                    "format": "int32"
+                  },
+                  "meet_type": {
+                    "type": "string",
+                    "description": "接诊方式 link/address/phone"
+                  },
+                  "meet_link": {
+                    "type": "string",
+                    "description": "接诊地址或链接"
+                  },
+                  "confirm_remark": {
+                    "type": "string",
+                    "description": "确认备注"
+                  }
+                },
+                "required": [
+                  "appointment_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "预约ID",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/appointment/finish": {
+      "post": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "完成预约",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointment_id": {
+                    "type": "integer",
+                    "description": "预约ID",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "appointment_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "预约ID",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/appointment/cancel": {
+      "post": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "取消预约",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointment_id": {
+                    "type": "integer",
+                    "description": "预约ID",
+                    "format": "int32"
+                  },
+                  "cancel_reason": {
+                    "type": "string",
+                    "description": "取消原因"
+                  }
+                },
+                "required": [
+                  "appointment_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "预约ID",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/doctor/appointment/reject": {
+      "post": {
+        "tags": [
+          "helpsupport-api.医生端.DoctorController"
+        ],
+        "summary": "拒绝预约",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointment_id": {
+                    "type": "integer",
+                    "description": "预约ID",
+                    "format": "int32"
+                  },
+                  "confirm_remark": {
+                    "type": "string",
+                    "description": "拒绝原因"
+                  }
+                },
+                "required": [
+                  "appointment_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "预约ID",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/profile": {
+      "get": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "读取我的资料",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "member": {
+                      "type": "object",
+                      "description": "父框架会员资料"
+                    },
+                    "profile": {
+                      "type": "object",
+                      "description": "HelpSupport会员扩展资料"
+                    },
+                    "doctor_profile": {
+                      "type": "object",
+                      "description": "医生资质资料"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/profile/save": {
+      "post": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "保存我的资料",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "member_role": {
+                    "type": "string",
+                    "description": "业务身份 patient/doctor"
+                  },
+                  "gender": {
+                    "type": "integer",
+                    "description": "性别 1男 2女 3保密",
+                    "format": "int32"
+                  },
+                  "birthday": {
+                    "type": "string",
+                    "description": "生日 YYYY-MM-DD"
+                  },
+                  "bio": {
+                    "type": "string",
+                    "description": "个人简介"
+                  },
+                  "recovery_goal": {
+                    "type": "string",
+                    "description": "康复目标"
+                  },
+                  "trigger_tags": {
+                    "type": "array",
+                    "description": "重点触发因素",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "locale": {
+                    "type": "string",
+                    "description": "语言"
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "description": "时区"
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "资料ID",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/common/onboarding/seen": {
+      "post": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "上报已看引导页版本",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "description": "已看引导页版本，空值表示默认版本"
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "onboarding_version": {
+                      "type": "string",
+                      "description": "已记录版本"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/doctor-certification": {
+      "post": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "提交医生资质",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "real_name": {
+                    "type": "string",
+                    "description": "真实姓名"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "职称"
+                  },
+                  "hospital": {
+                    "type": "string",
+                    "description": "医院/机构"
+                  },
+                  "department": {
+                    "type": "string",
+                    "description": "科室"
+                  },
+                  "specialty": {
+                    "type": "string",
+                    "description": "专业方向"
+                  },
+                  "license_no": {
+                    "type": "string",
+                    "description": "执业证书编号"
+                  },
+                  "certification_images": {
+                    "type": "array",
+                    "description": "证书图片",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "real_name",
+                  "license_no"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "audit_status": {
+                      "type": "integer",
+                      "description": "审核状态 0待审核 1通过 2拒绝",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/journals": {
+      "get": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "我的日记列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "日记列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    },
+                    "page": {
+                      "type": "integer",
+                      "description": "当前页码",
+                      "format": "int32"
+                    },
+                    "page_size": {
+                      "type": "integer",
+                      "description": "每页数量",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/journal": {
+      "post": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "保存我的日记",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "日记ID，空为新增",
+                    "format": "int32"
+                  },
+                  "entry_date": {
+                    "type": "string",
+                    "description": "记录日期 YYYY-MM-DD"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "标题"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "内容"
+                  },
+                  "media": {
+                    "type": "array",
+                    "description": "媒体列表",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "entry_date",
+                  "title"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "日记ID",
+                      "format": "int32"
+                    },
+                    "entry_date": {
+                      "type": "string",
+                      "description": "记录日期"
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "标题"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/journal/delete": {
+      "post": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "删除我的日记",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "日记ID",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "日记ID",
+                      "format": "int32"
+                    },
+                    "deleted": {
+                      "type": "string",
+                      "description": "是否删除成功"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/memoirs": {
+      "get": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "我的回忆录列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "source_month",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "来源月份 YYYY-MM"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "回忆录列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    },
+                    "page": {
+                      "type": "integer",
+                      "description": "当前页码",
+                      "format": "int32"
+                    },
+                    "page_size": {
+                      "type": "integer",
+                      "description": "每页数量",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/memoir": {
+      "get": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "我的回忆录详情",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "type": "integer",
+            "description": "回忆录ID",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "回忆录ID",
+                      "format": "int32"
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "回忆录标题"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/memoir-configs": {
+      "get": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "回忆录生成配置",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "配置编码"
+          },
+          {
+            "name": "generation_cycle",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "生成周期 weekly/monthly/quarterly"
+          },
+          {
+            "name": "source_type",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "来源类型 journal/task/mixed"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "启用的回忆录生成配置",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/badges": {
+      "get": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "我的荣誉徽章",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "状态 1有效 2撤销",
+            "format": "int32"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "徽章列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/points": {
+      "get": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "我的积分流水",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "change_type",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "变动类型 income/expense/adjust"
+          },
+          {
+            "name": "source_type",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "来源类型"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "balance": {
+                      "type": "integer",
+                      "description": "当前积分余额",
+                      "format": "int32"
+                    },
+                    "list": {
+                      "type": "array",
+                      "description": "积分流水",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/recovery-goals": {
+      "get": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "康复目标记录列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "状态 1进行中 2已完成 3已放弃",
+            "format": "int32"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "康复目标记录",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/recovery-goal": {
+      "post": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "保存康复目标记录",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "记录ID，空为新增",
+                    "format": "int32"
+                  },
+                  "goal_text": {
+                    "type": "string",
+                    "description": "恢复目标"
+                  },
+                  "goal_type": {
+                    "type": "string",
+                    "description": "目标类型 custom/weekly/monthly"
+                  },
+                  "target_date": {
+                    "type": "string",
+                    "description": "目标日期 YYYY-MM-DD"
+                  },
+                  "status": {
+                    "type": "integer",
+                    "description": "状态 1进行中 2已完成 3已放弃",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "goal_text"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "记录ID",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/recovery-goal/delete": {
+      "post": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "删除康复目标记录",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "记录ID",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deleted": {
+                      "type": "string",
+                      "description": "是否删除成功"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/triggers": {
+      "get": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "触发因素记录列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "trigger_type",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "触发类型 emotion/place/person/custom"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "触发因素记录",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/trigger": {
+      "post": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "保存触发因素记录",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "记录ID，空为新增",
+                    "format": "int32"
+                  },
+                  "trigger_name": {
+                    "type": "string",
+                    "description": "触发因素名称"
+                  },
+                  "trigger_type": {
+                    "type": "string",
+                    "description": "触发类型 emotion/place/person/custom"
+                  },
+                  "intensity": {
+                    "type": "integer",
+                    "description": "强度 0-10",
+                    "format": "int32"
+                  },
+                  "occurred_at": {
+                    "type": "string",
+                    "description": "发生时间，空为当前时间"
+                  },
+                  "response_action": {
+                    "type": "string",
+                    "description": "应对动作"
+                  },
+                  "note": {
+                    "type": "string",
+                    "description": "记录说明"
+                  }
+                },
+                "required": [
+                  "trigger_name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "记录ID",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/trigger/delete": {
+      "post": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "删除触发因素记录",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "记录ID",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deleted": {
+                      "type": "string",
+                      "description": "是否删除成功"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/messages": {
+      "get": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "我的消息列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "is_read",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "是否已读 1是 2否",
+            "format": "int32"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "消息列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    },
+                    "page": {
+                      "type": "integer",
+                      "description": "当前页码",
+                      "format": "int32"
+                    },
+                    "page_size": {
+                      "type": "integer",
+                      "description": "每页数量",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/me/message/read": {
+      "put": {
+        "tags": [
+          "helpsupport-api.我的.MeController"
+        ],
+        "summary": "标记消息已读",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message_id": {
+                    "type": "integer",
+                    "description": "消息ID，空则按条件批量标记",
+                    "format": "int32"
+                  },
+                  "all": {
+                    "type": "integer",
+                    "description": "是否全部标记 1是",
+                    "format": "int32"
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "affected": {
+                      "type": "integer",
+                      "description": "标记已读的消息数量",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/push/device/register": {
+      "post": {
+        "tags": [
+          "helpsupport-api.推送.PushController"
+        ],
+        "summary": "注册推送设备",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device_id": {
+                    "type": "string",
+                    "description": "设备标识"
+                  },
+                  "platform": {
+                    "type": "string",
+                    "description": "ios/android"
+                  },
+                  "fcm_token": {
+                    "type": "string",
+                    "description": "Firebase FCM Token"
+                  },
+                  "apns_token": {
+                    "type": "string",
+                    "description": "iOS APNs Token"
+                  },
+                  "app_version": {
+                    "type": "string",
+                    "description": "App版本"
+                  },
+                  "locale": {
+                    "type": "string",
+                    "description": "语言"
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "description": "时区"
+                  }
+                },
+                "required": [
+                  "device_id",
+                  "platform"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "设备记录ID",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/push/device/unregister": {
+      "post": {
+        "tags": [
+          "helpsupport-api.推送.PushController"
+        ],
+        "summary": "注销推送设备",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device_id": {
+                    "type": "string",
+                    "description": "设备标识"
+                  },
+                  "platform": {
+                    "type": "string",
+                    "description": "ios/android"
+                  }
+                },
+                "required": [
+                  "device_id",
+                  "platform"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "string",
+                      "description": "操作结果"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/push/preference": {
+      "get": {
+        "tags": [
+          "helpsupport-api.推送.PushController"
+        ],
+        "summary": "读取推送偏好",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "is_push_enabled": {
+                      "type": "integer",
+                      "description": "总通知开关 1是 2否",
+                      "format": "int32"
+                    },
+                    "is_task_reminder_enabled": {
+                      "type": "integer",
+                      "description": "任务提醒开关 1是 2否",
+                      "format": "int32"
+                    },
+                    "is_community_enabled": {
+                      "type": "integer",
+                      "description": "社区互动开关 1是 2否",
+                      "format": "int32"
+                    },
+                    "is_appointment_enabled": {
+                      "type": "integer",
+                      "description": "预约提醒开关 1是 2否",
+                      "format": "int32"
+                    },
+                    "is_audit_notice_enabled": {
+                      "type": "integer",
+                      "description": "审核/系统通知开关 1是 2否",
+                      "format": "int32"
+                    },
+                    "is_local_companion_enabled": {
+                      "type": "integer",
+                      "description": "本地陪伴提醒开关 1是 2否",
+                      "format": "int32"
+                    },
+                    "quiet_start_time": {
+                      "type": "string",
+                      "description": "免打扰开始时间"
+                    },
+                    "quiet_end_time": {
+                      "type": "string",
+                      "description": "免打扰结束时间"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "helpsupport-api.推送.PushController"
+        ],
+        "summary": "保存推送偏好",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "is_push_enabled": {
+                    "type": "integer",
+                    "description": "总通知开关 1是 2否",
+                    "format": "int32"
+                  },
+                  "is_task_reminder_enabled": {
+                    "type": "integer",
+                    "description": "任务提醒 1是 2否",
+                    "format": "int32"
+                  },
+                  "is_community_enabled": {
+                    "type": "integer",
+                    "description": "社区互动 1是 2否",
+                    "format": "int32"
+                  },
+                  "is_appointment_enabled": {
+                    "type": "integer",
+                    "description": "预约提醒 1是 2否",
+                    "format": "int32"
+                  },
+                  "is_audit_notice_enabled": {
+                    "type": "integer",
+                    "description": "审核/系统通知 1是 2否",
+                    "format": "int32"
+                  },
+                  "is_local_companion_enabled": {
+                    "type": "integer",
+                    "description": "本地陪伴提醒 1是 2否",
+                    "format": "int32"
+                  },
+                  "quiet_start_time": {
+                    "type": "string",
+                    "description": "免打扰开始时间 HH:mm:ss"
+                  },
+                  "quiet_end_time": {
+                    "type": "string",
+                    "description": "免打扰结束时间 HH:mm:ss"
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "偏好记录ID",
+                      "format": "int32"
+                    },
+                    "is_push_enabled": {
+                      "type": "integer",
+                      "description": "总通知开关 1是 2否",
+                      "format": "int32"
+                    },
+                    "quiet_start_time": {
+                      "type": "string",
+                      "description": "免打扰开始时间"
+                    },
+                    "quiet_end_time": {
+                      "type": "string",
+                      "description": "免打扰结束时间"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/local-model/catalog": {
+      "get": {
+        "tags": [
+          "helpsupport-api.本地模型.LocalModelController"
+        ],
+        "summary": "模型目录",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "模型编码"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "可下载模型列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/local-model/prompts": {
+      "get": {
+        "tags": [
+          "helpsupport-api.本地模型.LocalModelController"
+        ],
+        "summary": "模型提示词",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "model_id",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "模型ID，空值返回通用提示词",
+            "format": "int32"
+          },
+          {
+            "name": "chat_mode",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "聊天模式 doctor/companion/patient"
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "语言"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "提示词列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/local-model/download-log": {
+      "post": {
+        "tags": [
+          "helpsupport-api.本地模型.LocalModelController"
+        ],
+        "summary": "上报模型下载日志",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "model_id": {
+                    "type": "integer",
+                    "description": "模型目录ID，与model_code至少传一个",
+                    "format": "int32"
+                  },
+                  "model_code": {
+                    "type": "string",
+                    "description": "模型编码，与model_id至少传一个"
+                  },
+                  "platform": {
+                    "type": "string",
+                    "description": "客户端平台 ios/android"
+                  },
+                  "app_version": {
+                    "type": "string",
+                    "description": "App版本"
+                  },
+                  "locale": {
+                    "type": "string",
+                    "description": "客户端语言"
+                  },
+                  "download_status": {
+                    "type": "string",
+                    "description": "下载状态 started/success/failed/canceled"
+                  },
+                  "downloaded_size": {
+                    "type": "integer",
+                    "description": "已下载大小",
+                    "format": "int32"
+                  },
+                  "duration_seconds": {
+                    "type": "integer",
+                    "description": "下载耗时秒",
+                    "format": "int32"
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "description": "客户端下载后校验 SHA256"
+                  },
+                  "error_code": {
+                    "type": "string",
+                    "description": "错误码"
+                  },
+                  "error_message": {
+                    "type": "string",
+                    "description": "错误摘要，不上传敏感内容"
+                  }
+                },
+                "required": [
+                  "download_status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "日志ID",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/community/tags": {
+      "get": {
+        "tags": [
+          "helpsupport-api.社区.CommunityController"
+        ],
+        "summary": "社区标签",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "社区标签列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/community/posts": {
+      "get": {
+        "tags": [
+          "helpsupport-api.社区.CommunityController"
+        ],
+        "summary": "社区帖子列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "关键词"
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "内容范围 public公共 following我关注的作者"
+          },
+          {
+            "name": "mine",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "是否只看自己 1是 2否",
+            "format": "int32"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "帖子列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/community/post": {
+      "get": {
+        "tags": [
+          "helpsupport-api.社区.CommunityController"
+        ],
+        "summary": "社区帖子详情",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "type": "integer",
+            "description": "帖子ID",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "帖子ID",
+                      "format": "int32"
+                    },
+                    "content": {
+                      "type": "string",
+                      "description": "帖子内容"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "helpsupport-api.社区.CommunityController"
+        ],
+        "summary": "发布社区帖子",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "description": "帖子内容"
+                  },
+                  "images": {
+                    "type": "array",
+                    "description": "图片URL数组",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "tags": {
+                    "type": "array",
+                    "description": "标签数组",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "is_anonymous": {
+                    "type": "integer",
+                    "description": "是否匿名 1是 2否",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "content"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "帖子ID",
+                      "format": "int32"
+                    },
+                    "audit_status": {
+                      "type": "integer",
+                      "description": "审核状态",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/community/comments": {
+      "get": {
+        "tags": [
+          "helpsupport-api.社区.CommunityController"
+        ],
+        "summary": "社区评论列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "post_id",
+            "in": "query",
+            "required": true,
+            "type": "integer",
+            "description": "帖子ID",
+            "format": "int32"
+          },
+          {
+            "name": "parent_id",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "父评论ID",
+            "format": "int32"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "评论列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/community/comment": {
+      "post": {
+        "tags": [
+          "helpsupport-api.社区.CommunityController"
+        ],
+        "summary": "发布社区评论",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "post_id": {
+                    "type": "integer",
+                    "description": "帖子ID",
+                    "format": "int32"
+                  },
+                  "parent_id": {
+                    "type": "integer",
+                    "description": "父评论ID",
+                    "format": "int32"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "评论内容"
+                  },
+                  "is_anonymous": {
+                    "type": "integer",
+                    "description": "是否匿名 1是 2否",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "post_id",
+                  "content"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "评论ID",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/community/like": {
+      "post": {
+        "tags": [
+          "helpsupport-api.社区.CommunityController"
+        ],
+        "summary": "社区点赞切换",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "target_type": {
+                    "type": "integer",
+                    "description": "目标类型 1帖子 2评论",
+                    "format": "int32"
+                  },
+                  "target_id": {
+                    "type": "integer",
+                    "description": "目标ID",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "target_type",
+                  "target_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "is_liked": {
+                      "type": "string",
+                      "description": "当前是否点赞"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/community/collect": {
+      "post": {
+        "tags": [
+          "helpsupport-api.社区.CommunityController"
+        ],
+        "summary": "社区收藏切换",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "post_id": {
+                    "type": "integer",
+                    "description": "帖子ID",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "post_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "is_collected": {
+                      "type": "string",
+                      "description": "当前是否收藏"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/community/follow-tag": {
+      "post": {
+        "tags": [
+          "helpsupport-api.社区.CommunityController"
+        ],
+        "summary": "社区标签关注切换",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tag_id": {
+                    "type": "integer",
+                    "description": "标签ID",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "tag_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tag_id": {
+                      "type": "integer",
+                      "description": "标签ID",
+                      "format": "int32"
+                    },
+                    "is_followed": {
+                      "type": "string",
+                      "description": "当前是否关注"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/community/follow-member": {
+      "post": {
+        "tags": [
+          "helpsupport-api.社区.CommunityController"
+        ],
+        "summary": "社区用户关注切换",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "target_member_id": {
+                    "type": "integer",
+                    "description": "被关注会员ID",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "target_member_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "target_member_id": {
+                      "type": "integer",
+                      "description": "被关注会员ID",
+                      "format": "int32"
+                    },
+                    "is_followed": {
+                      "type": "string",
+                      "description": "当前是否关注"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/community/report": {
+      "post": {
+        "tags": [
+          "helpsupport-api.社区.CommunityController"
+        ],
+        "summary": "社区举报",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "target_type": {
+                    "type": "integer",
+                    "description": "举报类型 1帖子 2评论 3用户",
+                    "format": "int32"
+                  },
+                  "target_id": {
+                    "type": "integer",
+                    "description": "举报目标ID",
+                    "format": "int32"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "举报原因"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "举报描述"
+                  }
+                },
+                "required": [
+                  "target_type",
+                  "target_id",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "举报ID",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/material/categories": {
+      "get": {
+        "tags": [
+          "helpsupport-api.素材.MaterialController"
+        ],
+        "summary": "素材分类",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "分类类型 education/entertainment/private"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "素材分类",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/material/list": {
+      "get": {
+        "tags": [
+          "helpsupport-api.素材.MaterialController"
+        ],
+        "summary": "素材列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "material_type",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "内容大类"
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "分类ID",
+            "format": "int32"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "关键词"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "素材列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    },
+                    "page": {
+                      "type": "integer",
+                      "description": "当前页码",
+                      "format": "int32"
+                    },
+                    "page_size": {
+                      "type": "integer",
+                      "description": "每页数量",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/material/detail": {
+      "get": {
+        "tags": [
+          "helpsupport-api.素材.MaterialController"
+        ],
+        "summary": "素材详情",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "type": "integer",
+            "description": "素材ID",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "material": {
+                      "type": "object",
+                      "description": "素材详情"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/material/private": {
+      "post": {
+        "tags": [
+          "helpsupport-api.素材.MaterialController"
+        ],
+        "summary": "保存私人素材",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "素材ID，空为新增",
+                    "format": "int32"
+                  },
+                  "category_id": {
+                    "type": "integer",
+                    "description": "私人素材分类ID",
+                    "format": "int32"
+                  },
+                  "media_type": {
+                    "type": "string",
+                    "description": "素材类型 article/video/audio/pdf/epub/link"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "素材标题"
+                  },
+                  "summary": {
+                    "type": "string",
+                    "description": "摘要"
+                  },
+                  "cover_url": {
+                    "type": "string",
+                    "description": "封面图"
+                  },
+                  "content_url": {
+                    "type": "string",
+                    "description": "内容地址"
+                  },
+                  "content_text": {
+                    "type": "string",
+                    "description": "富文本内容"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "description": "标签",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "duration_seconds": {
+                    "type": "integer",
+                    "description": "时长秒",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "title"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "素材ID",
+                      "format": "int32"
+                    },
+                    "audit_status": {
+                      "type": "integer",
+                      "description": "审核状态 1待审 2通过 3拒绝",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/material/private/delete": {
+      "post": {
+        "tags": [
+          "helpsupport-api.素材.MaterialController"
+        ],
+        "summary": "删除私人素材",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "私人素材ID",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "已删除素材ID",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/material/history": {
+      "get": {
+        "tags": [
+          "helpsupport-api.素材.MaterialController"
+        ],
+        "summary": "浏览历史",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "浏览历史",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    },
+                    "page": {
+                      "type": "integer",
+                      "description": "当前页码",
+                      "format": "int32"
+                    },
+                    "page_size": {
+                      "type": "integer",
+                      "description": "每页数量",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/material/history/save": {
+      "post": {
+        "tags": [
+          "helpsupport-api.素材.MaterialController"
+        ],
+        "summary": "保存浏览历史",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content_id": {
+                    "type": "integer",
+                    "description": "内容ID",
+                    "format": "int32"
+                  },
+                  "content_type": {
+                    "type": "string",
+                    "description": "内容类型"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "内容标题"
+                  },
+                  "route": {
+                    "type": "string",
+                    "description": "页面路由"
+                  }
+                },
+                "required": [
+                  "content_id",
+                  "content_type",
+                  "title",
+                  "route"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "浏览历史ID",
+                      "format": "int32"
+                    },
+                    "viewed_at": {
+                      "type": "string",
+                      "description": "最近浏览时间",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/material/collections": {
+      "get": {
+        "tags": [
+          "helpsupport-api.素材.MaterialController"
+        ],
+        "summary": "素材收藏列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "素材收藏列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    },
+                    "page": {
+                      "type": "integer",
+                      "description": "当前页码",
+                      "format": "int32"
+                    },
+                    "page_size": {
+                      "type": "integer",
+                      "description": "每页数量",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/material/comments": {
+      "get": {
+        "tags": [
+          "helpsupport-api.素材.MaterialController"
+        ],
+        "summary": "素材评论列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "material_id",
+            "in": "query",
+            "required": true,
+            "type": "integer",
+            "description": "素材ID",
+            "format": "int32"
+          },
+          {
+            "name": "parent_id",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "父评论ID",
+            "format": "int32"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "评论列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/material/comment": {
+      "post": {
+        "tags": [
+          "helpsupport-api.素材.MaterialController"
+        ],
+        "summary": "发布素材评论",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "material_id": {
+                    "type": "integer",
+                    "description": "素材ID",
+                    "format": "int32"
+                  },
+                  "parent_id": {
+                    "type": "integer",
+                    "description": "父评论ID",
+                    "format": "int32"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "评论内容"
+                  },
+                  "attachments": {
+                    "type": "array",
+                    "description": "附件列表",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "material_id",
+                  "content"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "评论ID",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/material/comment/like": {
+      "post": {
+        "tags": [
+          "helpsupport-api.素材.MaterialController"
+        ],
+        "summary": "素材评论点赞切换",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "comment_id": {
+                    "type": "integer",
+                    "description": "评论ID",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "comment_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "comment_id": {
+                      "type": "integer",
+                      "description": "评论ID",
+                      "format": "int32"
+                    },
+                    "is_liked": {
+                      "type": "string",
+                      "description": "是否已点赞"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/material/like": {
+      "post": {
+        "tags": [
+          "helpsupport-api.素材.MaterialController"
+        ],
+        "summary": "切换素材点赞",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "material_id": {
+                    "type": "integer",
+                    "description": "素材ID",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "material_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "material_id": {
+                      "type": "integer",
+                      "description": "素材ID",
+                      "format": "int32"
+                    },
+                    "is_liked": {
+                      "type": "string",
+                      "description": "是否已点赞"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/material/collect": {
+      "post": {
+        "tags": [
+          "helpsupport-api.素材.MaterialController"
+        ],
+        "summary": "切换素材收藏",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "material_id": {
+                    "type": "integer",
+                    "description": "素材ID",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "material_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "material_id": {
+                      "type": "integer",
+                      "description": "素材ID",
+                      "format": "int32"
+                    },
+                    "is_collected": {
+                      "type": "string",
+                      "description": "是否已收藏"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/plan/current": {
+      "get": {
+        "tags": [
+          "helpsupport-api.计划.PlanController"
+        ],
+        "summary": "当前治疗计划",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "plans": {
+                      "type": "array",
+                      "description": "当前计划及阶段",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/plan/tasks": {
+      "get": {
+        "tags": [
+          "helpsupport-api.计划.PlanController"
+        ],
+        "summary": "每日任务列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "任务日期 YYYY-MM-DD"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "任务状态",
+            "format": "int32"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "每日任务列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    },
+                    "page": {
+                      "type": "integer",
+                      "description": "当前页码",
+                      "format": "int32"
+                    },
+                    "page_size": {
+                      "type": "integer",
+                      "description": "每页数量",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/plan/task/status": {
+      "put": {
+        "tags": [
+          "helpsupport-api.计划.PlanController"
+        ],
+        "summary": "更新任务状态",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "task_id": {
+                    "type": "integer",
+                    "description": "任务ID",
+                    "format": "int32"
+                  },
+                  "status": {
+                    "type": "integer",
+                    "description": "状态 0待办 1完成 2跳过 3延期",
+                    "format": "int32"
+                  },
+                  "completion_note": {
+                    "type": "string",
+                    "description": "完成备注"
+                  }
+                },
+                "required": [
+                  "task_id",
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "任务ID",
+                      "format": "int32"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "description": "更新后的任务状态",
+                      "format": "int32"
+                    },
+                    "completed_time": {
+                      "type": "string",
+                      "description": "完成时间",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/plan/assessment-results": {
+      "get": {
+        "tags": [
+          "helpsupport-api.计划.PlanController"
+        ],
+        "summary": "评估结果列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "评估结果列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    },
+                    "page": {
+                      "type": "integer",
+                      "description": "当前页码",
+                      "format": "int32"
+                    },
+                    "page_size": {
+                      "type": "integer",
+                      "description": "每页数量",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/plan/assessment-result": {
+      "post": {
+        "tags": [
+          "helpsupport-api.计划.PlanController"
+        ],
+        "summary": "提交评估结果",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "assessment_title": {
+                    "type": "string",
+                    "description": "量表名称"
+                  },
+                  "answers": {
+                    "type": "array",
+                    "description": "作答结果",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "achieved_score": {
+                    "type": "integer",
+                    "description": "实得分",
+                    "format": "int32"
+                  }
+                },
+                "required": [
+                  "assessment_title"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "评估结果ID",
+                      "format": "int32"
+                    },
+                    "assessment_title": {
+                      "type": "string",
+                      "description": "量表名称"
+                    },
+                    "achieved_score": {
+                      "type": "integer",
+                      "description": "实得分",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/appointment/doctors": {
+      "get": {
+        "tags": [
+          "helpsupport-api.预约.AppointmentController"
+        ],
+        "summary": "可预约医生列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "医生姓名/医院/专长关键词"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "医生列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    },
+                    "page": {
+                      "type": "integer",
+                      "description": "当前页码",
+                      "format": "int32"
+                    },
+                    "page_size": {
+                      "type": "integer",
+                      "description": "每页数量",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/appointment/slots": {
+      "get": {
+        "tags": [
+          "helpsupport-api.预约.AppointmentController"
+        ],
+        "summary": "医生可预约时段",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "doctor_id",
+            "in": "query",
+            "required": true,
+            "type": "integer",
+            "description": "医生会员ID",
+            "format": "int32"
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "预约日期 YYYY-MM-DD"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "可预约时段列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/appointment/list": {
+      "get": {
+        "tags": [
+          "helpsupport-api.预约.AppointmentController"
+        ],
+        "summary": "我的预约列表",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "预约状态",
+            "format": "int32"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "页码",
+            "format": "int32"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "description": "每页数量",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "list": {
+                      "type": "array",
+                      "description": "预约列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "总数",
+                      "format": "int32"
+                    },
+                    "page": {
+                      "type": "integer",
+                      "description": "当前页码",
+                      "format": "int32"
+                    },
+                    "page_size": {
+                      "type": "integer",
+                      "description": "每页数量",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/appointment": {
+      "post": {
+        "tags": [
+          "helpsupport-api.预约.AppointmentController"
+        ],
+        "summary": "创建预约",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "doctor_id": {
+                    "type": "integer",
+                    "description": "医生会员ID；无schedule_id时必填",
+                    "format": "int32"
+                  },
+                  "schedule_id": {
+                    "type": "integer",
+                    "description": "排班ID，优先使用",
+                    "format": "int32"
+                  },
+                  "appoint_date": {
+                    "type": "string",
+                    "description": "预约日期 YYYY-MM-DD；无schedule_id时必填"
+                  },
+                  "appoint_time_slot": {
+                    "type": "string",
+                    "description": "预约时间段；无schedule_id时必填"
+                  },
+                  "remark": {
+                    "type": "string",
+                    "description": "预约备注"
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "预约ID",
+                      "format": "int32"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "description": "预约状态",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/appointment/cancel": {
+      "post": {
+        "tags": [
+          "helpsupport-api.预约.AppointmentController"
+        ],
+        "summary": "取消预约",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointment_id": {
+                    "type": "integer",
+                    "description": "预约ID",
+                    "format": "int32"
+                  },
+                  "cancel_reason": {
+                    "type": "string",
+                    "description": "取消原因"
+                  }
+                },
+                "required": [
+                  "appointment_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "预约ID",
+                      "format": "int32"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "description": "取消后的预约状态",
+                      "format": "int32"
+                    },
+                    "canceled_at": {
+                      "type": "string",
+                      "description": "取消时间",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    },
+    "/app/help/home/summary": {
+      "get": {
+        "tags": [
+          "helpsupport-api.首页.HomeController"
+        ],
+        "summary": "首页摘要",
+        "description": "",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "身份令牌Token"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "profile": {
+                      "type": "object",
+                      "description": "会员扩展资料"
+                    },
+                    "unread_message_count": {
+                      "type": "integer",
+                      "description": "未读消息数",
+                      "format": "int32"
+                    },
+                    "today_tasks": {
+                      "type": "array",
+                      "description": "今日任务列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "upcoming_appointments": {
+                      "type": "array",
+                      "description": "最近预约列表",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录令牌无效"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": []
+  }
+}

@@ -1,0 +1,1045 @@
+openapi: 3.0.3
+info:
+  title: HelpSupport - 业务模块接口
+  description: 社区、计划、素材、预约、消息中心、医生患者关系等接口定义
+  version: 1.0.0
+
+servers:
+  - url: http://127.0.0.1:8787
+    description: 本地开发环境
+
+tags:
+  - name: 社区
+  - name: 计划
+  - name: 素材
+  - name: 预约
+  - name: 消息
+  - name: 医生患者
+  - name: AI配置
+
+security:
+  - bearerAuth: []
+
+paths:
+  /app/help/community/posts:
+    get:
+      tags: [社区]
+      summary: 社区帖子列表
+      operationId: getCommunityPosts
+      parameters:
+        - in: query
+          name: tag
+          schema: { type: string }
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [newest, hottest]
+            default: newest
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/community/myPosts:
+    get:
+      tags: [社区]
+      summary: 我发布的帖子
+      operationId: getMyCommunityPosts
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/community/tags:
+    get:
+      tags: [社区]
+      summary: 标签列表
+      operationId: getCommunityTags
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/community/post:
+    post:
+      tags: [社区]
+      summary: 发布帖子
+      operationId: createCommunityPost
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+                images:
+                  type: array
+                  items: { type: string }
+                link_url: { type: string }
+                tags:
+                  type: array
+                  items: { type: string }
+                is_anonymous:
+                  type: integer
+                  enum: [0, 1]
+                  default: 0
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/community/post/detail:
+    get:
+      tags: [社区]
+      summary: 帖子详情
+      operationId: getCommunityPostDetail
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/community/comments:
+    get:
+      tags: [社区]
+      summary: 评论列表
+      operationId: getCommunityComments
+      parameters:
+        - in: query
+          name: post_id
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: sort
+          schema:
+            type: string
+            description: time=按时间 recommend=按推荐
+            enum: [time, recommend]
+            default: time
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/community/comment:
+    post:
+      tags: [社区]
+      summary: 发表评论/回复
+      operationId: createCommunityComment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [post_id, content]
+              properties:
+                post_id: { type: integer }
+                content: { type: string }
+                parent_id: { type: integer, default: 0 }
+                reply_to_member_id: { type: integer }
+                attachments:
+                  type: array
+                  description: 附件URL数组
+                  items: { type: string }
+                is_anonymous:
+                  type: integer
+                  enum: [0, 1]
+                  default: 0
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/community/like:
+    post:
+      tags: [社区]
+      summary: 点赞/取消点赞
+      operationId: toggleCommunityLike
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_type, target_id]
+              properties:
+                target_type:
+                  type: integer
+                  description: 1帖子 2评论
+                  enum: [1, 2]
+                target_id: { type: integer }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/community/collect:
+    post:
+      tags: [社区]
+      summary: 收藏/取消收藏帖子
+      operationId: toggleCommunityCollect
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [post_id]
+              properties:
+                post_id: { type: integer }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/community/followTag:
+    post:
+      tags: [社区]
+      summary: 关注/取消关注标签
+      operationId: toggleCommunityFollowTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tag_id]
+              properties:
+                tag_id: { type: integer }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/community/report:
+    post:
+      tags: [社区]
+      summary: 举报内容
+      operationId: createCommunityReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_type, target_id, reason]
+              properties:
+                target_type:
+                  type: integer
+                  description: 1帖子 2评论 3用户
+                  enum: [1, 2, 3]
+                target_id: { type: integer }
+                reason: { type: string }
+                description: { type: string }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/community/myFollowedTags:
+    get:
+      tags: [社区]
+      summary: 我关注的标签
+      operationId: getMyFollowedTags
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/community/myCollectedPosts:
+    get:
+      tags: [社区]
+      summary: 我收藏的帖子
+      operationId: getMyCollectedCommunityPosts
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/community/myProfile:
+    get:
+      tags: [社区]
+      summary: 我的社区主页
+      operationId: getMyCommunityProfile
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/community/memberProfile:
+    get:
+      tags: [社区]
+      summary: 他人社区主页
+      operationId: getCommunityMemberProfile
+      parameters:
+        - in: query
+          name: member_id
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/community/myFollowingMembers:
+    get:
+      tags: [社区]
+      summary: 我的关注用户列表
+      operationId: getMyFollowingMembers
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/community/myFollowerMembers:
+    get:
+      tags: [社区]
+      summary: 我的粉丝列表
+      operationId: getMyFollowerMembers
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/community/followMember:
+    post:
+      tags: [社区]
+      summary: 关注/取消关注用户
+      operationId: toggleFollowMember
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_member_id]
+              properties:
+                target_member_id:
+                  type: integer
+                  example: 1001
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/tasks/calendar:
+    get:
+      tags: [计划]
+      summary: 获取任务日历
+      operationId: getCalendarTasks
+      parameters:
+        - in: query
+          name: month
+          schema:
+            type: string
+            example: "2026-03"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/task/finish:
+    post:
+      tags: [计划]
+      summary: 更新任务状态
+      operationId: changeTaskStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [task_id, status]
+              properties:
+                task_id:
+                  type: integer
+                  example: 1
+                status:
+                  type: integer
+                  description: 1完成 2跳过 3延期
+                  enum: [1, 2, 3]
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/material/categories:
+    get:
+      tags: [素材]
+      summary: 获取素材分类
+      operationId: getMaterialCategories
+      parameters:
+        - in: query
+          name: type
+          schema:
+            type: integer
+            description: 1医疗教育 2娱乐资源
+            default: 1
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/material/list:
+    get:
+      tags: [素材]
+      summary: 获取素材列表
+      operationId: getMaterialList
+      parameters:
+        - in: query
+          name: category_id
+          schema: { type: integer }
+        - in: query
+          name: keyword
+          schema:
+            type: string
+            description: 标题/正文关键词
+        - in: query
+          name: is_my
+          schema:
+            type: integer
+            description: 1仅我的素材 0公开大厅
+            default: 0
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/material/detail:
+    get:
+      tags: [素材]
+      summary: 素材详情
+      operationId: getMaterialDetail
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/material/upload:
+    post:
+      tags: [素材]
+      summary: 上传私人素材元数据
+      operationId: uploadPrivateMaterial
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, category_id, media_type]
+              properties:
+                title: { type: string }
+                category_id: { type: integer }
+                media_type:
+                  type: string
+                  enum: [article, video, audio, pdf, epub, link]
+                cover_url: { type: string }
+                content_url: { type: string }
+                content_text: { type: string }
+                is_public:
+                  type: integer
+                  default: 0
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/material/delete:
+    post:
+      tags: [素材]
+      summary: 删除私人素材
+      operationId: deletePrivateMaterial
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id: { type: integer }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/appointment/doctors:
+    get:
+      tags: [预约]
+      summary: 可预约医生列表
+      operationId: getDoctorList
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/appointment/doctor/detail:
+    get:
+      tags: [预约]
+      summary: 医生详情
+      operationId: getDoctorDetail
+      parameters:
+        - in: query
+          name: doctor_id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/appointment/doctor/slots:
+    get:
+      tags: [预约]
+      summary: 医生可预约时段
+      operationId: getDoctorSlots
+      parameters:
+        - in: query
+          name: doctor_id
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: appoint_date
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/appointment/submit:
+    post:
+      tags: [预约]
+      summary: 提交预约
+      operationId: submitAppointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [doctor_id, appoint_date, appoint_time_slot]
+              properties:
+                doctor_id: { type: integer }
+                appoint_date:
+                  type: string
+                  format: date
+                appoint_time_slot:
+                  type: string
+                  example: "10:00-11:00"
+                remark:
+                  type: string
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/appointment/cancel:
+    post:
+      tags: [预约]
+      summary: 取消预约
+      operationId: cancelAppointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id: { type: integer }
+                cancel_reason: { type: string }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/appointment/mine:
+    get:
+      tags: [预约]
+      summary: 我的预约记录
+      operationId: getMyAppointments
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: integer
+            description: 0待确认 1已确认 2已完成 3已取消
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/chat/config:
+    get:
+      tags: [AI配置]
+      summary: 获取聊天模式配置
+      operationId: getChatConfig
+      parameters:
+        - in: query
+          name: chat_mode
+          schema:
+            type: string
+            enum: [doctor, companion, patient]
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+    post:
+      tags: [AI配置]
+      summary: 保存聊天模式配置
+      operationId: setChatConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chat_mode, prompt_text]
+              properties:
+                chat_mode:
+                  type: string
+                  enum: [doctor, companion, patient]
+                prompt_text:
+                  type: string
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/chat/session/list:
+    get:
+      tags: [AI配置]
+      summary: 聊天会话列表
+      operationId: getChatSessionList
+      parameters:
+        - in: query
+          name: chat_mode
+          schema:
+            type: string
+            enum: [doctor, companion, patient]
+        - in: query
+          name: keyword
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/chat/session/save:
+    post:
+      tags: [AI配置]
+      summary: 创建/更新聊天会话
+      operationId: saveChatSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chat_mode]
+              properties:
+                id: { type: integer }
+                chat_mode:
+                  type: string
+                  enum: [doctor, companion, patient]
+                session_name: { type: string }
+                last_message: { type: string }
+                is_pinned:
+                  type: integer
+                  enum: [0, 1]
+                  default: 0
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/chat/session/delete:
+    post:
+      tags: [AI配置]
+      summary: 删除聊天会话
+      operationId: deleteChatSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id: { type: integer }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/message/list:
+    get:
+      tags: [消息]
+      summary: 消息列表
+      operationId: getMessageList
+      parameters:
+        - in: query
+          name: message_type
+          schema:
+            type: integer
+            description: 1关注 2回复 3任务 4预约
+        - in: query
+          name: is_read
+          schema:
+            type: integer
+            enum: [0, 1]
+        - in: query
+          name: is_pushed
+          schema:
+            type: integer
+            description: 0未推送 1已推送
+            enum: [0, 1]
+        - in: query
+          name: push_status
+          schema:
+            type: integer
+            description: 0待推送 1成功 2失败
+            enum: [0, 1, 2]
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/message/read:
+    post:
+      tags: [消息]
+      summary: 单条消息已读
+      operationId: markMessageRead
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id: { type: integer }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/message/readAll:
+    post:
+      tags: [消息]
+      summary: 全部消息已读
+      operationId: markAllMessageRead
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/doctor/patients:
+    get:
+      tags: [医生患者]
+      summary: 医生的患者列表
+      operationId: getDoctorPatients
+      parameters:
+        - in: query
+          name: keyword
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/doctor/patient/bind:
+    post:
+      tags: [医生患者]
+      summary: 医生添加患者
+      operationId: bindPatient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [patient_id]
+              properties:
+                patient_id:
+                  type: integer
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+  /app/help/doctor/patient/unbind:
+    post:
+      tags: [医生患者]
+      summary: 医生移除患者
+      operationId: unbindPatient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [patient_id]
+              properties:
+                patient_id:
+                  type: integer
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommonSuccessResponse"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    CommonSuccessResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: success
+        data:
+          oneOf:
+            - type: object
+            - type: array
+            - type: string
+            - type: integer
+            - type: "null"

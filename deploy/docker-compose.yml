@@ -1,0 +1,213 @@
+# Build context is the repository root. From the repo root run:
+#   docker compose -f deploy/docker-compose.yml up -d
+name: helpsupport-next
+
+services:
+  secrets-init:
+    image: ${SECRETS_IMAGE:-helpsupport-secrets:local}
+    build:
+      context: ..
+      dockerfile: deploy/docker/secrets.Dockerfile
+    restart: "no"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-}
+      DB_PASSWORD: ${DB_PASSWORD:-}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-helpsupport}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-}
+    command: ["init-secrets"]
+    volumes:
+      - mysql_root_secret:/secrets/mysql-root
+      - db_secret:/secrets/database
+      - redis_secret:/secrets/redis
+      - rabbitmq_secret:/secrets/rabbitmq
+
+  gateway:
+    image: ${GATEWAY_IMAGE:-helpsupport-gateway:local}
+    build:
+      context: ..
+      dockerfile: deploy/docker/gateway.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  app:
+    image: ${APP_IMAGE:-helpsupport-next:local}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      DB_TYPE: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-helpsupport}
+      DB_USER: ${DB_USER:-helpsupport}
+      DB_PREFIX: ""
+      DB_CHARSET: utf8mb4
+      DB_COLLATION: utf8mb4_general_ci
+      CACHE_MODE: redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_QUEUE_PREFIX: ${REDIS_QUEUE_PREFIX:-helpsupport_}
+      REDIS_QUEUE_MAX_ATTEMPTS: ${REDIS_QUEUE_MAX_ATTEMPTS:-5}
+      REDIS_QUEUE_RETRY_SECONDS: ${REDIS_QUEUE_RETRY_SECONDS:-5}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_VHOST: /
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-helpsupport}
+      RABBITMQ_DEBUG: "false"
+      RABBITMQ_TIMEOUT: ${RABBITMQ_TIMEOUT:-10}
+      RABBITMQ_RESTART_INTERVAL: ${RABBITMQ_RESTART_INTERVAL:-5}
+      RABBITMQ_MANAGEMENT_SCHEME: http
+      RABBITMQ_MANAGEMENT_HOST: rabbitmq
+      RABBITMQ_MANAGEMENT_PORT: 15672
+      RABBITMQ_MANAGEMENT_USERNAME: ${RABBITMQ_USERNAME:-helpsupport}
+      RABBITMQ_MANAGEMENT_TIMEOUT: ${RABBITMQ_MANAGEMENT_TIMEOUT:-3}
+      WEBMAN_EVENT_LOOP: 'Workerman\Events\Fiber'
+      WEBMAN_HTTP_WORKERS: ${WEBMAN_HTTP_WORKERS:-4}
+      WEBMAN_FILE_MONITOR: "false"
+      CAPTCHA_MODE: cache
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      SAIAI_REQUEST_TIMEOUT: ${SAIAI_REQUEST_TIMEOUT:-3600}
+      SAIAI_REALTIME_WS_PORT: 8791
+      SAIAI_REALTIME_WS_COUNT: ${SAIAI_REALTIME_WS_COUNT:-1}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      ADMINER_ENABLED: "false"
+      LOG_READER_ENABLED: "false"
+      OTEL_SERVICE_NAME: helpsupport-next
+      OTEL_DEPLOYMENT_ENVIRONMENT: production
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_BUSINESS_SPAN_CONSOLE: "false"
+      OTEL_REQUEST_LOG_CONSOLE: "false"
+      OTEL_REQUEST_LOG_INCLUDE_HEADERS: "false"
+      OTEL_REQUEST_LOG_MASK_SENSITIVE: "true"
+      B8_RUN_MIGRATIONS: ${B8_RUN_MIGRATIONS:-1}
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    expose:
+      - "8787"
+      - "8791"
+    volumes:
+      - app_runtime:/app/server/runtime
+      - app_storage:/app/server/public/storage
+      - db_secret:/run/secrets/helpsupport-database:ro
+      - redis_secret:/run/secrets/helpsupport-redis:ro
+      - rabbitmq_secret:/run/secrets/helpsupport-rabbitmq:ro
+    healthcheck:
+      test: ["CMD", "php", "/usr/local/bin/helpsupport-healthcheck.php", "8787"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 45s
+    stop_grace_period: 20s
+
+  mysql:
+    image: ${MYSQL_IMAGE:-helpsupport-mysql:local}
+    build:
+      context: ..
+      dockerfile: deploy/docker/mysql.Dockerfile
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/helpsupport-mysql-root/password
+      MYSQL_DATABASE: ${DB_NAME:-helpsupport}
+      MYSQL_USER: ${DB_USER:-helpsupport}
+      MYSQL_PASSWORD_FILE: /run/secrets/helpsupport-database/password
+      TZ: Asia/Shanghai
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+    expose:
+      - "3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - mysql_root_secret:/run/secrets/helpsupport-mysql-root:ro
+      - db_secret:/run/secrets/helpsupport-database:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'MYSQL_PWD="$$(cat /run/secrets/helpsupport-mysql-root/password)" mysqladmin ping -h 127.0.0.1 -uroot --silent',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+    command: ["redis-server", "/run/secrets/helpsupport-redis/redis.conf"]
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+      - redis_secret:/run/secrets/helpsupport-redis:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'redis-cli -a "$$(cat /run/secrets/helpsupport-redis/password)" ping 2>/dev/null | grep -q PONG',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_CONFIG_FILE: /run/secrets/helpsupport-rabbitmq/rabbitmq
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+    expose:
+      - "5672"
+      - "15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - rabbitmq_secret:/run/secrets/helpsupport-rabbitmq:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  mysql_root_secret:
+  db_secret:
+  redis_secret:
+  rabbitmq_secret:
+  app_runtime:
+  app_storage:
+  mysql_data:
+  redis_data:
+  rabbitmq_data:

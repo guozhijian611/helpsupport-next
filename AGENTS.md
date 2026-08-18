@@ -22,7 +22,9 @@
 - `flutter_app/`：Flutter 客户端，Flutter 相关命令默认在此目录执行；Flutter 运行、联调、安装和测试命令默认由用户在本机启动，Codex 只提供准确命令、设备选择建议和失败排查，不主动执行 `./run_app.sh`、`flutter run`、`./tool/build_ios_simulator.sh` 等会启动设备或模拟器的命令；只有用户明确要求 Codex 代为启动时，才优先连接 iOS 真机并使用 `flutter run -d <device id>` 获取热重载，提交前或需要补充模拟器链路验证时再使用 iOS 模拟器；允许在真机 `flutter run` 挂载期间并行执行 `./tool/build_ios_simulator.sh` 做模拟器验证，但模拟器链路不得清理或覆盖 `build/ios/iphoneos`、`build/ios/Debug-iphoneos` 等真机产物；热重启后如出现代码、路由、资源、生成缓存或启动状态异常，应停止当前运行会话并重新完整构建，不允许用兼容方法、旧分支、fallback、别名或临时适配绕过；完整构建、安装和启动验证使用 `./tool/build_ios_simulator.sh`。
 - `packages/`：本仓库维护的扩展包或插件源码，修改后需确认是否通过 `server/vendor` 软链或 Composer 安装进入运行时。
 - `.codex/skills/`：本项目沉淀的开发技能和参考手册；涉及对应技术时优先读取相关 `SKILL.md`。
-- `Doc/`、`OpenAPI/`、`Database/`：项目文档、接口文档和数据库资料，更新时以实际路由、控制器、数据库结构、安装 SQL 或 Phinx 迁移为准。
+- `Doc/`：项目专题文档、OpenAPI 契约快照（`Doc/OpenAPI/`）和项目梳理资料（`Doc/Project_Doc/`），更新时以实际路由、控制器、数据库结构和运行入口为准。
+- `Database/`：安装基线、Phinx 迁移与种子数据；更新时以数据库结构、安装 SQL 或 Phinx 迁移为准。
+- `deploy/`：Docker Compose、镜像构建、rsync/SSH 发布脚本和 Openship 部署配置。
 
 ## Flutter 用户端视觉规范
 - 用户端视觉基准以当前已完成页面为准，参考 `flutter_app/lib/features/auth/presentation/auth_page_frame.dart`、`flutter_app/lib/features/me/presentation/me_screen.dart`、`flutter_app/lib/features/me/presentation/settings_screen.dart`；不要把 Flutter 默认绿色或当前 `ColorScheme.fromSeed` 生成的绿色系当作用户端品牌主色。
