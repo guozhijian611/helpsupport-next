@@ -11,6 +11,9 @@
 - [Docker 二进制镜像发布](docker-release.md)
 - [APIDOC 与移动端代码生成](apidoc-unibest.md)
 - [数据库结构规范](database-schema-standard.md)
+- [Google 登录配置指南](google-login-guide.md)
+- [Apple 登录配置指南](apple-login-guide.md)
+- [Firebase 推送配置指南](firebase-push-guide.md)
 
 ## 子目录
 
