@@ -150,8 +150,11 @@ class RemoteImageDiskCache {
   Future<File?> _getOrDownload(Uri uri) async {
     final file = await _fileFor(uri);
     if (await file.exists() && await file.length() > 0) {
-      unawaited(file.setLastModified(DateTime.now()));
-      return file;
+      if (await _fileLooksRaster(file)) {
+        unawaited(file.setLastModified(DateTime.now()));
+        return file;
+      }
+      await file.delete();
     }
 
     final tempFile = File('${file.path}.download');
@@ -166,16 +169,24 @@ class RemoteImageDiskCache {
         request.maxRedirects = 8;
         request.headers.set(
           HttpHeaders.acceptHeader,
-          'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+          'image/png,image/jpeg,image/webp,image/gif,image/*;q=0.8,*/*;q=0.5',
         );
         final response = await request.close();
         if (response.statusCode < 200 || response.statusCode >= 300) {
+          await response.drain<void>();
+          return null;
+        }
+        final mime = (response.headers.contentType?.mimeType ?? '')
+            .toLowerCase();
+        if (_isNonRasterMime(mime)) {
+          await response.drain<void>();
           return null;
         }
         await file.parent.create(recursive: true);
         final sink = tempFile.openWrite();
         await response.pipe(sink);
-        if (await tempFile.length() == 0) {
+        if (await tempFile.length() == 0 ||
+            !await _fileLooksRaster(tempFile)) {
           await tempFile.delete();
           return null;
         }
@@ -208,10 +219,29 @@ class RemoteImageDiskCache {
   }
 
   String _normalizeUrl(String rawUrl) {
-    return rawUrl
+    final url = rawUrl
         .trim()
         .replaceAll('&amp;', '&')
         .replaceAll('&quot;', '"');
+    return _preferRasterUrl(url);
+  }
+
+  String _preferRasterUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !_isHttpScheme(uri.scheme)) {
+      return url;
+    }
+
+    final host = uri.host.toLowerCase();
+    if (host == 'api.dicebear.com' || host.endsWith('.dicebear.com')) {
+      final segments = [...uri.pathSegments];
+      if (segments.isNotEmpty && segments.last.toLowerCase() == 'svg') {
+        segments[segments.length - 1] = 'png';
+        return uri.replace(pathSegments: segments).toString();
+      }
+    }
+
+    return url;
   }
 
   Uri? _parseHttpUri(String url) {
@@ -223,6 +253,11 @@ class RemoteImageDiskCache {
       return null;
     }
     if (parsed.path.contains('%')) {
+      return parsed;
+    }
+    final needsEncode =
+        parsed.path.contains(' ') || parsed.path.runes.any((code) => code > 0x7E);
+    if (!needsEncode) {
       return parsed;
     }
     final encodedPath = parsed.pathSegments.map(Uri.encodeComponent).join('/');
@@ -237,6 +272,70 @@ class RemoteImageDiskCache {
         return extension;
       }
     }
+    if (uri.pathSegments.isNotEmpty) {
+      final format = uri.pathSegments.last.toLowerCase();
+      if (const {'jpg', 'jpeg', 'png', 'webp', 'gif'}.contains(format)) {
+        return '.$format';
+      }
+    }
     return '.img';
+  }
+
+  bool _isNonRasterMime(String mime) {
+    return mime.contains('svg') ||
+        mime.contains('html') ||
+        mime.contains('xml') ||
+        mime.startsWith('text/');
+  }
+
+  Future<bool> _fileLooksRaster(File file) async {
+    final raf = await file.open();
+    try {
+      final header = await raf.read(64);
+      return _headerLooksRaster(header);
+    } finally {
+      await raf.close();
+    }
+  }
+
+  bool _headerLooksRaster(List<int> header) {
+    if (header.length >= 3 &&
+        header[0] == 0xFF &&
+        header[1] == 0xD8 &&
+        header[2] == 0xFF) {
+      return true;
+    }
+    if (header.length >= 8 &&
+        header[0] == 0x89 &&
+        header[1] == 0x50 &&
+        header[2] == 0x4E &&
+        header[3] == 0x47) {
+      return true;
+    }
+    if (header.length >= 6 &&
+        header[0] == 0x47 &&
+        header[1] == 0x49 &&
+        header[2] == 0x46) {
+      return true;
+    }
+    if (header.length >= 12 &&
+        header[0] == 0x52 &&
+        header[1] == 0x49 &&
+        header[2] == 0x46 &&
+        header[3] == 0x46 &&
+        header[8] == 0x57 &&
+        header[9] == 0x45 &&
+        header[10] == 0x42 &&
+        header[11] == 0x50) {
+      return true;
+    }
+    final prefix = String.fromCharCodes(header).trimLeft().toLowerCase();
+    if (prefix.startsWith('<svg') ||
+        prefix.startsWith('<?xml') ||
+        prefix.startsWith('<!doctype') ||
+        prefix.startsWith('<html')) {
+      return false;
+    }
+    return header.isNotEmpty;
   }
 }
