@@ -11,6 +11,9 @@ import 'auth_protocol.dart';
 class AuthRepository {
   AuthRepository(this._apiClient, this._tokenStorage);
 
+  static const _googleServerClientId =
+      '1020489387914-avjt5l5js2s41up03rertberrc0bg41e.apps.googleusercontent.com';
+
   final ApiClient _apiClient;
   final SecureTokenStorage _tokenStorage;
   bool _googleInitialized = false;
@@ -325,7 +328,9 @@ class AuthRepository {
     if (_googleInitialized) {
       return;
     }
-    await GoogleSignIn.instance.initialize();
+    await GoogleSignIn.instance.initialize(
+      serverClientId: _googleServerClientId,
+    );
     _googleInitialized = true;
   }
 
