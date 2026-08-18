@@ -9,7 +9,7 @@ flutter_app/tool/package_release.sh
 正式包使用 Flutter 非 Debug 构建，因此 API 基础地址会走 `ApiClient.packagedApiBaseUrl`：
 
 ```text
-https://help.openb8.chat
+https://help.openb8.org
 ```
 
 ## 快速打包和交互选择
@@ -251,4 +251,4 @@ unzip -l build/ios/ipa/*.ipa | grep -E 'SwiftSupport/iphoneos/libswift|Payload/R
 API 地址不对：
 
 - Debug 包使用 `http://10.0.0.6:8787`。
-- APK/AAB/IPA 等非 Debug 包使用 `https://help.openb8.chat`。
+- APK/AAB/IPA 等非 Debug 包使用 `https://help.openb8.org`。
