@@ -240,6 +240,9 @@ Route::group('/app/help/admin/config', function () {
     Route::get('/SaAppOnboardingPage/storyboard', [AdminAppOnboardingPageController::class, 'storyboard']);
     Route::put('/SaAppOnboardingPage/reorder', [AdminAppOnboardingPageController::class, 'reorder']);
     Route::post('/SaAppOnboardingPage/copyFlow', [AdminAppOnboardingPageController::class, 'copyFlow']);
+    Route::post('/SaAppOnboardingPage/publishFlow', [AdminAppOnboardingPageController::class, 'publishFlow']);
+    Route::post('/SaAppOnboardingPage/renameFlow', [AdminAppOnboardingPageController::class, 'renameFlow']);
+    Route::post('/SaAppOnboardingPage/destroyFlow', [AdminAppOnboardingPageController::class, 'destroyFlow']);
     Route::get('/HelpRuntimeConfig/read', [AdminHelpRuntimeConfigController::class, 'read']);
     Route::post('/HelpRuntimeConfig/update', [AdminHelpRuntimeConfigController::class, 'update']);
     Route::get('/HelpRuntimeConfig/aiOptions', [AdminHelpRuntimeConfigController::class, 'aiOptions']);

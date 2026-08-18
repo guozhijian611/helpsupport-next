@@ -61,7 +61,7 @@ class SaAppOnboardingPageLogic extends BaseLogic
      *     locales: array<int, string>,
      *     next_sort: int,
      *     slides: array<int, array{sort: int, locales: array<string, array<string, mixed>>}>,
-     *     flows: array<int, array{scene: string, version: string, slide_count: int, locales: array<int, string>}>
+     *     flows: array<int, array{scene: string, version: string, slide_count: int, locales: array<int, string>, is_current: bool}>
      * }
      */
     public function storyboard(string $scene, string $version): array
@@ -165,6 +165,8 @@ class SaAppOnboardingPageLogic extends BaseLogic
     {
         $sourceScene = $sourceScene !== '' ? $sourceScene : 'first_launch';
         $scene = $scene !== '' ? $scene : 'first_launch';
+        $sourceVersion = $this->normalizeVersion($sourceVersion, true);
+        $version = $this->normalizeVersion($version, true);
 
         $exists = (int) $this->flowQuery($scene, $version)->count();
         if ($exists > 0) {
@@ -207,6 +209,83 @@ class SaAppOnboardingPageLogic extends BaseLogic
     }
 
     /**
+     * 把指定版本发布为 App 正在使用的默认版本（version 空值）
+     */
+    public function publishFlow(string $scene, string $version): string
+    {
+        $scene = $scene !== '' ? $scene : 'first_launch';
+        $version = $this->normalizeVersion($version, false);
+        if ((int) $this->flowQuery($scene, $version)->count() === 0) {
+            throw new ApiException('要发布的版本没有页面');
+        }
+
+        return (string) $this->transaction(function () use ($scene, $version) {
+            $archive = $this->nextArchiveVersion($scene);
+            $defaults = $this->flowQuery($scene, '')->select();
+            foreach ($defaults as $row) {
+                $row->version = $archive;
+                $row->save();
+            }
+
+            $source = $this->flowQuery($scene, $version)->select();
+            foreach ($source as $row) {
+                $row->version = '';
+                $row->save();
+            }
+
+            return $archive;
+        });
+    }
+
+    /**
+     * 重命名草稿版本号，不能改 App 正在使用的默认版本
+     */
+    public function renameFlow(string $scene, string $version, string $newVersion): int
+    {
+        $scene = $scene !== '' ? $scene : 'first_launch';
+        $version = $this->normalizeVersion($version, false);
+        $newVersion = $this->normalizeVersion($newVersion, false);
+        if ($version === $newVersion) {
+            throw new ApiException('新版本号与当前相同');
+        }
+        if ((int) $this->flowQuery($scene, $version)->count() === 0) {
+            throw new ApiException('要改名的版本没有页面');
+        }
+        if ((int) $this->flowQuery($scene, $newVersion)->count() > 0) {
+            throw new ApiException('目标版本号已存在');
+        }
+
+        $ids = $this->flowIds($scene, $version);
+
+        return (int) $this->transaction(function () use ($ids, $newVersion) {
+            $count = 0;
+            foreach ($this->model->whereIn($this->model->getPk(), $ids)->select() as $row) {
+                $row->version = $newVersion;
+                $row->save();
+                $count++;
+            }
+
+            return $count;
+        });
+    }
+
+    /**
+     * 删除某个场景下的整套版本
+     */
+    public function destroyFlow(string $scene, string $version): int
+    {
+        $scene = $scene !== '' ? $scene : 'first_launch';
+        $version = $this->normalizeVersion($version, true);
+        $ids = $this->flowIds($scene, $version);
+        if ($ids === []) {
+            throw new ApiException('该版本没有可删除的页面');
+        }
+        $this->destroy($ids);
+
+        return count($ids);
+    }
+
+    /**
      * @param array<int, array<string, mixed>> $rows
      * @return array<int, array{sort: int, locales: array<string, array<string, mixed>>}>
      */
@@ -246,7 +325,7 @@ class SaAppOnboardingPageLogic extends BaseLogic
     }
 
     /**
-     * @return array<int, array{scene: string, version: string, slide_count: int, locales: array<int, string>}>
+     * @return array<int, array{scene: string, version: string, slide_count: int, locales: array<int, string>, is_current: bool}>
      */
     private function listFlows(): array
     {
@@ -270,6 +349,7 @@ class SaAppOnboardingPageLogic extends BaseLogic
                     'version' => $version,
                     'slide_count' => 0,
                     'locales' => [],
+                    'is_current' => $version === '',
                     '_sorts' => [],
                 ];
             }
@@ -290,7 +370,70 @@ class SaAppOnboardingPageLogic extends BaseLogic
             $result[] = $flow;
         }
 
+        usort($result, static function (array $left, array $right): int {
+            $sceneCmp = strcmp((string) $left['scene'], (string) $right['scene']);
+            if ($sceneCmp !== 0) {
+                return $sceneCmp;
+            }
+            $leftVersion = (string) $left['version'];
+            $rightVersion = (string) $right['version'];
+            if ($leftVersion === '' && $rightVersion !== '') {
+                return -1;
+            }
+            if ($rightVersion === '' && $leftVersion !== '') {
+                return 1;
+            }
+            $leftArchived = str_starts_with($leftVersion, 'archived-');
+            $rightArchived = str_starts_with($rightVersion, 'archived-');
+            if ($leftArchived !== $rightArchived) {
+                return $leftArchived ? 1 : -1;
+            }
+
+            return strcmp($leftVersion, $rightVersion);
+        });
+
         return $result;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function flowIds(string $scene, string $version): array
+    {
+        $rows = $this->flowQuery($scene, $version)
+            ->field($this->model->getPk())
+            ->select()
+            ->toArray();
+
+        return $this->normalizeIds(array_column($rows, $this->model->getPk()));
+    }
+
+    private function nextArchiveVersion(string $scene): string
+    {
+        $archive = 'archived-' . date('YmdHis');
+        $suffix = 0;
+        while ((int) $this->flowQuery($scene, $archive)->count() > 0) {
+            $suffix++;
+            $archive = 'archived-' . date('YmdHis') . '-' . $suffix;
+        }
+
+        return $archive;
+    }
+
+    private function normalizeVersion(string $version, bool $allowEmpty): string
+    {
+        $version = trim($version);
+        if ($version === '') {
+            if ($allowEmpty) {
+                return '';
+            }
+            throw new ApiException('请填写版本号');
+        }
+        if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]{0,48}$/', $version)) {
+            throw new ApiException('版本号仅支持字母、数字、点、下划线和短横线，最长 50 位');
+        }
+
+        return $version;
     }
 
     private function flowQuery(string $scene, string $version)

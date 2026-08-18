@@ -18,6 +18,7 @@ class SaAppOnboardingPageValidate extends BaseValidate
      */
     protected $rule =   [
         'scene' => 'require',
+        'version' => 'require',
         'locale' => 'require',
         'title' => 'require',
         'description' => 'require',
@@ -28,6 +29,7 @@ class SaAppOnboardingPageValidate extends BaseValidate
         'status' => 'require',
         'slide_ids' => 'require|array',
         'source_scene' => 'require',
+        'new_version' => 'require',
     ];
 
     /**
@@ -35,6 +37,7 @@ class SaAppOnboardingPageValidate extends BaseValidate
      */
     protected $message  =   [
         'scene' => '场景必须填写',
+        'version.require' => '请填写要操作的版本号',
         'locale' => '语言必须填写',
         'title' => '标题必须填写',
         'description' => '说明必须填写',
@@ -46,6 +49,7 @@ class SaAppOnboardingPageValidate extends BaseValidate
         'slide_ids.require' => '请提供播放顺序',
         'slide_ids.array' => '播放顺序格式错误',
         'source_scene.require' => '源场景必须填写',
+        'new_version.require' => '新版本号必须填写',
     ];
 
     /**
@@ -80,6 +84,18 @@ class SaAppOnboardingPageValidate extends BaseValidate
         ],
         'copyFlow' => [
             'source_scene',
+            'scene',
+        ],
+        'publishFlow' => [
+            'scene',
+            'version',
+        ],
+        'renameFlow' => [
+            'scene',
+            'version',
+            'new_version',
+        ],
+        'destroyFlow' => [
             'scene',
         ],
     ];

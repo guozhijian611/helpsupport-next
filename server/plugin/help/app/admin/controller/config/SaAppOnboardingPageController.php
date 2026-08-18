@@ -104,6 +104,62 @@ class SaAppOnboardingPageController extends BaseController
         return $this->success('已复制 ' . $count . ' 条引导页');
     }
 
+    #[Apidoc\Title('发布App引导页版本')]
+    #[Apidoc\Url('/app/help/admin/config/SaAppOnboardingPage/publishFlow')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('scene', type: 'string', require: true, desc: '引导场景')]
+    #[Apidoc\Param('version', type: 'string', require: true, desc: '要发布为 App 当前使用的草稿版本号')]
+    #[Permission('App引导页配置修改', 'help:config:page:update')]
+    public function publishFlow(Request $request): Response
+    {
+        $data = $request->post();
+        $this->validate('publishFlow', $data);
+        $archive = $this->pageLogic()->publishFlow(
+            (string) ($data['scene'] ?? 'first_launch'),
+            (string) ($data['version'] ?? ''),
+        );
+
+        return $this->success('已发布为 App 当前版本，原默认版本已归档为 ' . $archive);
+    }
+
+    #[Apidoc\Title('重命名App引导页版本')]
+    #[Apidoc\Url('/app/help/admin/config/SaAppOnboardingPage/renameFlow')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('scene', type: 'string', require: true, desc: '引导场景')]
+    #[Apidoc\Param('version', type: 'string', require: true, desc: '当前版本号')]
+    #[Apidoc\Param('new_version', type: 'string', require: true, desc: '新版本号')]
+    #[Permission('App引导页配置修改', 'help:config:page:update')]
+    public function renameFlow(Request $request): Response
+    {
+        $data = $request->post();
+        $this->validate('renameFlow', $data);
+        $this->pageLogic()->renameFlow(
+            (string) ($data['scene'] ?? 'first_launch'),
+            (string) ($data['version'] ?? ''),
+            (string) ($data['new_version'] ?? ''),
+        );
+
+        return $this->success('版本号已更新');
+    }
+
+    #[Apidoc\Title('删除App引导页版本')]
+    #[Apidoc\Url('/app/help/admin/config/SaAppOnboardingPage/destroyFlow')]
+    #[Apidoc\Method('POST')]
+    #[Apidoc\Param('scene', type: 'string', require: true, desc: '引导场景')]
+    #[Apidoc\Param('version', type: 'string', require: false, default: '', desc: '要删除的版本，空值表示默认版本')]
+    #[Permission('App引导页配置删除', 'help:config:page:destroy')]
+    public function destroyFlow(Request $request): Response
+    {
+        $data = $request->post();
+        $this->validate('destroyFlow', $data);
+        $count = $this->pageLogic()->destroyFlow(
+            (string) ($data['scene'] ?? 'first_launch'),
+            (string) ($data['version'] ?? ''),
+        );
+
+        return $this->success('已删除该版本的 ' . $count . ' 条引导页');
+    }
+
     #[Apidoc\Title('App引导页配置读取')]
     #[Apidoc\Url('/app/help/admin/config/SaAppOnboardingPage/read')]
     #[Apidoc\Method('GET')]

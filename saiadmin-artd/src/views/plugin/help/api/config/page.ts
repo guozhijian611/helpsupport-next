@@ -52,6 +52,36 @@ export default {
   },
 
   /**
+   * 把草稿版本发布为 App 当前使用的默认版本
+   */
+  publishFlow(params: { scene: string; version: string }) {
+    return request.post<any>({
+      url: '/app/help/admin/config/SaAppOnboardingPage/publishFlow',
+      data: params
+    })
+  },
+
+  /**
+   * 重命名草稿版本
+   */
+  renameFlow(params: { scene: string; version: string; new_version: string }) {
+    return request.post<any>({
+      url: '/app/help/admin/config/SaAppOnboardingPage/renameFlow',
+      data: params
+    })
+  },
+
+  /**
+   * 删除整套版本
+   */
+  destroyFlow(params: { scene: string; version: string }) {
+    return request.post<any>({
+      url: '/app/help/admin/config/SaAppOnboardingPage/destroyFlow',
+      data: params
+    })
+  },
+
+  /**
    * 读取数据
    * @param id 数据ID
    * @returns 数据详情

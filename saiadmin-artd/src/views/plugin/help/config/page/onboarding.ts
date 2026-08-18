@@ -25,6 +25,7 @@ export interface OnboardingFlow {
   version: string
   slide_count: number
   locales: string[]
+  is_current?: boolean
 }
 
 export interface OnboardingStoryboard {
@@ -52,8 +53,45 @@ export const ACTION_TYPE_OPTIONS = [
 
 export const PREFERRED_LOCALES = ['zh-CN', 'en-US'] as const
 
+export function isPublishedVersion(version: string): boolean {
+  return version === ''
+}
+
+export function isArchivedVersion(version: string): boolean {
+  return version.startsWith('archived-')
+}
+
 export function versionLabel(version: string): string {
-  return version === '' ? '默认版本' : version
+  if (version === '') return '默认版本'
+  if (isArchivedVersion(version)) {
+    return `归档 ${version.slice('archived-'.length)}`
+  }
+  return version
+}
+
+export function versionRole(version: string): string {
+  if (isPublishedVersion(version)) return 'App正在使用'
+  if (isArchivedVersion(version)) return '已归档'
+  return '草稿'
+}
+
+export function versionOptionLabel(version: string, slideCount?: number): string {
+  const parts = [versionLabel(version), versionRole(version)]
+  if (typeof slideCount === 'number') {
+    parts.push(`${slideCount}页`)
+  }
+  return parts.join(' · ')
+}
+
+export function suggestNextVersion(versions: string[]): string {
+  let max = 1
+  for (const version of versions) {
+    const matched = /^v(\d+)$/i.exec(version.trim())
+    if (matched) {
+      max = Math.max(max, Number(matched[1]))
+    }
+  }
+  return `v${max + 1}`
 }
 
 export function localeLabel(locale: string): string {
