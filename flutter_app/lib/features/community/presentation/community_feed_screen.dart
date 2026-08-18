@@ -8,6 +8,7 @@ import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/settings/privacy_preferences.dart';
 import '../../../core/ui/app_tab_shell_metrics.dart';
+import '../../../core/ui/remote_image_gallery.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../message/application/message_controller.dart';
 import '../application/community_controller.dart';
@@ -1099,12 +1100,16 @@ class _PostImageGrid extends StatelessWidget {
       return const SizedBox.shrink();
     }
     if (count == 1) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: AspectRatio(
-          aspectRatio: 1.45,
-          child: CachedRemoteImage(images.first, fit: BoxFit.cover),
+      return _tappableImage(
+        context,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: AspectRatio(
+            aspectRatio: 1.45,
+            child: CachedRemoteImage(images.first, fit: BoxFit.cover),
+          ),
         ),
+        index: 0,
       );
     }
 
@@ -1121,9 +1126,29 @@ class _PostImageGrid extends StatelessWidget {
           childAspectRatio: 0.88,
         ),
         itemBuilder: (context, index) {
-          return CachedRemoteImage(images[index], fit: BoxFit.cover);
+          return _tappableImage(
+            context,
+            child: CachedRemoteImage(images[index], fit: BoxFit.cover),
+            index: index,
+          );
         },
       ),
+    );
+  }
+
+  Widget _tappableImage(
+    BuildContext context, {
+    required Widget child,
+    required int index,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => showRemoteImageGallery(
+        context,
+        images: images,
+        initialIndex: index,
+      ),
+      child: child,
     );
   }
 }

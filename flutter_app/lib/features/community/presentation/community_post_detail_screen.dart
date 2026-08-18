@@ -11,6 +11,7 @@ import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/settings/privacy_preferences.dart';
+import '../../../core/ui/remote_image_gallery.dart';
 import '../application/community_controller.dart';
 import '../data/community_models.dart';
 import 'community_feed_screen.dart';
@@ -737,7 +738,14 @@ class _CommentAvatar extends StatelessWidget {
         child: SizedBox(
           width: 56,
           height: 56,
-          child: CachedRemoteImage(avatarUrl, fit: BoxFit.cover),
+          child: CachedRemoteImage(
+            avatarUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => const Icon(
+              Icons.person_outline,
+              color: Color(0xFFFF9585),
+            ),
+          ),
         ),
       );
     }
@@ -764,14 +772,22 @@ class _CommentAttachmentGrid extends StatelessWidget {
       spacing: 10,
       runSpacing: 10,
       children: [
-        for (final url in urls.take(3))
-          ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: CachedRemoteImage(
-              url,
-              width: 106,
-              height: 106,
-              fit: BoxFit.cover,
+        for (final entry in urls.take(3).toList().asMap().entries)
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => showRemoteImageGallery(
+              context,
+              images: urls,
+              initialIndex: entry.key,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: CachedRemoteImage(
+                entry.value,
+                width: 106,
+                height: 106,
+                fit: BoxFit.cover,
+              ),
             ),
           ),
       ],

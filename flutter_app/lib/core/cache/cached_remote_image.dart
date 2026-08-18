@@ -133,23 +133,23 @@ class RemoteImageDiskCache {
   final Map<String, Future<File?>> _inFlight = {};
 
   Future<File?> get(String rawUrl) {
-    final url = rawUrl.trim();
-    final uri = Uri.tryParse(url);
-    if (uri == null || !uri.hasScheme || !_isHttpScheme(uri.scheme)) {
+    final url = _normalizeUrl(rawUrl);
+    final uri = _parseHttpUri(url);
+    if (uri == null) {
       return Future.value(null);
     }
-    return _inFlight.putIfAbsent(url, () async {
+    return _inFlight.putIfAbsent(uri.toString(), () async {
       try {
         return await _getOrDownload(uri);
       } finally {
-        _inFlight.remove(url);
+        _inFlight.remove(uri.toString());
       }
     });
   }
 
   Future<File?> _getOrDownload(Uri uri) async {
     final file = await _fileFor(uri);
-    if (await file.exists()) {
+    if (await file.exists() && await file.length() > 0) {
       unawaited(file.setLastModified(DateTime.now()));
       return file;
     }
@@ -158,9 +158,16 @@ class RemoteImageDiskCache {
     try {
       final client = HttpClient();
       try {
+        client.userAgent =
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148';
         client.connectionTimeout = const Duration(seconds: 12);
         final request = await client.getUrl(uri);
-        request.headers.set(HttpHeaders.acceptHeader, 'image/*,*/*;q=0.8');
+        request.followRedirects = true;
+        request.maxRedirects = 8;
+        request.headers.set(
+          HttpHeaders.acceptHeader,
+          'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+        );
         final response = await request.close();
         if (response.statusCode < 200 || response.statusCode >= 300) {
           return null;
@@ -198,6 +205,29 @@ class RemoteImageDiskCache {
 
   bool _isHttpScheme(String scheme) {
     return scheme == 'http' || scheme == 'https';
+  }
+
+  String _normalizeUrl(String rawUrl) {
+    return rawUrl
+        .trim()
+        .replaceAll('&amp;', '&')
+        .replaceAll('&quot;', '"');
+  }
+
+  Uri? _parseHttpUri(String url) {
+    if (url.isEmpty) {
+      return null;
+    }
+    final parsed = Uri.tryParse(url);
+    if (parsed == null || !parsed.hasScheme || !_isHttpScheme(parsed.scheme)) {
+      return null;
+    }
+    if (parsed.path.contains('%')) {
+      return parsed;
+    }
+    final encodedPath = parsed.pathSegments.map(Uri.encodeComponent).join('/');
+    final path = parsed.path.startsWith('/') ? '/$encodedPath' : encodedPath;
+    return parsed.replace(path: path);
   }
 
   String _extensionFor(Uri uri) {

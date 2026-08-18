@@ -239,7 +239,15 @@ class _ProfileHero extends StatelessWidget {
                                 color: Color(0xFF8EA8F8),
                                 size: 46,
                               )
-                            : CachedRemoteImage(avatarUrl, fit: BoxFit.cover),
+                            : CachedRemoteImage(
+                                avatarUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => const Icon(
+                                  Icons.person_rounded,
+                                  color: Color(0xFF8EA8F8),
+                                  size: 46,
+                                ),
+                              ),
                       ),
                     ),
                   ),

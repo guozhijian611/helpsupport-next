@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/ui/remote_image_gallery.dart';
 import '../application/community_controller.dart';
 import '../data/community_models.dart';
 
@@ -474,13 +475,20 @@ class _ReviewPostCard extends StatelessWidget {
                         ),
                         if (thumbnailUrl.isNotEmpty) ...[
                           const SizedBox(width: 14),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
-                            child: CachedRemoteImage(
-                              thumbnailUrl,
-                              width: 126,
-                              height: 88,
-                              fit: BoxFit.cover,
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => showRemoteImageGallery(
+                              context,
+                              images: [thumbnailUrl],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: CachedRemoteImage(
+                                thumbnailUrl,
+                                width: 126,
+                                height: 88,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
                         ],

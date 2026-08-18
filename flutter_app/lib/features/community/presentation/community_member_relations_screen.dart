@@ -245,7 +245,14 @@ class _RelationMemberCard extends StatelessWidget {
                         size: 30,
                       ),
                     )
-                  : CachedRemoteImage(avatarUrl, fit: BoxFit.cover),
+                  : CachedRemoteImage(
+                      avatarUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Icon(
+                        Icons.person_rounded,
+                        color: palette.avatarIcon,
+                      ),
+                    ),
             ),
           ),
           const SizedBox(width: 16),
