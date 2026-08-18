@@ -26,6 +26,8 @@ class SaAppOnboardingPageValidate extends BaseValidate
         'action_type' => 'require',
         'sort' => 'require',
         'status' => 'require',
+        'slide_ids' => 'require|array',
+        'source_scene' => 'require',
     ];
 
     /**
@@ -38,9 +40,12 @@ class SaAppOnboardingPageValidate extends BaseValidate
         'description' => '说明必须填写',
         'image' => '图片URL或附件路径必须填写',
         'button_text' => '按钮文案必须填写',
-        'action_type' => '动作类型 next/skip/route/external_url必须填写',
+        'action_type' => '动作类型必须填写',
         'sort' => '排序必须填写',
-        'status' => '状态 1启用 2禁用必须填写',
+        'status' => '状态必须填写',
+        'slide_ids.require' => '请提供播放顺序',
+        'slide_ids.array' => '播放顺序格式错误',
+        'source_scene.require' => '源场景必须填写',
     ];
 
     /**
@@ -68,6 +73,14 @@ class SaAppOnboardingPageValidate extends BaseValidate
             'action_type',
             'sort',
             'status',
+        ],
+        'reorder' => [
+            'scene',
+            'slide_ids',
+        ],
+        'copyFlow' => [
+            'source_scene',
+            'scene',
         ],
     ];
 

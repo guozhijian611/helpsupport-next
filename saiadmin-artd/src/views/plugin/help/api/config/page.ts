@@ -17,6 +17,41 @@ export default {
   },
 
   /**
+   * 读取故事板
+   */
+  storyboard(params: { scene?: string; version?: string }) {
+    return request.get<any>({
+      url: '/app/help/admin/config/SaAppOnboardingPage/storyboard',
+      params
+    })
+  },
+
+  /**
+   * 按播放顺序重排
+   */
+  reorder(params: { scene: string; version: string; slide_ids: number[] }) {
+    return request.put<any>({
+      url: '/app/help/admin/config/SaAppOnboardingPage/reorder',
+      data: params
+    })
+  },
+
+  /**
+   * 复制整套流程
+   */
+  copyFlow(params: {
+    source_scene: string
+    source_version: string
+    scene: string
+    version: string
+  }) {
+    return request.post<any>({
+      url: '/app/help/admin/config/SaAppOnboardingPage/copyFlow',
+      data: params
+    })
+  },
+
+  /**
    * 读取数据
    * @param id 数据ID
    * @returns 数据详情

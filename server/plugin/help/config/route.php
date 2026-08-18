@@ -237,6 +237,9 @@ Route::group('/app/help/admin/community', function () {
 
 Route::group('/app/help/admin/config', function () {
     fastRoute('SaAppOnboardingPage', AdminAppOnboardingPageController::class);
+    Route::get('/SaAppOnboardingPage/storyboard', [AdminAppOnboardingPageController::class, 'storyboard']);
+    Route::put('/SaAppOnboardingPage/reorder', [AdminAppOnboardingPageController::class, 'reorder']);
+    Route::post('/SaAppOnboardingPage/copyFlow', [AdminAppOnboardingPageController::class, 'copyFlow']);
     Route::get('/HelpRuntimeConfig/read', [AdminHelpRuntimeConfigController::class, 'read']);
     Route::post('/HelpRuntimeConfig/update', [AdminHelpRuntimeConfigController::class, 'update']);
     Route::get('/HelpRuntimeConfig/aiOptions', [AdminHelpRuntimeConfigController::class, 'aiOptions']);

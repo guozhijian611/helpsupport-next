@@ -1,99 +1,90 @@
 <template>
   <el-drawer
     v-model="visible"
-    :title="dialogType === 'add' ? '新增App引导页配置' : '编辑App引导页配置'"
-    :size="900"
+    :title="drawerTitle"
+    :size="520"
     align-center
     :close-on-click-modal="false"
     @close="handleClose"
   >
-    <el-form ref="formRef" :model="formData" :rules="rules" label-width="120px">
-      <el-row :gutter="20">
-        <el-col :span="24">
-          <el-form-item label="配置版本" prop="version">
-            <el-input v-model="formData.version" placeholder="留空表示默认版本" clearable />
-          </el-form-item>
-        </el-col>
-        <el-col :span="24">
-          <el-form-item label="场景" prop="scene">
-            <el-input v-model="formData.scene" placeholder="请输入场景" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="24">
-          <el-form-item label="语言" prop="locale">
-            <el-input v-model="formData.locale" placeholder="请输入语言" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="24">
-          <el-form-item label="标题" prop="title">
-            <el-input v-model="formData.title" placeholder="请输入标题" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="24">
-          <el-form-item label="说明" prop="description">
-            <el-input v-model="formData.description" placeholder="请输入说明" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="24">
-          <el-form-item label="图片URL或附件路径" prop="image">
-            <sa-image-upload v-model="formData.image" :limit="1" :multiple="false" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="24">
-          <el-form-item label="按钮文案" prop="button_text">
-            <el-input v-model="formData.button_text" placeholder="请输入按钮文案" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="24">
-          <el-form-item label="动作类型" prop="action_type">
-            <el-select v-model="formData.action_type" placeholder="请选择动作类型">
-              <el-option
-                v-for="item in actionTypeOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </el-select>
-          </el-form-item>
-        </el-col>
-        <el-col :span="24">
-          <el-form-item label="动作值" prop="action_value">
-            <el-input v-model="formData.action_value" placeholder="请输入动作值" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="24">
-          <el-form-item label="排序" prop="sort">
-            <el-input-number v-model="formData.sort" :min="0" :step="10" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="24">
-          <el-form-item label="状态 1启用 2禁用" prop="status">
-            <sa-radio v-model="formData.status" dict="data_status" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="24">
-          <el-form-item label="生效开始时间" prop="start_time">
-            <el-date-picker
-              v-model="formData.start_time"
-              type="datetime"
-              value-format="YYYY-MM-DD HH:mm:ss"
-              placeholder="请选择生效开始时间"
-              clearable
-            />
-          </el-form-item>
-        </el-col>
-        <el-col :span="24">
-          <el-form-item label="生效结束时间" prop="end_time">
-            <el-date-picker
-              v-model="formData.end_time"
-              type="datetime"
-              value-format="YYYY-MM-DD HH:mm:ss"
-              placeholder="请选择生效结束时间"
-              clearable
-            />
-          </el-form-item>
-        </el-col>
-      </el-row>
+    <el-form ref="formRef" :model="formData" :rules="rules" label-width="108px">
+      <el-form-item label="所属流程">
+        <div class="flow-meta">
+          {{ sceneLabel }} · {{ versionLabel(formData.version) }} · 第 {{ pageNumber }} 页
+        </div>
+      </el-form-item>
+      <el-form-item label="语言" prop="locale">
+        <el-select v-model="formData.locale" placeholder="请选择语言">
+          <el-option
+            v-for="item in LOCALE_OPTIONS"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="标题" prop="title">
+        <el-input v-model="formData.title" placeholder="请输入标题" />
+      </el-form-item>
+      <el-form-item label="说明" prop="description">
+        <el-input
+          v-model="formData.description"
+          type="textarea"
+          :rows="3"
+          placeholder="请输入说明"
+        />
+      </el-form-item>
+      <el-form-item label="图片" prop="image">
+        <sa-image-upload v-model="formData.image" :limit="1" :multiple="false" />
+      </el-form-item>
+      <el-form-item label="按钮文案" prop="button_text">
+        <el-input v-model="formData.button_text" placeholder="最后一页会显示这个按钮" />
+      </el-form-item>
+      <el-form-item label="按钮动作" prop="action_type">
+        <el-select v-model="formData.action_type" placeholder="请选择动作类型">
+          <el-option
+            v-for="item in ACTION_TYPE_OPTIONS"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item
+        v-if="needsActionValue"
+        :label="formData.action_type === 'route' ? '跳转路由' : '外链地址'"
+        prop="action_value"
+      >
+        <el-input
+          v-model="formData.action_value"
+          :placeholder="
+            formData.action_type === 'route' ? '例如 /login' : '例如 https://example.com'
+          "
+        />
+      </el-form-item>
+      <el-form-item label="状态" prop="status">
+        <sa-radio v-model="formData.status" dict="data_status" />
+      </el-form-item>
+      <el-form-item label="生效开始" prop="start_time">
+        <el-date-picker
+          v-model="formData.start_time"
+          type="datetime"
+          value-format="YYYY-MM-DD HH:mm:ss"
+          placeholder="不填表示立即生效"
+          clearable
+          class="w-full"
+        />
+      </el-form-item>
+      <el-form-item label="生效结束" prop="end_time">
+        <el-date-picker
+          v-model="formData.end_time"
+          type="datetime"
+          value-format="YYYY-MM-DD HH:mm:ss"
+          placeholder="不填表示长期有效"
+          clearable
+          class="w-full"
+        />
+      </el-form-item>
     </el-form>
     <template #footer>
       <el-button @click="handleClose">取消</el-button>
@@ -103,9 +94,16 @@
 </template>
 
 <script setup lang="ts">
-  import api from '../../../api/config/page'
   import { ElMessage } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
+  import api from '../../../api/config/page'
+  import {
+    ACTION_TYPE_OPTIONS,
+    LOCALE_OPTIONS,
+    SCENE_OPTIONS,
+    localeLabel,
+    versionLabel
+  } from '../onboarding'
 
   interface Props {
     modelValue: boolean
@@ -125,46 +123,18 @@
   })
 
   const emit = defineEmits<Emits>()
-
   const formRef = ref<FormInstance>()
-  const actionTypeOptions = [
-    { label: 'next', value: 'next' },
-    { label: 'skip', value: 'skip' },
-    { label: 'route', value: 'route' },
-    { label: 'external_url', value: 'external_url' }
-  ]
 
-  /**
-   * 弹窗显示状态双向绑定
-   */
   const visible = computed({
     get: () => props.modelValue,
     set: (value) => emit('update:modelValue', value)
   })
 
-  /**
-   * 表单验证规则
-   */
-  const rules = reactive<FormRules>({
-    scene: [{ required: true, message: '场景必需填写', trigger: 'blur' }],
-    locale: [{ required: true, message: '语言必需填写', trigger: 'blur' }],
-    title: [{ required: true, message: '标题必需填写', trigger: 'blur' }],
-    description: [{ required: true, message: '说明必需填写', trigger: 'blur' }],
-    image: [{ required: true, message: '图片URL或附件路径必需填写', trigger: 'blur' }],
-    button_text: [{ required: true, message: '按钮文案必需填写', trigger: 'blur' }],
-    action_type: [{ required: true, message: '动作类型必需填写', trigger: 'change' }],
-    sort: [{ required: true, message: '排序必需填写', trigger: 'blur' }],
-    status: [{ required: true, message: '状态 1启用 2禁用必需填写', trigger: 'blur' }]
-  })
-
-  /**
-   * 初始数据
-   */
   const initialFormData = {
-    id: null,
+    id: null as number | null,
     scene: 'first_launch',
     version: '',
-    locale: 'en-US',
+    locale: 'zh-CN',
     title: '',
     description: '',
     image: '',
@@ -177,14 +147,51 @@
     end_time: ''
   }
 
-  /**
-   * 表单数据
-   */
   const formData = reactive({ ...initialFormData })
 
-  /**
-   * 监听弹窗打开，初始化表单数据
-   */
+  const needsActionValue = computed(
+    () => formData.action_type === 'route' || formData.action_type === 'external_url'
+  )
+
+  const pageNumber = computed(() => Math.max(1, Math.round(Number(formData.sort || 10) / 10)))
+
+  const sceneLabel = computed(
+    () => SCENE_OPTIONS.find((item) => item.value === formData.scene)?.label ?? formData.scene
+  )
+
+  const drawerTitle = computed(() => {
+    if (props.dialogType === 'edit') {
+      return `编辑${localeLabel(formData.locale)}引导页`
+    }
+    return formData.id ? '编辑引导页' : `新增${localeLabel(formData.locale)}引导页`
+  })
+
+  const rules = reactive<FormRules>({
+    locale: [{ required: true, message: '语言必须填写', trigger: 'change' }],
+    title: [{ required: true, message: '标题必须填写', trigger: 'blur' }],
+    description: [{ required: true, message: '说明必须填写', trigger: 'blur' }],
+    image: [{ required: true, message: '图片必须上传', trigger: 'change' }],
+    button_text: [{ required: true, message: '按钮文案必须填写', trigger: 'blur' }],
+    action_type: [{ required: true, message: '动作类型必须填写', trigger: 'change' }],
+    action_value: [
+      {
+        validator: (_rule, value, callback) => {
+          if (!needsActionValue.value) {
+            callback()
+            return
+          }
+          if (!value) {
+            callback(new Error('请填写动作值'))
+            return
+          }
+          callback()
+        },
+        trigger: 'blur'
+      }
+    ],
+    status: [{ required: true, message: '状态必须填写', trigger: 'change' }]
+  })
+
   watch(
     () => props.modelValue,
     (newVal) => {
@@ -194,52 +201,46 @@
     }
   )
 
-  /**
-   * 初始化页面数据
-   */
   const initPage = async () => {
-    // 先重置为初始值
     Object.assign(formData, initialFormData)
-    // 如果有数据，则填充数据
     if (props.data) {
       await nextTick()
       initForm()
     }
   }
 
-  /**
-   * 初始化表单数据
-   */
   const initForm = () => {
-    if (props.data) {
-      for (const key in formData) {
-        if (props.data[key] != null && props.data[key] != undefined) {
-          ;(formData as any)[key] = props.data[key]
-        }
+    if (!props.data) return
+    for (const key in formData) {
+      if (props.data[key] != null && props.data[key] != undefined) {
+        ;(formData as any)[key] = props.data[key]
       }
     }
+    if (!formData.locale) formData.locale = 'zh-CN'
+    if (!formData.scene) formData.scene = 'first_launch'
   }
 
-  /**
-   * 关闭弹窗并重置表单
-   */
   const handleClose = () => {
     visible.value = false
     formRef.value?.resetFields()
   }
 
-  /**
-   * 提交表单
-   */
   const handleSubmit = async () => {
     if (!formRef.value) return
     try {
       await formRef.value.validate()
-      if (props.dialogType === 'add') {
-        await api.save(formData)
+      const payload: Record<string, any> = { ...formData }
+      if (!needsActionValue.value) {
+        payload.action_value = payload.action_value || ''
+      }
+      if (!payload.start_time) payload.start_time = null
+      if (!payload.end_time) payload.end_time = null
+      if (props.dialogType === 'add' || !payload.id) {
+        delete payload.id
+        await api.save(payload)
         ElMessage.success('新增成功')
       } else {
-        await api.update(formData)
+        await api.update(payload)
         ElMessage.success('修改成功')
       }
       emit('success')
@@ -249,3 +250,9 @@
     }
   }
 </script>
+
+<style scoped>
+  .flow-meta {
+    color: var(--el-text-color-regular);
+  }
+</style>
