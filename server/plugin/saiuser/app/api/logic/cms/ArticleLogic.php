@@ -32,8 +32,9 @@ class ArticleLogic extends BaseLogic
      */
     public function categoryList()
     {
-        $data = ArticleCategory::where('status', 1)->select()->toArray();
-        return $data;
+        $query = ArticleCategory::where('status', 1);
+        $query = $this->excludeAdminManualCategories($query);
+        return $query->select()->toArray();
     }
 
     /**
@@ -46,7 +47,11 @@ class ArticleLogic extends BaseLogic
         $this->setOrderField('create_time');
         $this->setOrderType('desc');
         $query = Article::where('status', 1)->order('sort', 'desc');
+        $query = $this->excludeAdminManualArticles($query);
         if (!empty($category_id)) {
+            if ($this->isAdminManualCategory((int) $category_id)) {
+                return $this->getList($query->where('id', 0));
+            }
             $query = $query->where('category_id', $category_id);
         }
         return $this->getList($query);
@@ -58,8 +63,9 @@ class ArticleLogic extends BaseLogic
      */
     public function hotArticleList()
     {
-        $data = Article::where('status', 1)->order('views', 'desc')->limit(5)->select()->toArray();
-        return $data;
+        $query = Article::where('status', 1)->order('views', 'desc');
+        $query = $this->excludeAdminManualArticles($query);
+        return $query->limit(5)->select()->toArray();
     }
 
     /**
@@ -68,8 +74,9 @@ class ArticleLogic extends BaseLogic
      */
     public function randomArticleList($limit)
     {
-        $data = Article::where('status', 1)->orderRaw('RAND()')->limit($limit)->select()->toArray();
-        return $data;
+        $query = Article::where('status', 1)->orderRaw('RAND()');
+        $query = $this->excludeAdminManualArticles($query);
+        return $query->limit($limit)->select()->toArray();
     }
 
     /**
@@ -80,7 +87,7 @@ class ArticleLogic extends BaseLogic
     public function getArticle($id)
     {
         $data = Article::with('publisher')->where('id', $id)->where('status', 1)->findOrEmpty();
-        if ($data->isEmpty()) {
+        if ($data->isEmpty() || $this->isAdminManualCategory((int) $data->category_id)) {
             return [];
         }
         $data->views = $data->views + 1;
@@ -96,10 +103,11 @@ class ArticleLogic extends BaseLogic
     public function articleAround($id)
     {
         $model = Article::where('id', $id)->where('status', 1)->findOrEmpty();
-        if ($model->isEmpty()) {
+        if ($model->isEmpty() || $this->isAdminManualCategory((int) $model->category_id)) {
             return [];
         }
         $query = Article::where('status', 1)->where('category_id', $model->category_id);
+        $query = $this->excludeAdminManualArticles($query);
 
         // 查询上一篇文章（id小于当前id，取最大的一条）
         $prev = (clone $query)->where('id', '<', $id)->order('id', 'desc')->find();
@@ -111,6 +119,36 @@ class ArticleLogic extends BaseLogic
             'prev' => $prev ? $prev->toArray() : null,
             'next' => $next ? $next->toArray() : null,
         ];
+    }
+
+    private function excludeAdminManualCategories($query)
+    {
+        $ids = ArticleCategory::adminManualCategoryIds();
+        if ($ids !== []) {
+            $query->whereNotIn('id', $ids);
+        }
+        return $query;
+    }
+
+    private function excludeAdminManualArticles($query)
+    {
+        $ids = ArticleCategory::adminManualCategoryIds();
+        if ($ids !== []) {
+            $query->whereNotIn('category_id', $ids);
+        }
+        $query->whereRaw(
+            '(IFNULL(`link_url`, \'\') = \'\' OR `link_url` <> ?)',
+            [ArticleCategory::ADMIN_MANUAL_MARKER]
+        );
+        return $query;
+    }
+
+    private function isAdminManualCategory(int $categoryId): bool
+    {
+        if ($categoryId <= 0) {
+            return false;
+        }
+        return in_array($categoryId, ArticleCategory::adminManualCategoryIds(), true);
     }
 
 }

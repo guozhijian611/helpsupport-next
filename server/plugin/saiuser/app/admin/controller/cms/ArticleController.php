@@ -6,6 +6,7 @@
 // +----------------------------------------------------------------------
 namespace plugin\saiuser\app\admin\controller\cms;
 
+use hg\apidoc\annotation as Apidoc;
 use plugin\saiadmin\basic\BaseController;
 use plugin\saiuser\app\admin\logic\cms\ArticleLogic;
 use plugin\saiuser\app\validate\cms\ArticleValidate;
@@ -118,5 +119,38 @@ class ArticleController extends BaseController
         } else {
             return $this->fail('删除失败');
         }
+    }
+
+    /**
+     * 后台操作手册目录
+     */
+    #[Apidoc\Title('后台操作手册目录')]
+    #[Apidoc\Url('/app/saiuser/admin/cms/Article/manual')]
+    #[Apidoc\Method('GET')]
+    #[Permission('操作说明手册', 'saiuser:cms:manual:index')]
+    public function manual(Request $request): Response
+    {
+        return $this->success($this->logic->getManualCatalog());
+    }
+
+    /**
+     * 后台操作手册文章
+     */
+    #[Apidoc\Title('后台操作手册文章')]
+    #[Apidoc\Url('/app/saiuser/admin/cms/Article/manualRead')]
+    #[Apidoc\Method('GET')]
+    #[Apidoc\Query('id', type: 'int', require: true, desc: '文章ID')]
+    #[Permission('操作说明手册', 'saiuser:cms:manual:index')]
+    public function manualRead(Request $request): Response
+    {
+        $id = $request->get('id', '');
+        if ($id === '' || $id === null) {
+            return $this->fail('参数错误');
+        }
+        $data = $this->logic->getManualArticle($id);
+        if ($data === []) {
+            return $this->fail('未查找到信息');
+        }
+        return $this->success($data);
     }
 }
