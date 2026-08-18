@@ -1,5 +1,6 @@
 <?php
 
+use plugin\help\app\api\controller\DownloadController;
 use plugin\help\app\api\controller\AppointmentController;
 use plugin\help\app\api\controller\AuthController;
 use plugin\help\app\api\controller\ChatController;
@@ -56,6 +57,10 @@ use plugin\help\app\admin\controller\push\SaMemberPushPreferenceController as Ad
 use plugin\help\app\admin\controller\push\SaPushTemplateController as AdminPushTemplateController;
 use plugin\help\app\admin\controller\risk\SaSensitiveWordRuleController as AdminSensitiveWordRuleController;
 use Webman\Route;
+
+Route::get('/download', [DownloadController::class, 'page']);
+Route::get('/download/', [DownloadController::class, 'page']);
+Route::get('/download/manifest.plist', [DownloadController::class, 'manifest']);
 
 Route::group('/app/help', function () {
     Route::post('/auth/account-login', [AuthController::class, 'accountLogin']);

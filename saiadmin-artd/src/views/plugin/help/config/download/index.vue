@@ -4,7 +4,19 @@
       <template #header>
         <div class="flex items-center justify-between gap-3">
           <b>App下载配置</b>
-          <ElSpace>
+          <ElSpace wrap>
+            <ElButton @click="previewDownloadPage">
+              <template #icon>
+                <ArtSvgIcon icon="ri:external-link-line" />
+              </template>
+              预览下载页面
+            </ElButton>
+            <ElButton @click="copyDownloadPageUrl">
+              <template #icon>
+                <ArtSvgIcon icon="ri:file-copy-line" />
+              </template>
+              复制公开地址
+            </ElButton>
             <SaButton
               type="primary"
               icon="ri:refresh-line"
@@ -27,6 +39,10 @@
       </template>
 
       <div v-loading="loading" class="download-body">
+        <div class="download-public">
+          公开下载页：
+          <a :href="downloadPageUrl" target="_blank" rel="noopener noreferrer">{{ downloadPageUrl }}</a>
+        </div>
         <ElForm
           v-if="group.items.length > 0"
           ref="formRef"
@@ -193,6 +209,27 @@
 
   const itemRemark = (key: string) => itemMap.value[key]?.remark ?? ''
 
+  const downloadPageUrl = computed(() => {
+    const proxy = String(import.meta.env.VITE_API_PROXY_URL || '').replace(/\/$/, '')
+    if (import.meta.env.DEV && proxy) {
+      return `${proxy}/download`
+    }
+    return `${window.location.origin}/download`
+  })
+
+  const previewDownloadPage = () => {
+    window.open(downloadPageUrl.value, '_blank', 'noopener,noreferrer')
+  }
+
+  const copyDownloadPageUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(downloadPageUrl.value)
+      ElMessage.success('已复制公开下载地址')
+    } catch {
+      ElMessage.error('复制失败，请手动复制地址')
+    }
+  }
+
   const openUrl = (url: string) => {
     const value = url.trim()
     if (!value) return
@@ -225,6 +262,19 @@
     height: 100%;
     min-height: 420px;
     overflow-y: auto;
+  }
+
+  .download-public {
+    max-width: 980px;
+    padding: 4px 2px 14px;
+    color: var(--art-gray-600);
+    font-size: 13px;
+    line-height: 1.6;
+
+    a {
+      color: var(--el-color-primary);
+      word-break: break-all;
+    }
   }
 
   .download-form {
