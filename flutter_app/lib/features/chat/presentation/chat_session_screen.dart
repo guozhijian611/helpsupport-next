@@ -65,7 +65,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   final _messageRecorder = AudioRecorder();
   final _messageAudioPlayer = AudioPlayer();
   final _imagePicker = ImagePicker();
-  final Set<int> _expandedVoiceTextIds = <int>{};
+  final Set<int> _collapsedVoiceTextIds = <int>{};
+  int? _autoPlayedVoiceRecordId;
   StreamSubscription<ChatStreamEvent>? _streamSubscription;
   StreamSubscription<Uint8List>? _callAudioSubscription;
   StreamSubscription<ProcessingState>? _messagePlayerSubscription;
@@ -399,7 +400,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                             userAvatarUrl: userAvatarUrl,
                             assistantAvatarUrl: assistantAvatarUrl,
                             resolveMediaUrl: apiClient.resolveUrl,
-                            expandedVoiceTextIds: _expandedVoiceTextIds,
+                            collapsedVoiceTextIds: _collapsedVoiceTextIds,
                             playingVoiceRecordId: _playingVoiceRecordId,
                             onToggleTranscript: _toggleTranscript,
                             onToggleVoicePlayback: (record) =>
@@ -2553,6 +2554,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         });
         _scrollToLatest();
         unawaited(_maybeSpeakLocalReply(event));
+        unawaited(_maybePlayOnlineReply(event));
         return;
       case 'error':
         setState(() => _streamingRecords = const <ChatRecord>[]);
@@ -2600,6 +2602,33 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     } on Object {
       // Keep the text reply even if on-device TTS is unavailable.
     }
+  }
+
+  Future<void> _maybePlayOnlineReply(ChatStreamEvent event) async {
+    ChatRecord? assistant = event.assistantRecord;
+    if (assistant == null || assistant.audioUrl.trim().isEmpty) {
+      final records = event.records.isNotEmpty
+          ? event.records
+          : _streamingRecords;
+      for (final record in records.reversed) {
+        if (!record.isUser && record.audioUrl.trim().isNotEmpty) {
+          assistant = record;
+          break;
+        }
+      }
+    }
+    await _maybePlayOnlineReplyRecord(assistant);
+  }
+
+  Future<void> _maybePlayOnlineReplyRecord(ChatRecord? record) async {
+    if (_useLocalTts || record == null || record.audioUrl.trim().isEmpty) {
+      return;
+    }
+    if (record.id <= 0 || _autoPlayedVoiceRecordId == record.id) {
+      return;
+    }
+    _autoPlayedVoiceRecordId = record.id;
+    await _toggleVoicePlayback(record);
   }
 
   void _startStreamRecordSync(int generation, int baseRecordId) {
@@ -2656,6 +2685,14 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       _scrollToLatest();
       if (hasAssistant && finishWhenAssistantExists) {
         _completeStreamingSend(generation);
+        ChatRecord? assistant;
+        for (final record in newRecords.reversed) {
+          if (!record.isUser) {
+            assistant = record;
+            break;
+          }
+        }
+        unawaited(_maybePlayOnlineReplyRecord(assistant));
       }
       return hasAssistant;
     } on Object {
@@ -2808,8 +2845,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       return;
     }
     setState(() {
-      if (!_expandedVoiceTextIds.add(record.id)) {
-        _expandedVoiceTextIds.remove(record.id);
+      if (!_collapsedVoiceTextIds.add(record.id)) {
+        _collapsedVoiceTextIds.remove(record.id);
       }
     });
   }
@@ -3083,7 +3120,7 @@ class _RecordList extends StatelessWidget {
     required this.userAvatarUrl,
     required this.assistantAvatarUrl,
     required this.resolveMediaUrl,
-    required this.expandedVoiceTextIds,
+    required this.collapsedVoiceTextIds,
     required this.playingVoiceRecordId,
     required this.onToggleTranscript,
     required this.onToggleVoicePlayback,
@@ -3098,7 +3135,7 @@ class _RecordList extends StatelessWidget {
   final String userAvatarUrl;
   final String assistantAvatarUrl;
   final String Function(String value) resolveMediaUrl;
-  final Set<int> expandedVoiceTextIds;
+  final Set<int> collapsedVoiceTextIds;
   final int? playingVoiceRecordId;
   final ValueChanged<ChatRecord> onToggleTranscript;
   final ValueChanged<ChatRecord> onToggleVoicePlayback;
@@ -3129,7 +3166,9 @@ class _RecordList extends StatelessWidget {
                 .map((url) => _chatImageUrl(url, resolveMediaUrl))
                 .where((url) => url.trim().isNotEmpty)
                 .toList(growable: false),
-            transcriptExpanded: expandedVoiceTextIds.contains(record.id),
+            transcriptExpanded:
+                _hasTranscript(record) &&
+                !collapsedVoiceTextIds.contains(record.id),
             voicePlaying: playingVoiceRecordId == record.id,
             onToggleTranscript: () => onToggleTranscript(record),
             onToggleVoicePlayback: () => onToggleVoicePlayback(record),
@@ -3272,22 +3311,28 @@ class _MessageBubble extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: palette.cardBackground,
                         borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: palette.outline),
                         boxShadow: [
                           BoxShadow(
-                            color: palette.shadowColor.withValues(alpha: 0.8),
-                            blurRadius: 14,
-                            offset: Offset(0, 6),
+                            color: palette.shadowColor,
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
-                      child: Text(
-                        _transcriptText(record),
-                        style: TextStyle(
-                          color: palette.primaryText,
-                          fontSize: 16,
-                          height: 1.6,
-                        ),
-                      ),
+                      child: record.isUser
+                          ? Text(
+                              _transcriptText(record),
+                              style: TextStyle(
+                                color: palette.primaryText,
+                                fontSize: 16,
+                                height: 1.6,
+                              ),
+                            )
+                          : _MarkdownRecordContent(
+                              record: record,
+                              textColor: palette.primaryText,
+                            ),
                     ),
                     const SizedBox(height: 6),
                     GestureDetector(
@@ -3365,6 +3410,8 @@ class _VoiceRecordRow extends StatelessWidget {
           children: [
             Text(
               _voiceDurationText(record),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: textColor,
                 fontSize: 18,
@@ -3389,6 +3436,8 @@ class _VoiceRecordRow extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           _voiceDurationText(record),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: textColor,
             fontSize: 18,
@@ -4933,19 +4982,19 @@ String _localMessageTime() {
       '${two(now.hour)}:${two(now.minute)}:${two(now.second)}';
 }
 
-String _voiceDisplayText(String value) {
-  final trimmed = value.trim();
-  if (trimmed.isEmpty) {
-    return '60\'\'';
-  }
-  return trimmed;
+String _voiceDurationText(ChatRecord record) {
+  final seconds = record.durationSeconds > 0
+      ? record.durationSeconds
+      : _estimatedVoiceSeconds(record);
+  return '$seconds\'\'';
 }
 
-String _voiceDurationText(ChatRecord record) {
-  if (record.durationSeconds > 0) {
-    return '${record.durationSeconds}\'\'';
+int _estimatedVoiceSeconds(ChatRecord record) {
+  final text = _transcriptText(record);
+  if (text.isEmpty || RegExp(r"^\d+\s*(?:''|″|”|秒)$").hasMatch(text)) {
+    return 1;
   }
-  return _voiceDisplayText(record.content);
+  return math.max(1, (text.length / 5).ceil());
 }
 
 String _resolveUserAvatar(
