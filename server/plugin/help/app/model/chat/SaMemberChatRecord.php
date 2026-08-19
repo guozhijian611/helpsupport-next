@@ -13,7 +13,7 @@ class SaMemberChatRecord extends BaseModel
 
     protected $table = 'sa_member_chat_record';
 
-    protected $append = ['transcript'];
+    protected $append = ['transcript', 'media_urls'];
 
     public function getTranscriptAttr($value, $data): string
     {
@@ -21,14 +21,55 @@ class SaMemberChatRecord extends BaseModel
         if ($contentType !== 'voice') {
             return '';
         }
-        $ext = $data['ext'] ?? null;
-        if (is_string($ext)) {
-            $decoded = json_decode($ext, true);
-            $ext = is_array($decoded) ? $decoded : [];
-        }
+        $ext = $this->decodeExt($data['ext'] ?? null);
         $transcript = trim((string) (($ext['transcript'] ?? '') ?: ''));
 
         return $transcript !== '' ? $transcript : trim((string) ($data['content'] ?? ''));
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getMediaUrlsAttr($value, $data): array
+    {
+        if ((string) ($data['content_type'] ?? 'text') !== 'image') {
+            return [];
+        }
+
+        $ext = $this->decodeExt($data['ext'] ?? null);
+        $urls = [];
+        $candidates = $ext['media_urls'] ?? [];
+        if (!is_array($candidates)) {
+            $candidates = $candidates === '' || $candidates === null ? [] : [$candidates];
+        }
+        foreach ($candidates as $url) {
+            $url = trim((string) $url);
+            if ($url !== '') {
+                $urls[] = $url;
+            }
+        }
+        $single = trim((string) ($ext['media_url'] ?? ''));
+        if ($urls === [] && $single !== '') {
+            $urls[] = $single;
+        }
+
+        return array_values(array_unique($urls));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeExt(mixed $ext): array
+    {
+        if (is_array($ext)) {
+            return $ext;
+        }
+        if (!is_string($ext) || $ext === '') {
+            return [];
+        }
+        $decoded = json_decode($ext, true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     public function searchSessionIdAttr($query, $value): void

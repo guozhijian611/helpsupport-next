@@ -105,6 +105,15 @@
       options: contentTypeOptions,
       width: 110
     },
+    {
+      prop: 'media_urls',
+      label: '图片预览',
+      type: 'images',
+      form: false,
+      table: true,
+      detail: true,
+      width: 160
+    },
     { prop: 'token_count', label: 'Token', type: 'number', form: true, default: 0, width: 90 },
     { prop: 'message_time', label: '消息时间', type: 'datetime', form: true, width: 170 },
     { prop: 'ext', label: '扩展信息', type: 'json', form: true, table: false, rows: 4 },

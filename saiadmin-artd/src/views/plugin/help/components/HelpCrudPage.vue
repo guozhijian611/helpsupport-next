@@ -99,6 +99,11 @@
           <ElTag v-if="shouldUseTag(field)" :type="tagType(field, row[field.prop])">
             {{ formatValue(field, row[field.prop]) }}
           </ElTag>
+          <HelpImagePreview
+            v-else-if="field.type === 'images'"
+            :value="imageFieldValue(field, row)"
+            empty-text="-"
+          />
           <SaFilePreview
             v-else-if="isPreviewField(field)"
             :url="row[field.prop]"
@@ -291,6 +296,12 @@
           <pre v-if="field.type === 'json' || field.type === 'textarea'" class="help-detail-pre">{{
             formatValue(field, detailData[field.prop])
           }}</pre>
+          <HelpImagePreview
+            v-else-if="field.type === 'images'"
+            :value="imageFieldValue(field, detailData)"
+            detail
+            empty-text="-"
+          />
           <SaFilePreview
             v-else-if="isPreviewField(field)"
             :url="detailData[field.prop]"
@@ -323,6 +334,8 @@
   import { useTable } from '@/hooks/core/useTable'
   import { useSaiAdmin } from '@/composables/useSaiAdmin'
   import SaFilePreview from '@/components/sai/sa-file-preview/index.vue'
+  import HelpImagePreview from './HelpImagePreview.vue'
+  import { chatRecordImageUrls } from './chatMedia'
   import type { CrudApi, HelpCrudAction, HelpCrudField } from './helpCrudTypes'
   import { inferRelationType, loadRelationOptions } from './relationOptions'
   import type { HelpRelationType } from './relationOptions'
@@ -626,12 +639,22 @@
     return String(value)
   }
 
+  const imageFieldValue = (field: HelpCrudField, row: Record<string, any>) => {
+    if (row.content_type) {
+      return chatRecordImageUrls(row)
+    }
+    return row[field.prop]
+  }
+
   const shortValue = (field: HelpCrudField, value: unknown) => {
     const text = formatValue(field, value)
     return text.length > 80 ? text.slice(0, 80) + '...' : text
   }
 
   const isLongValue = (field: HelpCrudField, value: unknown) => {
+    if (field.type === 'images') {
+      return false
+    }
     return (
       field.type === 'textarea' || field.type === 'json' || formatValue(field, value).length > 80
     )

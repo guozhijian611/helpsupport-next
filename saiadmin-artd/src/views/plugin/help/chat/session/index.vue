@@ -17,6 +17,7 @@
       <ElScrollbar height="calc(100vh - 140px)">
         <div v-for="item in records" :key="item.id" class="thread-item" :class="item.role">
           <div class="thread-role">{{ item.role === 'user' ? '用户' : '助手' }}</div>
+          <HelpImagePreview :value="chatRecordImageUrls(item)" />
           <div v-if="item.content_type === 'voice'" class="thread-voice">语音</div>
           <div class="thread-content">{{ item.transcript || item.content }}</div>
           <div class="thread-time">{{ item.message_time }}</div>
@@ -29,9 +30,11 @@
 
 <script setup lang="ts">
   import HelpCrudPage from '../../components/HelpCrudPage.vue'
+  import HelpImagePreview from '../../components/HelpImagePreview.vue'
   import type { HelpCrudAction, HelpCrudField } from '../../components/helpCrudTypes'
   import api from '../../api/chat/session'
   import recordApi from '../../api/chat/record'
+  import { chatRecordImageUrls } from '../../components/chatMedia'
   import { helpChatModeLabel, helpChatModeOptions, loadHelpChatModeOptions } from '../../components/chatModeOptions'
 
   defineOptions({ name: 'HelpChatSession' })
@@ -119,5 +122,8 @@
     margin: 6px 0;
     white-space: pre-wrap;
     line-height: 1.6;
+  }
+  .thread-item :deep(.help-image-preview) {
+    margin: 8px 0 4px;
   }
 </style>
