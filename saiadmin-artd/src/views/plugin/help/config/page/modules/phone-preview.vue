@@ -2,7 +2,11 @@
   <div class="phone-preview">
     <div class="phone-head">
       <b>手机预览</b>
-      <span>{{ localeLabel(locale) }} · 第 {{ pageNumber }} / {{ total }} 页{{ actionHint ? ` · ${actionHint}` : '' }}</span>
+      <span
+        >{{ localeLabel(locale) }} · 第 {{ pageNumber }} / {{ total }} 页{{
+          actionHint ? ` · ${actionHint}` : ''
+        }}</span
+      >
     </div>
     <div class="phone-shell">
       <div class="phone-screen">
