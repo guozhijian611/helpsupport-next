@@ -55,6 +55,24 @@ void main() {
     expect(record.transcript, '我有点紧张');
     expect(record.audioUrl, '/storage/chat-ai/reply.mp3');
     expect(record.speechStatus, 'ready');
+    expect(record.displayMediaUrls, ['/storage/user.m4a']);
+  });
+
+  test('chat record parses multiple image urls from ext', () {
+    final record = ChatRecord.fromJson(const {
+      'id': 13,
+      'session_id': 3,
+      'chat_mode': 'doctor',
+      'role': 'user',
+      'content': '这几张图里我看起来怎么样？',
+      'content_type': 'image',
+      'ext':
+          '{"attachment_id":11,"attachment_ids":[11,12],"media_url":"/storage/a.jpg","media_urls":["/storage/a.jpg","/storage/b.jpg"]}',
+    });
+
+    expect(record.mediaUrl, '/storage/a.jpg');
+    expect(record.mediaUrls, ['/storage/a.jpg', '/storage/b.jpg']);
+    expect(record.displayMediaUrls, ['/storage/a.jpg', '/storage/b.jpg']);
   });
 
   test('chat record prefers top-level transcript for voice messages', () {

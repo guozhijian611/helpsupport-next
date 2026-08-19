@@ -7210,47 +7210,72 @@ class HelpApiService
             return ['content' => $content, 'ai_content' => $content, 'ext' => []];
         }
 
-        $attachmentId = (int) ($data['attachment_id'] ?? 0);
-        if ($attachmentId <= 0) {
+        $attachmentIds = $this->chatAttachmentIds($data);
+        if ($attachmentIds === []) {
             throw new ApiException('媒体附件 ID 必须填写', 400);
         }
-        $attachment = Db::table('sa_system_attachment')
-            ->where('id', $attachmentId)
-            ->whereNull('delete_time')
-            ->find();
-        if (!$attachment) {
-            throw new ApiException('聊天媒体附件不存在', 404);
+        if ($contentType === 'image' && count($attachmentIds) > 9) {
+            throw new ApiException('一次最多发送 9 张图片', 400);
         }
 
-        $suffix = strtolower((string) ($attachment['suffix'] ?? ''));
-        $url = trim((string) ($attachment['url'] ?? ''));
+        $attachments = [];
+        foreach ($attachmentIds as $attachmentId) {
+            $attachment = Db::table('sa_system_attachment')
+                ->where('id', $attachmentId)
+                ->whereNull('delete_time')
+                ->find();
+            if (!$attachment) {
+                throw new ApiException('聊天媒体附件不存在', 404);
+            }
+            $attachments[] = $attachment;
+        }
+
+        $first = $attachments[0];
+        $suffix = strtolower((string) ($first['suffix'] ?? ''));
+        $url = trim((string) ($first['url'] ?? ''));
         if ($url === '') {
             throw new ApiException('聊天媒体附件地址无效', 400);
         }
-        $clientUrl = (int) ($attachment['storage_mode'] ?? 0) === 1
-            ? ((string) (parse_url($url, PHP_URL_PATH) ?: $url))
-            : $url;
+        $clientUrl = $this->chatAttachmentClientUrl($first);
 
         $ext = [
-            'attachment_id' => $attachmentId,
+            'attachment_id' => (int) ($first['id'] ?? 0),
+            'attachment_ids' => $attachmentIds,
             'media_url' => $clientUrl,
-            'media_mime_type' => (string) ($attachment['mime_type'] ?? ''),
-            'media_name' => (string) ($attachment['origin_name'] ?? ''),
+            'media_urls' => [],
+            'media_mime_type' => (string) ($first['mime_type'] ?? ''),
+            'media_name' => (string) ($first['origin_name'] ?? ''),
         ];
         if ($contentType === 'image') {
-            if (!in_array($suffix, self::CHAT_IMAGE_EXTENSIONS, true)) {
-                throw new ApiException('附件不是可用的聊天图片', 400);
+            $imageUrls = [];
+            $aiLines = [];
+            foreach ($attachments as $index => $attachment) {
+                $imageSuffix = strtolower((string) ($attachment['suffix'] ?? ''));
+                $imageUrl = trim((string) ($attachment['url'] ?? ''));
+                if (!in_array($imageSuffix, self::CHAT_IMAGE_EXTENSIONS, true) || $imageUrl === '') {
+                    throw new ApiException('附件不是可用的聊天图片', 400);
+                }
+                $clientImageUrl = $this->chatAttachmentClientUrl($attachment);
+                $imageUrls[] = $clientImageUrl;
+                $aiLines[] = ($index + 1) . '. ' . $imageUrl;
             }
             $caption = (new HelpRiskService())->filterText('chat', $content);
-            $caption = $caption !== '' ? $caption : '请根据这张图片回应我。';
+            if ($caption === '') {
+                throw new ApiException('请填写对图片的说明', 400);
+            }
+            $ext['media_url'] = $imageUrls[0];
+            $ext['media_urls'] = $imageUrls;
 
             return [
                 'content' => $caption,
-                'ai_content' => "用户发送了一张图片：{$url}\n用户补充：{$caption}",
+                'ai_content' => "用户发送了" . count($imageUrls) . "张图片：\n" . implode("\n", $aiLines) . "\n用户补充：{$caption}",
                 'ext' => $ext,
             ];
         }
 
+        if (count($attachmentIds) !== 1) {
+            throw new ApiException('语音消息只能发送一个音频附件', 400);
+        }
         if (!in_array($suffix, self::CHAT_AUDIO_EXTENSIONS, true)) {
             throw new ApiException('附件不是可用的聊天语音', 400);
         }
@@ -7260,7 +7285,7 @@ class HelpApiService
         $transcript = $clientTranscript;
         if ($transcript === '' || $speechSource !== 'local') {
             $transcript = (new ChatSpeechService())->transcribe(
-                $attachment,
+                $first,
                 $this->personaSpeechConfigId((string) ($data['chat_mode'] ?? ''), 'asr', $configId)
             );
         }
@@ -7272,6 +7297,41 @@ class HelpApiService
         $ext['transcript'] = $transcript;
 
         return ['content' => $transcript, 'ai_content' => $transcript, 'ext' => $ext];
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function chatAttachmentIds(array $data): array
+    {
+        $ids = [];
+        $rawIds = $data['attachment_ids'] ?? null;
+        if (is_array($rawIds)) {
+            foreach ($rawIds as $id) {
+                $ids[] = (int) $id;
+            }
+        }
+        $single = (int) ($data['attachment_id'] ?? 0);
+        if ($single > 0) {
+            $ids[] = $single;
+        }
+
+        return array_values(array_unique(array_filter($ids, static fn (int $id): bool => $id > 0)));
+    }
+
+    /**
+     * @param array<string, mixed> $attachment
+     */
+    private function chatAttachmentClientUrl(array $attachment): string
+    {
+        $url = trim((string) ($attachment['url'] ?? ''));
+        if ($url === '') {
+            return '';
+        }
+
+        return (int) ($attachment['storage_mode'] ?? 0) === 1
+            ? ((string) (parse_url($url, PHP_URL_PATH) ?: $url))
+            : $url;
     }
 
     /**

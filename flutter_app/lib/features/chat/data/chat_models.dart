@@ -317,6 +317,7 @@ class ChatRecord {
     required this.content,
     required this.contentType,
     this.mediaUrl = '',
+    this.mediaUrls = const [],
     this.mediaMimeType = '',
     this.durationSeconds = 0,
     this.transcript = '',
@@ -333,6 +334,7 @@ class ChatRecord {
   final String content;
   final String contentType;
   final String mediaUrl;
+  final List<String> mediaUrls;
   final String mediaMimeType;
   final int durationSeconds;
   final String transcript;
@@ -343,6 +345,14 @@ class ChatRecord {
 
   bool get isUser => role == 'user';
 
+  List<String> get displayMediaUrls {
+    if (mediaUrls.isNotEmpty) {
+      return mediaUrls;
+    }
+    final single = mediaUrl.trim();
+    return single.isEmpty ? const [] : [single];
+  }
+
   ChatRecord copyWith({
     int? id,
     int? sessionId,
@@ -351,6 +361,7 @@ class ChatRecord {
     String? content,
     String? contentType,
     String? mediaUrl,
+    List<String>? mediaUrls,
     String? mediaMimeType,
     int? durationSeconds,
     String? transcript,
@@ -367,6 +378,7 @@ class ChatRecord {
       content: content ?? this.content,
       contentType: contentType ?? this.contentType,
       mediaUrl: mediaUrl ?? this.mediaUrl,
+      mediaUrls: mediaUrls ?? this.mediaUrls,
       mediaMimeType: mediaMimeType ?? this.mediaMimeType,
       durationSeconds: durationSeconds ?? this.durationSeconds,
       transcript: transcript ?? this.transcript,
@@ -387,6 +399,7 @@ class ChatRecord {
       content: (json['content'] as String?) ?? '',
       contentType: (json['content_type'] as String?) ?? 'text',
       mediaUrl: (ext['media_url'] ?? '').toString(),
+      mediaUrls: _mediaUrlList(ext),
       mediaMimeType: (ext['media_mime_type'] ?? '').toString(),
       durationSeconds: (ext['duration_seconds'] as num?)?.toInt() ?? 0,
       transcript: _firstNonEmpty([
@@ -586,6 +599,15 @@ List<String> _stringList(Object? value) {
       .map((item) => item.toString().trim())
       .where((item) => item.isNotEmpty)
       .toList(growable: false);
+}
+
+List<String> _mediaUrlList(Map<String, dynamic> ext) {
+  final urls = _stringList(ext['media_urls']);
+  if (urls.isNotEmpty) {
+    return urls;
+  }
+  final single = (ext['media_url'] ?? '').toString().trim();
+  return single.isEmpty ? const [] : [single];
 }
 
 String _firstNonEmpty(List<Object?> values) {

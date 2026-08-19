@@ -34,6 +34,8 @@ import '../data/chat_models.dart';
 import 'chat_online_model_sheet.dart';
 import 'chat_prompt_config_sheet.dart';
 
+const int _maxPendingChatImages = 9;
+
 class ChatSessionScreen extends ConsumerStatefulWidget {
   const ChatSessionScreen({
     super.key,
@@ -86,6 +88,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   bool _cameraInitializing = false;
   String? _cameraErrorMessage;
   bool _sending = false;
+  List<_PendingChatImage> _pendingImages = const [];
   bool _voiceComposer = false;
   bool _recording = false;
   bool _localAsrActive = false;
@@ -415,6 +418,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                         recording: _recording,
                         sending: _sending,
                         controller: _controller,
+                        pendingImages: _pendingImages,
                         voiceDurationLabel: _voiceDurationLabel,
                         onSubmitted: _send,
                         onToggleVoiceComposer: () {
@@ -428,7 +432,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                         onLongPressCancel: _cancelVoiceRecording,
                         onTapRecording: () =>
                             unawaited(_toggleTapVoiceRecording()),
-                        onPickImage: () => unawaited(_pickAndSendImage()),
+                        onPickImage: () => unawaited(_pickImages()),
+                        onRemovePendingImage: _removePendingImage,
                       ),
                     ],
                   ),
@@ -2092,16 +2097,26 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     }
   }
 
-  Future<void> _pickAndSendImage() async {
+  Future<void> _pickImages() async {
     if (_sending || _recording) {
       return;
     }
-    XFile? image;
+    final remaining = _maxPendingChatImages - _pendingImages.length;
+    if (remaining <= 0) {
+      if (mounted) {
+        context.showCenteredNotice(
+          _t(context, '一次最多选择 9 张图片', 'You can select up to 9 images.'),
+        );
+      }
+      return;
+    }
+
+    List<XFile> images;
     try {
-      image = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
+      images = await _imagePicker.pickMultiImage(
         imageQuality: 88,
         maxWidth: 1800,
+        limit: remaining,
       );
     } on Object catch (error) {
       if (mounted) {
@@ -2109,32 +2124,65 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       }
       return;
     }
-    if (image == null || !mounted) {
+    if (images.isEmpty || !mounted) {
       return;
     }
 
+    final existing = _pendingImages.map((image) => image.path).toSet();
+    final added = <_PendingChatImage>[];
+    for (final image in images) {
+      if (existing.contains(image.path)) {
+        continue;
+      }
+      added.add(_PendingChatImage(path: image.path, name: image.name));
+      if (_pendingImages.length + added.length >= _maxPendingChatImages) {
+        break;
+      }
+    }
+    if (added.isEmpty) {
+      return;
+    }
+    setState(() => _pendingImages = [..._pendingImages, ...added]);
+  }
+
+  void _removePendingImage(int index) {
+    if (index < 0 || index >= _pendingImages.length) {
+      return;
+    }
+    setState(() {
+      _pendingImages = [..._pendingImages]..removeAt(index);
+    });
+  }
+
+  Future<void> _sendPendingImages(String content) async {
+    final images = List<_PendingChatImage>.from(_pendingImages);
     try {
       setState(() => _sending = true);
-      final upload = await ref
-          .read(chatRepositoryProvider)
-          .uploadMedia(
-            path: image.path,
-            fileName: image.name,
-            mediaType: 'image',
-          );
+      final uploads = <ChatMediaUpload>[];
+      for (final image in images) {
+        uploads.add(
+          await ref
+              .read(chatRepositoryProvider)
+              .uploadMedia(
+                path: image.path,
+                fileName: image.name,
+                mediaType: 'image',
+              ),
+        );
+      }
       if (!mounted) {
         return;
       }
-      setState(() => _sending = false);
+      _controller.clear();
+      setState(() {
+        _sending = false;
+        _pendingImages = const [];
+      });
       await _sendChatContent(
-        content: _t(
-          context,
-          '请根据这张图片回应我。',
-          'Please respond based on this image.',
-        ),
+        content: content,
         contentType: 'image',
-        attachmentId: upload.attachmentId,
-        mediaUrl: upload.url,
+        attachmentIds: uploads.map((item) => item.attachmentId).toList(),
+        mediaUrls: uploads.map((item) => item.url).toList(),
       );
     } on Object catch (error) {
       if (mounted) {
@@ -2197,8 +2245,27 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   }
 
   Future<void> _send() async {
+    if (_sending) {
+      return;
+    }
     final content = _controller.text.trim();
-    if (content.isEmpty || _sending) {
+    if (_pendingImages.isNotEmpty) {
+      if (content.isEmpty) {
+        if (mounted) {
+          context.showCenteredNotice(
+            _t(
+              context,
+              '请先写一点想说的话，再和图片一起发送',
+              'Add a caption before sending the images.',
+            ),
+          );
+        }
+        return;
+      }
+      await _sendPendingImages(content);
+      return;
+    }
+    if (content.isEmpty) {
       return;
     }
     _controller.clear();
@@ -2209,8 +2276,10 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     required String content,
     String contentType = 'text',
     int attachmentId = 0,
+    List<int> attachmentIds = const [],
     int durationSeconds = 0,
     String mediaUrl = '',
+    List<String> mediaUrls = const [],
   }) async {
     if (_sending) {
       return;
@@ -2234,7 +2303,12 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
               ? '$durationSeconds\'\''
               : content,
           contentType: contentType,
-          mediaUrl: mediaUrl,
+          mediaUrl: mediaUrl.isNotEmpty
+              ? mediaUrl
+              : (mediaUrls.isNotEmpty ? mediaUrls.first : ''),
+          mediaUrls: mediaUrls.isNotEmpty
+              ? mediaUrls
+              : (mediaUrl.trim().isEmpty ? const [] : [mediaUrl]),
           durationSeconds: durationSeconds,
           messageTime: now,
         ),
@@ -2259,7 +2333,10 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
           chatMode: widget.chatMode,
           content: content,
           contentType: contentType,
-          attachmentId: attachmentId,
+          attachmentId: attachmentId > 0
+              ? attachmentId
+              : (attachmentIds.isNotEmpty ? attachmentIds.first : 0),
+          attachmentIds: attachmentIds,
           durationSeconds: durationSeconds,
           locale: Localizations.localeOf(context).toLanguageTag(),
           ttsRuntime: _useLocalTts ? 'local' : 'online',
@@ -2991,7 +3068,10 @@ class _RecordList extends StatelessWidget {
             chatMode: chatMode,
             userAvatarUrl: userAvatarUrl,
             assistantAvatarUrl: assistantAvatarUrl,
-            resolvedMediaUrl: resolveMediaUrl(record.mediaUrl),
+            resolvedMediaUrls: record.displayMediaUrls
+                .map(resolveMediaUrl)
+                .where((url) => url.trim().isNotEmpty)
+                .toList(growable: false),
             transcriptExpanded: expandedVoiceTextIds.contains(record.id),
             voicePlaying: playingVoiceRecordId == record.id,
             onToggleTranscript: () => onToggleTranscript(record),
@@ -3012,7 +3092,7 @@ class _MessageBubble extends StatelessWidget {
     required this.chatMode,
     required this.userAvatarUrl,
     required this.assistantAvatarUrl,
-    required this.resolvedMediaUrl,
+    required this.resolvedMediaUrls,
     required this.transcriptExpanded,
     required this.voicePlaying,
     required this.onToggleTranscript,
@@ -3026,7 +3106,7 @@ class _MessageBubble extends StatelessWidget {
   final String chatMode;
   final String userAvatarUrl;
   final String assistantAvatarUrl;
-  final String resolvedMediaUrl;
+  final List<String> resolvedMediaUrls;
   final bool transcriptExpanded;
   final bool voicePlaying;
   final VoidCallback onToggleTranscript;
@@ -3122,7 +3202,7 @@ class _MessageBubble extends StatelessWidget {
                         : _RecordContent(
                             record: record,
                             textColor: textColor,
-                            resolvedMediaUrl: resolvedMediaUrl,
+                            resolvedMediaUrls: resolvedMediaUrls,
                           ),
                   ),
                   if (transcriptExpanded && _hasTranscript(record)) ...[
@@ -3293,12 +3373,12 @@ class _RecordContent extends StatelessWidget {
   const _RecordContent({
     required this.record,
     required this.textColor,
-    required this.resolvedMediaUrl,
+    required this.resolvedMediaUrls,
   });
 
   final ChatRecord record;
   final Color textColor;
-  final String resolvedMediaUrl;
+  final List<String> resolvedMediaUrls;
 
   @override
   Widget build(BuildContext context) {
@@ -3308,15 +3388,7 @@ class _RecordContent extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: CachedRemoteImage(
-                resolvedMediaUrl,
-                width: 220,
-                height: 220,
-                fit: BoxFit.cover,
-              ),
-            ),
+            _ChatImageGrid(urls: resolvedMediaUrls),
             if (record.content.trim().isNotEmpty) ...[
               const SizedBox(height: 10),
               Text(
@@ -3445,6 +3517,107 @@ class _BubbleAvatar extends StatelessWidget {
   }
 }
 
+class _PendingChatImage {
+  const _PendingChatImage({required this.path, required this.name});
+
+  final String path;
+  final String name;
+}
+
+class _PendingImageStrip extends StatelessWidget {
+  const _PendingImageStrip({
+    required this.images,
+    required this.enabled,
+    required this.onRemove,
+  });
+
+  final List<_PendingChatImage> images;
+  final bool enabled;
+  final ValueChanged<int> onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _ChatSessionPalette.of(context);
+    return SizedBox(
+      height: 84,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: images.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final image = images[index];
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.file(
+                  File(image.path),
+                  width: 84,
+                  height: 84,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              Positioned(
+                top: -6,
+                right: -6,
+                child: IconButton(
+                  tooltip: _t(context, '移除图片', 'Remove image'),
+                  onPressed: enabled ? () => onRemove(index) : null,
+                  style: IconButton.styleFrom(
+                    minimumSize: const Size.square(28),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    backgroundColor: palette.cardBackground,
+                    foregroundColor: palette.primaryText,
+                    padding: EdgeInsets.zero,
+                  ),
+                  icon: const Icon(Icons.close_rounded, size: 16),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ChatImageGrid extends StatelessWidget {
+  const _ChatImageGrid({required this.urls});
+
+  final List<String> urls;
+
+  @override
+  Widget build(BuildContext context) {
+    if (urls.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    if (urls.length == 1) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: CachedRemoteImage(
+          urls.first,
+          width: 220,
+          height: 220,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+    const size = 104.0;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final url in urls)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: CachedRemoteImage(url, width: size, height: size, fit: BoxFit.cover),
+          ),
+      ],
+    );
+  }
+}
+
 class _ChatComposer extends StatelessWidget {
   const _ChatComposer({
     required this.voiceComposer,
@@ -3452,6 +3625,7 @@ class _ChatComposer extends StatelessWidget {
     required this.recording,
     required this.sending,
     required this.controller,
+    this.pendingImages = const [],
     required this.voiceDurationLabel,
     required this.onSubmitted,
     required this.onToggleVoiceComposer,
@@ -3460,6 +3634,7 @@ class _ChatComposer extends StatelessWidget {
     required this.onLongPressCancel,
     required this.onTapRecording,
     required this.onPickImage,
+    required this.onRemovePendingImage,
   });
 
   final bool voiceComposer;
@@ -3467,6 +3642,7 @@ class _ChatComposer extends StatelessWidget {
   final bool recording;
   final bool sending;
   final TextEditingController controller;
+  final List<_PendingChatImage> pendingImages;
   final String voiceDurationLabel;
   final VoidCallback onSubmitted;
   final VoidCallback onToggleVoiceComposer;
@@ -3475,6 +3651,7 @@ class _ChatComposer extends StatelessWidget {
   final VoidCallback onLongPressCancel;
   final VoidCallback onTapRecording;
   final VoidCallback onPickImage;
+  final ValueChanged<int> onRemovePendingImage;
 
   @override
   Widget build(BuildContext context) {
@@ -3541,64 +3718,86 @@ class _ChatComposer extends StatelessWidget {
                 ),
               ],
             )
-          : Row(
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                IconButton.filledTonal(
-                  tooltip: _t(context, '发送图片', 'Send image'),
-                  onPressed: sending ? null : onPickImage,
-                  style: IconButton.styleFrom(
-                    minimumSize: const Size.square(48),
-                    backgroundColor: palette.softSurface,
-                    foregroundColor: palette.primaryText,
-                  ),
-                  icon: const Icon(Icons.add_photo_alternate_outlined),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: controller,
+                if (pendingImages.isNotEmpty) ...[
+                  _PendingImageStrip(
+                    images: pendingImages,
                     enabled: !sending,
-                    minLines: 1,
-                    maxLines: 5,
-                    decoration: InputDecoration(
-                      hintText: context.l10n.chatMessageHint,
-                      filled: true,
-                      fillColor: palette.softSurface,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(22),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(22),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    onSubmitted: (_) => onSubmitted(),
+                    onRemove: onRemovePendingImage,
                   ),
-                ),
-                if (allowVoice) ...[
-                  const SizedBox(width: 10),
-                  IconButton.filledTonal(
-                    tooltip: _t(context, '语音输入', 'Voice input'),
-                    onPressed: onToggleVoiceComposer,
-                    style: IconButton.styleFrom(
-                      minimumSize: const Size.square(54),
-                      backgroundColor: palette.softSurface,
-                      foregroundColor: palette.primaryText,
-                    ),
-                    icon: const Icon(Icons.mic_none_rounded),
-                  ),
+                  const SizedBox(height: 12),
                 ],
-                const SizedBox(width: 6),
-                IconButton.filled(
-                  tooltip: context.l10n.sendMessage,
-                  onPressed: sending ? null : onSubmitted,
-                  icon: sending
-                      ? const SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.send_rounded),
+                Row(
+                  children: [
+                    IconButton.filledTonal(
+                      tooltip: _t(context, '选择图片', 'Choose images'),
+                      onPressed: sending ? null : onPickImage,
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size.square(48),
+                        backgroundColor: palette.softSurface,
+                        foregroundColor: palette.primaryText,
+                      ),
+                      icon: const Icon(Icons.add_photo_alternate_outlined),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: controller,
+                        enabled: !sending,
+                        minLines: 1,
+                        maxLines: 5,
+                        decoration: InputDecoration(
+                          hintText: pendingImages.isEmpty
+                              ? context.l10n.chatMessageHint
+                              : _t(
+                                  context,
+                                  '写一句想说的话，再发送',
+                                  'Add a caption, then send',
+                                ),
+                          filled: true,
+                          fillColor: palette.softSurface,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(22),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(22),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onSubmitted: (_) => onSubmitted(),
+                      ),
+                    ),
+                    if (allowVoice) ...[
+                      const SizedBox(width: 10),
+                      IconButton.filledTonal(
+                        tooltip: _t(context, '语音输入', 'Voice input'),
+                        onPressed: sending || pendingImages.isNotEmpty
+                            ? null
+                            : onToggleVoiceComposer,
+                        style: IconButton.styleFrom(
+                          minimumSize: const Size.square(54),
+                          backgroundColor: palette.softSurface,
+                          foregroundColor: palette.primaryText,
+                        ),
+                        icon: const Icon(Icons.mic_none_rounded),
+                      ),
+                    ],
+                    const SizedBox(width: 6),
+                    IconButton.filled(
+                      tooltip: context.l10n.sendMessage,
+                      onPressed: sending ? null : onSubmitted,
+                      icon: sending
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.send_rounded),
+                    ),
+                  ],
                 ),
               ],
             ),
