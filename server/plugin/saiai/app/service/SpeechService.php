@@ -209,15 +209,21 @@ final class SpeechService
             throw new ApiException('无法初始化 AI 语音请求', 500);
         }
 
-        curl_setopt_array($curl, [
+        $options = [
             CURLOPT_CUSTOMREQUEST => $method,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_POSTFIELDS => $payload,
             CURLOPT_CONNECTTIMEOUT => 12,
             CURLOPT_TIMEOUT => self::REQUEST_TIMEOUT,
-        ]);
+            CURLOPT_USERAGENT => 'SAIAI-SpeechService/1.0',
+        ];
+        if (strtoupper($method) === 'GET') {
+            $options[CURLOPT_HTTPGET] = true;
+        } else {
+            $options[CURLOPT_POSTFIELDS] = $payload;
+        }
+        curl_setopt_array($curl, $options);
 
         $body = curl_exec($curl);
         $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
@@ -334,7 +340,7 @@ final class SpeechService
             throw new ApiException('AI 语音合成未返回音频地址', 502);
         }
 
-        $audio = $this->request('GET', $audioUrl, [], '');
+        $audio = $this->request('GET', $audioUrl, ['Accept: */*'], '');
         $mimeType = strtolower(trim((string) ($audio['content_type'] ?? '')));
         $extension = str_contains($mimeType, 'wav') ? 'wav' : 'mp3';
 
