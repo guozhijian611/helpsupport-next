@@ -503,15 +503,14 @@
     if (!formData.id) return
     relatedLoading.value = true
     try {
-      const resp = await api.related({
+      const page = await api.related({
         id: formData.id,
         type: relatedType.value,
         page: relatedPage.value,
         limit: relatedLimit.value
       })
-      const data = (resp as any).data || resp
-      relatedList.value = data.data || []
-      relatedTotal.value = Number(data.total || 0)
+      relatedList.value = Array.isArray(page) ? page : page?.data || []
+      relatedTotal.value = Array.isArray(page) ? page.length : Number(page?.total || 0)
     } finally {
       relatedLoading.value = false
     }
