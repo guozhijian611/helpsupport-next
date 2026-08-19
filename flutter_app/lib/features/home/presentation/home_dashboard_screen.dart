@@ -250,14 +250,14 @@ class HomeDashboardScreen extends ConsumerWidget {
       final selected = await showOnlineChatModelSheet(
         context,
         models: models,
-        selectedModelId: int.tryParse(mode.tempSave) ?? 0,
+        selectedModelId: mode.onlineConfigId,
       );
       if (selected == null || !context.mounted) {
         return false;
       }
       await ref
           .read(chatRepositoryProvider)
-          .saveConfig(chatMode: mode.chatMode, tempSave: '${selected.id}');
+          .saveConfig(chatMode: mode.chatMode, onlineConfigId: selected.id);
       ref.invalidate(chatOverviewProvider);
       ref.invalidate(chatConfigProvider(mode.chatMode));
       return true;

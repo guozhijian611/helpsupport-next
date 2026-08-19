@@ -9,8 +9,8 @@
         <el-descriptions-item label="模式">
           <div v-text="helpChatModeLabel(formData?.chat_mode) || formData?.chat_mode"></div>
         </el-descriptions-item>
-        <el-descriptions-item label="临时配置">
-          <div v-text="formData?.temp_save || '无'"></div>
+        <el-descriptions-item label="在线模型配置ID">
+          <div v-text="formData?.online_config_id || '无'"></div>
         </el-descriptions-item>
         <el-descriptions-item label="用户模式描述和前置提示">
           <div v-html="formData?.prompt_text"></div>
@@ -60,7 +60,7 @@
     id: null,
     member_id: null,
     chat_mode: '',
-    temp_save: '',
+    online_config_id: 0,
     prompt_text: ''
   }
 

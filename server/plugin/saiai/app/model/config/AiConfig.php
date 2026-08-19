@@ -22,6 +22,7 @@ use plugin\saiadmin\basic\think\BaseModel;
  * @property  $is_default 是否默认
  * @property  $status 状态
  * @property  $remark 备注
+ * @property  $temp_save 后台临时字符串配置
  * @property  $created_by 创建者
  * @property  $updated_by 更新者
  * @property  $create_time 

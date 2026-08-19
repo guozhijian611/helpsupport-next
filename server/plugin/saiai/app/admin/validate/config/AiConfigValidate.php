@@ -22,6 +22,7 @@ class AiConfigValidate extends BaseValidate
         'ai_key' => 'require',
         'model' => 'require',
         'options' => 'max:2000',
+        'temp_save' => 'max:500',
         'is_default' => 'require',
     ];
 
@@ -33,6 +34,7 @@ class AiConfigValidate extends BaseValidate
         'type' => '平台类型必须填写',
         'ai_key' => 'API Key必须填写',
         'model' => '模型名称必须填写',
+        'temp_save.max' => '临时配置不能超过500个字符',
         'is_default' => '是否默认必须填写',
     ];
 
@@ -46,6 +48,7 @@ class AiConfigValidate extends BaseValidate
             'ai_key',
             'model',
             'options',
+            'temp_save',
             'is_default',
         ],
         'update' => [
@@ -54,6 +57,7 @@ class AiConfigValidate extends BaseValidate
             'ai_key',
             'model',
             'options',
+            'temp_save',
             'is_default',
         ],
     ];

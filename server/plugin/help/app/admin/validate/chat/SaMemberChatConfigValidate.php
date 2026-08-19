@@ -19,7 +19,7 @@ class SaMemberChatConfigValidate extends BaseValidate
     protected $rule =   [
         'member_id' => 'require',
         'chat_mode' => 'require|in:doctor,companion,patient,ai_doctor',
-        'temp_save' => 'max:500',
+        'online_config_id' => 'integer|egt:0',
     ];
 
     /**
@@ -29,7 +29,8 @@ class SaMemberChatConfigValidate extends BaseValidate
         'member_id' => '会员ID必须填写',
         'chat_mode' => '模式 doctor/companion/patient/ai_doctor必须填写',
         'chat_mode.in' => '模式必须是 doctor、companion、patient 或 ai_doctor',
-        'temp_save.max' => '临时配置不能超过500个字符',
+        'online_config_id.integer' => '在线模型配置ID格式错误',
+        'online_config_id.egt' => '在线模型配置ID格式错误',
     ];
 
     /**
@@ -39,12 +40,12 @@ class SaMemberChatConfigValidate extends BaseValidate
         'save' => [
             'member_id',
             'chat_mode',
-            'temp_save',
+            'online_config_id',
         ],
         'update' => [
             'member_id',
             'chat_mode',
-            'temp_save',
+            'online_config_id',
         ],
     ];
 

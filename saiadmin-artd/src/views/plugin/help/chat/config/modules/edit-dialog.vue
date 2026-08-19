@@ -24,12 +24,12 @@
           </el-form-item>
         </el-col>
         <el-col :span="24">
-          <el-form-item label="临时配置" prop="temp_save">
-            <el-input
-              v-model="formData.temp_save"
-              maxlength="500"
-              show-word-limit
-              placeholder="保存字符串，在线聊天写入所选 SAIAI 配置ID，例如 3"
+          <el-form-item label="在线模型配置ID" prop="online_config_id">
+            <el-input-number
+              v-model="formData.online_config_id"
+              :min="0"
+              controls-position="right"
+              class="w-full"
             />
           </el-form-item>
         </el-col>
@@ -98,7 +98,7 @@
     id: null,
     member_id: null,
     chat_mode: '',
-    temp_save: '',
+    online_config_id: 0,
     prompt_text: ''
   }
 

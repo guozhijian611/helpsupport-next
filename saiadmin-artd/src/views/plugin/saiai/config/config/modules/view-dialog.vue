@@ -36,6 +36,9 @@
         <el-descriptions-item label="备注">
           <div v-text="formData?.remark"></div>
         </el-descriptions-item>
+        <el-descriptions-item label="临时配置">
+          <div v-text="formData?.temp_save || '无'"></div>
+        </el-descriptions-item>
       </el-descriptions>
     </div>
     <!-- 详情 end -->
@@ -84,7 +87,8 @@
     is_default: 2,
     status: 1,
     id: null,
-    remark: ''
+    remark: '',
+    temp_save: ''
   }
 
   /**

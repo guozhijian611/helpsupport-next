@@ -123,7 +123,7 @@
         { type: 'selection' },
         { prop: 'member_id', label: '会员', minWidth: 160, useSlot: true },
         { prop: 'chat_mode', label: '模式', width: 120, useSlot: true },
-        { prop: 'temp_save', label: '临时配置', minWidth: 140 },
+        { prop: 'online_config_id', label: '在线模型配置ID', width: 140 },
         { prop: 'prompt_text', label: '用户模式描述和前置提示', minWidth: 260 },
         { prop: 'operation', label: '操作', width: 140, fixed: 'right', useSlot: true }
       ]

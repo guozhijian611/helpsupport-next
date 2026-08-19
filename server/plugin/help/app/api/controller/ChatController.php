@@ -26,7 +26,7 @@ class ChatController extends BaseController
     #[Apidoc\Title('聊天模式概览')]
     #[Apidoc\Url('/app/help/chat/overview')]
     #[Apidoc\Method('GET')]
-    #[Apidoc\Returned('modes', type: 'array', desc: '四种聊天模式、temp_save及最近会话')]
+    #[Apidoc\Returned('modes', type: 'array', desc: '四种聊天模式、后台temp_save、在线模型ID及最近会话')]
     #[Apidoc\Returned('recent_sessions', type: 'array', desc: '最近会话')]
     public function overview(Request $request): Response
     {
@@ -37,7 +37,7 @@ class ChatController extends BaseController
     #[Apidoc\Url('/app/help/chat/config')]
     #[Apidoc\Method('GET')]
     #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient/ai_doctor')]
-    #[Apidoc\Returned('list', type: 'array', desc: '会员聊天提示词和临时字符串配置')]
+    #[Apidoc\Returned('list', type: 'array', desc: '会员聊天提示词和最近选择的在线模型配置ID')]
     public function configs(Request $request): Response
     {
         return ok($this->service->chatConfigs($this->memberId, $request->get()));
@@ -47,8 +47,8 @@ class ChatController extends BaseController
     #[Apidoc\Url('/app/help/chat/config')]
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('chat_mode', type: 'string', require: true, desc: '聊天模式 doctor/companion/patient/ai_doctor')]
-    #[Apidoc\Param('prompt_text', type: 'string', require: false, desc: '用户自定义提示词，与temp_save至少传一项')]
-    #[Apidoc\Param('temp_save', type: 'string', require: false, desc: '临时字符串配置，在线聊天保存所选SAIAI配置ID')]
+    #[Apidoc\Param('prompt_text', type: 'string', require: false, desc: '用户自定义提示词，与online_config_id至少传一项')]
+    #[Apidoc\Param('online_config_id', type: 'int', require: false, desc: '最近选择的在线SAIAI配置ID')]
     #[Apidoc\Returned('id', type: 'int', desc: '配置ID')]
     #[Apidoc\Returned('chat_mode', type: 'string', desc: '聊天模式')]
     public function saveConfig(Request $request): Response
@@ -64,6 +64,7 @@ class ChatController extends BaseController
     #[Apidoc\Returned('type', type: 'string', desc: '平台类型')]
     #[Apidoc\Returned('model', type: 'string', desc: '模型名称')]
     #[Apidoc\Returned('is_default', type: 'boolean', desc: '是否默认模型')]
+    #[Apidoc\Returned('temp_save', type: 'string', desc: '后台AI配置中的临时字符串')]
     public function models(Request $request): Response
     {
         return ok($this->service->onlineChatModels());

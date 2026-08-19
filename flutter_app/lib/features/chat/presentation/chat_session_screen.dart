@@ -2490,7 +2490,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       }
       await ref
           .read(chatRepositoryProvider)
-          .saveConfig(chatMode: widget.chatMode, tempSave: '${selected.id}');
+          .saveConfig(chatMode: widget.chatMode, onlineConfigId: selected.id);
       ref.invalidate(chatConfigProvider(widget.chatMode));
       ref.invalidate(chatOverviewProvider);
       if (mounted) {

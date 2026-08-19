@@ -88,6 +88,18 @@
             <el-input v-model="formData.remark" type="textarea" placeholder="请输入备注" />
           </el-form-item>
         </el-col>
+        <el-col :span="24">
+          <el-form-item label="临时配置" prop="temp_save">
+            <el-input
+              v-model="formData.temp_save"
+              type="textarea"
+              :rows="3"
+              maxlength="500"
+              show-word-limit
+              placeholder="保存给 App 使用的字符串，对应 temp_save"
+            />
+          </el-form-item>
+        </el-col>
       </el-row>
     </el-form>
     <template #footer>
@@ -160,6 +172,7 @@
     is_default: 2,
     status: 1,
     remark: '',
+    temp_save: '',
     id: null
   }
 

@@ -9,7 +9,7 @@
       show-icon
       :closable="false"
       title="App 在线聊天会读取这里已启用的文本模型"
-      description="平台类型为 openai、gemini、deepseek、generic 且状态为启用的配置，会出现在 App 四种聊天模式（含 AI 医生）的模型选择器中。realtime 只用于音视频通话。用户选择的配置 ID 会保存到会员聊天配置的 temp_save，不需要在本页单独绑定聊天模式。"
+      description="平台类型为 openai、gemini、deepseek、generic 且状态为启用的配置，会出现在 App 四种聊天模式（含 AI 医生）的模型选择器中。realtime 只用于音视频通话。temp_save 在本页每条 AI 配置中填写，App 会按所选模型读取该字符串。"
     />
 
     <ElCard class="art-table-card" shadow="never">
@@ -131,6 +131,7 @@
         { prop: 'type', label: '平台类型', saiType: 'dict', saiDict: 'crontab_task_type' },
         { prop: 'model', label: '模型名称', saiType: 'dict', saiDict: 'attachment_type' },
         { prop: 'is_default', label: '是否默认', saiType: 'dict', saiDict: 'yes_or_no' },
+        { prop: 'temp_save', label: '临时配置', minWidth: 160 },
         { prop: 'app_online', label: 'App文字聊天', width: 140, useSlot: true },
         { prop: 'status', label: '状态', saiType: 'dict', saiDict: 'data_status' },
         { prop: 'operation', label: '操作', width: 140, fixed: 'right', useSlot: true }

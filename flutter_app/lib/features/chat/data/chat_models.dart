@@ -22,6 +22,7 @@ class ChatModeInfo {
   const ChatModeInfo({
     required this.chatMode,
     required this.promptText,
+    required this.onlineConfigId,
     required this.tempSave,
     required this.robotProfile,
     required this.sessionCount,
@@ -30,6 +31,7 @@ class ChatModeInfo {
 
   final String chatMode;
   final String promptText;
+  final int onlineConfigId;
   final String tempSave;
   final AiRobotProfile robotProfile;
   final int sessionCount;
@@ -40,6 +42,7 @@ class ChatModeInfo {
     return ChatModeInfo(
       chatMode: chatMode,
       promptText: (json['prompt_text'] as String?) ?? '',
+      onlineConfigId: (json['online_config_id'] as num?)?.toInt() ?? 0,
       tempSave: (json['temp_save'] ?? '').toString(),
       robotProfile: AiRobotProfile.fromJson(
         _map(json['robot_profile']),
@@ -185,22 +188,22 @@ class ChatConfig {
     required this.id,
     required this.chatMode,
     required this.promptText,
-    required this.tempSave,
+    required this.onlineConfigId,
   });
 
   final int id;
   final String chatMode;
   final String promptText;
-  final String tempSave;
+  final int onlineConfigId;
 
-  int get selectedOnlineModelId => int.tryParse(tempSave.trim()) ?? 0;
+  int get selectedOnlineModelId => onlineConfigId;
 
   factory ChatConfig.fromJson(Map<String, dynamic> json) {
     return ChatConfig(
       id: (json['id'] as num?)?.toInt() ?? 0,
       chatMode: (json['chat_mode'] as String?) ?? '',
       promptText: (json['prompt_text'] as String?) ?? '',
-      tempSave: (json['temp_save'] ?? '').toString(),
+      onlineConfigId: (json['online_config_id'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -212,6 +215,7 @@ class OnlineChatModel {
     required this.type,
     required this.model,
     required this.isDefault,
+    required this.tempSave,
   });
 
   final int id;
@@ -219,6 +223,7 @@ class OnlineChatModel {
   final String type;
   final String model;
   final bool isDefault;
+  final String tempSave;
 
   String get displayName => name.trim().isNotEmpty ? name : model;
 
@@ -229,6 +234,7 @@ class OnlineChatModel {
       type: (json['type'] ?? '').toString(),
       model: (json['model'] ?? '').toString(),
       isDefault: json['is_default'] == true || json['is_default'] == 1,
+      tempSave: (json['temp_save'] ?? '').toString(),
     );
   }
 }

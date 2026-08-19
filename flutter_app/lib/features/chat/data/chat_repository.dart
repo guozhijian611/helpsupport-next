@@ -69,17 +69,17 @@ class ChatRepository {
   Future<ChatConfig> saveConfig({
     required String chatMode,
     String? promptText,
-    String? tempSave,
+    int? onlineConfigId,
   }) async {
-    if (promptText == null && tempSave == null) {
-      throw ArgumentError('promptText and tempSave cannot both be null');
+    if (promptText == null && onlineConfigId == null) {
+      throw ArgumentError('promptText and onlineConfigId cannot both be null');
     }
     final result = await _apiClient.postApi<ChatConfig>(
       '/app/help/chat/config',
       data: {
         'chat_mode': chatMode,
         if (promptText != null) 'prompt_text': promptText,
-        if (tempSave != null) 'temp_save': tempSave,
+        if (onlineConfigId != null) 'online_config_id': onlineConfigId,
       },
       decode: (value) {
         if (value is Map<String, dynamic>) {

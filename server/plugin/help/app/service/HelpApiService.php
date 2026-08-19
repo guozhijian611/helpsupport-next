@@ -893,10 +893,14 @@ class HelpApiService
                 ->order('id', 'desc')
                 ->find() ?: [];
 
+            $onlineConfigId = max(0, (int) ($chatConfig['online_config_id'] ?? 0));
+            $aiConfig = $this->findOnlineChatModel($onlineConfigId);
+
             $modes[] = [
                 'chat_mode' => $mode,
                 'prompt_text' => (string) ($chatConfig['prompt_text'] ?? ''),
-                'temp_save' => (string) ($chatConfig['temp_save'] ?? ''),
+                'online_config_id' => $onlineConfigId,
+                'temp_save' => (string) ($aiConfig['temp_save'] ?? ''),
                 'robot_profile' => $robotProfiles[$mode] ?? $this->defaultAiRobotProfile($mode, 'online'),
                 'session_count' => (int) Db::table('sa_member_chat_session')
                     ->where('member_id', $memberId)
@@ -935,19 +939,13 @@ class HelpApiService
             ->where('status', 1)
             ->where('model', '<>', '')
             ->whereNull('delete_time')
-            ->field('id, name, type, model, is_default')
+            ->field($this->onlineChatModelFields())
             ->orderRaw('CASE WHEN `is_default` = 1 THEN 0 ELSE 1 END ASC')
             ->order('id', 'asc')
             ->select()
             ->toArray();
 
-        return array_map(static fn (array $row): array => [
-            'id' => (int) ($row['id'] ?? 0),
-            'name' => trim((string) ($row['name'] ?? '')),
-            'type' => trim((string) ($row['type'] ?? '')),
-            'model' => trim((string) ($row['model'] ?? '')),
-            'is_default' => (int) ($row['is_default'] ?? 0) === 1,
-        ], $rows);
+        return array_map(fn (array $row): array => $this->mapOnlineChatModel($row), $rows);
     }
 
     public function aiRobotProfiles(array $params): array
@@ -983,26 +981,18 @@ class HelpApiService
     {
         $chatMode = $this->chatMode($data['chat_mode'] ?? '');
         $hasPromptText = array_key_exists('prompt_text', $data);
-        $hasTempSave = array_key_exists('temp_save', $data);
-        if (!$hasPromptText && !$hasTempSave) {
-            throw new ApiException('聊天提示词和临时配置至少填写一项', 400);
+        $hasOnlineConfigId = array_key_exists('online_config_id', $data);
+        if (!$hasPromptText && !$hasOnlineConfigId) {
+            throw new ApiException('聊天提示词和在线模型配置至少填写一项', 400);
         }
 
         $promptText = trim((string) ($data['prompt_text'] ?? ''));
         if ($hasPromptText && $promptText === '') {
             throw new ApiException('聊天提示词必须填写', 400);
         }
-        $tempSave = trim((string) ($data['temp_save'] ?? ''));
-        if ($hasTempSave) {
-            if (mb_strlen($tempSave) > 500) {
-                throw new ApiException('临时配置不能超过500个字符', 400);
-            }
-            if ($tempSave !== '') {
-                if (!ctype_digit($tempSave) || (int) $tempSave <= 0) {
-                    throw new ApiException('在线模型配置ID格式错误', 400);
-                }
-                $this->assertOnlineChatModel((int) $tempSave);
-            }
+        $onlineConfigId = max(0, (int) ($data['online_config_id'] ?? 0));
+        if ($hasOnlineConfigId && $onlineConfigId > 0) {
+            $this->assertOnlineChatModel($onlineConfigId);
         }
 
         $now = date('Y-m-d H:i:s');
@@ -1020,8 +1010,8 @@ class HelpApiService
             if ($hasPromptText) {
                 $payload['prompt_text'] = $promptText;
             }
-            if ($hasTempSave) {
-                $payload['temp_save'] = $tempSave;
+            if ($hasOnlineConfigId) {
+                $payload['online_config_id'] = $onlineConfigId;
             }
             Db::table('sa_member_chat_config')->where('id', $exists['id'])->update($payload);
             return Db::table('sa_member_chat_config')->where('id', $exists['id'])->find() ?: [];
@@ -1031,7 +1021,7 @@ class HelpApiService
             'member_id' => $memberId,
             'chat_mode' => $chatMode,
             'prompt_text' => $hasPromptText ? $promptText : '',
-            'temp_save' => $hasTempSave ? $tempSave : '',
+            'online_config_id' => $hasOnlineConfigId ? $onlineConfigId : 0,
             'created_by' => $memberId,
             'updated_by' => $memberId,
             'create_time' => $now,
@@ -6949,6 +6939,81 @@ class HelpApiService
         return $cache[$table];
     }
 
+    private function tableHasColumn(string $table, string $column): bool
+    {
+        static $cache = [];
+        $key = $table . '.' . $column;
+        if (array_key_exists($key, $cache)) {
+            return $cache[$key];
+        }
+        if (!$this->tableExists($table) || !preg_match('/^[a-zA-Z0-9_]+$/', $column)) {
+            $cache[$key] = false;
+            return false;
+        }
+
+        try {
+            $cache[$key] = Db::query("SHOW COLUMNS FROM `{$table}` LIKE '{$column}'") !== [];
+        } catch (Throwable) {
+            $cache[$key] = false;
+        }
+
+        return $cache[$key];
+    }
+
+    private function onlineChatModelFields(): string
+    {
+        $fields = 'id, name, type, model, is_default';
+        if ($this->tableHasColumn('saiai_config', 'temp_save')) {
+            $fields .= ', temp_save';
+        }
+
+        return $fields;
+    }
+
+    private function mapOnlineChatModel(array $row): array
+    {
+        return [
+            'id' => (int) ($row['id'] ?? 0),
+            'name' => trim((string) ($row['name'] ?? '')),
+            'type' => trim((string) ($row['type'] ?? '')),
+            'model' => trim((string) ($row['model'] ?? '')),
+            'is_default' => (int) ($row['is_default'] ?? 0) === 1,
+            'temp_save' => (string) ($row['temp_save'] ?? ''),
+        ];
+    }
+
+    private function findOnlineChatModel(int $configId): array
+    {
+        if (!$this->tableExists('saiai_config')) {
+            return $this->mapOnlineChatModel([]);
+        }
+
+        $row = [];
+        if ($configId > 0) {
+            $row = Db::table('saiai_config')
+                ->where('id', $configId)
+                ->whereIn('type', self::ONLINE_CHAT_MODEL_TYPES)
+                ->where('status', 1)
+                ->where('model', '<>', '')
+                ->whereNull('delete_time')
+                ->field($this->onlineChatModelFields())
+                ->find() ?: [];
+        }
+        if ($row === []) {
+            $row = Db::table('saiai_config')
+                ->whereIn('type', self::ONLINE_CHAT_MODEL_TYPES)
+                ->where('status', 1)
+                ->where('model', '<>', '')
+                ->whereNull('delete_time')
+                ->field($this->onlineChatModelFields())
+                ->orderRaw('CASE WHEN `is_default` = 1 THEN 0 ELSE 1 END ASC')
+                ->order('id', 'asc')
+                ->find() ?: [];
+        }
+
+        return $this->mapOnlineChatModel($row);
+    }
+
     private function normalizeAiRobotProfile(array $row, string $runtimeMode): array
     {
         $chatMode = (string) ($row['chat_mode'] ?? '');
@@ -7016,12 +7081,11 @@ class HelpApiService
     {
         $configId = max(0, (int) ($data['config_id'] ?? 0));
         if ($configId <= 0) {
-            $tempSave = trim((string) Db::table('sa_member_chat_config')
+            $configId = max(0, (int) Db::table('sa_member_chat_config')
                 ->where('member_id', $memberId)
                 ->where('chat_mode', $chatMode)
                 ->whereNull('delete_time')
-                ->value('temp_save'));
-            $configId = ctype_digit($tempSave) ? (int) $tempSave : 0;
+                ->value('online_config_id'));
         }
         if ($configId > 0) {
             $this->assertOnlineChatModel($configId);
@@ -7038,7 +7102,7 @@ class HelpApiService
             ->where('status', 1)
             ->where('model', '<>', '')
             ->whereNull('delete_time')
-            ->field('id, name, type, model, is_default')
+            ->field($this->onlineChatModelFields())
             ->find();
         if (!$model) {
             throw new ApiException('所选在线 AI 模型不存在或未启用，请重新选择', 400);
