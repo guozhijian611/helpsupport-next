@@ -152,6 +152,8 @@
 
 系统提示词优先读角色预设；仅当角色允许用户改提示词时才拼接会员 `prompt_text`。
 
+图片消息会把可公网访问的图片 URL 作为 `image_url` 发给模型，不再只传文字链接。看图需要多模态模型（如 `qwen3.8-max`），接口地址用 `https://dashscope.aliyuncs.com/compatible-mode/v1`，不要填 `/api/v2/apps/protocols/`。
+
 ## 后台配置入口
 
 后台「AI 管理」是三级菜单：

@@ -333,7 +333,8 @@ class ChatController extends BaseController
             foreach (AiFactory::chatStreamByConfigId(
                 (string) $context['ai_message'],
                 (array) $context['history'],
-                (int) $context['config_id']
+                (int) $context['config_id'],
+                (array) ($context['ai_image_urls'] ?? [])
             ) as $chunk) {
                 $aiMeta['model'] = (string) ($chunk['model'] ?? $aiMeta['model']);
                 $aiMeta['type'] = (string) ($chunk['platform_type'] ?? $aiMeta['type']);

@@ -1456,7 +1456,12 @@ class HelpApiService
 
         $history = $sessionId > 0 ? $this->chatHistory($memberId, $sessionId) : [];
         $prompt = $this->chatSystemPrompt($memberId, $chatMode, (string) ($data['locale'] ?? 'zh-CN'));
-        $aiResult = AiFactory::chatOnceByConfigId($this->chatAiMessage($prompt, $input['ai_content']), $history, $configId);
+        $aiResult = AiFactory::chatOnceByConfigId(
+            $this->chatAiMessage($prompt, $input['ai_content']),
+            $history,
+            $configId,
+            $input['ai_image_urls'] ?? []
+        );
         $assistantContent = trim((string) ($aiResult['content'] ?? ''));
         if ($assistantContent === '') {
             throw new ApiException('AI 未返回有效内容', 502);
@@ -1619,6 +1624,7 @@ class HelpApiService
             'content' => $content,
             'history' => $history,
             'ai_message' => $this->chatAiMessage($prompt, $input['ai_content']),
+            'ai_image_urls' => $input['ai_image_urls'] ?? [],
             'config_id' => $configId,
             'tts_runtime' => trim((string) ($data['tts_runtime'] ?? '')),
         ];
@@ -7199,7 +7205,7 @@ class HelpApiService
     }
 
     /**
-     * @return array{content:string,ai_content:string,ext:array<string,mixed>}
+     * @return array{content:string,ai_content:string,ai_image_urls:list<string>,ext:array<string,mixed>}
      */
     private function prepareOnlineChatInput(array $data, string $contentType, int $configId): array
     {
@@ -7210,7 +7216,7 @@ class HelpApiService
                 throw new ApiException('消息内容必须填写', 400);
             }
 
-            return ['content' => $content, 'ai_content' => $content, 'ext' => []];
+            return ['content' => $content, 'ai_content' => $content, 'ai_image_urls' => [], 'ext' => []];
         }
 
         $attachmentIds = $this->chatAttachmentIds($data);
@@ -7251,16 +7257,18 @@ class HelpApiService
         ];
         if ($contentType === 'image') {
             $imageUrls = [];
-            $aiLines = [];
-            foreach ($attachments as $index => $attachment) {
+            $aiImageUrls = [];
+            foreach ($attachments as $attachment) {
                 $imageSuffix = strtolower((string) ($attachment['suffix'] ?? ''));
                 $imageUrl = trim((string) ($attachment['url'] ?? ''));
                 if (!in_array($imageSuffix, self::CHAT_IMAGE_EXTENSIONS, true) || $imageUrl === '') {
                     throw new ApiException('附件不是可用的聊天图片', 400);
                 }
-                $clientImageUrl = $this->chatAttachmentClientUrl($attachment);
-                $imageUrls[] = $clientImageUrl;
-                $aiLines[] = ($index + 1) . '. ' . $imageUrl;
+                $imageUrls[] = $this->chatAttachmentClientUrl($attachment);
+                $aiUrl = $this->chatAttachmentAiUrl($attachment);
+                if ($aiUrl !== '') {
+                    $aiImageUrls[] = $aiUrl;
+                }
             }
             $caption = (new HelpRiskService())->filterText('chat', $content);
             if ($caption === '') {
@@ -7271,7 +7279,8 @@ class HelpApiService
 
             return [
                 'content' => $caption,
-                'ai_content' => "用户发送了" . count($imageUrls) . "张图片：\n" . implode("\n", $aiLines) . "\n用户补充：{$caption}",
+                'ai_content' => '用户发送了' . count($imageUrls) . "张图片，请直接查看本条消息中附带的图片。\n用户补充：{$caption}",
+                'ai_image_urls' => array_values(array_unique($aiImageUrls)),
                 'ext' => $ext,
             ];
         }
@@ -7299,7 +7308,7 @@ class HelpApiService
         $ext['duration_seconds'] = $durationSeconds;
         $ext['transcript'] = $transcript;
 
-        return ['content' => $transcript, 'ai_content' => $transcript, 'ext' => $ext];
+        return ['content' => $transcript, 'ai_content' => $transcript, 'ai_image_urls' => [], 'ext' => $ext];
     }
 
     /**
@@ -7335,6 +7344,60 @@ class HelpApiService
         return (int) ($attachment['storage_mode'] ?? 0) === 1
             ? ((string) (parse_url($url, PHP_URL_PATH) ?: $url))
             : $url;
+    }
+
+    /**
+     * @param array<string, mixed> $attachment
+     */
+    private function chatAttachmentAiUrl(array $attachment): string
+    {
+        $candidates = [
+            trim((string) ($attachment['url'] ?? '')),
+            $this->chatAttachmentClientUrl($attachment),
+        ];
+        foreach ($candidates as $candidate) {
+            if (preg_match('/^https?:\/\//i', $candidate) === 1) {
+                return $candidate;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @param array<string, mixed> $record
+     * @return list<string>
+     */
+    private function chatRecordImageUrls(array $record): array
+    {
+        if ((string) ($record['content_type'] ?? '') !== 'image') {
+            return [];
+        }
+        $ext = $record['ext'] ?? [];
+        if (is_string($ext)) {
+            $decoded = json_decode($ext, true);
+            $ext = is_array($decoded) ? $decoded : [];
+        }
+        if (!is_array($ext)) {
+            return [];
+        }
+        $urls = [];
+        $candidates = $ext['media_urls'] ?? [];
+        if (!is_array($candidates)) {
+            $candidates = $candidates === '' || $candidates === null ? [] : [$candidates];
+        }
+        foreach ($candidates as $url) {
+            $url = trim((string) $url);
+            if (preg_match('/^https?:\/\//i', $url) === 1) {
+                $urls[] = $url;
+            }
+        }
+        $single = trim((string) ($ext['media_url'] ?? ''));
+        if ($urls === [] && preg_match('/^https?:\/\//i', $single) === 1) {
+            $urls[] = $single;
+        }
+
+        return array_values(array_unique($urls));
     }
 
     /**
@@ -7375,14 +7438,23 @@ class HelpApiService
             ->where('status', 1)
             ->whereNull('delete_time')
             ->whereIn('role', ['user', 'assistant'])
-            ->field('role, content')
+            ->field('role, content, content_type, ext')
             ->order('message_time', 'desc')
             ->order('id', 'desc')
             ->limit($limit)
             ->select()
             ->toArray();
 
-        return array_reverse($records);
+        $history = [];
+        foreach (array_reverse($records) as $record) {
+            $history[] = [
+                'role' => (string) ($record['role'] ?? ''),
+                'content' => trim((string) ($record['content'] ?? '')),
+                'image_urls' => $this->chatRecordImageUrls($record),
+            ];
+        }
+
+        return $history;
     }
 
     private function chatSystemPrompt(int $memberId, string $chatMode, string $locale = 'zh-CN'): string

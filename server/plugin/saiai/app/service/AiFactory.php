@@ -15,8 +15,10 @@ use Symfony\AI\Platform\Bridge\DeepSeek\Factory as DeepPlatformFactory;
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
+use Symfony\AI\Platform\Message\Content\ImageUrl;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
+use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Result\TextResult;
 use plugin\saiai\app\tool\DocTool;
 use plugin\saiai\app\tool\DbTool;
@@ -88,46 +90,47 @@ class AiFactory
         return new Agent($platform, $resolvedModel, [$agentProcessor], [$agentProcessor]);
     }
 
-    public static function chatOnce(string $message, array $history = [], ?string $model = null): array
+    public static function chatOnce(string $message, array $history = [], ?string $model = null, array $imageUrls = []): array
     {
         return self::chatOnceWithResolved(
             self::resolveConfig(self::DEFAULT_CHAT_TYPE, $model),
             $message,
-            $history
+            $history,
+            $imageUrls
         );
     }
 
-    public static function chatOnceByConfigId(string $message, array $history = [], int $configId = 0): array
+    public static function chatOnceByConfigId(string $message, array $history = [], int $configId = 0, array $imageUrls = []): array
     {
         if ($configId <= 0) {
-            return self::chatOnce($message, $history);
+            return self::chatOnce($message, $history, null, $imageUrls);
         }
 
         $resolved = self::resolveConfigById($configId);
-        return self::chatOnceWithResolved($resolved, $message, $history);
+        return self::chatOnceWithResolved($resolved, $message, $history, $imageUrls);
     }
 
-    public static function chatStream(string $message, array $history = [], ?string $model = null): \Generator
+    public static function chatStream(string $message, array $history = [], ?string $model = null, array $imageUrls = []): \Generator
     {
         $resolved = self::resolveConfig(self::DEFAULT_CHAT_TYPE, $model);
-        yield from self::chatStreamWithResolved($resolved, $message, $history);
+        yield from self::chatStreamWithResolved($resolved, $message, $history, $imageUrls);
     }
 
-    public static function chatStreamByConfigId(string $message, array $history = [], int $configId = 0): \Generator
+    public static function chatStreamByConfigId(string $message, array $history = [], int $configId = 0, array $imageUrls = []): \Generator
     {
         if ($configId <= 0) {
-            yield from self::chatStream($message, $history);
+            yield from self::chatStream($message, $history, null, $imageUrls);
             return;
         }
 
-        yield from self::chatStreamWithResolved(self::resolveConfigById($configId), $message, $history);
+        yield from self::chatStreamWithResolved(self::resolveConfigById($configId), $message, $history, $imageUrls);
     }
 
-    protected static function chatStreamWithResolved(array $resolved, string $message, array $history = []): \Generator
+    protected static function chatStreamWithResolved(array $resolved, string $message, array $history = [], array $imageUrls = []): \Generator
     {
         $resolvedModel = (string) $resolved['model'];
         $agent = self::createAgentFromResolved($resolved, false);
-        $messages = self::buildChatMessages($message, $history);
+        $messages = self::buildChatMessages($message, $history, $imageUrls);
 
         try {
             $response = $agent->call($messages, [
@@ -174,11 +177,11 @@ class AiFactory
         ];
     }
 
-    protected static function chatOnceWithResolved(array $resolved, string $message, array $history = []): array
+    protected static function chatOnceWithResolved(array $resolved, string $message, array $history = [], array $imageUrls = []): array
     {
         $resolvedModel = (string) $resolved['model'];
         $agent = self::createAgentFromResolved($resolved, false);
-        $messages = self::buildChatMessages($message, $history);
+        $messages = self::buildChatMessages($message, $history, $imageUrls);
 
         try {
             $response = $agent->call($messages, [
@@ -393,6 +396,7 @@ class AiFactory
             '/audio/transcriptions',
             '/v1/audio/speech',
             '/audio/speech',
+            '/v1',
         ] as $suffix) {
             if (str_ends_with(strtolower($apiUrl), $suffix)) {
                 return substr($apiUrl, 0, -strlen($suffix));
@@ -446,7 +450,7 @@ class AiFactory
         return '';
     }
 
-    protected static function buildChatMessages(string $message, array $history = []): MessageBag
+    protected static function buildChatMessages(string $message, array $history = [], array $imageUrls = []): MessageBag
     {
         $messages = [
             Message::forSystem('你是一个中文 AI 助手，请用简洁、清晰、可执行的方式回答用户。'),
@@ -455,21 +459,46 @@ class AiFactory
         foreach ($history as $item) {
             $role = (string) ($item['role'] ?? '');
             $content = trim((string) ($item['content'] ?? ''));
-            if ($content === '') {
+            $historyImages = is_array($item['image_urls'] ?? null) ? $item['image_urls'] : [];
+            if ($content === '' && $historyImages === []) {
                 continue;
             }
 
             if ($role === 'assistant') {
-                $messages[] = Message::ofAssistant($content);
+                if ($content !== '') {
+                    $messages[] = Message::ofAssistant($content);
+                }
                 continue;
             }
 
-            $messages[] = Message::ofUser($content);
+            $messages[] = self::userMessage($content, $historyImages);
         }
 
-        $messages[] = Message::ofUser($message);
+        $messages[] = self::userMessage($message, $imageUrls);
 
         return new MessageBag(...$messages);
+    }
+
+    /**
+     * @param list<mixed> $imageUrls
+     */
+    protected static function userMessage(string $content, array $imageUrls = []): UserMessage
+    {
+        $parts = [];
+        foreach ($imageUrls as $url) {
+            $url = trim((string) $url);
+            if (preg_match('/^https?:\/\//i', $url) === 1) {
+                $parts[] = new ImageUrl($url);
+            }
+        }
+        if ($content !== '') {
+            $parts[] = $content;
+        }
+        if ($parts === []) {
+            $parts[] = '';
+        }
+
+        return Message::ofUser(...$parts);
     }
 
     protected static function buildImageGenerationUrl(string $apiUrl, string $platformType): string

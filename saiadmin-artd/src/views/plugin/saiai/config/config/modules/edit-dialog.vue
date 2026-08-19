@@ -32,6 +32,14 @@
             title="该配置会出现在 App 在线文字聊天的模型选择器中，所有开放在线模式的互动角色共用。"
           />
         </el-col>
+        <el-col :span="24" v-if="formData.type === 'generic'">
+          <el-alert
+            type="warning"
+            :closable="false"
+            show-icon
+            title="阿里云 qwen3.8-max 看图请填 https://dashscope.aliyuncs.com/compatible-mode/v1，不要填 /api/v2/apps/protocols/。"
+          />
+        </el-col>
         <el-col :span="24" v-else-if="formData.type === 'realtime'">
           <el-alert
             type="warning"
