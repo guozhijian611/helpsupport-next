@@ -2136,7 +2136,13 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       if (existing.contains(image.path)) {
         continue;
       }
-      added.add(_PendingChatImage(path: image.path, name: image.name));
+      added.add(
+        _PendingChatImage(
+          id: '${DateTime.now().microsecondsSinceEpoch}-${image.path}',
+          path: image.path,
+          name: image.name,
+        ),
+      );
       if (_pendingImages.length + added.length >= _maxPendingChatImages) {
         break;
       }
@@ -2145,50 +2151,99 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
       return;
     }
     setState(() => _pendingImages = [..._pendingImages, ...added]);
+    for (final image in added) {
+      unawaited(_uploadPendingImage(image));
+    }
   }
 
-  void _removePendingImage(int index) {
-    if (index < 0 || index >= _pendingImages.length) {
-      return;
+  Future<void> _uploadPendingImage(_PendingChatImage image) async {
+    try {
+      final upload = await ref
+          .read(chatRepositoryProvider)
+          .uploadMedia(
+            path: image.path,
+            fileName: image.name,
+            mediaType: 'image',
+          );
+      if (!mounted) {
+        return;
+      }
+      _replacePendingImage(
+        image.id,
+        (current) => current.copyWith(
+          uploading: false,
+          attachmentId: upload.attachmentId,
+          url: upload.url,
+        ),
+      );
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _pendingImages = _pendingImages
+            .where((item) => item.id != image.id)
+            .toList(growable: false);
+      });
+      context.showCenteredNotice(error.toString());
     }
+  }
+
+  void _replacePendingImage(
+    String id,
+    _PendingChatImage Function(_PendingChatImage current) transform,
+  ) {
     setState(() {
-      _pendingImages = [..._pendingImages]..removeAt(index);
+      _pendingImages = _pendingImages
+          .map((item) => item.id == id ? transform(item) : item)
+          .toList(growable: false);
+    });
+  }
+
+  void _removePendingImage(String id) {
+    setState(() {
+      _pendingImages = _pendingImages
+          .where((item) => item.id != id)
+          .toList(growable: false);
     });
   }
 
   Future<void> _sendPendingImages(String content) async {
-    final images = List<_PendingChatImage>.from(_pendingImages);
-    try {
-      setState(() => _sending = true);
-      final uploads = <ChatMediaUpload>[];
-      for (final image in images) {
-        uploads.add(
-          await ref
-              .read(chatRepositoryProvider)
-              .uploadMedia(
-                path: image.path,
-                fileName: image.name,
-                mediaType: 'image',
-              ),
+    if (_pendingImages.any((image) => image.uploading)) {
+      if (mounted) {
+        context.showCenteredNotice(
+          _t(
+            context,
+            '图片还在上传，请稍候再发送',
+            'Images are still uploading. Please wait.',
+          ),
         );
       }
-      if (!mounted) {
-        return;
+      return;
+    }
+    final images = List<_PendingChatImage>.from(_pendingImages);
+    if (images.any((image) => image.attachmentId <= 0)) {
+      if (mounted) {
+        context.showCenteredNotice(
+          _t(context, '有图片上传失败，请重新选择', 'Some images failed to upload. Please choose again.'),
+        );
       }
+      return;
+    }
+    try {
       _controller.clear();
-      setState(() {
-        _sending = false;
-        _pendingImages = const [];
-      });
+      setState(() => _pendingImages = const []);
       await _sendChatContent(
         content: content,
         contentType: 'image',
-        attachmentIds: uploads.map((item) => item.attachmentId).toList(),
-        mediaUrls: uploads.map((item) => item.url).toList(),
+        attachmentIds: images.map((item) => item.attachmentId).toList(),
+        mediaUrls: images
+            .map((item) => item.url.isNotEmpty ? item.url : item.path)
+            .toList(),
       );
     } on Object catch (error) {
       if (mounted) {
-        setState(() => _sending = false);
+        setState(() => _pendingImages = images);
         context.showCenteredNotice(error.toString());
       }
     }
@@ -3071,7 +3126,7 @@ class _RecordList extends StatelessWidget {
             userAvatarUrl: userAvatarUrl,
             assistantAvatarUrl: assistantAvatarUrl,
             resolvedMediaUrls: record.displayMediaUrls
-                .map(resolveMediaUrl)
+                .map((url) => _chatImageUrl(url, resolveMediaUrl))
                 .where((url) => url.trim().isNotEmpty)
                 .toList(growable: false),
             transcriptExpanded: expandedVoiceTextIds.contains(record.id),
@@ -3520,10 +3575,36 @@ class _BubbleAvatar extends StatelessWidget {
 }
 
 class _PendingChatImage {
-  const _PendingChatImage({required this.path, required this.name});
+  const _PendingChatImage({
+    required this.id,
+    required this.path,
+    required this.name,
+    this.uploading = true,
+    this.attachmentId = 0,
+    this.url = '',
+  });
 
+  final String id;
   final String path;
   final String name;
+  final bool uploading;
+  final int attachmentId;
+  final String url;
+
+  _PendingChatImage copyWith({
+    bool? uploading,
+    int? attachmentId,
+    String? url,
+  }) {
+    return _PendingChatImage(
+      id: id,
+      path: path,
+      name: name,
+      uploading: uploading ?? this.uploading,
+      attachmentId: attachmentId ?? this.attachmentId,
+      url: url ?? this.url,
+    );
+  }
 }
 
 class _PendingImageStrip extends StatelessWidget {
@@ -3535,7 +3616,7 @@ class _PendingImageStrip extends StatelessWidget {
 
   final List<_PendingChatImage> images;
   final bool enabled;
-  final ValueChanged<int> onRemove;
+  final ValueChanged<String> onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -3558,14 +3639,39 @@ class _PendingImageStrip extends StatelessWidget {
                   width: 84,
                   height: 84,
                   fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => ColoredBox(
+                    color: palette.softSurface,
+                    child: Icon(
+                      Icons.image_outlined,
+                      color: palette.secondaryText,
+                    ),
+                  ),
                 ),
               ),
+              if (image.uploading)
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.28),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Center(
+                      child: SizedBox.square(
+                        dimension: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               Positioned(
                 top: -6,
                 right: -6,
                 child: IconButton(
                   tooltip: _t(context, '移除图片', 'Remove image'),
-                  onPressed: enabled ? () => onRemove(index) : null,
+                  onPressed: enabled ? () => onRemove(image.id) : null,
                   style: IconButton.styleFrom(
                     minimumSize: const Size.square(28),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -3584,6 +3690,31 @@ class _PendingImageStrip extends StatelessWidget {
   }
 }
 
+class _ChatImageThumb extends StatelessWidget {
+  const _ChatImageThumb({
+    required this.url,
+    required this.width,
+    required this.height,
+  });
+
+  final String url;
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLocalChatImagePath(url)) {
+      return Image.file(
+        File(url),
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+      );
+    }
+    return CachedRemoteImage(url, width: width, height: height, fit: BoxFit.cover);
+  }
+}
+
 class _ChatImageGrid extends StatelessWidget {
   const _ChatImageGrid({required this.urls});
 
@@ -3597,12 +3728,7 @@ class _ChatImageGrid extends StatelessWidget {
     if (urls.length == 1) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: CachedRemoteImage(
-          urls.first,
-          width: 220,
-          height: 220,
-          fit: BoxFit.cover,
-        ),
+        child: _ChatImageThumb(url: urls.first, width: 220, height: 220),
       );
     }
     const size = 104.0;
@@ -3613,7 +3739,7 @@ class _ChatImageGrid extends StatelessWidget {
         for (final url in urls)
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: CachedRemoteImage(url, width: size, height: size, fit: BoxFit.cover),
+            child: _ChatImageThumb(url: url, width: size, height: size),
           ),
       ],
     );
@@ -3653,7 +3779,7 @@ class _ChatComposer extends StatelessWidget {
   final VoidCallback onLongPressCancel;
   final VoidCallback onTapRecording;
   final VoidCallback onPickImage;
-  final ValueChanged<int> onRemovePendingImage;
+  final ValueChanged<String> onRemovePendingImage;
 
   @override
   Widget build(BuildContext context) {
@@ -4991,6 +5117,18 @@ class _CallCameraSetupException implements Exception {
   const _CallCameraSetupException(this.message);
 
   final String message;
+}
+
+bool _isLocalChatImagePath(String value) {
+  final path = value.trim();
+  if (path.isEmpty || path.startsWith('http://') || path.startsWith('https://')) {
+    return false;
+  }
+  return File(path).existsSync();
+}
+
+String _chatImageUrl(String value, String Function(String value) resolveMediaUrl) {
+  return _isLocalChatImagePath(value) ? value.trim() : resolveMediaUrl(value);
 }
 
 String _t(BuildContext context, String zh, String en) {

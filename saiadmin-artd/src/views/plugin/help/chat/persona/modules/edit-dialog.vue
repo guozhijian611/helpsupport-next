@@ -347,7 +347,36 @@
 
   const handleSubmit = async () => {
     await formRef.value?.validate()
-    const payload = { ...formData }
+    const payload = {
+      id: formData.id,
+      code: formData.code,
+      icon: formData.icon,
+      is_system: formData.is_system,
+      title_zh: formData.title_zh,
+      title_en: formData.title_en,
+      description_zh: formData.description_zh,
+      description_en: formData.description_en,
+      tags_zh: formData.tags_zh,
+      tags_en: formData.tags_en,
+      cover: formData.cover,
+      cover_dark: formData.cover_dark,
+      allow_online: formData.allow_online,
+      allow_local: formData.allow_local,
+      allow_realtime: formData.allow_realtime,
+      allow_voice: formData.allow_voice,
+      allow_user_prompt: formData.allow_user_prompt,
+      speech_runtime: formData.speech_runtime,
+      online_config_id: formData.online_config_id,
+      realtime_config_id: formData.realtime_config_id,
+      asr_config_id: formData.asr_config_id,
+      tts_config_id: formData.tts_config_id,
+      tts_voice: formData.tts_voice,
+      local_model_id: formData.local_model_id,
+      local_asr_id: formData.local_asr_id,
+      local_tts_id: formData.local_tts_id,
+      sort: formData.sort,
+      status: formData.status
+    }
     if (props.dialogType === 'add') {
       await api.save(payload)
     } else {

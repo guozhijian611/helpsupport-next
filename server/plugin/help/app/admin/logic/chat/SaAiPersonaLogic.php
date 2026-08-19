@@ -22,7 +22,7 @@ class SaAiPersonaLogic extends BaseLogic
         $data = $this->normalizeFields($data);
         $this->assertUniqueCode($data['code']);
 
-        return parent::add($data);
+        return Db::table('sa_ai_persona')->insertGetId($this->persistPayload($data, true));
     }
 
     public function edit($id, array $data): mixed
@@ -39,7 +39,12 @@ class SaAiPersonaLogic extends BaseLogic
         $data = $this->normalizeFields($data);
         $this->assertUniqueCode($data['code'], (int) $id);
 
-        return parent::edit($id, $data);
+        Db::table('sa_ai_persona')
+            ->where('id', (int) $id)
+            ->whereNull('delete_time')
+            ->update($this->persistPayload($data, false));
+
+        return true;
     }
 
     public function destroy($ids): bool
@@ -76,14 +81,14 @@ class SaAiPersonaLogic extends BaseLogic
         $titleEn = trim((string) ($data['title_en'] ?? $data['display_name_en'] ?? ''));
         $descZh = trim((string) ($data['description_zh'] ?? $data['description'] ?? ''));
         $descEn = trim((string) ($data['description_en'] ?? $data['description_en'] ?? ''));
-        $tagsZh = $this->splitTags($data['tags_zh'] ?? ($data['tags_i18n']['zh-CN'] ?? ''));
-        $tagsEn = $this->splitTags($data['tags_en'] ?? ($data['tags_i18n']['en'] ?? ''));
+        $tagsZh = $this->splitTags($data['tags_zh'] ?? $this->i18nList($data['tags_i18n'] ?? null, 'zh-CN'));
+        $tagsEn = $this->splitTags($data['tags_en'] ?? $this->i18nList($data['tags_i18n'] ?? null, 'en'));
 
         $data['code'] = strtolower(trim((string) ($data['code'] ?? '')));
         $data['is_system'] = (int) ($data['is_system'] ?? 2) === 1 ? 1 : 2;
-        $data['title_i18n'] = json_encode(['zh-CN' => $titleZh, 'en' => $titleEn], JSON_UNESCAPED_UNICODE);
-        $data['description_i18n'] = json_encode(['zh-CN' => $descZh, 'en' => $descEn], JSON_UNESCAPED_UNICODE);
-        $data['tags_i18n'] = json_encode(['zh-CN' => $tagsZh, 'en' => $tagsEn], JSON_UNESCAPED_UNICODE);
+        $data['title_i18n'] = ['zh-CN' => $titleZh, 'en' => $titleEn];
+        $data['description_i18n'] = ['zh-CN' => $descZh, 'en' => $descEn];
+        $data['tags_i18n'] = ['zh-CN' => $tagsZh, 'en' => $tagsEn];
         $data['cover'] = trim((string) ($data['cover'] ?? $data['avatar'] ?? ''));
         $data['cover_dark'] = trim((string) ($data['cover_dark'] ?? $data['dark_avatar'] ?? ''));
         $data['icon'] = ChatPersonaCatalog::normalizeIcon((string) ($data['icon'] ?? ''), $data['code']);
@@ -103,9 +108,97 @@ class SaAiPersonaLogic extends BaseLogic
             throw new ApiException('开放实时音视频时必须绑定 realtime 配置');
         }
 
-        unset($data['title_zh'], $data['title_en'], $data['description_zh'], $data['description_en'], $data['tags_zh'], $data['tags_en'], $data['avatar'], $data['dark_avatar'], $data['display_name'], $data['display_name_en']);
+        unset(
+            $data['id'],
+            $data['title_zh'],
+            $data['title_en'],
+            $data['description_zh'],
+            $data['description_en'],
+            $data['tags_zh'],
+            $data['tags_en'],
+            $data['avatar'],
+            $data['dark_avatar'],
+            $data['display_name'],
+            $data['display_name_en'],
+            $data['chat_mode'],
+            $data['description']
+        );
 
         return $data;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function persistPayload(array $data, bool $creating): array
+    {
+        $now = date('Y-m-d H:i:s');
+        $userId = (int) ((getCurrentInfo() ?: [])['id'] ?? 0);
+        $payload = [
+            'code' => (string) ($data['code'] ?? ''),
+            'is_system' => (int) ($data['is_system'] ?? 2),
+            'title_i18n' => $this->jsonColumn($data['title_i18n'] ?? ['zh-CN' => '', 'en' => '']),
+            'description_i18n' => $this->jsonColumn($data['description_i18n'] ?? ['zh-CN' => '', 'en' => '']),
+            'tags_i18n' => $this->jsonColumn($data['tags_i18n'] ?? ['zh-CN' => [], 'en' => []]),
+            'cover' => (string) ($data['cover'] ?? ''),
+            'cover_dark' => (string) ($data['cover_dark'] ?? ''),
+            'icon' => (string) ($data['icon'] ?? ''),
+            'allow_online' => (int) ($data['allow_online'] ?? 1),
+            'allow_local' => (int) ($data['allow_local'] ?? 1),
+            'allow_realtime' => (int) ($data['allow_realtime'] ?? 2),
+            'allow_voice' => (int) ($data['allow_voice'] ?? 1),
+            'allow_user_prompt' => (int) ($data['allow_user_prompt'] ?? 1),
+            'speech_runtime' => (string) ($data['speech_runtime'] ?? 'online'),
+            'online_config_id' => (int) ($data['online_config_id'] ?? 0),
+            'realtime_config_id' => (int) ($data['realtime_config_id'] ?? 0),
+            'asr_config_id' => (int) ($data['asr_config_id'] ?? 0),
+            'tts_config_id' => (int) ($data['tts_config_id'] ?? 0),
+            'tts_voice' => (string) ($data['tts_voice'] ?? ''),
+            'local_model_id' => (int) ($data['local_model_id'] ?? 0),
+            'local_asr_id' => (int) ($data['local_asr_id'] ?? 0),
+            'local_tts_id' => (int) ($data['local_tts_id'] ?? 0),
+            'sort' => (int) ($data['sort'] ?? 100),
+            'status' => (int) ($data['status'] ?? 1),
+            'updated_by' => $userId,
+            'update_time' => $now,
+        ];
+        if ($creating) {
+            $payload['created_by'] = $userId;
+            $payload['create_time'] = $now;
+        }
+
+        return $payload;
+    }
+
+    private function jsonColumn(mixed $value): string
+    {
+        if (is_string($value)) {
+            $value = trim($value);
+            if ($value === '') {
+                $value = [];
+            } else {
+                $decoded = json_decode($value, true);
+                $value = json_last_error() === JSON_ERROR_NONE ? $decoded : [];
+            }
+        }
+        if (!is_array($value)) {
+            $value = [];
+        }
+
+        return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+    }
+
+    private function i18nList(mixed $value, string $locale): mixed
+    {
+        if (is_string($value) && $value !== '') {
+            $decoded = json_decode($value, true);
+            $value = json_last_error() === JSON_ERROR_NONE ? $decoded : [];
+        }
+        if (!is_array($value)) {
+            return [];
+        }
+
+        return $value[$locale] ?? [];
     }
 
     private function assertUniqueCode(string $code, ?int $id = null): void
