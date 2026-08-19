@@ -79,7 +79,7 @@ export interface HelpCrudAction {
 }
 
 export interface CrudApi {
-  list: (params: Record<string, any>) => Promise<any>
+  list: (params: Record<string, any>) => Promise<Api.Common.ApiPage>
   read: (id: number | string) => Promise<any>
   save: (params: Record<string, any>) => Promise<any>
   update: (params: Record<string, any>) => Promise<any>
