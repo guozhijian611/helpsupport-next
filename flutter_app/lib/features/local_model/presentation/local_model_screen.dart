@@ -104,10 +104,8 @@ class _LocalModelScreenState extends ConsumerState<LocalModelScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
                 children: [
-                  if (widget.manageOnly) ...[
-                    const _ManageOnlyBanner(),
-                    const SizedBox(height: 16),
-                  ] else if (widget.preferredChatMode.trim().isNotEmpty) ...[
+                  if (!widget.manageOnly &&
+                      widget.preferredChatMode.trim().isNotEmpty) ...[
                     _EntryBanner(
                       chatMode: widget.preferredChatMode,
                       title: widget.preferredTitle,
@@ -215,47 +213,6 @@ class _LocalModelScreenState extends ConsumerState<LocalModelScreen> {
 }
 
 enum _ModelFilter { all, downloaded, notDownloaded }
-
-class _ManageOnlyBanner extends StatelessWidget {
-  const _ManageOnlyBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = _LocalModelScreenPalette.of(context);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-      decoration: BoxDecoration(
-        color: palette.cardBackground,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: palette.outline),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.inventory_2_outlined,
-            color: const Color(0xFFFF9585),
-            size: 28,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              _t(
-                context,
-                '这里只管理模型的下载与删除，不会进入互动聊天。',
-                'Manage downloads and deletions here. This page will not open an interactive chat.',
-              ),
-              style: TextStyle(
-                color: palette.secondaryText,
-                height: 1.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _EntryBanner extends StatelessWidget {
   const _EntryBanner({required this.chatMode, required this.title});
