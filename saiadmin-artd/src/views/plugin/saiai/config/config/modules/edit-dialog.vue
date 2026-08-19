@@ -45,7 +45,7 @@
             type="success"
             :closable="false"
             show-icon
-            title="ASR 用于文字聊天的录音转写，在互动角色的语音设置里绑定。"
+            title="这是非实时 ASR：录音结束后走 HTTP /v1/audio/transcriptions。不要填 wss realtime 地址，也不要选 qwen3-asr-flash-realtime。"
           />
         </el-col>
         <el-col :span="24" v-else-if="formData.type === 'tts'">
@@ -53,15 +53,12 @@
             type="success"
             :closable="false"
             show-icon
-            title="TTS 用于文字聊天的语音播报，在互动角色的语音设置里绑定。"
+            title="这是非实时 TTS：整段文本走 HTTP /v1/audio/speech。不要填 wss realtime 地址。"
           />
         </el-col>
         <el-col :span="24" v-if="['generic', 'realtime', 'asr', 'tts'].includes(formData.type)">
           <el-form-item label="接口地址" prop="ai_url">
-            <el-input
-              v-model="formData.ai_url"
-              placeholder="例如 wss://dashscope.aliyuncs.com/api-ws/v1/realtime"
-            />
+            <el-input v-model="formData.ai_url" :placeholder="urlPlaceholder" />
           </el-form-item>
         </el-col>
         <el-col :span="24">
@@ -84,13 +81,13 @@
             <sa-radio v-model="formData.is_default" dict="yes_or_no" />
           </el-form-item>
         </el-col>
-        <el-col :span="24" v-if="formData.type === 'realtime'">
+        <el-col :span="24" v-if="['realtime', 'asr', 'tts'].includes(formData.type)">
           <el-form-item label="扩展配置" prop="options">
             <el-input
               v-model="formData.options"
               type="textarea"
               :rows="5"
-              placeholder='{"provider":"aliyun_qwen","modalities":["text","audio"],"voice":"Ethan"}'
+              :placeholder="optionsPlaceholder"
             />
           </el-form-item>
         </el-col>
@@ -199,6 +196,44 @@
 
   const appOnlineChatTypes = ['openai', 'gemini', 'deepseek', 'generic']
   const isAppOnlineChatModel = computed(() => appOnlineChatTypes.includes(formData.type))
+  const urlPlaceholder = computed(() => {
+    if (formData.type === 'realtime') {
+      return 'wss://dashscope.aliyuncs.com/api-ws/v1/realtime'
+    }
+    if (formData.type === 'asr' || formData.type === 'tts') {
+      return 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+    }
+    return 'https://api.openai.com/v1'
+  })
+  const optionsPlaceholder = computed(() => {
+    if (formData.type === 'tts') {
+      return '{"voice":"Cherry"}'
+    }
+    if (formData.type === 'asr') {
+      return '{"language":"zh"}'
+    }
+    return '{"provider":"aliyun_qwen","modalities":["text","audio"],"voice":"Ethan"}'
+  })
+
+  watch(
+    () => formData.type,
+    (type) => {
+      if (props.dialogType !== 'add') {
+        return
+      }
+      if (type === 'asr' || type === 'tts') {
+        if (formData.ai_url === '' || formData.ai_url.includes('/realtime')) {
+          formData.ai_url = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+        }
+        if (type === 'asr' && formData.model === '') {
+          formData.model = 'qwen3-asr-flash'
+        }
+        if (type === 'tts' && formData.model === '') {
+          formData.model = 'qwen3-tts-flash'
+        }
+      }
+    }
+  )
 
   /**
    * 监听弹窗打开，初始化表单数据

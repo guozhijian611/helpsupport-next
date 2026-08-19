@@ -8,8 +8,8 @@
       type="info"
       show-icon
       :closable="false"
-      title="App 在线聊天会读取这里已启用的文本模型"
-      description="平台类型为 openai、gemini、deepseek、generic 且状态为启用的配置，会出现在 App 四种聊天模式（含 AI 医生）的模型选择器中。realtime 只用于音视频通话。temp_save 在本页每条 AI 配置中填写，App 会按所选模型读取该字符串。"
+      title="这里按平台类型拆成四类能力，不要混用"
+      description="文本模型（openai / gemini / deepseek / generic）给 App 文字聊天选。asr / tts 是非实时 HTTP 转写和合成，给文字聊天语音消息用。realtime 才是音视频通话的 WebSocket，不要填到 ASR/TTS 里。"
     />
 
     <ElCard class="art-table-card" shadow="never">

@@ -4,7 +4,7 @@
       <div class="toolbar-inner">
         <div class="title-block">
           <h2>SAI TTS 合成测试</h2>
-          <p>选择在线 TTS 配置，输入文本后生成语音，验证文字聊天用的播报通道。</p>
+          <p>这里测的是非实时 HTTP 合成，不是 realtime 通话。请选择类型为 tts 的配置。</p>
         </div>
         <div class="actions">
           <el-select v-model="selectedConfigId" placeholder="选择 TTS 配置" class="config-select">
