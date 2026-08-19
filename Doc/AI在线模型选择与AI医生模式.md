@@ -21,7 +21,8 @@
 | `code` | 角色编码，写入会话 `chat_mode` |
 | `is_system` | 内置角色不可删、不可改 code，可停用 |
 | `title_i18n` / `description_i18n` / `tags_i18n` | 中英标题、简介、标签 |
-| `cover` / `cover_dark` | 浅色 / 深色封面 |
+| `cover` / `cover_dark` | 浅色 / 深色封面，用于聊天气泡头像 |
+| `icon` | 首页卡片右侧 Material 图标，存 Flutter `Icons` 名称，如 `smart_toy_rounded` |
 | `allow_online` / `allow_local` / `allow_realtime` / `allow_voice` / `allow_user_prompt` | 能力开关 |
 | `speech_runtime` | `online` / `local` / `auto` |
 | `online_config_id` | 默认在线文本模型 |
@@ -85,6 +86,7 @@
 - `allow_online` / `allow_local` / `allow_realtime` / `allow_voice` / `allow_user_prompt`
 - `speech_runtime`
 - `tags`：`{ "zh-CN": [], "en": [] }`
+- `icon`：首页卡片右侧 Material 图标
 - `robot_profile`：标题、简介、封面
 - `online_config_id`、`temp_save`、最近会话
 
@@ -163,7 +165,7 @@
 
 ## App 交互
 
-1. 首页按后台启用角色展示卡片，标题、简介、标签、封面来自角色。
+1. 首页按后台启用角色展示卡片，标题、简介、标签、封面来自角色；右侧大图标读角色 `icon`。
 2. 点击角色后，按 `allow_local` / `allow_online` 决定是否弹出在线 / 本地选择。
 3. 在线流程弹出模型选择器，默认勾选该角色上次选择的模型。
 4. 仅当 `allow_user_prompt=1` 且用户尚未填写提示词时，才要求补提示词。

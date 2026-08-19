@@ -918,6 +918,7 @@ class HelpApiService
                 'local_asr_id' => max(0, (int) ($persona['local_asr_id'] ?? 0)),
                 'local_tts_id' => max(0, (int) ($persona['local_tts_id'] ?? 0)),
                 'tags' => $persona['tags_i18n'] ?? ['zh-CN' => [], 'en' => []],
+                'icon' => (string) ($persona['icon'] ?? ChatPersonaCatalog::defaultIcon($mode)),
                 'robot_profile' => $this->personaRobotProfile($persona, $robotProfiles[$mode] ?? []),
                 'session_count' => (int) Db::table('sa_member_chat_session')
                     ->where('member_id', $memberId)

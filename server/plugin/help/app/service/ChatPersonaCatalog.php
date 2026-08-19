@@ -173,6 +173,7 @@ final class ChatPersonaCatalog
             'tags_i18n' => $tags,
             'cover' => trim((string) ($row['cover'] ?? $row['avatar'] ?? '')),
             'cover_dark' => trim((string) ($row['cover_dark'] ?? $row['dark_avatar'] ?? '')),
+            'icon' => self::normalizeIcon((string) ($row['icon'] ?? ''), $code),
             'allow_online' => self::flag($row['allow_online'] ?? $fallback['allow_online']),
             'allow_local' => self::flag($row['allow_local'] ?? $fallback['allow_local']),
             'allow_realtime' => self::flag($row['allow_realtime'] ?? $fallback['allow_realtime']),
@@ -227,6 +228,7 @@ final class ChatPersonaCatalog
             'tags_i18n' => ['zh-CN' => [], 'en' => []],
             'cover' => '',
             'cover_dark' => '',
+            'icon' => self::defaultIcon($code),
             'allow_online' => 1,
             'allow_local' => $code === 'doctor' ? 2 : 1,
             'allow_realtime' => $code === 'doctor' ? 1 : 2,
@@ -265,6 +267,84 @@ final class ChatPersonaCatalog
     /**
      * @return array<string, string>
      */
+    public static function defaultIcon(string $code): string
+    {
+        return match ($code) {
+            'doctor' => 'smart_toy_rounded',
+            'ai_doctor' => 'medical_services_rounded',
+            'patient' => 'healing_rounded',
+            default => 'volunteer_activism_rounded',
+        };
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function allowedIcons(): array
+    {
+        return [
+            'smart_toy_rounded',
+            'psychology_rounded',
+            'self_improvement_rounded',
+            'spa_rounded',
+            'volunteer_activism_rounded',
+            'favorite_rounded',
+            'mood_rounded',
+            'sentiment_satisfied_alt_rounded',
+            'support_agent_rounded',
+            'chat_rounded',
+            'forum_rounded',
+            'record_voice_over_rounded',
+            'medical_services_rounded',
+            'local_hospital_rounded',
+            'healing_rounded',
+            'health_and_safety_rounded',
+            'monitor_heart_rounded',
+            'medication_rounded',
+            'emergency_rounded',
+            'bloodtype_rounded',
+            'accessibility_new_rounded',
+            'elderly_rounded',
+            'child_care_rounded',
+            'family_restroom_rounded',
+            'groups_rounded',
+            'handshake_rounded',
+            'person_rounded',
+            'face_rounded',
+            'nightlight_rounded',
+            'wb_sunny_rounded',
+            'park_rounded',
+            'eco_rounded',
+            'water_drop_rounded',
+            'coffee_rounded',
+            'music_note_rounded',
+            'auto_awesome_rounded',
+            'lightbulb_rounded',
+            'menu_book_rounded',
+            'school_rounded',
+            'assignment_rounded',
+            'checklist_rounded',
+            'flag_rounded',
+            'balance_rounded',
+            'privacy_tip_rounded',
+            'shield_rounded',
+            'home_rounded',
+            'pets_rounded',
+            'sports_esports_rounded',
+            'palette_rounded',
+        ];
+    }
+
+    public static function normalizeIcon(string $icon, string $code = ''): string
+    {
+        $icon = strtolower(trim($icon));
+        if ($icon !== '' && in_array($icon, self::allowedIcons(), true)) {
+            return $icon;
+        }
+
+        return self::defaultIcon($code);
+    }
+
     private static function decodeI18n(mixed $value, array $fallback): array
     {
         $decoded = self::decodeJson($value);

@@ -37,6 +37,7 @@ class ChatModeInfo {
     this.localTtsId = 0,
     this.tagsZh = const [],
     this.tagsEn = const [],
+    this.icon = '',
   });
 
   final String chatMode;
@@ -56,6 +57,7 @@ class ChatModeInfo {
   final int localTtsId;
   final List<String> tagsZh;
   final List<String> tagsEn;
+  final String icon;
 
   List<String> tagsFor(String languageCode) {
     final primary = languageCode == 'zh' ? tagsZh : tagsEn;
@@ -92,6 +94,7 @@ class ChatModeInfo {
       localTtsId: (json['local_tts_id'] as num?)?.toInt() ?? 0,
       tagsZh: tags is Map ? _stringList(tags['zh-CN']) : const [],
       tagsEn: tags is Map ? _stringList(tags['en'] ?? tags['en-US']) : const [],
+      icon: (json['icon'] as String?) ?? '',
     );
   }
 }

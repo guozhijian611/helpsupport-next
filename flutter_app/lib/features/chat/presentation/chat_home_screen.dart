@@ -8,6 +8,7 @@ import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../application/chat_controller.dart';
 import '../data/chat_models.dart';
+import '../data/persona_material_icon.dart';
 import 'chat_launch_sheet.dart';
 import 'chat_online_model_sheet.dart';
 import 'chat_prompt_config_sheet.dart';
@@ -375,13 +376,18 @@ class _ModeCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 18),
-          _RobotProfileAvatar(
-            profile: mode.robotProfile,
-            resolveImageUrl: resolveImageUrl,
-            size: 104,
-            backgroundColor: visual.$4,
-            icon: visual.$5,
-            iconColor: Colors.white,
+          Container(
+            width: 104,
+            height: 104,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: visual.$4,
+            ),
+            child: Icon(
+              personaMaterialIcon(mode.icon, mode.chatMode),
+              size: 50,
+              color: Colors.white,
+            ),
           ),
         ],
       ),

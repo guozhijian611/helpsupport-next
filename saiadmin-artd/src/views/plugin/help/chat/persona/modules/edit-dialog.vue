@@ -20,6 +20,11 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
+              <el-form-item label="卡片图标" prop="icon">
+                <HelpMaterialIconPicker v-model="formData.icon" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
               <el-form-item label="状态" prop="status">
                 <sa-radio v-model="formData.status" dict="data_status" />
               </el-form-item>
@@ -263,6 +268,8 @@
   import api, { personaPromptApi } from '../../../api/chat/persona'
   import { loadAiConfigs } from '../../../api/chat/aiConfigOptions'
   import catalogApi from '../../../api/localModel/catalog'
+  import HelpMaterialIconPicker from '../../../components/HelpMaterialIconPicker.vue'
+  import { defaultPersonaIcon } from '../../../components/materialPersonaIcons'
 
   interface Props {
     modelValue: boolean
@@ -391,6 +398,7 @@
     return {
       id: 0,
       code: '',
+      icon: defaultPersonaIcon(''),
       is_system: 2,
       title_zh: '',
       title_en: '',
@@ -441,7 +449,8 @@
       tags_zh: Array.isArray(tags['zh-CN']) ? tags['zh-CN'].join(',') : '',
       tags_en: Array.isArray(tags.en) ? tags.en.join(',') : '',
       cover: row.cover || row.avatar || '',
-      cover_dark: row.cover_dark || row.dark_avatar || ''
+      cover_dark: row.cover_dark || row.dark_avatar || '',
+      icon: row.icon || defaultPersonaIcon(row.code || '')
     }
   }
 </script>

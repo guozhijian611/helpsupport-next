@@ -7,7 +7,7 @@
       show-icon
       :closable="false"
       title="这里配置 App 互动聊天的角色卡片"
-      description="新增角色后，App 首页会按启用状态、标题、封面、标签和能力开关展示。实时音视频、ASR、TTS 都在角色上绑定，不要和模型测试台的对话混用。"
+      description="新增角色后，App 首页会按启用状态、标题、封面、卡片图标、标签和能力开关展示。卡片右侧图标在角色编码旁选择 Material 图标。实时音视频、ASR、TTS 都在角色上绑定，不要和模型测试台的对话混用。"
     />
     <ElCard class="art-table-card" shadow="never">
       <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData">
@@ -36,6 +36,12 @@
         <template #cover="{ row }">
           <ElAvatar v-if="row.cover || row.avatar" :size="38" :src="row.cover || row.avatar" />
           <span v-else>暂无</span>
+        </template>
+        <template #icon="{ row }">
+          <div class="persona-icon-cell">
+            <Icon v-if="row.icon" :icon="materialIconifyName(row.icon)" class="text-xl" />
+            <span>{{ personaIconLabel(row.icon, row.code) }}</span>
+          </div>
         </template>
         <template #status="{ row }">
           <ElTag :type="Number(row.status) === 1 ? 'success' : 'info'">
@@ -74,11 +80,22 @@
 </template>
 
 <script setup lang="ts">
+  import { Icon } from '@iconify/vue'
   import { useTable } from '@/hooks/core/useTable'
   import { useSaiAdmin } from '@/composables/useSaiAdmin'
   import api from '../../api/chat/persona'
+  import {
+    defaultPersonaIcon,
+    materialIconifyName,
+    materialPersonaIcons
+  } from '../../components/materialPersonaIcons'
   import TableSearch from './modules/table-search.vue'
   import EditDialog from './modules/edit-dialog.vue'
+
+  const personaIconLabel = (icon: string, code: string) => {
+    const name = icon || defaultPersonaIcon(code || '')
+    return materialPersonaIcons.find((item) => item.name === name)?.label || name
+  }
 
   const searchForm = ref({
     code: undefined,
@@ -96,6 +113,7 @@
         apiFn: api.list,
         columnsFactory: () => [
           { prop: 'cover', label: '封面', width: 80, useSlot: true },
+          { prop: 'icon', label: '卡片图标', width: 140, useSlot: true },
           { prop: 'code', label: '编码', width: 140 },
           { prop: 'display_name', label: '中文标题', minWidth: 140 },
           { prop: 'display_name_en', label: '英文标题', minWidth: 140 },
@@ -109,3 +127,11 @@
 
   const { dialogType, dialogVisible, dialogData, showDialog, deleteRow } = useSaiAdmin()
 </script>
+
+<style scoped>
+  .persona-icon-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+</style>

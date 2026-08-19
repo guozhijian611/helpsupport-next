@@ -11,6 +11,7 @@ import '../../../core/ui/app_tab_shell_metrics.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../chat/application/chat_controller.dart';
 import '../../chat/data/chat_models.dart';
+import '../../chat/data/persona_material_icon.dart';
 import '../../chat/presentation/chat_launch_sheet.dart';
 import '../../chat/presentation/chat_online_model_sheet.dart';
 import '../../chat/presentation/chat_prompt_config_sheet.dart';
@@ -133,7 +134,6 @@ class HomeDashboardScreen extends ConsumerWidget {
                       padding: const EdgeInsets.only(bottom: 14),
                       child: _ChatModeHeroCard(
                         mode: mode,
-                        resolveImageUrl: apiClient.resolveUrl,
                         onPrimaryTap: () => _startSession(context, ref, mode),
                       ),
                     ),
@@ -598,14 +598,9 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _ChatModeHeroCard extends StatelessWidget {
-  const _ChatModeHeroCard({
-    required this.mode,
-    required this.resolveImageUrl,
-    required this.onPrimaryTap,
-  });
+  const _ChatModeHeroCard({required this.mode, required this.onPrimaryTap});
 
   final ChatModeInfo mode;
-  final String Function(String value) resolveImageUrl;
   final VoidCallback onPrimaryTap;
 
   @override
@@ -674,7 +669,7 @@ class _ChatModeHeroCard extends StatelessWidget {
           const SizedBox(width: 18),
           _ModeIllustration(
             visual: visual,
-            imageUrl: _coverUrl(context, mode.robotProfile, resolveImageUrl),
+            icon: personaMaterialIcon(mode.icon, mode.chatMode),
           ),
         ],
       ),
@@ -1022,10 +1017,10 @@ class _ProfileAvatar extends StatelessWidget {
 }
 
 class _ModeIllustration extends StatelessWidget {
-  const _ModeIllustration({required this.visual, this.imageUrl = ''});
+  const _ModeIllustration({required this.visual, required this.icon});
 
   final _ModeVisualData visual;
-  final String imageUrl;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -1036,15 +1031,7 @@ class _ModeIllustration extends StatelessWidget {
         shape: BoxShape.circle,
         color: visual.circleColor,
       ),
-      clipBehavior: Clip.antiAlias,
-      child: imageUrl.trim().isEmpty
-          ? Icon(visual.icon, size: 54, color: Colors.white)
-          : CachedRemoteImage(
-              imageUrl,
-              fit: BoxFit.cover,
-              placeholder: ColoredBox(color: visual.circleColor),
-              errorWidget: Icon(visual.icon, size: 54, color: Colors.white),
-            ),
+      child: Icon(icon, size: 54, color: Colors.white),
     );
   }
 }
@@ -1184,17 +1171,6 @@ class _HomeDashboardPalette {
   final Color primaryText;
   final Color secondaryText;
   final Color bodyText;
-}
-
-String _coverUrl(
-  BuildContext context,
-  AiRobotProfile profile,
-  String Function(String value) resolveImageUrl,
-) {
-  final raw = profile.avatarFor(
-    darkMode: Theme.of(context).brightness == Brightness.dark,
-  );
-  return raw.trim().isEmpty ? '' : resolveImageUrl(raw);
 }
 
 String _modeTitle(BuildContext context, String mode) {

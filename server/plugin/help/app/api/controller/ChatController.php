@@ -27,7 +27,7 @@ class ChatController extends BaseController
     #[Apidoc\Title('聊天模式概览')]
     #[Apidoc\Url('/app/help/chat/overview')]
     #[Apidoc\Method('GET')]
-    #[Apidoc\Returned('modes', type: 'array', desc: '启用中的互动角色、能力开关、标签、机器人形象、后台temp_save、在线模型ID及最近会话')]
+    #[Apidoc\Returned('modes', type: 'array', desc: '启用中的互动角色、能力开关、标签、卡片 Material 图标、机器人形象、后台temp_save、在线模型ID及最近会话')]
     #[Apidoc\Returned('recent_sessions', type: 'array', desc: '最近会话')]
     public function overview(Request $request): Response
     {

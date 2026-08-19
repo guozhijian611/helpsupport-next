@@ -86,6 +86,7 @@ class SaAiPersonaLogic extends BaseLogic
         $data['tags_i18n'] = json_encode(['zh-CN' => $tagsZh, 'en' => $tagsEn], JSON_UNESCAPED_UNICODE);
         $data['cover'] = trim((string) ($data['cover'] ?? $data['avatar'] ?? ''));
         $data['cover_dark'] = trim((string) ($data['cover_dark'] ?? $data['dark_avatar'] ?? ''));
+        $data['icon'] = ChatPersonaCatalog::normalizeIcon((string) ($data['icon'] ?? ''), $data['code']);
         foreach (['allow_online', 'allow_local', 'allow_realtime', 'allow_voice', 'allow_user_prompt'] as $field) {
             $data[$field] = (int) ($data[$field] ?? 1) === 2 ? 2 : 1;
         }
