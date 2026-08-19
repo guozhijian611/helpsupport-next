@@ -10,7 +10,7 @@ use plugin\saiadmin\basic\BaseValidate;
 class SaAiRobotProfileValidate extends BaseValidate
 {
     protected $rule = [
-        'chat_mode' => 'require|in:doctor,companion,patient',
+        'chat_mode' => 'require|in:doctor,companion,patient,ai_doctor',
         'runtime_mode' => 'require|in:online,local',
         'display_name' => 'require',
         'avatar' => 'require',
@@ -20,7 +20,7 @@ class SaAiRobotProfileValidate extends BaseValidate
 
     protected $message = [
         'chat_mode.require' => '聊天模式必须填写',
-        'chat_mode.in' => '聊天模式必须是 doctor、companion 或 patient',
+        'chat_mode.in' => '聊天模式必须是 doctor、companion、patient 或 ai_doctor',
         'runtime_mode.require' => '运行模式必须填写',
         'runtime_mode.in' => '运行模式必须是 online 或 local',
         'display_name.require' => '显示名称必须填写',

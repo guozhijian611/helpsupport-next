@@ -10,11 +10,7 @@
   >
     <el-col v-bind="setSpan(6)">
       <el-form-item label="聊天模式" prop="chat_mode">
-        <el-select v-model="formData.chat_mode" placeholder="请选择聊天模式" clearable class="w-full">
-          <el-option label="医生模式" value="doctor" />
-          <el-option label="陪伴模式" value="companion" />
-          <el-option label="患者模式" value="patient" />
-        </el-select>
+        <HelpChatModeSelect v-model="formData.chat_mode" clearable />
       </el-form-item>
     </el-col>
     <el-col v-bind="setSpan(6)">
@@ -36,6 +32,8 @@
 </template>
 
 <script setup lang="ts">
+  import HelpChatModeSelect from '../../../components/HelpChatModeSelect.vue'
+
   interface Props {
     modelValue: Record<string, any>
   }

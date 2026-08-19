@@ -10,16 +10,7 @@
   >
     <template #default>
       <ElFormItem label="聊天模式" prop="chat_mode">
-        <ElSelect
-          v-model="formData.chat_mode"
-          placeholder="请选择聊天模式"
-          clearable
-          class="w-full"
-        >
-          <ElOption label="医生模式" value="doctor" />
-          <ElOption label="陪伴模式" value="companion" />
-          <ElOption label="患者模式" value="patient" />
-        </ElSelect>
+        <HelpChatModeSelect v-model="formData.chat_mode" clearable />
       </ElFormItem>
       <ElFormItem label="运行模式" prop="runtime_mode">
         <ElSelect
@@ -46,6 +37,8 @@
 </template>
 
 <script setup lang="ts">
+  import HelpChatModeSelect from '../../../components/HelpChatModeSelect.vue'
+
   interface Props {
     modelValue: Record<string, any>
   }

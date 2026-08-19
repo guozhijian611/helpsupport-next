@@ -11,7 +11,7 @@ class SaMemberChatSessionValidate extends BaseValidate
 {
     protected $rule = [
         'member_id' => 'require|integer',
-        'chat_mode' => 'require|in:doctor,companion,patient',
+        'chat_mode' => 'require|in:doctor,companion,patient,ai_doctor',
         'session_name' => 'require|max:100',
         'is_pinned' => 'in:1,2',
         'status' => 'require|in:1,2',

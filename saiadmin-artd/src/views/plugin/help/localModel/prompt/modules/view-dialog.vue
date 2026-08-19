@@ -7,7 +7,7 @@
           <HelpRelationText relation="localModelCatalog" :value="formData?.model_id || 0" />
         </el-descriptions-item>
         <el-descriptions-item label="聊天模式">
-          <div v-text="formData?.chat_mode"></div>
+          <div v-text="helpChatModeLabel(formData?.chat_mode) || formData?.chat_mode"></div>
         </el-descriptions-item>
         <el-descriptions-item label="语言">
           <div v-text="formData?.locale"></div>
@@ -36,6 +36,7 @@
 <script setup lang="ts">
   import api from '../../../api/localModel/prompt'
   import HelpRelationText from '../../../components/HelpRelationText.vue'
+  import { helpChatModeLabel } from '../../../components/chatModeOptions'
 
   interface Props {
     modelValue: boolean

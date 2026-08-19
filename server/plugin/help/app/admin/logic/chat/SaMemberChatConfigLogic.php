@@ -48,6 +48,9 @@ class SaMemberChatConfigLogic extends BaseLogic
         if (array_key_exists('chat_mode', $data)) {
             $data['chat_mode'] = trim((string) $data['chat_mode']);
         }
+        if (array_key_exists('temp_save', $data)) {
+            $data['temp_save'] = trim((string) $data['temp_save']);
+        }
 
         return $data;
     }

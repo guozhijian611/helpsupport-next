@@ -49,6 +49,9 @@
         <template #model_id="{ row }">
           <HelpRelationText relation="localModelCatalog" :value="row.model_id || 0" />
         </template>
+        <template #chat_mode="{ row }">
+          <ElTag>{{ helpChatModeLabel(row.chat_mode) }}</ElTag>
+        </template>
         <!-- 操作列 -->
         <template #operation="{ row }">
           <div class="flex gap-2">
@@ -89,6 +92,7 @@
   import EditDialog from './modules/edit-dialog.vue'
   import ViewDialog from './modules/view-dialog.vue'
   import HelpRelationText from '../../components/HelpRelationText.vue'
+  import { helpChatModeLabel } from '../../components/chatModeOptions'
 
   // 搜索表单
   const searchForm = ref({
@@ -124,7 +128,7 @@
       columnsFactory: () => [
         { type: 'selection' },
         { prop: 'model_id', label: '关联模型', minWidth: 160, useSlot: true },
-        { prop: 'chat_mode', label: '聊天模式', width: 120 },
+        { prop: 'chat_mode', label: '聊天模式', width: 120, useSlot: true },
         { prop: 'locale', label: '语言', width: 100 },
         { prop: 'title', label: '提示词标题', minWidth: 180 },
         { prop: 'first_message', label: '默认开场白', minWidth: 220 },

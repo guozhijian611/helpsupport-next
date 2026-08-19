@@ -7,7 +7,10 @@
           <HelpRelationText relation="member" :value="formData?.member_id" />
         </el-descriptions-item>
         <el-descriptions-item label="模式">
-          <div v-text="formData?.chat_mode"></div>
+          <div v-text="helpChatModeLabel(formData?.chat_mode) || formData?.chat_mode"></div>
+        </el-descriptions-item>
+        <el-descriptions-item label="临时配置">
+          <div v-text="formData?.temp_save || '无'"></div>
         </el-descriptions-item>
         <el-descriptions-item label="用户模式描述和前置提示">
           <div v-html="formData?.prompt_text"></div>
@@ -21,6 +24,7 @@
 <script setup lang="ts">
   import api from '../../../api/chat/config'
   import HelpRelationText from '../../../components/HelpRelationText.vue'
+  import { helpChatModeLabel } from '../../../components/chatModeOptions'
 
   interface Props {
     modelValue: boolean
@@ -56,6 +60,7 @@
     id: null,
     member_id: null,
     chat_mode: '',
+    temp_save: '',
     prompt_text: ''
   }
 

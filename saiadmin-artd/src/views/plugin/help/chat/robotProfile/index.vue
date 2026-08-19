@@ -52,7 +52,7 @@
           <span v-else class="robot-profile-empty">暂无</span>
         </template>
         <template #chat_mode="{ row }">
-          <ElTag>{{ chatModeText(row.chat_mode) }}</ElTag>
+          <ElTag>{{ helpChatModeLabel(row.chat_mode) }}</ElTag>
         </template>
         <template #runtime_mode="{ row }">
           <ElTag :type="row.runtime_mode === 'local' ? 'warning' : 'success'">
@@ -99,6 +99,7 @@
   import TableSearch from './modules/table-search.vue'
   import EditDialog from './modules/edit-dialog.vue'
   import ViewDialog from './modules/view-dialog.vue'
+  import { helpChatModeLabel } from '../../components/chatModeOptions'
 
   const searchForm = ref({
     chat_mode: undefined,
@@ -159,15 +160,6 @@
     dialogVisible: viewDialogVisible,
     dialogData: viewDialogData
   } = useSaiAdmin()
-
-  const chatModeText = (mode: string) => {
-    const map: Record<string, string> = {
-      doctor: '医生模式',
-      companion: '陪伴模式',
-      patient: '患者模式'
-    }
-    return map[mode] || mode
-  }
 
   const runtimeModeText = (mode: string) => {
     const map: Record<string, string> = {

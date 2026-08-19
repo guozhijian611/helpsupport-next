@@ -20,7 +20,7 @@
 
 ## 后台模型来源
 
-后台管理员在“SAIAI / AI 配置”中新增或启用模型。App 只展示同时满足以下条件的配置：
+后台管理员在“SAIAI / AI 配置”中新增或启用模型，不在该页绑定聊天模式。`temp_save` 属于会员聊天配置，保存用户为某个聊天模式选中的模型配置 ID。App 只展示同时满足以下条件的配置：
 
 - `status = 1`
 - 未软删除
@@ -85,6 +85,12 @@
 1. 请求显式传入且有效的 `config_id`。
 2. 当前会员、当前聊天模式配置中的 `temp_save`。
 3. SAIAI 默认文本模型。
+
+## 后台配置入口
+
+- **SAIAI / AI 配置**：维护可被 App 选用的在线文本模型。openai、gemini、deepseek、generic 且已启用的配置会出现在 App 模型选择器中。
+- **HelpSupport / 机器人形象、本地模型提示词、会员聊天配置、会话、聊天记录**：聊天模式下拉包含 `doctor`、`companion`、`patient`、`ai_doctor`（显示名为“AI医生”）。
+- **HelpSupport / 会员聊天配置**：可查看和编辑 `temp_save`。
 
 ## App 交互
 

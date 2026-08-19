@@ -21,6 +21,15 @@
         <el-descriptions-item label="是否默认">
           <sa-dict :value="formData?.is_default" dict="yes_or_no" render="span" />
         </el-descriptions-item>
+        <el-descriptions-item label="App文字聊天">
+          <div>
+            {{
+              ['openai', 'gemini', 'deepseek', 'generic'].includes(formData?.type)
+                ? '可用，会出现在 App 四种聊天模式（含 AI 医生）的模型选择器中'
+                : '不用于文字聊天'
+            }}
+          </div>
+        </el-descriptions-item>
         <el-descriptions-item label="状态">
           <sa-dict :value="formData?.status" dict="data_status" render="span" />
         </el-descriptions-item>

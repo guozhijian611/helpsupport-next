@@ -3,6 +3,15 @@
     <!-- 搜索面板 -->
     <TableSearch v-model="searchForm" @search="handleSearch" @reset="resetSearchParams" />
 
+    <ElAlert
+      class="mb-4"
+      type="info"
+      show-icon
+      :closable="false"
+      title="App 在线聊天会读取这里已启用的文本模型"
+      description="平台类型为 openai、gemini、deepseek、generic 且状态为启用的配置，会出现在 App 四种聊天模式（含 AI 医生）的模型选择器中。realtime 只用于音视频通话。用户选择的配置 ID 会保存到会员聊天配置的 temp_save，不需要在本页单独绑定聊天模式。"
+    />
+
     <ElCard class="art-table-card" shadow="never">
       <!-- 表格头部 -->
       <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData">
@@ -42,6 +51,11 @@
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       >
+        <template #app_online="{ row }">
+          <ElTag :type="isAppOnlineChatModel(row.type) ? 'success' : 'info'">
+            {{ isAppOnlineChatModel(row.type) ? '可用' : '不用于文字聊天' }}
+          </ElTag>
+        </template>
         <!-- 操作列 -->
         <template #operation="{ row }">
           <div class="flex gap-2">
@@ -117,6 +131,7 @@
         { prop: 'type', label: '平台类型', saiType: 'dict', saiDict: 'crontab_task_type' },
         { prop: 'model', label: '模型名称', saiType: 'dict', saiDict: 'attachment_type' },
         { prop: 'is_default', label: '是否默认', saiType: 'dict', saiDict: 'yes_or_no' },
+        { prop: 'app_online', label: 'App文字聊天', width: 140, useSlot: true },
         { prop: 'status', label: '状态', saiType: 'dict', saiDict: 'data_status' },
         { prop: 'operation', label: '操作', width: 140, fixed: 'right', useSlot: true }
       ]
@@ -141,4 +156,10 @@
     dialogVisible: viewDialogVisible,
     dialogData: viewDialogData
   } = useSaiAdmin()
+
+  const appOnlineChatTypes = ['openai', 'gemini', 'deepseek', 'generic']
+
+  const isAppOnlineChatModel = (type?: string) => {
+    return appOnlineChatTypes.includes(String(type || ''))
+  }
 </script>

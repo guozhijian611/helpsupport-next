@@ -12,14 +12,11 @@
   import HelpCrudPage from '../../components/HelpCrudPage.vue'
   import type { HelpCrudField } from '../../components/helpCrudTypes'
   import api from '../../api/chat/record'
+  import { helpChatModeOptions } from '../../components/chatModeOptions'
 
   defineOptions({ name: 'HelpChatRecord' })
 
-  const chatModeOptions = [
-    { label: '医生助手', value: 'doctor' },
-    { label: '陪伴模式', value: 'companion' },
-    { label: '患者模式', value: 'patient' }
-  ]
+  const chatModeOptions = helpChatModeOptions
 
   const roleOptions = [
     { label: '用户', value: 'user' },

@@ -2,7 +2,7 @@
   <el-drawer v-model="visible" size="620px" title="机器人形象详情" :footer="false">
     <el-descriptions :column="1" border>
       <el-descriptions-item label="聊天模式">{{
-        chatModeText(data?.chat_mode)
+        helpChatModeLabel(data?.chat_mode) || '无'
       }}</el-descriptions-item>
       <el-descriptions-item label="运行模式">{{
         runtimeModeText(data?.runtime_mode)
@@ -48,6 +48,8 @@
 </template>
 
 <script setup lang="ts">
+  import { helpChatModeLabel } from '../../../components/chatModeOptions'
+
   interface Props {
     modelValue: boolean
     data?: Record<string, any>
@@ -68,15 +70,6 @@
     get: () => props.modelValue,
     set: (value) => emit('update:modelValue', value)
   })
-
-  const chatModeText = (mode?: string) => {
-    const map: Record<string, string> = {
-      doctor: '医生模式',
-      companion: '陪伴模式',
-      patient: '患者模式'
-    }
-    return mode ? map[mode] || mode : '无'
-  }
 
   const runtimeModeText = (mode?: string) => {
     const map: Record<string, string> = {

@@ -12,7 +12,7 @@ class SaMemberChatRecordValidate extends BaseValidate
     protected $rule = [
         'session_id' => 'require|integer',
         'member_id' => 'require|integer',
-        'chat_mode' => 'require|in:doctor,companion,patient',
+        'chat_mode' => 'require|in:doctor,companion,patient,ai_doctor',
         'role' => 'require|in:user,assistant,system',
         'content' => 'require',
         'content_type' => 'require|in:text,image,file,voice',

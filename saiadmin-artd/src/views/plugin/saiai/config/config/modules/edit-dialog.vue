@@ -24,6 +24,22 @@
             />
           </el-form-item>
         </el-col>
+        <el-col :span="24" v-if="isAppOnlineChatModel">
+          <el-alert
+            type="success"
+            :closable="false"
+            show-icon
+            title="该配置会出现在 App 在线文字聊天的模型选择器中，四种聊天模式（含 AI 医生）共用。"
+          />
+        </el-col>
+        <el-col :span="24" v-else-if="formData.type === 'realtime'">
+          <el-alert
+            type="warning"
+            :closable="false"
+            show-icon
+            title="realtime 只用于音视频通话，不会出现在 App 文字聊天的模型选择器中。"
+          />
+        </el-col>
         <el-col :span="24" v-if="['generic', 'realtime'].includes(formData.type)">
           <el-form-item label="接口地址" prop="ai_url">
             <el-input
@@ -151,6 +167,9 @@
    * 表单数据
    */
   const formData = reactive({ ...initialFormData })
+
+  const appOnlineChatTypes = ['openai', 'gemini', 'deepseek', 'generic']
+  const isAppOnlineChatModel = computed(() => appOnlineChatTypes.includes(formData.type))
 
   /**
    * 监听弹窗打开，初始化表单数据

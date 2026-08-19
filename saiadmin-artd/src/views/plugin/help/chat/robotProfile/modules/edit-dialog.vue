@@ -11,11 +11,7 @@
       <el-row :gutter="20">
         <el-col :span="12">
           <el-form-item label="聊天模式" prop="chat_mode">
-            <el-select v-model="formData.chat_mode" placeholder="请选择聊天模式" class="w-full">
-              <el-option label="医生模式" value="doctor" />
-              <el-option label="陪伴模式" value="companion" />
-              <el-option label="患者模式" value="patient" />
-            </el-select>
+            <HelpChatModeSelect v-model="formData.chat_mode" />
           </el-form-item>
         </el-col>
         <el-col :span="12">
@@ -94,6 +90,7 @@
   import api from '../../../api/chat/robotProfile'
   import { ElMessage } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
+  import HelpChatModeSelect from '../../../components/HelpChatModeSelect.vue'
 
   interface Props {
     modelValue: boolean

@@ -17,7 +17,7 @@ class SaLocalModelPromptValidate extends BaseValidate
      * 定义验证规则
      */
     protected $rule =   [
-        'chat_mode' => 'require|in:doctor,companion,patient',
+        'chat_mode' => 'require|in:doctor,companion,patient,ai_doctor',
         'locale' => 'require',
         'title' => 'require',
         'first_message' => 'require',
@@ -28,8 +28,8 @@ class SaLocalModelPromptValidate extends BaseValidate
      * 定义错误信息
      */
     protected $message  =   [
-        'chat_mode' => '聊天模式 doctor/companion/patient必须填写',
-        'chat_mode.in' => '聊天模式必须是 doctor、companion 或 patient',
+        'chat_mode' => '聊天模式 doctor/companion/patient/ai_doctor必须填写',
+        'chat_mode.in' => '聊天模式必须是 doctor、companion、patient 或 ai_doctor',
         'locale' => '语言必须填写',
         'title' => '提示词标题必须填写',
         'first_message' => '默认开场白必须填写',
