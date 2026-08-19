@@ -129,8 +129,8 @@ class SettingsScreen extends ConsumerWidget {
                   title: _t(context, '本地模型管理', 'Local model management'),
                   subtitle: _t(
                     context,
-                    '下载或删除本地模型，不会进入对话',
-                    'Download or delete local models without opening a chat',
+                    '下载或删除本地模型',
+                    'Download or delete local models',
                   ),
                   onTap: () => context.push('/local-model?manage=1'),
                 ),
