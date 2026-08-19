@@ -87,7 +87,7 @@
                   "properties": {
                     "modes": {
                       "type": "array",
-                      "description": "三种聊天模式及最近会话",
+                      "description": "启用中的互动角色、能力开关、标签、机器人形象及最近会话",
                       "items": {
                         "type": "string"
                       }
@@ -130,7 +130,7 @@
             "in": "query",
             "required": false,
             "type": "string",
-            "description": "聊天模式 doctor/companion/patient"
+            "description": "互动角色编码，对应 sa_ai_persona.code"
           }
         ],
         "responses": {
@@ -183,7 +183,7 @@
                 "properties": {
                   "chat_mode": {
                     "type": "string",
-                    "description": "聊天模式 doctor/companion/patient"
+                    "description": "互动角色编码，对应 sa_ai_persona.code"
                   },
                   "prompt_text": {
                     "type": "string",
@@ -246,7 +246,7 @@
             "in": "query",
             "required": false,
             "type": "string",
-            "description": "聊天模式 doctor/companion/patient"
+            "description": "互动角色编码，对应 sa_ai_persona.code"
           },
           {
             "name": "keyword",
@@ -334,7 +334,7 @@
                   },
                   "chat_mode": {
                     "type": "string",
-                    "description": "聊天模式 doctor/companion/patient"
+                    "description": "互动角色编码，对应 sa_ai_persona.code"
                   },
                   "session_name": {
                     "type": "string",
@@ -469,7 +469,7 @@
             "in": "query",
             "required": false,
             "type": "string",
-            "description": "聊天模式 doctor/companion/patient"
+            "description": "互动角色编码，对应 sa_ai_persona.code"
           },
           {
             "name": "page",
@@ -625,7 +625,7 @@
                   },
                   "chat_mode": {
                     "type": "string",
-                    "description": "聊天模式 doctor/companion/patient，创建新会话时必填"
+                    "description": "互动角色编码，创建新会话时必填"
                   },
                   "content": {
                     "type": "string",
@@ -4281,7 +4281,7 @@
             "in": "query",
             "required": false,
             "type": "string",
-            "description": "聊天模式 doctor/companion/patient"
+            "description": "互动角色编码，对应 sa_ai_persona.code"
           },
           {
             "name": "locale",

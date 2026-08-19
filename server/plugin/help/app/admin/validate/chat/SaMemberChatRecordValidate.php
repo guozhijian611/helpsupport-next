@@ -12,7 +12,7 @@ class SaMemberChatRecordValidate extends BaseValidate
     protected $rule = [
         'session_id' => 'require|integer',
         'member_id' => 'require|integer',
-        'chat_mode' => 'require|in:doctor,companion,patient,ai_doctor',
+        'chat_mode' => 'require|regex:/^[a-z][a-z0-9_]{1,47}$/',
         'role' => 'require|in:user,assistant,system',
         'content' => 'require',
         'content_type' => 'require|in:text,image,file,voice',

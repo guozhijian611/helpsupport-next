@@ -30,6 +30,15 @@
           </el-form-item>
         </el-col>
         <el-col :span="24">
+          <el-form-item label="能力类型" prop="capability">
+            <el-select v-model="formData.capability" class="w-full">
+              <el-option label="文本大模型" value="llm" />
+              <el-option label="端侧 ASR" value="asr" />
+              <el-option label="端侧 TTS" value="tts" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
           <el-form-item label="量化类型" prop="quantization">
             <el-input v-model="formData.quantization" placeholder="请输入量化类型" />
           </el-form-item>
@@ -226,6 +235,7 @@
     code: '',
     provider: '',
     model_family: '',
+    capability: 'llm',
     quantization: '',
     file_size: 0,
     download_url: '',

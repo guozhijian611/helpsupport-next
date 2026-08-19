@@ -29,7 +29,7 @@
             type="success"
             :closable="false"
             show-icon
-            title="该配置会出现在 App 在线文字聊天的模型选择器中，四种聊天模式（含 AI 医生）共用。"
+            title="该配置会出现在 App 在线文字聊天的模型选择器中，所有开放在线模式的互动角色共用。"
           />
         </el-col>
         <el-col :span="24" v-else-if="formData.type === 'realtime'">
@@ -37,10 +37,26 @@
             type="warning"
             :closable="false"
             show-icon
-            title="realtime 只用于音视频通话，不会出现在 App 文字聊天的模型选择器中。"
+            title="realtime 只用于音视频通话，需要在互动角色里按角色绑定。"
           />
         </el-col>
-        <el-col :span="24" v-if="['generic', 'realtime'].includes(formData.type)">
+        <el-col :span="24" v-else-if="formData.type === 'asr'">
+          <el-alert
+            type="success"
+            :closable="false"
+            show-icon
+            title="ASR 用于文字聊天的录音转写，在互动角色的语音设置里绑定。"
+          />
+        </el-col>
+        <el-col :span="24" v-else-if="formData.type === 'tts'">
+          <el-alert
+            type="success"
+            :closable="false"
+            show-icon
+            title="TTS 用于文字聊天的语音播报，在互动角色的语音设置里绑定。"
+          />
+        </el-col>
+        <el-col :span="24" v-if="['generic', 'realtime', 'asr', 'tts'].includes(formData.type)">
           <el-form-item label="接口地址" prop="ai_url">
             <el-input
               v-model="formData.ai_url"

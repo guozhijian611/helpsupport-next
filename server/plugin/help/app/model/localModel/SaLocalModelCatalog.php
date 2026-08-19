@@ -18,6 +18,7 @@ use plugin\saiadmin\basic\think\BaseModel;
  * @property  $code 模型编码
  * @property  $provider 模型来源
  * @property  $model_family 模型家族
+ * @property  $capability 能力 llm/asr/tts
  * @property  $quantization 量化类型
  * @property  $file_size 文件大小字节
  * @property  $download_url 模型下载地址
@@ -64,6 +65,14 @@ class SaLocalModelCatalog extends BaseModel
     public function searchCodeAttr($query, $value)
     {
         $query->where('code', 'like', '%'.$value.'%');
+    }
+
+    /**
+     * 能力类型 搜索
+     */
+    public function searchCapabilityAttr($query, $value)
+    {
+        $query->where('capability', $value);
     }
 
     /**

@@ -13,6 +13,24 @@ class SaMemberChatRecord extends BaseModel
 
     protected $table = 'sa_member_chat_record';
 
+    protected $append = ['transcript'];
+
+    public function getTranscriptAttr($value, $data): string
+    {
+        $contentType = (string) ($data['content_type'] ?? 'text');
+        if ($contentType !== 'voice') {
+            return '';
+        }
+        $ext = $data['ext'] ?? null;
+        if (is_string($ext)) {
+            $decoded = json_decode($ext, true);
+            $ext = is_array($decoded) ? $decoded : [];
+        }
+        $transcript = trim((string) (($ext['transcript'] ?? '') ?: ''));
+
+        return $transcript !== '' ? $transcript : trim((string) ($data['content'] ?? ''));
+    }
+
     public function searchSessionIdAttr($query, $value): void
     {
         $query->where('session_id', (int) $value);

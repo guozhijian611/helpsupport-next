@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace plugin\help\app\api\controller;
 
 use hg\apidoc\annotation as Apidoc;
+use plugin\help\app\service\ChatPersonaCatalog;
 use plugin\help\app\service\HelpApiService;
 use plugin\saiai\app\service\AiFactory;
 use plugin\saiai\app\service\AliyunRealtimeConfig;
@@ -26,7 +27,7 @@ class ChatController extends BaseController
     #[Apidoc\Title('聊天模式概览')]
     #[Apidoc\Url('/app/help/chat/overview')]
     #[Apidoc\Method('GET')]
-    #[Apidoc\Returned('modes', type: 'array', desc: '四种聊天模式、后台temp_save、在线模型ID及最近会话')]
+    #[Apidoc\Returned('modes', type: 'array', desc: '启用中的互动角色、能力开关、标签、机器人形象、后台temp_save、在线模型ID及最近会话')]
     #[Apidoc\Returned('recent_sessions', type: 'array', desc: '最近会话')]
     public function overview(Request $request): Response
     {
@@ -36,7 +37,7 @@ class ChatController extends BaseController
     #[Apidoc\Title('聊天配置')]
     #[Apidoc\Url('/app/help/chat/config')]
     #[Apidoc\Method('GET')]
-    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient/ai_doctor')]
+    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '互动角色编码，对应 sa_ai_persona.code')]
     #[Apidoc\Returned('list', type: 'array', desc: '会员聊天提示词和最近选择的在线模型配置ID')]
     public function configs(Request $request): Response
     {
@@ -46,7 +47,7 @@ class ChatController extends BaseController
     #[Apidoc\Title('保存聊天配置')]
     #[Apidoc\Url('/app/help/chat/config')]
     #[Apidoc\Method('POST')]
-    #[Apidoc\Param('chat_mode', type: 'string', require: true, desc: '聊天模式 doctor/companion/patient/ai_doctor')]
+    #[Apidoc\Param('chat_mode', type: 'string', require: true, desc: '互动角色编码，对应 sa_ai_persona.code')]
     #[Apidoc\Param('prompt_text', type: 'string', require: false, desc: '用户自定义提示词，与online_config_id至少传一项')]
     #[Apidoc\Param('online_config_id', type: 'int', require: false, desc: '最近选择的在线SAIAI配置ID')]
     #[Apidoc\Returned('id', type: 'int', desc: '配置ID')]
@@ -74,7 +75,7 @@ class ChatController extends BaseController
     #[Apidoc\Url('/app/help/chat/robot-profiles')]
     #[Apidoc\Method('GET')]
     #[Apidoc\Query('runtime_mode', type: 'string', require: false, default: 'online', desc: '运行模式 online/local')]
-    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient/ai_doctor')]
+    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '互动角色编码，对应 sa_ai_persona.code')]
     #[Apidoc\Returned('list', type: 'array', desc: '按聊天模式返回机器人头像、显示名和简介')]
     public function robotProfiles(Request $request): Response
     {
@@ -87,16 +88,31 @@ class ChatController extends BaseController
     #[Apidoc\Returned('ws_url', type: 'string', desc: '实时 WebSocket 地址')]
     #[Apidoc\Returned('default_model', type: 'string', desc: '默认实时模型')]
     #[Apidoc\Returned('default_session', type: 'object', desc: '默认实时会话参数')]
-    #[Apidoc\Returned('config_id', type: 'int', desc: '默认 realtime 配置ID')]
+    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '互动角色编码，按角色绑定实时配置')]
+    #[Apidoc\Returned('config_id', type: 'int', desc: '该角色绑定的 realtime 配置ID')]
     public function realtimeConfig(Request $request): Response
     {
-        $config = AliyunRealtimeConfig::resolve(null);
+        $chatMode = trim((string) $request->get('chat_mode', ''));
+        $configId = $chatMode !== '' ? ChatPersonaCatalog::realtimeConfigId($chatMode) : 0;
+        if ($chatMode !== '') {
+            $persona = ChatPersonaCatalog::find($chatMode);
+            if ((int) ($persona['allow_realtime'] ?? 2) !== 1) {
+                return fail('当前角色未开放实时音视频', 400);
+            }
+        }
+        $config = AliyunRealtimeConfig::resolve($configId > 0 ? $configId : null);
+        $session = AliyunRealtimeConfig::defaultSession((array) ($config['options'] ?? []));
+        $voice = $chatMode !== '' ? ChatPersonaCatalog::ttsVoice($chatMode) : '';
+        if ($voice !== '') {
+            $session['voice'] = $voice;
+        }
 
         return ok([
             'ws_url' => $this->buildRealtimeProxyUrl($request),
             'default_model' => (string) ($config['model'] ?? AliyunRealtimeConfig::DEFAULT_MODEL),
-            'default_session' => AliyunRealtimeConfig::defaultSession((array) ($config['options'] ?? [])),
+            'default_session' => $session,
             'config_id' => (int) ($config['id'] ?? 0),
+            'chat_mode' => $chatMode,
         ]);
     }
 
@@ -151,7 +167,7 @@ class ChatController extends BaseController
     #[Apidoc\Title('聊天会话列表')]
     #[Apidoc\Url('/app/help/chat/sessions')]
     #[Apidoc\Method('GET')]
-    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient/ai_doctor')]
+    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '互动角色编码，对应 sa_ai_persona.code')]
     #[Apidoc\Query('keyword', type: 'string', require: false, desc: '关键词')]
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
@@ -166,7 +182,7 @@ class ChatController extends BaseController
     #[Apidoc\Url('/app/help/chat/session')]
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('id', type: 'int', require: false, desc: '会话ID，传入时更新')]
-    #[Apidoc\Param('chat_mode', type: 'string', require: true, desc: '聊天模式 doctor/companion/patient/ai_doctor')]
+    #[Apidoc\Param('chat_mode', type: 'string', require: true, desc: '互动角色编码，对应 sa_ai_persona.code')]
     #[Apidoc\Param('session_name', type: 'string', require: false, desc: '会话名称')]
     #[Apidoc\Param('is_pinned', type: 'int', require: false, default: 2, desc: '是否置顶 1是 2否')]
     #[Apidoc\Param('locale', type: 'string', require: false, desc: '客户端语言，用于生成默认 AI 开场白')]
@@ -191,10 +207,10 @@ class ChatController extends BaseController
     #[Apidoc\Url('/app/help/chat/records')]
     #[Apidoc\Method('GET')]
     #[Apidoc\Query('session_id', type: 'int', require: false, desc: '会话ID')]
-    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient/ai_doctor')]
+    #[Apidoc\Query('chat_mode', type: 'string', require: false, desc: '互动角色编码，对应 sa_ai_persona.code')]
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 50, desc: '每页数量')]
-    #[Apidoc\Returned('list', type: 'array', desc: '聊天记录列表')]
+    #[Apidoc\Returned('list', type: 'array', desc: '聊天记录列表。语音消息 content 为转写正文，并同时返回 transcript 与 ext.transcript')]
     #[Apidoc\Returned('total', type: 'int', desc: '总数')]
     public function records(Request $request): Response
     {
@@ -256,7 +272,7 @@ class ChatController extends BaseController
     #[Apidoc\Url('/app/help/chat/send')]
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('session_id', type: 'int', require: false, desc: '会话ID，不传时按 chat_mode 创建新会话')]
-    #[Apidoc\Param('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient/ai_doctor，创建新会话时必填')]
+    #[Apidoc\Param('chat_mode', type: 'string', require: false, desc: '互动角色编码，创建新会话时必填')]
     #[Apidoc\Param('content', type: 'string', require: false, desc: '文本消息或图片补充说明，语音可为空')]
     #[Apidoc\Param('content_type', type: 'string', require: false, default: 'text', desc: '内容类型 text/image/voice')]
     #[Apidoc\Param('attachment_id', type: 'int', require: false, desc: '图片或语音上传后的附件ID')]
@@ -274,7 +290,7 @@ class ChatController extends BaseController
     #[Apidoc\Url('/app/help/chat/send/stream')]
     #[Apidoc\Method('POST')]
     #[Apidoc\Param('session_id', type: 'int', require: false, desc: '会话ID，不传时按 chat_mode 创建新会话')]
-    #[Apidoc\Param('chat_mode', type: 'string', require: false, desc: '聊天模式 doctor/companion/patient/ai_doctor，创建新会话时必填')]
+    #[Apidoc\Param('chat_mode', type: 'string', require: false, desc: '互动角色编码，创建新会话时必填')]
     #[Apidoc\Param('content', type: 'string', require: false, desc: '文本消息或图片补充说明，语音可为空')]
     #[Apidoc\Param('content_type', type: 'string', require: false, default: 'text', desc: '内容类型 text/image/voice')]
     #[Apidoc\Param('attachment_id', type: 'int', require: false, desc: '图片或语音上传后的附件ID')]

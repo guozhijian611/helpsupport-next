@@ -75,6 +75,7 @@ export interface HelpCrudAction {
   }
   visible?: (row: Record<string, any>) => boolean
   payload?: (row: Record<string, any>, value?: string) => Record<string, any>
+  onClick?: (row: Record<string, any>) => void | Promise<void>
 }
 
 export interface CrudApi {

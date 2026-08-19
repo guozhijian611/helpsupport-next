@@ -18,7 +18,7 @@ class SaMemberChatConfigValidate extends BaseValidate
      */
     protected $rule =   [
         'member_id' => 'require',
-        'chat_mode' => 'require|in:doctor,companion,patient,ai_doctor',
+        'chat_mode' => 'require|regex:/^[a-z][a-z0-9_]{1,47}$/',
         'online_config_id' => 'integer|egt:0',
     ];
 
@@ -27,8 +27,8 @@ class SaMemberChatConfigValidate extends BaseValidate
      */
     protected $message  =   [
         'member_id' => '会员ID必须填写',
-        'chat_mode' => '模式 doctor/companion/patient/ai_doctor必须填写',
-        'chat_mode.in' => '模式必须是 doctor、companion、patient 或 ai_doctor',
+        'chat_mode' => '聊天角色编码必须填写',
+        'chat_mode.regex' => '聊天角色编码格式错误',
         'online_config_id.integer' => '在线模型配置ID格式错误',
         'online_config_id.egt' => '在线模型配置ID格式错误',
     ];

@@ -17,7 +17,11 @@
 </template>
 
 <script setup lang="ts">
-  import { helpChatModeOptions } from './chatModeOptions'
+  import { helpChatModeOptions, loadHelpChatModeOptions } from './chatModeOptions'
+
+  onMounted(() => {
+    void loadHelpChatModeOptions()
+  })
 
   withDefaults(
     defineProps<{

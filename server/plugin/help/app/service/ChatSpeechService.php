@@ -30,7 +30,7 @@ final class ChatSpeechService
                 $this->speechEndpoint($resolved, 'transcriptions'),
                 ['Authorization: Bearer ' . $resolved['apiKey']],
                 [
-                    'model' => (string) env('SAIAI_TRANSCRIPTION_MODEL', 'whisper-1'),
+                    'model' => (string) ($resolved['model'] ?? env('SAIAI_TRANSCRIPTION_MODEL', 'whisper-1')),
                     'file' => new \CURLFile(
                         $filePath,
                         (string) ($attachment['mime_type'] ?? 'audio/mp4'),
@@ -57,9 +57,10 @@ final class ChatSpeechService
     /**
      * @return array{audio_url:string,audio_mime_type:string}
      */
-    public function synthesize(string $text, int $configId): array
+    public function synthesize(string $text, int $configId, string $voice = ''): array
     {
         $resolved = $this->resolveSpeechConfig($configId);
+        $voice = trim($voice) !== '' ? trim($voice) : (string) env('SAIAI_SPEECH_VOICE', 'alloy');
         $response = $this->request(
             'POST',
             $this->speechEndpoint($resolved, 'speech'),
@@ -69,8 +70,8 @@ final class ChatSpeechService
                 'Accept: audio/mpeg',
             ],
             json_encode([
-                'model' => (string) env('SAIAI_SPEECH_MODEL', 'gpt-4o-mini-tts'),
-                'voice' => (string) env('SAIAI_SPEECH_VOICE', 'alloy'),
+                'model' => (string) ($resolved['model'] ?? env('SAIAI_SPEECH_MODEL', 'gpt-4o-mini-tts')),
+                'voice' => $voice,
                 'input' => mb_substr($text, 0, 4096),
                 'response_format' => 'mp3',
             ], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)
@@ -148,6 +149,9 @@ final class ChatSpeechService
 
     private function resolveSpeechConfig(int $chatConfigId): array
     {
+        if ($chatConfigId > 0) {
+            return AiFactory::resolveConfigById($chatConfigId);
+        }
         $speechConfigId = (int) env('SAIAI_SPEECH_CONFIG_ID', 0);
         return AiFactory::resolveConfigById($speechConfigId > 0 ? $speechConfigId : $chatConfigId);
     }

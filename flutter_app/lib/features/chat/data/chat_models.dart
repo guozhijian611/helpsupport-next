@@ -27,6 +27,14 @@ class ChatModeInfo {
     required this.robotProfile,
     required this.sessionCount,
     this.latestSession,
+    this.allowOnline = true,
+    this.allowLocal = true,
+    this.allowRealtime = false,
+    this.allowVoice = true,
+    this.allowUserPrompt = true,
+    this.speechRuntime = 'online',
+    this.tagsZh = const [],
+    this.tagsEn = const [],
   });
 
   final String chatMode;
@@ -36,9 +44,26 @@ class ChatModeInfo {
   final AiRobotProfile robotProfile;
   final int sessionCount;
   final ChatSession? latestSession;
+  final bool allowOnline;
+  final bool allowLocal;
+  final bool allowRealtime;
+  final bool allowVoice;
+  final bool allowUserPrompt;
+  final String speechRuntime;
+  final List<String> tagsZh;
+  final List<String> tagsEn;
+
+  List<String> tagsFor(String languageCode) {
+    final primary = languageCode == 'zh' ? tagsZh : tagsEn;
+    if (primary.isNotEmpty) {
+      return primary;
+    }
+    return tagsZh.isNotEmpty ? tagsZh : tagsEn;
+  }
 
   factory ChatModeInfo.fromJson(Map<String, dynamic> json) {
     final chatMode = (json['chat_mode'] as String?) ?? '';
+    final tags = json['tags'];
     return ChatModeInfo(
       chatMode: chatMode,
       promptText: (json['prompt_text'] as String?) ?? '',
@@ -53,6 +78,14 @@ class ChatModeInfo {
       latestSession: json['latest_session'] is Map<String, dynamic>
           ? ChatSession.fromJson(json['latest_session'] as Map<String, dynamic>)
           : null,
+      allowOnline: _flag(json['allow_online'], true),
+      allowLocal: _flag(json['allow_local'], chatMode != 'doctor'),
+      allowRealtime: _flag(json['allow_realtime'], chatMode == 'doctor'),
+      allowVoice: _flag(json['allow_voice'], true),
+      allowUserPrompt: _flag(json['allow_user_prompt'], chatMode != 'doctor'),
+      speechRuntime: (json['speech_runtime'] ?? 'online').toString(),
+      tagsZh: tags is Map ? _stringList(tags['zh-CN']) : const [],
+      tagsEn: tags is Map ? _stringList(tags['en'] ?? tags['en-US']) : const [],
     );
   }
 }
@@ -350,7 +383,11 @@ class ChatRecord {
       mediaUrl: (ext['media_url'] ?? '').toString(),
       mediaMimeType: (ext['media_mime_type'] ?? '').toString(),
       durationSeconds: (ext['duration_seconds'] as num?)?.toInt() ?? 0,
-      transcript: (ext['transcript'] ?? '').toString(),
+      transcript: _firstNonEmpty([
+        json['transcript'],
+        ext['transcript'],
+        (json['content_type'] as String?) == 'voice' ? json['content'] : '',
+      ]),
       audioUrl: (ext['audio_url'] ?? '').toString(),
       speechStatus: (ext['speech_status'] ?? '').toString(),
       planTasks: _list(ext['plan_tasks'], ChatPlanTaskSuggestion.fromJson),
@@ -523,6 +560,36 @@ class ChatPage<T> {
       pageSize: (value['page_size'] as num?)?.toInt() ?? 20,
     );
   }
+}
+
+bool _flag(Object? value, bool fallback) {
+  if (value is bool) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt() == 1;
+  }
+  return fallback;
+}
+
+List<String> _stringList(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+  return value
+      .map((item) => item.toString().trim())
+      .where((item) => item.isNotEmpty)
+      .toList(growable: false);
+}
+
+String _firstNonEmpty(List<Object?> values) {
+  for (final value in values) {
+    final text = (value ?? '').toString().trim();
+    if (text.isNotEmpty && text != 'null') {
+      return text;
+    }
+  }
+  return '';
 }
 
 Map<String, dynamic> _map(Object? value) {

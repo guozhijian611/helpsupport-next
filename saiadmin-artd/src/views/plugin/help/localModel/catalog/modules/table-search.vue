@@ -19,6 +19,15 @@
       </el-form-item>
     </el-col>
     <el-col v-bind="setSpan(6)">
+      <el-form-item label="能力类型" prop="capability">
+        <el-select v-model="formData.capability" placeholder="请选择能力类型" clearable class="w-full">
+          <el-option label="文本大模型" value="llm" />
+          <el-option label="端侧 ASR" value="asr" />
+          <el-option label="端侧 TTS" value="tts" />
+        </el-select>
+      </el-form-item>
+    </el-col>
+    <el-col v-bind="setSpan(6)">
       <el-form-item label="状态" prop="status">
         <sa-select v-model="formData.status" dict="data_status" placeholder="请选择状态" />
       </el-form-item>

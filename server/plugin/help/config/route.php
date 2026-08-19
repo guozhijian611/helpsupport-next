@@ -16,6 +16,8 @@ use plugin\help\app\api\controller\PushController;
 use plugin\help\app\admin\controller\appointment\SaDoctorAppointmentController as AdminDoctorAppointmentController;
 use plugin\help\app\admin\controller\appointment\SaDoctorScheduleController as AdminDoctorScheduleController;
 use plugin\help\app\admin\controller\audit\SaHelpDoctorProfileController as AdminHelpDoctorProfileController;
+use plugin\help\app\admin\controller\chat\SaAiPersonaController as AdminAiPersonaController;
+use plugin\help\app\admin\controller\chat\SaAiPersonaPromptController as AdminAiPersonaPromptController;
 use plugin\help\app\admin\controller\chat\SaAiRobotProfileController as AdminAiRobotProfileController;
 use plugin\help\app\admin\controller\chat\SaMemberChatConfigController as AdminMemberChatConfigController;
 use plugin\help\app\admin\controller\chat\SaMemberChatRecordController as AdminMemberChatRecordController;
@@ -258,6 +260,9 @@ Route::group('/app/help/admin/audit', function () {
 });
 
 Route::group('/app/help/admin/chat', function () {
+    fastRoute('SaAiPersona', AdminAiPersonaController::class);
+    Route::get('/SaAiPersona/options', [AdminAiPersonaController::class, 'options']);
+    fastRoute('SaAiPersonaPrompt', AdminAiPersonaPromptController::class);
     fastRoute('SaAiRobotProfile', AdminAiRobotProfileController::class);
     fastRoute('SaMemberChatConfig', AdminMemberChatConfigController::class);
     fastRoute('SaMemberChatSession', AdminMemberChatSessionController::class);

@@ -217,6 +217,7 @@ class ChatRepository {
     String contentType = 'text',
     int attachmentId = 0,
     int durationSeconds = 0,
+    String locale = '',
   }) async {
     final result = await _apiClient.postApi<ChatSendResult>(
       '/app/help/chat/send',
@@ -227,6 +228,7 @@ class ChatRepository {
         'content_type': contentType,
         if (attachmentId > 0) 'attachment_id': attachmentId,
         if (durationSeconds > 0) 'duration_seconds': durationSeconds,
+        if (locale.isNotEmpty) 'locale': locale,
       },
       options: Options(receiveTimeout: const Duration(seconds: 75)),
       decode: ChatSendResult.fromJson,
@@ -245,6 +247,7 @@ class ChatRepository {
     String contentType = 'text',
     int attachmentId = 0,
     int durationSeconds = 0,
+    String locale = '',
   }) async* {
     final response = await _apiClient.dio.post<ResponseBody>(
       '/app/help/chat/send/stream',
@@ -255,6 +258,7 @@ class ChatRepository {
         'content_type': contentType,
         if (attachmentId > 0) 'attachment_id': attachmentId,
         if (durationSeconds > 0) 'duration_seconds': durationSeconds,
+        if (locale.isNotEmpty) 'locale': locale,
       },
       options: Options(
         responseType: ResponseType.stream,

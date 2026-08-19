@@ -15,6 +15,9 @@
         <el-descriptions-item label="模型家族">
           <div v-text="formData?.model_family"></div>
         </el-descriptions-item>
+        <el-descriptions-item label="能力类型">
+          <div v-text="formData?.capability"></div>
+        </el-descriptions-item>
         <el-descriptions-item label="量化类型">
           <div v-text="formData?.quantization"></div>
         </el-descriptions-item>
@@ -99,6 +102,7 @@
     code: '',
     provider: '',
     model_family: '',
+    capability: 'llm',
     quantization: '',
     file_size: 0,
     download_url: '',

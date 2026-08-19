@@ -39,6 +39,7 @@ class SaLocalModelCatalogController extends BaseController
         $where = $request->more([
             ['name', ''],
             ['code', ''],
+            ['capability', ''],
             ['status', ''],
         ]);
         $query = $this->logic->search($where);

@@ -5,5 +5,7 @@ return [
     'gemini',
     'deepseek',
     'generic',
-    'realtime'
+    'realtime',
+    'asr',
+    'tts'
 ];

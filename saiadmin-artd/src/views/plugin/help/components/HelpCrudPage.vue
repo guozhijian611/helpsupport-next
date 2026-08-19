@@ -553,6 +553,10 @@
   }
 
   const runAction = async (action: HelpCrudAction, row: Record<string, any>) => {
+    if (action.onClick) {
+      await action.onClick(row)
+      return
+    }
     let promptValue: string | undefined
     if (action.prompt) {
       const result = await ElMessageBox.prompt(action.prompt.label, action.label, {

@@ -86,6 +86,7 @@
   const searchForm = ref({
     name: undefined,
     code: undefined,
+    capability: undefined,
     status: undefined,
   })
 
@@ -118,6 +119,7 @@
         { prop: 'code', label: '模型编码', minWidth: 140 },
         { prop: 'provider', label: '模型来源', width: 120 },
         { prop: 'model_family', label: '模型家族', width: 120 },
+        { prop: 'capability', label: '能力类型', width: 110 },
         { prop: 'quantization', label: '量化类型', width: 110 },
         { prop: 'file_size', label: '文件大小字节', width: 130 },
         { prop: 'download_url', label: '模型下载地址', minWidth: 220 },

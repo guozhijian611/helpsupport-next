@@ -154,6 +154,7 @@ class HomeDashboardScreen extends ConsumerWidget {
                             padding: const EdgeInsets.only(bottom: 12),
                             child: _ConversationCard(
                               session: session,
+                              modes: data.modes,
                               onTap: () => _openSession(context, session),
                               onDelete: () =>
                                   _deleteSession(context, ref, session),
@@ -182,11 +183,15 @@ class HomeDashboardScreen extends ConsumerWidget {
     ChatModeInfo mode,
   ) async {
     final chatMode = mode.chatMode;
-    final option = chatMode == 'doctor'
+    final option = !mode.allowLocal
         ? ChatLaunchOption.online
+        : !mode.allowOnline
+        ? ChatLaunchOption.local
         : await showChatLaunchSheet(
             context,
-            title: _modeTitle(context, chatMode),
+            title: mode.robotProfile.displayNameFor(
+              Localizations.localeOf(context).languageCode,
+            ),
           );
     if (option == null || !context.mounted) {
       return;
@@ -197,7 +202,9 @@ class HomeDashboardScreen extends ConsumerWidget {
           path: '/local-model',
           queryParameters: {
             'mode': chatMode,
-            'title': _modeTitle(context, chatMode),
+            'title': mode.robotProfile.displayNameFor(
+              Localizations.localeOf(context).languageCode,
+            ),
           },
         ).toString(),
       );
@@ -274,7 +281,7 @@ class HomeDashboardScreen extends ConsumerWidget {
     WidgetRef ref,
     ChatModeInfo mode,
   ) async {
-    if (mode.chatMode == 'doctor') {
+    if (!mode.allowUserPrompt) {
       return true;
     }
     if (mode.promptText.trim().isNotEmpty) {
@@ -598,6 +605,9 @@ class _ChatModeHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visual = _ModeVisualData.fromMode(context, mode.chatMode);
+    final languageCode = Localizations.localeOf(context).languageCode;
+    final tags = mode.tagsFor(languageCode);
+    final labels = tags.isNotEmpty ? tags : visual.tags;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
@@ -612,7 +622,9 @@ class _ChatModeHeroCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _modeTitle(context, mode.chatMode),
+                  mode.robotProfile.displayNameFor(
+                    Localizations.localeOf(context).languageCode,
+                  ),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -621,7 +633,7 @@ class _ChatModeHeroCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  _modeDescription(context, mode.chatMode),
+                  mode.robotProfile.descriptionFor(languageCode),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -636,7 +648,7 @@ class _ChatModeHeroCard extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    for (final label in visual.tags)
+                    for (final label in labels)
                       _ModeTag(label: label, backgroundColor: visual.tagColor),
                   ],
                 ),
@@ -690,11 +702,13 @@ class _ModeTag extends StatelessWidget {
 class _ConversationCard extends StatelessWidget {
   const _ConversationCard({
     required this.session,
+    required this.modes,
     required this.onTap,
     required this.onDelete,
   });
 
   final ChatSession session;
+  final List<ChatModeInfo> modes;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
@@ -739,7 +753,7 @@ class _ConversationCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      _conversationSubtitle(context, session),
+                      _conversationSubtitle(context, session, modes),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -1154,19 +1168,6 @@ class _HomeDashboardPalette {
   final Color bodyText;
 }
 
-String _modeDescription(BuildContext context, String mode) {
-  return switch (mode) {
-    'doctor' => context.l10n.doctorChatDescription,
-    'ai_doctor' => _t(
-      context,
-      '帮助整理健康问题、症状和就诊准备，不替代真实医生诊疗。',
-      'Organize health concerns, symptoms, and visit preparation without replacing clinical care.',
-    ),
-    'patient' => context.l10n.patientChatDescription,
-    _ => context.l10n.companionChatDescription,
-  };
-}
-
 String _modeTitle(BuildContext context, String mode) {
   return switch (mode) {
     'doctor' => _t(context, 'AI 心理医生', 'AI doctor'),
@@ -1185,10 +1186,21 @@ Color _modeAccent(String mode) {
   };
 }
 
-String _conversationSubtitle(BuildContext context, ChatSession session) {
+String _conversationSubtitle(
+  BuildContext context,
+  ChatSession session,
+  List<ChatModeInfo> modes,
+) {
   final lastTime = (session.lastMessageTime ?? '').trim();
   if (lastTime.isNotEmpty) {
     return lastTime;
+  }
+  for (final mode in modes) {
+    if (mode.chatMode == session.chatMode) {
+      return mode.robotProfile.displayNameFor(
+        Localizations.localeOf(context).languageCode,
+      );
+    }
   }
   return _modeTitle(context, session.chatMode);
 }

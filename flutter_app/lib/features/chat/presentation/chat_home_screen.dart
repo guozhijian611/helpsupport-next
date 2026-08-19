@@ -142,11 +142,15 @@ class ChatHomeScreen extends ConsumerWidget {
     ChatModeInfo mode,
   ) async {
     final chatMode = mode.chatMode;
-    final option = chatMode == 'doctor'
+    final option = !mode.allowLocal
         ? ChatLaunchOption.online
+        : !mode.allowOnline
+        ? ChatLaunchOption.local
         : await showChatLaunchSheet(
             context,
-            title: _modeTitle(context, chatMode),
+            title: mode.robotProfile.displayNameFor(
+              Localizations.localeOf(context).languageCode,
+            ),
           );
     if (option == null || !context.mounted) {
       return;
@@ -157,7 +161,9 @@ class ChatHomeScreen extends ConsumerWidget {
           path: '/local-model',
           queryParameters: {
             'mode': chatMode,
-            'title': _modeTitle(context, chatMode),
+            'title': mode.robotProfile.displayNameFor(
+              Localizations.localeOf(context).languageCode,
+            ),
           },
         ).toString(),
       );
@@ -234,7 +240,7 @@ class ChatHomeScreen extends ConsumerWidget {
     WidgetRef ref,
     ChatModeInfo mode,
   ) async {
-    if (mode.chatMode == 'doctor') {
+    if (!mode.allowUserPrompt) {
       return true;
     }
     if (mode.promptText.trim().isNotEmpty) {
@@ -281,6 +287,8 @@ class _ModeCard extends StatelessWidget {
     final visual = _modeVisual(context, mode.chatMode);
     final latest = mode.latestSession;
     final languageCode = Localizations.localeOf(context).languageCode;
+    final tags = mode.tagsFor(languageCode);
+    final labels = tags.isNotEmpty ? tags : visual.$2;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
@@ -318,7 +326,7 @@ class _ModeCard extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    for (final label in visual.$2)
+                    for (final label in labels)
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -426,7 +434,10 @@ class _SessionTile extends ConsumerWidget {
         ),
         subtitle: Text(
           session.lastMessage.isEmpty
-              ? _modeTitle(context, session.chatMode)
+              ? (robotProfile?.displayNameFor(
+                      Localizations.localeOf(context).languageCode,
+                    ) ??
+                    _modeTitle(context, session.chatMode))
               : session.lastMessage,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -623,19 +634,6 @@ String _modeTitle(BuildContext context, String mode) {
     'ai_doctor' => _t(context, 'AI 医生', 'AI clinician'),
     'patient' => _t(context, 'AI 模拟病人', 'AI patient'),
     _ => _t(context, 'AI 心理陪伴', 'AI companion'),
-  };
-}
-
-String _modeDescription(BuildContext context, String mode) {
-  return switch (mode) {
-    'doctor' => context.l10n.doctorChatDescription,
-    'ai_doctor' => _t(
-      context,
-      '帮助整理健康问题、症状和就诊准备，不替代真实医生诊疗。',
-      'Organize health concerns, symptoms, and visit preparation without replacing clinical care.',
-    ),
-    'patient' => context.l10n.patientChatDescription,
-    _ => context.l10n.companionChatDescription,
   };
 }
 

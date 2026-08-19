@@ -2142,6 +2142,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
           contentType: contentType,
           attachmentId: attachmentId,
           durationSeconds: durationSeconds,
+          locale: Localizations.localeOf(context).toLanguageTag(),
         )
         .listen(
           (event) {
@@ -2991,7 +2992,7 @@ class _MessageBubble extends StatelessWidget {
                         ],
                       ),
                       child: Text(
-                        record.content,
+                        _transcriptText(record),
                         style: TextStyle(
                           color: palette.primaryText,
                           fontSize: 16,
@@ -4503,11 +4504,19 @@ IconData _modeAvatarIcon(String mode) {
   };
 }
 
+String _transcriptText(ChatRecord record) {
+  final transcript = record.transcript.trim();
+  if (transcript.isNotEmpty) {
+    return transcript;
+  }
+  return record.content.trim();
+}
+
 bool _hasTranscript(ChatRecord record) {
   if (record.contentType != 'voice') {
     return false;
   }
-  final trimmed = record.content.trim();
+  final trimmed = _transcriptText(record);
   if (trimmed.isEmpty) {
     return false;
   }

@@ -896,12 +896,20 @@ class HelpApiService
             $onlineConfigId = max(0, (int) ($chatConfig['online_config_id'] ?? 0));
             $aiConfig = $this->findOnlineChatModel($onlineConfigId);
 
+            $persona = ChatPersonaCatalog::find($mode);
             $modes[] = [
                 'chat_mode' => $mode,
                 'prompt_text' => (string) ($chatConfig['prompt_text'] ?? ''),
                 'online_config_id' => $onlineConfigId,
                 'temp_save' => (string) ($aiConfig['temp_save'] ?? ''),
-                'robot_profile' => $robotProfiles[$mode] ?? $this->defaultAiRobotProfile($mode, 'online'),
+                'allow_online' => (int) ($persona['allow_online'] ?? 1),
+                'allow_local' => (int) ($persona['allow_local'] ?? 1),
+                'allow_realtime' => (int) ($persona['allow_realtime'] ?? 2),
+                'allow_voice' => (int) ($persona['allow_voice'] ?? 1),
+                'allow_user_prompt' => (int) ($persona['allow_user_prompt'] ?? 1),
+                'speech_runtime' => (string) ($persona['speech_runtime'] ?? 'online'),
+                'tags' => $persona['tags_i18n'] ?? ['zh-CN' => [], 'en' => []],
+                'robot_profile' => $this->personaRobotProfile($persona, $robotProfiles[$mode] ?? []),
                 'session_count' => (int) Db::table('sa_member_chat_session')
                     ->where('member_id', $memberId)
                     ->where('chat_mode', $mode)
@@ -971,7 +979,7 @@ class HelpApiService
             ->where('member_id', $memberId)
             ->whereNull('delete_time');
         if (!empty($params['chat_mode'])) {
-            $query->where('chat_mode', $this->chatMode($params['chat_mode']));
+            $query->where('chat_mode', $this->chatMode($params['chat_mode'], false));
         }
 
         return $query->order('id', 'asc')->select()->toArray();
@@ -1039,7 +1047,7 @@ class HelpApiService
                 ->where('status', 1)
                 ->whereNull('delete_time');
             if (!empty($params['chat_mode'])) {
-                $query->where('chat_mode', $this->chatMode($params['chat_mode']));
+                $query->where('chat_mode', $this->chatMode($params['chat_mode'], false));
             }
             if (!empty($params['keyword'])) {
                 $keyword = '%' . trim((string) $params['keyword']) . '%';
@@ -1060,7 +1068,7 @@ class HelpApiService
     public function saveChatSession(int $memberId, array $data): array
     {
         $sessionId = (int) ($data['id'] ?? 0);
-        $chatMode = $this->chatMode($data['chat_mode'] ?? '');
+        $chatMode = $this->chatMode($data['chat_mode'] ?? '', $sessionId <= 0);
         $sessionName = trim((string) ($data['session_name'] ?? ''));
         $isPinned = $this->intIn($data['is_pinned'] ?? 2, [1, 2], '置顶参数错误');
         $now = date('Y-m-d H:i:s');
@@ -1158,7 +1166,7 @@ class HelpApiService
             $this->ensureChatSessionGreeting($memberId, $session, (string) ($params['locale'] ?? ''));
         }
 
-        return $this->paginate(function () use ($memberId, $params, $sessionId) {
+        $result = $this->paginate(function () use ($memberId, $params, $sessionId) {
             $query = Db::table('sa_member_chat_record')
                 ->where('member_id', $memberId)
                 ->where('status', 1)
@@ -1167,11 +1175,17 @@ class HelpApiService
                 $query->where('session_id', $sessionId);
             }
             if (!empty($params['chat_mode'])) {
-                $query->where('chat_mode', $this->chatMode($params['chat_mode']));
+                $query->where('chat_mode', $this->chatMode($params['chat_mode'], false));
             }
 
             return $query->order('message_time', 'asc')->order('id', 'asc');
         }, $params);
+        $result['list'] = array_map(
+            static fn (array $row): array => ChatRecordSpeech::present($row),
+            $result['list'] ?? []
+        );
+
+        return $result;
     }
 
     public function uploadChatMedia(Request $request): array
@@ -1255,22 +1269,17 @@ class HelpApiService
         $summary = $this->chatSummary($content, $contentType);
 
         $id = Db::transaction(function () use ($memberId, $session, $sessionId, $content, $contentType, $summary, $now) {
-            $recordId = Db::table('sa_member_chat_record')->insertGetId([
-                'session_id' => $sessionId,
-                'member_id' => $memberId,
-                'chat_mode' => $session['chat_mode'],
-                'role' => 'user',
-                'content' => $content,
-                'content_type' => $contentType,
-                'token_count' => 0,
-                'message_time' => $now,
-                'ext' => null,
-                'status' => 1,
-                'created_by' => $memberId,
-                'updated_by' => $memberId,
-                'create_time' => $now,
-                'update_time' => $now,
-            ]);
+            $record = $this->insertChatRecord(
+                $memberId,
+                $sessionId,
+                (string) $session['chat_mode'],
+                'user',
+                $content,
+                $contentType,
+                $this->jsonValue(ChatRecordSpeech::withTranscript([], $contentType, $content)),
+                $now
+            );
+            $recordId = (int) ($record['id'] ?? 0);
 
             Db::table('sa_member_chat_session')->where('id', $sessionId)->update([
                 'last_message' => $summary,
@@ -1282,7 +1291,7 @@ class HelpApiService
             return $recordId;
         });
 
-        return Db::table('sa_member_chat_record')->where('id', $id)->find() ?: [];
+        return ChatRecordSpeech::present(Db::table('sa_member_chat_record')->where('id', $id)->find() ?: []);
     }
 
     public function saveRealtimeAssistantChatRecord(int $memberId, array $data): array
@@ -1422,7 +1431,7 @@ class HelpApiService
         if ($sessionId > 0) {
             $session = $this->assertChatSession($memberId, $sessionId);
             $chatMode = (string) $session['chat_mode'];
-            if (!empty($data['chat_mode']) && $this->chatMode($data['chat_mode']) !== $chatMode) {
+            if (!empty($data['chat_mode']) && $this->chatMode($data['chat_mode'], false) !== $chatMode) {
                 throw new ApiException('聊天模式与会话不匹配', 400);
             }
         } else {
@@ -1430,18 +1439,18 @@ class HelpApiService
             $session = [];
         }
         $configId = $this->resolveOnlineChatConfigId($memberId, $chatMode, $data);
-        $input = $this->prepareOnlineChatInput($data, $contentType, $configId);
+        $input = $this->prepareOnlineChatInput($data + ['chat_mode' => $chatMode], $contentType, $configId);
         $content = $input['content'];
 
         $history = $sessionId > 0 ? $this->chatHistory($memberId, $sessionId) : [];
-        $prompt = $this->chatSystemPrompt($memberId, $chatMode);
+        $prompt = $this->chatSystemPrompt($memberId, $chatMode, (string) ($data['locale'] ?? 'zh-CN'));
         $aiResult = AiFactory::chatOnceByConfigId($this->chatAiMessage($prompt, $input['ai_content']), $history, $configId);
         $assistantContent = trim((string) ($aiResult['content'] ?? ''));
         if ($assistantContent === '') {
             throw new ApiException('AI 未返回有效内容', 502);
         }
         $assistantPayload = $this->extractAssistantPlanTasks($assistantContent);
-        $assistantSpeech = $this->synthesizeChatReply($assistantPayload['content'], $configId);
+        $assistantSpeech = $this->synthesizeChatReply($assistantPayload['content'], $configId, $chatMode);
 
         $now = date('Y-m-d H:i:s');
         return Db::transaction(function () use ($memberId, $session, $sessionId, $chatMode, $content, $contentType, $input, $assistantPayload, $assistantSpeech, $aiResult, $configId, $now) {
@@ -1486,13 +1495,13 @@ class HelpApiService
                 'assistant',
                 $assistantPayload['content'],
                 $assistantSpeech['audio_url'] !== '' ? 'voice' : 'text',
-                $this->jsonValue([
+                $this->jsonValue(ChatRecordSpeech::withTranscript([
                     'ai_model' => (string) ($aiResult['model'] ?? ''),
                     'ai_type' => (string) ($aiResult['type'] ?? ''),
                     'config_id' => $configId,
                     'plan_tasks' => $assistantPayload['plan_tasks'],
                     ...$assistantSpeech,
-                ]),
+                ], $assistantSpeech['audio_url'] !== '' ? 'voice' : 'text', $assistantPayload['content'])),
                 $now
             );
 
@@ -1523,7 +1532,7 @@ class HelpApiService
         if ($sessionId > 0) {
             $session = $this->assertChatSession($memberId, $sessionId);
             $chatMode = (string) $session['chat_mode'];
-            if (!empty($data['chat_mode']) && $this->chatMode($data['chat_mode']) !== $chatMode) {
+            if (!empty($data['chat_mode']) && $this->chatMode($data['chat_mode'], false) !== $chatMode) {
                 throw new ApiException('聊天模式与会话不匹配', 400);
             }
         } else {
@@ -1531,11 +1540,11 @@ class HelpApiService
             $session = [];
         }
         $configId = $this->resolveOnlineChatConfigId($memberId, $chatMode, $data);
-        $input = $this->prepareOnlineChatInput($data, $contentType, $configId);
+        $input = $this->prepareOnlineChatInput($data + ['chat_mode' => $chatMode], $contentType, $configId);
         $content = $input['content'];
 
         $history = $sessionId > 0 ? $this->chatHistory($memberId, $sessionId) : [];
-        $prompt = $this->chatSystemPrompt($memberId, $chatMode);
+        $prompt = $this->chatSystemPrompt($memberId, $chatMode, (string) ($data['locale'] ?? 'zh-CN'));
         $now = date('Y-m-d H:i:s');
 
         $result = Db::transaction(function () use ($memberId, $session, $sessionId, $chatMode, $content, $contentType, $input, $now) {
@@ -1615,7 +1624,7 @@ class HelpApiService
 
         $this->assertChatSession($memberId, $activeSessionId);
         $configId = (int) ($context['config_id'] ?? 0);
-        $assistantSpeech = $this->synthesizeChatReply($assistantPayload['content'], $configId);
+        $assistantSpeech = $this->synthesizeChatReply($assistantPayload['content'], $configId, $chatMode);
         $now = date('Y-m-d H:i:s');
 
         return Db::transaction(function () use ($memberId, $activeSessionId, $chatMode, $assistantPayload, $assistantSpeech, $aiMeta, $configId, $now, $userRecord) {
@@ -1626,13 +1635,13 @@ class HelpApiService
                 'assistant',
                 $assistantPayload['content'],
                 $assistantSpeech['audio_url'] !== '' ? 'voice' : 'text',
-                $this->jsonValue([
+                $this->jsonValue(ChatRecordSpeech::withTranscript([
                     'ai_model' => (string) ($aiMeta['model'] ?? ''),
                     'ai_type' => (string) ($aiMeta['type'] ?? ''),
                     'config_id' => $configId,
                     'plan_tasks' => $assistantPayload['plan_tasks'],
                     ...$assistantSpeech,
-                ]),
+                ], $assistantSpeech['audio_url'] !== '' ? 'voice' : 'text', $assistantPayload['content'])),
                 $now
             );
 
@@ -6875,9 +6884,43 @@ class HelpApiService
         return $model;
     }
 
+    private function personaSpeechConfigId(string $chatMode, string $kind, int $fallbackId): int
+    {
+        return ChatPersonaCatalog::speechConfigId($chatMode, $kind, $fallbackId);
+    }
+
+    private function personaTtsVoice(string $chatMode): string
+    {
+        return ChatPersonaCatalog::ttsVoice($chatMode);
+    }
+
+    /**
+     * @param array<string, mixed> $persona
+     * @param array<string, mixed> $profile
+     * @return array<string, mixed>
+     */
+    private function personaRobotProfile(array $persona, array $profile): array
+    {
+        $fallback = $this->defaultAiRobotProfile((string) ($persona['code'] ?? 'companion'), 'online');
+
+        return [
+            'id' => (int) ($persona['id'] ?? ($profile['id'] ?? 0)),
+            'chat_mode' => (string) ($persona['code'] ?? $fallback['chat_mode']),
+            'runtime_mode' => 'online',
+            'display_name' => (string) ($persona['display_name'] ?? ($profile['display_name'] ?? $fallback['display_name'])),
+            'display_name_en' => (string) ($persona['display_name_en'] ?? ($profile['display_name_en'] ?? $fallback['display_name_en'])),
+            'description' => (string) ($persona['description'] ?? ($profile['description'] ?? $fallback['description'])),
+            'description_en' => (string) ($persona['description_en'] ?? ($profile['description_en'] ?? $fallback['description_en'])),
+            'avatar' => (string) ($persona['cover'] ?? ($profile['avatar'] ?? $fallback['avatar'])),
+            'dark_avatar' => (string) ($persona['cover_dark'] ?? ($profile['dark_avatar'] ?? $fallback['dark_avatar'])),
+        ];
+    }
+
     private function chatModes(): array
     {
-        return ['doctor', 'companion', 'patient', 'ai_doctor'];
+        $codes = ChatPersonaCatalog::enabledCodes();
+
+        return $codes !== [] ? $codes : ['doctor', 'companion', 'patient', 'ai_doctor'];
     }
 
     private function runtimeMode(mixed $value): string
@@ -7067,11 +7110,14 @@ class HelpApiService
         ];
     }
 
-    private function chatMode(mixed $value): string
+    private function chatMode(mixed $value, bool $enabledOnly = true): string
     {
         $value = trim((string) $value);
-        if (!in_array($value, $this->chatModes(), true)) {
-            throw new ApiException('聊天模式参数错误', 400);
+        if ($enabledOnly) {
+            return ChatPersonaCatalog::requireCode($value);
+        }
+        if (!ChatPersonaCatalog::exists($value, false)) {
+            throw new ApiException('聊天角色不存在', 400);
         }
 
         return $value;
@@ -7186,7 +7232,10 @@ class HelpApiService
             throw new ApiException('附件不是可用的聊天语音', 400);
         }
         $durationSeconds = min(300, max(1, (int) ($data['duration_seconds'] ?? 1)));
-        $transcript = (new ChatSpeechService())->transcribe($attachment, $configId);
+        $transcript = (new ChatSpeechService())->transcribe(
+            $attachment,
+            $this->personaSpeechConfigId((string) ($data['chat_mode'] ?? ''), 'asr', $configId)
+        );
         $transcript = (new HelpRiskService())->filterText('chat', $transcript);
         if ($transcript === '') {
             throw new ApiException('语音转写内容为空，请重新录音', 400);
@@ -7200,11 +7249,15 @@ class HelpApiService
     /**
      * @return array{audio_url:string,audio_mime_type:string,speech_status:string}
      */
-    private function synthesizeChatReply(string $content, int $configId): array
+    private function synthesizeChatReply(string $content, int $configId, string $chatMode = ''): array
     {
         try {
             return [
-                ...(new ChatSpeechService())->synthesize($content, $configId),
+                ...(new ChatSpeechService())->synthesize(
+                    $content,
+                    $this->personaSpeechConfigId($chatMode, 'tts', $configId),
+                    $this->personaTtsVoice($chatMode)
+                ),
                 'speech_status' => 'ready',
             ];
         } catch (Throwable) {
@@ -7234,22 +7287,17 @@ class HelpApiService
         return array_reverse($records);
     }
 
-    private function chatSystemPrompt(int $memberId, string $chatMode): string
+    private function chatSystemPrompt(int $memberId, string $chatMode, string $locale = 'zh-CN'): string
     {
-        $prompts = [
-            'doctor' => '你是一位谨慎、温和的 AI 心理医生助手。请优先安抚情绪、澄清问题、给出可执行建议。你不能冒充真实执业诊断，不要给出绝对化结论。如用户出现自伤、自杀、伤人、幻觉、失控等高风险信号，必须明确建议立刻联系家属、当地急救电话或尽快前往线下精神心理专科就医。',
-            'companion' => '你是一位温柔、稳定、耐心的 AI 心理陪伴助手。请多倾听、多共情，避免说教，并帮助用户把当下感受表达清楚。',
-            'patient' => '你是一位帮助用户整理病情和感受的 AI 助手。请帮助用户梳理症状、情绪、诱因和需要补充给医生的信息。',
-            'ai_doctor' => '你是一位谨慎的 AI 健康信息助手。请帮助用户整理症状、持续时间、诱因、用药情况和需要向医生询问的问题，并提供可靠的健康常识。你不能做诊断、开药、调整处方或替代真实医生。如出现呼吸困难、胸痛、意识异常、大量出血、自伤风险或其他紧急情况，必须明确建议立即联系当地急救服务并尽快线下就医。',
-        ];
-        $prompt = $prompts[$chatMode] ?? $prompts['companion'];
+        $persona = ChatPersonaCatalog::find($chatMode);
+        $prompt = ChatPersonaCatalog::systemPrompt($chatMode, $locale !== '' ? $locale : 'zh-CN', 'online');
         $customPrompt = trim((string) Db::table('sa_member_chat_config')
             ->where('member_id', $memberId)
             ->where('chat_mode', $chatMode)
             ->whereNull('delete_time')
             ->value('prompt_text'));
 
-        if ($customPrompt !== '') {
+        if ($customPrompt !== '' && (int) ($persona['allow_user_prompt'] ?? 1) === 1) {
             $prompt .= "\n\n用户额外要求：\n" . $customPrompt;
         }
 
@@ -7346,6 +7394,11 @@ class HelpApiService
         ?string $ext,
         string $now
     ): array {
+        $extArray = ChatRecordSpeech::withTranscript(
+            ChatRecordSpeech::decodeExt($ext),
+            $contentType,
+            $content
+        );
         $id = Db::table('sa_member_chat_record')->insertGetId([
             'session_id' => $sessionId,
             'member_id' => $memberId,
@@ -7355,7 +7408,7 @@ class HelpApiService
             'content_type' => $contentType,
             'token_count' => 0,
             'message_time' => $now,
-            'ext' => $ext,
+            'ext' => $this->jsonValue($extArray === [] ? null : $extArray),
             'status' => 1,
             'created_by' => $memberId,
             'updated_by' => $memberId,
@@ -7363,14 +7416,14 @@ class HelpApiService
             'update_time' => $now,
         ]);
 
-        return Db::table('sa_member_chat_record')->where('id', $id)->find() ?: [];
+        return ChatRecordSpeech::present(Db::table('sa_member_chat_record')->where('id', $id)->find() ?: []);
     }
 
     private function ensureChatSessionGreeting(int $memberId, array $session, string $locale = ''): void
     {
         $sessionId = (int) ($session['id'] ?? 0);
         $chatMode = (string) ($session['chat_mode'] ?? '');
-        if ($sessionId <= 0 || !in_array($chatMode, $this->chatModes(), true)) {
+        if ($sessionId <= 0 || !ChatPersonaCatalog::exists($chatMode)) {
             return;
         }
 

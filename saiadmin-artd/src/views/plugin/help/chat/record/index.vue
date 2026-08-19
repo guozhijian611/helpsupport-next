@@ -85,6 +85,18 @@
       minWidth: 260
     },
     {
+      prop: 'transcript',
+      label: '转写文本',
+      type: 'textarea',
+      form: false,
+      search: false,
+      table: true,
+      detail: true,
+      readonly: true,
+      rows: 3,
+      minWidth: 220
+    },
+    {
       prop: 'content_type',
       label: '内容类型',
       form: true,

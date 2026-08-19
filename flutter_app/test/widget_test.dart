@@ -56,6 +56,53 @@ void main() {
     expect(record.speechStatus, 'ready');
   });
 
+  test('chat record prefers top-level transcript for voice messages', () {
+    final record = ChatRecord.fromJson(const {
+      'id': 12,
+      'session_id': 3,
+      'chat_mode': 'companion',
+      'role': 'user',
+      'content': '今天可以先做一次缓慢呼吸。',
+      'content_type': 'voice',
+      'transcript': '我有点紧张',
+      'ext': '{"media_url":"/storage/user.m4a"}',
+    });
+
+    expect(record.transcript, '我有点紧张');
+  });
+
+  test('chat mode info reads locale tags and capability flags', () {
+    final mode = ChatModeInfo.fromJson({
+      'chat_mode': 'night_companion',
+      'prompt_text': '',
+      'online_config_id': 0,
+      'temp_save': '',
+      'allow_online': 1,
+      'allow_local': 2,
+      'allow_realtime': 2,
+      'allow_voice': 1,
+      'allow_user_prompt': 2,
+      'speech_runtime': 'auto',
+      'tags': {
+        'zh-CN': ['陪伴', '夜间'],
+        'en': ['companion'],
+      },
+      'robot_profile': {
+        'display_name': '夜间陪伴',
+        'display_name_en': 'Night companion',
+        'description': '安静地陪你',
+        'description_en': 'Quiet company',
+      },
+    });
+
+    expect(mode.allowLocal, isFalse);
+    expect(mode.allowUserPrompt, isFalse);
+    expect(mode.speechRuntime, 'auto');
+    expect(mode.tagsFor('zh'), ['陪伴', '夜间']);
+    expect(mode.tagsFor('en'), ['companion']);
+    expect(mode.robotProfile.displayNameFor('zh'), '夜间陪伴');
+  });
+
   testWidgets('home shell renders bottom navigation', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final sharedPreferences = await SharedPreferences.getInstance();
