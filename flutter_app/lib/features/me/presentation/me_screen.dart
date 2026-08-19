@@ -1046,6 +1046,12 @@ class _QuickActionsPanel extends StatelessWidget {
         route: '/materials?type=education&source=collections',
       ),
       _QuickActionData(
+        title: context.l10n.meMyMedals,
+        icon: Icons.workspace_premium_rounded,
+        color: MeScreen._purple,
+        route: '/me/honors/badges',
+      ),
+      _QuickActionData(
         title: context.l10n.meHistory,
         icon: Icons.schedule_rounded,
         color: MeScreen._blue,

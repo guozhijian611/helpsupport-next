@@ -700,6 +700,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get meCollection => '我的收藏';
 
   @override
+  String get meMyMedals => '我的勋章';
+
+  @override
   String get meHistory => '历史记录';
 
   @override

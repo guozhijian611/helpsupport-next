@@ -1424,6 +1424,12 @@ abstract class AppLocalizations {
   /// **'Saved'**
   String get meCollection;
 
+  /// No description provided for @meMyMedals.
+  ///
+  /// In en, this message translates to:
+  /// **'My medals'**
+  String get meMyMedals;
+
   /// No description provided for @meHistory.
   ///
   /// In en, this message translates to:

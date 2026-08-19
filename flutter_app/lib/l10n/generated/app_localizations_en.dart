@@ -720,6 +720,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get meCollection => 'Saved';
 
   @override
+  String get meMyMedals => 'My medals';
+
+  @override
   String get meHistory => 'History';
 
   @override
