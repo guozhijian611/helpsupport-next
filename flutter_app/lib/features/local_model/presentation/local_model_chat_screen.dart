@@ -87,11 +87,22 @@ class _LocalModelChatScreenState extends ConsumerState<LocalModelChatScreen> {
     final runtimeStatus = ref.watch(llamaRuntimeStatusProvider);
     final robotProfiles = ref.watch(aiRobotProfilesProvider('local'));
     final apiClient = ref.watch(apiClientProvider);
-    final robotProfile = _robotProfileFor(
-      widget.chatMode,
-      'local',
-      robotProfiles.asData?.value,
-    );
+    final overviewModes =
+        ref.watch(chatOverviewProvider).asData?.value.modes ?? const [];
+    ChatModeInfo? persona;
+    for (final mode in overviewModes) {
+      if (mode.chatMode == widget.chatMode) {
+        persona = mode;
+        break;
+      }
+    }
+    final robotProfile =
+        persona?.robotProfile ??
+        _robotProfileFor(
+          widget.chatMode,
+          'local',
+          robotProfiles.asData?.value,
+        );
     final runtimeReady = runtimeStatus.hasValue
         ? runtimeStatus.value?.isAvailable == true
         : false;

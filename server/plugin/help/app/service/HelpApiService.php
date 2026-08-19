@@ -968,15 +968,17 @@ class HelpApiService
     public function aiRobotProfiles(array $params): array
     {
         $runtimeMode = $this->runtimeMode($params['runtime_mode'] ?? 'online');
-        $profiles = $this->aiRobotProfilesByRuntime($runtimeMode);
-        if (!empty($params['chat_mode'])) {
-            $chatMode = $this->chatMode($params['chat_mode']);
-            return [$profiles[$chatMode] ?? $this->defaultAiRobotProfile($chatMode, $runtimeMode)];
-        }
+        $legacy = $this->aiRobotProfilesByRuntime($runtimeMode);
+        $codes = !empty($params['chat_mode'])
+            ? [$this->chatMode($params['chat_mode'])]
+            : $this->chatModes();
 
         $result = [];
-        foreach ($this->chatModes() as $chatMode) {
-            $result[] = $profiles[$chatMode] ?? $this->defaultAiRobotProfile($chatMode, $runtimeMode);
+        foreach ($codes as $chatMode) {
+            $persona = ChatPersonaCatalog::find($chatMode);
+            $profile = $this->personaRobotProfile($persona, $legacy[$chatMode] ?? []);
+            $profile['runtime_mode'] = $runtimeMode;
+            $result[] = $profile;
         }
 
         return $result;

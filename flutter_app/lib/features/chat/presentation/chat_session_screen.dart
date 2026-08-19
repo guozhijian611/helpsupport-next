@@ -225,11 +225,13 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     final apiClient = ref.watch(apiClientProvider);
     final userAvatarUrl = _resolveUserAvatar(session, apiClient.resolveUrl);
     final robotProfiles = ref.watch(aiRobotProfilesProvider('online'));
-    final robotProfile = _robotProfileFor(
-      widget.chatMode,
-      'online',
-      robotProfiles.asData?.value,
-    );
+    final robotProfile =
+        _persona?.robotProfile ??
+        _robotProfileFor(
+          widget.chatMode,
+          'online',
+          robotProfiles.asData?.value,
+        );
     final assistantAvatarUrl = _resolveRobotAvatar(
       context,
       robotProfile,
@@ -4853,6 +4855,7 @@ String _resolveRobotAvatar(
 
 IconData _modeAvatarIcon(String mode) {
   return switch (mode) {
+    'ai_doctor' => Icons.medical_services_rounded,
     'patient' => Icons.healing_rounded,
     'companion' => Icons.volunteer_activism_rounded,
     _ => Icons.smart_toy_rounded,
