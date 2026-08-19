@@ -45,16 +45,32 @@
       type: 'number',
       form: true,
       default: 0,
-      placeholder: '填写规则ID后自动带出编码、名称、图片和说明',
-      width: 90
+      placeholder: '选择规则后自动带出编码、名称、图片和说明',
+      width: 90,
+      fillFrom: {
+        badge_code: 'code',
+        badge_name: 'name',
+        badge_icon: 'icon',
+        rule_description: 'description'
+      }
     },
-    { prop: 'badge_icon', label: '徽章图片', type: 'image', table: true, detail: true, width: 110 },
+    {
+      prop: 'badge_icon',
+      label: '徽章图片',
+      type: 'image',
+      table: true,
+      form: true,
+      detail: true,
+      readonly: true,
+      width: 110
+    },
     {
       prop: 'badge_code',
       label: '徽章编码',
       search: true,
       form: true,
-      placeholder: '规则唯一编码，用于去重；填写规则ID后自动生成',
+      editReadonly: true,
+      placeholder: '选择规则后自动带出；无规则时请手动填写',
       minWidth: 150
     },
     {
@@ -62,7 +78,8 @@
       label: '徽章名称',
       search: true,
       form: true,
-      placeholder: '填写规则ID后自动生成',
+      editReadonly: true,
+      placeholder: '选择规则后自动带出；无规则时请手动填写',
       minWidth: 150
     },
     {
@@ -70,7 +87,9 @@
       label: '规则说明',
       type: 'textarea',
       table: false,
+      form: true,
       detail: true,
+      readonly: true,
       rows: 3
     },
     {

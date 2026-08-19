@@ -33,10 +33,14 @@
     { prop: 'name', label: '徽章名称', search: true, form: true, required: true, minWidth: 150 },
     {
       prop: 'code',
-      label: '系统标识',
-      table: false,
+      label: '徽章编码',
+      search: true,
+      form: true,
+      table: true,
       detail: true,
-      readonly: true
+      editReadonly: true,
+      placeholder: '留空则保存后自动生成',
+      minWidth: 150
     },
     {
       prop: 'description',

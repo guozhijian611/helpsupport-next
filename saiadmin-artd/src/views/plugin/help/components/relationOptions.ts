@@ -104,7 +104,8 @@ function toOption(type: HelpRelationType, row: Record<string, any>): HelpCrudOpt
 
   return {
     label: relationLabel(type, row, value),
-    value
+    value,
+    extra: relationExtra(type, row)
   }
 }
 
@@ -139,10 +140,32 @@ function labelCandidates(type: HelpRelationType, row: Record<string, any>): unkn
     chatSession: [row.session_name, row.chat_mode],
     localModelCatalog: [row.display_name, row.model_name, row.name],
     taskTemplateFolder: [row.name],
-    badgeRule: [row.badge_name, row.rule_name, row.badge_code],
+    badgeRule: [
+      row.name && row.code ? `${row.name} (${row.code})` : '',
+      row.name,
+      row.code,
+      row.badge_name,
+      row.rule_name,
+      row.badge_code
+    ],
     memberLevel: [row.level_name, row.level_code]
   }
   return candidates[type]
+}
+
+function relationExtra(
+  type: HelpRelationType,
+  row: Record<string, any>
+): Record<string, unknown> | undefined {
+  if (type !== 'badgeRule') {
+    return undefined
+  }
+  return {
+    code: row.code || row.badge_code || '',
+    name: row.name || row.badge_name || row.rule_name || '',
+    icon: row.icon || row.badge_icon || '',
+    description: row.description || row.rule_description || ''
+  }
 }
 
 function firstText(values: unknown[]) {

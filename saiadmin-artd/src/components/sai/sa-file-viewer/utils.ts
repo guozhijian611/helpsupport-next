@@ -177,6 +177,25 @@ export const fileExtension = (value: string): string => {
   return ''
 }
 
+export const normalizeAssetUrl = (url: string): string => {
+  const trimmed = String(url || '').trim()
+  if (!trimmed) {
+    return ''
+  }
+  if (
+    /^(https?:)?\/\//i.test(trimmed) ||
+    trimmed.startsWith('data:') ||
+    trimmed.startsWith('blob:')
+  ) {
+    return trimmed
+  }
+  const base = String(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+  if (trimmed.startsWith('/') && base) {
+    return `${base}${trimmed}`
+  }
+  return trimmed
+}
+
 export const fileNameFromUrl = (url: string, fallback = '未命名文件') => {
   try {
     const path = url.split('?')[0].split('#')[0]
@@ -189,7 +208,7 @@ export const fileNameFromUrl = (url: string, fallback = '未命名文件') => {
 
 export const parseUrlList = (value: unknown): string[] => {
   if (Array.isArray(value)) {
-    return value.map((item) => String(item || '').trim()).filter(Boolean)
+    return value.map((item) => normalizeAssetUrl(String(item || ''))).filter(Boolean)
   }
   if (typeof value !== 'string') {
     return []
@@ -202,10 +221,10 @@ export const parseUrlList = (value: unknown): string[] => {
     try {
       return parseUrlList(JSON.parse(text))
     } catch {
-      return [text]
+      return [normalizeAssetUrl(text)].filter(Boolean)
     }
   }
-  return [text]
+  return [normalizeAssetUrl(text)].filter(Boolean)
 }
 
 export const isImageFile = (url: string, mimeType?: string) => {

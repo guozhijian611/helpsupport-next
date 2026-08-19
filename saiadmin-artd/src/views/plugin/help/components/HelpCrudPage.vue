@@ -234,12 +234,14 @@
                 :placeholder="field.placeholder || '请输入' + field.label"
                 :disabled="isFieldDisabled(field)"
               />
-              <SaImageUpload
-                v-else-if="field.type === 'image'"
-                v-model="formData[field.prop]"
-                :limit="1"
-                :disabled="isFieldDisabled(field)"
-              />
+              <div v-else-if="field.type === 'image'" class="help-image-field">
+                <SaImageUpload
+                  v-if="!isFieldDisabled(field)"
+                  v-model="formData[field.prop]"
+                  :limit="1"
+                />
+                <SaFilePreview v-else :url="formData[field.prop]" :field-prop="field.prop" detail />
+              </div>
               <sa-icon-picker
                 v-else-if="isIconField(field)"
                 v-model="formData[field.prop]"
@@ -382,9 +384,7 @@
     resolvedFields.value.filter((field) => field.search !== false && field.search === true)
   )
   const tableFields = computed(() => resolvedFields.value.filter((field) => field.table !== false))
-  const formFields = computed(() =>
-    resolvedFields.value.filter((field) => field.form === true && !field.readonly)
-  )
+  const formFields = computed(() => resolvedFields.value.filter((field) => field.form === true))
   const detailFields = computed(() =>
     resolvedFields.value.filter((field) => field.detail !== false)
   )
@@ -467,7 +467,7 @@
   const detailData = ref<Record<string, any>>({})
 
   const isFieldDisabled = (field: HelpCrudField) =>
-    dialogType.value === 'edit' && field.editReadonly === true
+    field.readonly === true || (dialogType.value === 'edit' && field.editReadonly === true)
 
   const rules = computed<FormRules>(() => {
     const nextRules: FormRules = {}
@@ -518,6 +518,26 @@
     return data
   }
 
+  const applyRelationFills = () => {
+    resolvedFields.value.forEach((field) => {
+      if (!field.fillFrom) {
+        return
+      }
+      const selected = field.options?.find(
+        (option) => String(option.value) === String(formData.value[field.prop])
+      )
+      if (!selected?.extra) {
+        return
+      }
+      Object.entries(field.fillFrom).forEach(([target, sourceKey]) => {
+        const nextValue = selected.extra?.[sourceKey]
+        if (nextValue !== undefined && nextValue !== null && String(nextValue) !== '') {
+          formData.value[target] = nextValue
+        }
+      })
+    })
+  }
+
   const openForm = async (type: 'add' | 'edit', row?: Record<string, any>) => {
     dialogType.value = type
     if (type === 'edit' && row?.id !== undefined) {
@@ -530,8 +550,22 @@
     } else {
       formData.value = initialFormData()
     }
+    applyRelationFills()
     formVisible.value = true
   }
+
+  watch(
+    () =>
+      resolvedFields.value
+        .filter((field) => field.fillFrom)
+        .map((field) => `${field.prop}:${formData.value[field.prop]}`)
+        .join('|'),
+    () => {
+      if (formVisible.value) {
+        applyRelationFills()
+      }
+    }
+  )
 
   const handleFormClose = () => {
     formVisible.value = false
@@ -705,7 +739,8 @@
     width: 100%;
   }
 
-  .help-file-field {
+  .help-file-field,
+  .help-image-field {
     display: flex;
     flex-direction: column;
     gap: 10px;

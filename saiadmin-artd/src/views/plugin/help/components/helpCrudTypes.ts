@@ -2,6 +2,7 @@ export interface HelpCrudOption {
   label: string
   value: string | number
   tagType?: 'success' | 'warning' | 'danger' | 'info' | 'primary'
+  extra?: Record<string, unknown>
 }
 
 export interface HelpCrudField {
@@ -37,6 +38,7 @@ export interface HelpCrudField {
   default?: unknown
   placeholder?: string
   options?: HelpCrudOption[]
+  fillFrom?: Record<string, string>
   relation?:
     | false
     | 'member'

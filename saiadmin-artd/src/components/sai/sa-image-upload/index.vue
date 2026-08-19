@@ -51,6 +51,7 @@
   import { ElMessage } from 'element-plus'
   import type { UploadProps, UploadUserFile, UploadRequestOptions } from 'element-plus'
   import { uploadImage } from '@/api/auth'
+  import { normalizeAssetUrl } from '@/components/sai/sa-file-viewer/utils'
 
   defineOptions({ name: 'SaImageUpload' })
 
@@ -122,7 +123,7 @@
         .filter((url) => url)
         .map((url, index) => ({
           name: `image-${index + 1}`,
-          url: url,
+          url: normalizeAssetUrl(String(url)),
           uid: Date.now() + index
         }))
     },
