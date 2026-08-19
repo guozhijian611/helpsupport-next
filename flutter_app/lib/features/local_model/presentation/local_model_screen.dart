@@ -173,6 +173,9 @@ class _LocalModelScreenState extends ConsumerState<LocalModelScreen> {
     final keyword = _keyword.trim().toLowerCase();
     return items
         .where((item) {
+          if (item.capability != 'llm' && item.capability.isNotEmpty) {
+            return false;
+          }
           final state =
               states[item.id] ?? const LocalModelDownloadState.notDownloaded();
           final matchesTab = switch (_filter) {

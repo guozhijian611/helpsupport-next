@@ -16,6 +16,9 @@ import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/settings/app_display_preferences.dart';
 import '../../../core/settings/privacy_preferences.dart';
+import '../../../core/settings/speech_preferences.dart';
+import '../../local_model/application/local_model_controller.dart';
+import '../../local_model/data/local_model_models.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/data/auth_protocol.dart';
 import '../../plan/application/plan_controller.dart';
@@ -986,6 +989,12 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         locale?.languageCode ?? Localizations.localeOf(context).languageCode;
     final themeMode = ref.watch(appThemeModeProvider);
     final textScale = ref.watch(appTextScaleProvider);
+    final asrPriority = ref.watch(asrPriorityProvider);
+    final ttsPriority = ref.watch(ttsPriorityProvider);
+    final catalog = ref.watch(localModelCatalogProvider).asData?.value ??
+        const <LocalModelItem>[];
+    final asrModel = _speechCatalogItem(catalog, 'asr');
+    final ttsModel = _speechCatalogItem(catalog, 'tts');
 
     return [
       _SettingsGroup(
@@ -1027,7 +1036,49 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
           ),
         ],
       ),
+      _SettingsGroup(
+        title: _t(context, '语音', 'Speech'),
+        footer: _t(
+          context,
+          '默认各使用一个系统端侧模型，内存占用最低。优先本地失败时仍可回退在线。',
+          'Each uses one system on-device model by default to keep memory low. Online is used if local speech is unavailable.',
+        ),
+        children: [
+          _SettingsNavRow(
+            title: _t(context, '语音识别', 'Speech recognition'),
+            subtitle: asrModel?.name ??
+                _t(context, '系统端侧语音识别', 'On-device speech recognition'),
+            value: _speechPriorityLabel(context, asrPriority),
+            onTap: _selectAsrPriority,
+          ),
+          _SettingsNavRow(
+            title: _t(context, '语音播报', 'Speech playback'),
+            subtitle: ttsModel?.name ??
+                _t(context, '系统端侧语音合成', 'On-device speech synthesis'),
+            value: _speechPriorityLabel(context, ttsPriority),
+            onTap: _selectTtsPriority,
+          ),
+        ],
+      ),
     ];
+  }
+
+  LocalModelItem? _speechCatalogItem(
+    List<LocalModelItem> catalog,
+    String capability,
+  ) {
+    for (final item in catalog) {
+      if (item.capability == capability) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  String _speechPriorityLabel(BuildContext context, SpeechPriority priority) {
+    return priority == SpeechPriority.localFirst
+        ? _t(context, '优先本地', 'Local first')
+        : _t(context, '优先在线', 'Online first');
   }
 
   String _localCacheValueLabel(BuildContext context) {
@@ -1395,6 +1446,50 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       return;
     }
     unawaited(ref.read(appTextScaleProvider.notifier).setScale(selected));
+  }
+
+  Future<void> _selectAsrPriority() async {
+    await _selectSpeechPriority(
+      title: _t(context, '语音识别', 'Speech recognition'),
+      current: ref.read(asrPriorityProvider),
+      onSelected: (value) =>
+          ref.read(asrPriorityProvider.notifier).setPriority(value),
+    );
+  }
+
+  Future<void> _selectTtsPriority() async {
+    await _selectSpeechPriority(
+      title: _t(context, '语音播报', 'Speech playback'),
+      current: ref.read(ttsPriorityProvider),
+      onSelected: (value) =>
+          ref.read(ttsPriorityProvider.notifier).setPriority(value),
+    );
+  }
+
+  Future<void> _selectSpeechPriority({
+    required String title,
+    required SpeechPriority current,
+    required Future<void> Function(SpeechPriority value) onSelected,
+  }) async {
+    final selected = await _showChoiceSheet<SpeechPriority>(
+      context: context,
+      title: title,
+      currentValue: current,
+      items: [
+        _ChoiceSheetItem(
+          SpeechPriority.onlineFirst,
+          _t(context, '优先在线', 'Online first'),
+        ),
+        _ChoiceSheetItem(
+          SpeechPriority.localFirst,
+          _t(context, '优先本地', 'Local first'),
+        ),
+      ],
+    );
+    if (selected == null || !mounted) {
+      return;
+    }
+    unawaited(onSelected(selected));
   }
 
   void _setPrivacyBool(

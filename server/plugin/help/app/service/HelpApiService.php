@@ -781,8 +781,12 @@ class HelpApiService
             $query->where('code', (string) $params['code']);
         }
 
+        if (!empty($params['capability'])) {
+            $query->where('capability', (string) $params['capability']);
+        }
+
         return $query
-            ->field('id, name, code, provider, model_family, quantization, file_size, download_url, sha256, intro, intro_i18n, license, min_memory_mb, context_size, default_temperature, default_top_p, sort')
+            ->field('id, name, code, provider, model_family, capability, quantization, file_size, download_url, sha256, intro, intro_i18n, license, min_memory_mb, context_size, default_temperature, default_top_p, sort')
             ->order('sort', 'asc')
             ->order('id', 'asc')
             ->select()
@@ -893,10 +897,13 @@ class HelpApiService
                 ->order('id', 'desc')
                 ->find() ?: [];
 
+            $persona = ChatPersonaCatalog::find($mode);
             $onlineConfigId = max(0, (int) ($chatConfig['online_config_id'] ?? 0));
+            if ($onlineConfigId <= 0) {
+                $onlineConfigId = max(0, (int) ($persona['online_config_id'] ?? 0));
+            }
             $aiConfig = $this->findOnlineChatModel($onlineConfigId);
 
-            $persona = ChatPersonaCatalog::find($mode);
             $modes[] = [
                 'chat_mode' => $mode,
                 'prompt_text' => (string) ($chatConfig['prompt_text'] ?? ''),
@@ -907,7 +914,9 @@ class HelpApiService
                 'allow_realtime' => (int) ($persona['allow_realtime'] ?? 2),
                 'allow_voice' => (int) ($persona['allow_voice'] ?? 1),
                 'allow_user_prompt' => (int) ($persona['allow_user_prompt'] ?? 1),
-                'speech_runtime' => (string) ($persona['speech_runtime'] ?? 'online'),
+                'speech_runtime' => (string) ($persona['speech_runtime'] ?? 'auto'),
+                'local_asr_id' => max(0, (int) ($persona['local_asr_id'] ?? 0)),
+                'local_tts_id' => max(0, (int) ($persona['local_tts_id'] ?? 0)),
                 'tags' => $persona['tags_i18n'] ?? ['zh-CN' => [], 'en' => []],
                 'robot_profile' => $this->personaRobotProfile($persona, $robotProfiles[$mode] ?? []),
                 'session_count' => (int) Db::table('sa_member_chat_session')
@@ -1450,7 +1459,12 @@ class HelpApiService
             throw new ApiException('AI 未返回有效内容', 502);
         }
         $assistantPayload = $this->extractAssistantPlanTasks($assistantContent);
-        $assistantSpeech = $this->synthesizeChatReply($assistantPayload['content'], $configId, $chatMode);
+        $assistantSpeech = $this->synthesizeChatReply(
+            $assistantPayload['content'],
+            $configId,
+            $chatMode,
+            (string) ($data['tts_runtime'] ?? '')
+        );
 
         $now = date('Y-m-d H:i:s');
         return Db::transaction(function () use ($memberId, $session, $sessionId, $chatMode, $content, $contentType, $input, $assistantPayload, $assistantSpeech, $aiResult, $configId, $now) {
@@ -1603,6 +1617,7 @@ class HelpApiService
             'history' => $history,
             'ai_message' => $this->chatAiMessage($prompt, $input['ai_content']),
             'config_id' => $configId,
+            'tts_runtime' => trim((string) ($data['tts_runtime'] ?? '')),
         ];
     }
 
@@ -1624,7 +1639,12 @@ class HelpApiService
 
         $this->assertChatSession($memberId, $activeSessionId);
         $configId = (int) ($context['config_id'] ?? 0);
-        $assistantSpeech = $this->synthesizeChatReply($assistantPayload['content'], $configId, $chatMode);
+        $assistantSpeech = $this->synthesizeChatReply(
+            $assistantPayload['content'],
+            $configId,
+            $chatMode,
+            (string) ($context['tts_runtime'] ?? '')
+        );
         $now = date('Y-m-d H:i:s');
 
         return Db::transaction(function () use ($memberId, $activeSessionId, $chatMode, $assistantPayload, $assistantSpeech, $aiMeta, $configId, $now, $userRecord) {
@@ -7133,6 +7153,9 @@ class HelpApiService
                 ->whereNull('delete_time')
                 ->value('online_config_id'));
         }
+        if ($configId <= 0) {
+            $configId = max(0, (int) (ChatPersonaCatalog::find($chatMode)['online_config_id'] ?? 0));
+        }
         if ($configId > 0) {
             $this->assertOnlineChatModel($configId);
         }
@@ -7232,10 +7255,15 @@ class HelpApiService
             throw new ApiException('附件不是可用的聊天语音', 400);
         }
         $durationSeconds = min(300, max(1, (int) ($data['duration_seconds'] ?? 1)));
-        $transcript = (new ChatSpeechService())->transcribe(
-            $attachment,
-            $this->personaSpeechConfigId((string) ($data['chat_mode'] ?? ''), 'asr', $configId)
-        );
+        $clientTranscript = trim((string) ($data['transcript'] ?? ''));
+        $speechSource = trim((string) ($data['speech_source'] ?? $data['asr_runtime'] ?? ''));
+        $transcript = $clientTranscript;
+        if ($transcript === '' || $speechSource !== 'local') {
+            $transcript = (new ChatSpeechService())->transcribe(
+                $attachment,
+                $this->personaSpeechConfigId((string) ($data['chat_mode'] ?? ''), 'asr', $configId)
+            );
+        }
         $transcript = (new HelpRiskService())->filterText('chat', $transcript);
         if ($transcript === '') {
             throw new ApiException('语音转写内容为空，请重新录音', 400);
@@ -7249,8 +7277,15 @@ class HelpApiService
     /**
      * @return array{audio_url:string,audio_mime_type:string,speech_status:string}
      */
-    private function synthesizeChatReply(string $content, int $configId, string $chatMode = ''): array
+    private function synthesizeChatReply(string $content, int $configId, string $chatMode = '', string $ttsRuntime = ''): array
     {
+        if (trim($ttsRuntime) === 'local') {
+            return [
+                'audio_url' => '',
+                'audio_mime_type' => '',
+                'speech_status' => 'local',
+            ];
+        }
         try {
             return [
                 ...(new ChatSpeechService())->synthesize(

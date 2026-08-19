@@ -23,6 +23,7 @@ class LocalModelController extends BaseController
     #[Apidoc\Url('/app/help/local-model/catalog')]
     #[Apidoc\Method('GET')]
     #[Apidoc\Query('code', type: 'string', require: false, desc: '模型编码')]
+    #[Apidoc\Query('capability', type: 'string', require: false, desc: '能力类型 llm/asr/tts')]
     #[Apidoc\Returned('list', type: 'array', desc: '可下载模型列表')]
     public function catalog(Request $request): Response
     {

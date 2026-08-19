@@ -27,7 +27,7 @@
 | `online_config_id` | 默认在线文本模型 |
 | `realtime_config_id` | 角色绑定的 realtime 配置 |
 | `asr_config_id` / `tts_config_id` / `tts_voice` | 在线语音 |
-| `local_model_id` / `local_asr_id` / `local_tts_id` | 端侧模型目录，二期 sherpa-onnx 使用 |
+| `local_model_id` / `local_asr_id` / `local_tts_id` | 端侧模型目录。默认各绑定一个系统端侧 ASR/TTS，内存占用最低 |
 
 内置 4 个角色：`doctor` / `companion` / `patient` / `ai_doctor`。`doctor` 默认：在线开、本地关、实时开、用户改提示词关。
 
@@ -35,7 +35,7 @@
 
 - 文字聊天：ASR → 文本模型 → TTS
 - 实时：Omni / realtime
-- 本地：优先端侧；端侧 ASR/TTS 字段已预留，当前先走在线
+- 本地：系统端侧 ASR/TTS，App 设置可选「优先在线 / 优先本地」；角色 `speech_runtime=auto` 时跟随用户设置
 
 ## 语音记录约定
 

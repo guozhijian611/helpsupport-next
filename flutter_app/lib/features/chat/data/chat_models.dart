@@ -32,7 +32,9 @@ class ChatModeInfo {
     this.allowRealtime = false,
     this.allowVoice = true,
     this.allowUserPrompt = true,
-    this.speechRuntime = 'online',
+    this.speechRuntime = 'auto',
+    this.localAsrId = 0,
+    this.localTtsId = 0,
     this.tagsZh = const [],
     this.tagsEn = const [],
   });
@@ -50,6 +52,8 @@ class ChatModeInfo {
   final bool allowVoice;
   final bool allowUserPrompt;
   final String speechRuntime;
+  final int localAsrId;
+  final int localTtsId;
   final List<String> tagsZh;
   final List<String> tagsEn;
 
@@ -83,7 +87,9 @@ class ChatModeInfo {
       allowRealtime: _flag(json['allow_realtime'], chatMode == 'doctor'),
       allowVoice: _flag(json['allow_voice'], true),
       allowUserPrompt: _flag(json['allow_user_prompt'], chatMode != 'doctor'),
-      speechRuntime: (json['speech_runtime'] ?? 'online').toString(),
+      speechRuntime: (json['speech_runtime'] ?? 'auto').toString(),
+      localAsrId: (json['local_asr_id'] as num?)?.toInt() ?? 0,
+      localTtsId: (json['local_tts_id'] as num?)?.toInt() ?? 0,
       tagsZh: tags is Map ? _stringList(tags['zh-CN']) : const [],
       tagsEn: tags is Map ? _stringList(tags['en'] ?? tags['en-US']) : const [],
     );

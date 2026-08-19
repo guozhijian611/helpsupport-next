@@ -5,6 +5,7 @@ class LocalModelItem {
     required this.code,
     required this.provider,
     required this.modelFamily,
+    this.capability = 'llm',
     required this.quantization,
     required this.fileSize,
     required this.downloadUrl,
@@ -22,6 +23,7 @@ class LocalModelItem {
   final String code;
   final String provider;
   final String modelFamily;
+  final String capability;
   final String quantization;
   final int fileSize;
   final String downloadUrl;
@@ -40,6 +42,7 @@ class LocalModelItem {
       code: _stringValue(json['code']),
       provider: _stringValue(json['provider']),
       modelFamily: _stringValue(json['model_family']),
+      capability: _stringValue(json['capability'], fallback: 'llm'),
       quantization: _stringValue(json['quantization']),
       fileSize: _intValue(json['file_size']),
       downloadUrl: _stringValue(json['download_url']),

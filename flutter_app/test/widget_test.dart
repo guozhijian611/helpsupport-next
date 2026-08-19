@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:helpsupport_app/app/theme.dart';
 import 'package:helpsupport_app/core/providers/app_providers.dart';
+import 'package:helpsupport_app/core/settings/speech_preferences.dart';
 import 'package:helpsupport_app/features/auth/application/auth_controller.dart';
 import 'package:helpsupport_app/features/auth/data/auth_models.dart';
 import 'package:helpsupport_app/features/chat/application/chat_controller.dart';
@@ -97,10 +98,42 @@ void main() {
 
     expect(mode.allowLocal, isFalse);
     expect(mode.allowUserPrompt, isFalse);
+    expect(mode.allowRealtime, isFalse);
     expect(mode.speechRuntime, 'auto');
     expect(mode.tagsFor('zh'), ['陪伴', '夜间']);
     expect(mode.tagsFor('en'), ['companion']);
     expect(mode.robotProfile.displayNameFor('zh'), '夜间陪伴');
+  });
+
+  test('speech preference uses role runtime then user priority', () {
+    expect(
+      useLocalSpeech(
+        speechRuntime: 'online',
+        priority: SpeechPriority.localFirst,
+      ),
+      isFalse,
+    );
+    expect(
+      useLocalSpeech(
+        speechRuntime: 'local',
+        priority: SpeechPriority.onlineFirst,
+      ),
+      isTrue,
+    );
+    expect(
+      useLocalSpeech(
+        speechRuntime: 'auto',
+        priority: SpeechPriority.localFirst,
+      ),
+      isTrue,
+    );
+    expect(
+      useLocalSpeech(
+        speechRuntime: 'auto',
+        priority: SpeechPriority.onlineFirst,
+      ),
+      isFalse,
+    );
   });
 
   testWidgets('home shell renders bottom navigation', (tester) async {

@@ -50,9 +50,12 @@ class ChatRepository {
     return result.data ?? const [];
   }
 
-  Future<ChatRealtimeConfig> fetchRealtimeConfig() async {
+  Future<ChatRealtimeConfig> fetchRealtimeConfig({String chatMode = ''}) async {
     final result = await _apiClient.getApi<ChatRealtimeConfig>(
       '/app/help/chat/realtime-config',
+      queryParameters: {
+        if (chatMode.isNotEmpty) 'chat_mode': chatMode,
+      },
       decode: ChatRealtimeConfig.fromJson,
     );
     final config = result.data;
@@ -218,6 +221,9 @@ class ChatRepository {
     int attachmentId = 0,
     int durationSeconds = 0,
     String locale = '',
+    String transcript = '',
+    String speechSource = '',
+    String ttsRuntime = '',
   }) async {
     final result = await _apiClient.postApi<ChatSendResult>(
       '/app/help/chat/send',
@@ -229,6 +235,9 @@ class ChatRepository {
         if (attachmentId > 0) 'attachment_id': attachmentId,
         if (durationSeconds > 0) 'duration_seconds': durationSeconds,
         if (locale.isNotEmpty) 'locale': locale,
+        if (transcript.isNotEmpty) 'transcript': transcript,
+        if (speechSource.isNotEmpty) 'speech_source': speechSource,
+        if (ttsRuntime.isNotEmpty) 'tts_runtime': ttsRuntime,
       },
       options: Options(receiveTimeout: const Duration(seconds: 75)),
       decode: ChatSendResult.fromJson,
@@ -248,6 +257,9 @@ class ChatRepository {
     int attachmentId = 0,
     int durationSeconds = 0,
     String locale = '',
+    String transcript = '',
+    String speechSource = '',
+    String ttsRuntime = '',
   }) async* {
     final response = await _apiClient.dio.post<ResponseBody>(
       '/app/help/chat/send/stream',
@@ -259,6 +271,9 @@ class ChatRepository {
         if (attachmentId > 0) 'attachment_id': attachmentId,
         if (durationSeconds > 0) 'duration_seconds': durationSeconds,
         if (locale.isNotEmpty) 'locale': locale,
+        if (transcript.isNotEmpty) 'transcript': transcript,
+        if (speechSource.isNotEmpty) 'speech_source': speechSource,
+        if (ttsRuntime.isNotEmpty) 'tts_runtime': ttsRuntime,
       },
       options: Options(
         responseType: ResponseType.stream,

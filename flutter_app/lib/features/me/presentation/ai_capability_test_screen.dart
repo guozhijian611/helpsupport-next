@@ -351,6 +351,7 @@ class _AiCapabilitySnapshot {
         ? downloadStates.value ?? const <int, LocalModelDownloadState>{}
         : const <int, LocalModelDownloadState>{};
     final actions = (items ?? const <LocalModelItem>[])
+        .where((item) => item.capability == 'llm' || item.capability.isEmpty)
         .map(
           (item) => _AiModelAction(
             model: item,

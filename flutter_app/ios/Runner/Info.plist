@@ -44,7 +44,9 @@
 	<key>NSCameraUsageDescription</key>
 	<string>HelpSupport uses the camera for doctor verification and video consultation.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>HelpSupport uses the microphone for video consultation.</string>
+	<string>HelpSupport uses the microphone for voice messages and video consultation.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>HelpSupport uses on-device speech recognition for low-memory local voice input.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>HelpSupport uses photo access to upload verification materials and images.</string>
 	<key>NSAppTransportSecurity</key>

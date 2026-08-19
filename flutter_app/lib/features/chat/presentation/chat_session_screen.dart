@@ -22,8 +22,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/cache/cached_remote_image.dart';
+import '../../../core/local_speech/local_speech_engine.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/settings/speech_preferences.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/data/auth_models.dart';
 import '../../plan/application/plan_controller.dart';
@@ -86,6 +88,8 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   bool _sending = false;
   bool _voiceComposer = false;
   bool _recording = false;
+  bool _localAsrActive = false;
+  String _localAsrPartial = '';
   bool _callActive = false;
   bool _callVideoEnabled = false;
   bool _callMuted = false;
@@ -120,7 +124,36 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   int _callPlayedAudioSegments = 0;
   bool _callPlayingRealtimeAudio = false;
 
-  bool get _supportsDoctorCall => widget.chatMode == 'doctor';
+  ChatModeInfo? get _persona {
+    final modes =
+        ref.watch(chatOverviewProvider).asData?.value.modes ?? const [];
+    for (final mode in modes) {
+      if (mode.chatMode == widget.chatMode) {
+        return mode;
+      }
+    }
+    return null;
+  }
+
+  bool get _allowRealtime =>
+      _persona?.allowRealtime ?? widget.chatMode == 'doctor';
+
+  bool get _allowVoice => _persona?.allowVoice ?? true;
+
+  bool get _allowUserPrompt =>
+      _persona?.allowUserPrompt ?? widget.chatMode != 'doctor';
+
+  bool get _useLocalAsr =>
+      _allowVoice &&
+      useLocalSpeech(
+        speechRuntime: _persona?.speechRuntime ?? 'auto',
+        priority: ref.watch(asrPriorityProvider),
+      );
+
+  bool get _useLocalTts => useLocalSpeech(
+    speechRuntime: _persona?.speechRuntime ?? 'auto',
+    priority: ref.watch(ttsPriorityProvider),
+  );
 
   @override
   void initState() {
@@ -140,6 +173,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     _streamSyncTimer?.cancel();
     unawaited(_streamSubscription?.cancel() ?? Future<void>.value());
     unawaited(_messagePlayerSubscription?.cancel() ?? Future<void>.value());
+    unawaited(ref.read(localSpeechEngineProvider).stopSpeak());
     unawaited(_stopRealtimeCall());
     _recordingTicker?.cancel();
     _stopCallDebugTicker();
@@ -176,9 +210,9 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   Widget build(BuildContext context) {
     final palette = _ChatSessionPalette.of(context);
     final records = ref.watch(chatRecordsProvider(widget.sessionId));
-    final promptConfig = widget.chatMode == 'doctor'
-        ? null
-        : ref.watch(chatConfigProvider(widget.chatMode));
+    final promptConfig = _allowUserPrompt
+        ? ref.watch(chatConfigProvider(widget.chatMode))
+        : null;
     final modelConfig = ref.watch(chatConfigProvider(widget.chatMode));
     final authState = ref.watch(authControllerProvider);
     final session = switch (authState) {
@@ -220,7 +254,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                 title: Text(
                   _appBarTitle(records.asData?.value.list ?? const []),
                 ),
-                actions: _supportsDoctorCall
+                actions: _allowRealtime
                     ? [
                         IconButton(
                           tooltip: _t(context, '选择在线模型', 'Choose online model'),
@@ -376,14 +410,19 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                         ),
                       ),
                       _ChatComposer(
-                        voiceComposer: _voiceComposer,
+                        voiceComposer: _allowVoice && _voiceComposer,
+                        allowVoice: _allowVoice,
                         recording: _recording,
                         sending: _sending,
                         controller: _controller,
                         voiceDurationLabel: _voiceDurationLabel,
                         onSubmitted: _send,
-                        onToggleVoiceComposer: () =>
-                            setState(() => _voiceComposer = !_voiceComposer),
+                        onToggleVoiceComposer: () {
+                          if (!_allowVoice) {
+                            return;
+                          }
+                          setState(() => _voiceComposer = !_voiceComposer);
+                        },
                         onLongPressStart: _startVoiceRecording,
                         onLongPressEnd: _finishVoiceRecording,
                         onLongPressCancel: _cancelVoiceRecording,
@@ -400,6 +439,9 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   }
 
   String get _voiceDurationLabel {
+    if (_localAsrActive && _localAsrPartial.isNotEmpty) {
+      return _localAsrPartial;
+    }
     final seconds = math.max(1, _recordingElapsed.inSeconds);
     return '$seconds\'\'';
   }
@@ -621,7 +663,9 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     try {
       await _configureCallAudioSession();
       final repository = ref.read(chatRepositoryProvider);
-      final config = await repository.fetchRealtimeConfig();
+      final config = await repository.fetchRealtimeConfig(
+        chatMode: widget.chatMode,
+      );
       final token = await repository.readAccessToken();
       if (token.isEmpty) {
         throw StateError(_t(context, '登录状态已失效，请重新登录', 'Please sign in again'));
@@ -1821,6 +1865,50 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
 
   Future<void> _beginVoiceRecordingImpl() async {
     final generation = ++_recordingGeneration;
+    if (_useLocalAsr) {
+      final engine = ref.read(localSpeechEngineProvider);
+      final ready = await engine.ensureAsr();
+      if (!mounted || generation != _recordingGeneration) {
+        return;
+      }
+      if (ready) {
+        await engine.startListen(
+          locale: Localizations.localeOf(context).toLanguageTag(),
+          onPartial: (text) {
+            if (!mounted || generation != _recordingGeneration) {
+              return;
+            }
+            setState(() => _localAsrPartial = text);
+          },
+        );
+        if (!mounted || generation != _recordingGeneration) {
+          await engine.cancelListen();
+          return;
+        }
+        _recordingTicker?.cancel();
+        setState(() {
+          _voiceComposer = true;
+          _recording = true;
+          _localAsrActive = true;
+          _localAsrPartial = '';
+          _recordingPath = null;
+          _recordingElapsed = const Duration(seconds: 1);
+          _recordingStartedAt = DateTime.now();
+        });
+        _recordingTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+          final startedAt = _recordingStartedAt;
+          if (startedAt == null || !mounted) {
+            return;
+          }
+          final elapsed = DateTime.now().difference(startedAt);
+          setState(() => _recordingElapsed = elapsed);
+          if (elapsed.inSeconds >= 300) {
+            unawaited(_finishVoiceRecording());
+          }
+        });
+        return;
+      }
+    }
     final allowed = await _messageRecorder.hasPermission(request: true);
     if (!allowed) {
       if (mounted) {
@@ -1884,6 +1972,29 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
               : DateTime.now().difference(_recordingStartedAt!))
           .inSeconds,
     );
+    if (_localAsrActive) {
+      String transcript = '';
+      try {
+        transcript = await ref.read(localSpeechEngineProvider).stopListen();
+      } on Object catch (error) {
+        _stopRecordingState();
+        if (mounted) {
+          context.showCenteredNotice(error.toString());
+        }
+        return;
+      }
+      _stopRecordingState();
+      if (transcript.isEmpty) {
+        if (mounted) {
+          context.showCenteredNotice(
+            _t(context, '没听清，请再说一次', 'I could not catch that. Please try again.'),
+          );
+        }
+        return;
+      }
+      await _sendChatContent(content: transcript);
+      return;
+    }
     String? recordedPath;
     try {
       recordedPath = await _messageRecorder.stop() ?? _recordingPath;
@@ -1938,7 +2049,11 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     if (!_recording) {
       return;
     }
-    unawaited(_messageRecorder.stop());
+    if (_localAsrActive) {
+      unawaited(ref.read(localSpeechEngineProvider).cancelListen());
+    } else {
+      unawaited(_messageRecorder.stop());
+    }
     final path = _recordingPath;
     _stopRecordingState();
     if (path != null) {
@@ -1951,12 +2066,16 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     if (mounted) {
       setState(() {
         _recording = false;
+        _localAsrActive = false;
+        _localAsrPartial = '';
         _recordingStartedAt = null;
         _recordingPath = null;
         _recordingElapsed = Duration.zero;
       });
     } else {
       _recording = false;
+      _localAsrActive = false;
+      _localAsrPartial = '';
       _recordingStartedAt = null;
       _recordingPath = null;
       _recordingElapsed = Duration.zero;
@@ -2143,6 +2262,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
           attachmentId: attachmentId,
           durationSeconds: durationSeconds,
           locale: Localizations.localeOf(context).toLanguageTag(),
+          ttsRuntime: _useLocalTts ? 'local' : 'online',
         )
         .listen(
           (event) {
@@ -2298,6 +2418,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
               : const <ChatRecord>[];
         });
         _scrollToLatest();
+        unawaited(_maybeSpeakLocalReply(event));
         return;
       case 'error':
         setState(() => _streamingRecords = const <ChatRecord>[]);
@@ -2313,6 +2434,37 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
         return;
       default:
         return;
+    }
+  }
+
+  Future<void> _maybeSpeakLocalReply(ChatStreamEvent event) async {
+    if (!_useLocalTts) {
+      return;
+    }
+    final records = event.records.isNotEmpty
+        ? event.records
+        : _streamingRecords;
+    ChatRecord? assistant = event.assistantRecord;
+    if (assistant == null || assistant.content.trim().isEmpty) {
+      for (final record in records.reversed) {
+        if (record.role == 'assistant' && record.content.trim().isNotEmpty) {
+          assistant = record;
+          break;
+        }
+      }
+    }
+    if (assistant == null || !mounted) {
+      return;
+    }
+    try {
+      await ref
+          .read(localSpeechEngineProvider)
+          .speak(
+            assistant.content,
+            Localizations.localeOf(context).toLanguageTag(),
+          );
+    } on Object {
+      // Keep the text reply even if on-device TTS is unavailable.
     }
   }
 
@@ -3296,6 +3448,7 @@ class _BubbleAvatar extends StatelessWidget {
 class _ChatComposer extends StatelessWidget {
   const _ChatComposer({
     required this.voiceComposer,
+    this.allowVoice = true,
     required this.recording,
     required this.sending,
     required this.controller,
@@ -3310,6 +3463,7 @@ class _ChatComposer extends StatelessWidget {
   });
 
   final bool voiceComposer;
+  final bool allowVoice;
   final bool recording;
   final bool sending;
   final TextEditingController controller;
@@ -3422,17 +3576,19 @@ class _ChatComposer extends StatelessWidget {
                     onSubmitted: (_) => onSubmitted(),
                   ),
                 ),
-                const SizedBox(width: 10),
-                IconButton.filledTonal(
-                  tooltip: _t(context, '语音输入', 'Voice input'),
-                  onPressed: onToggleVoiceComposer,
-                  style: IconButton.styleFrom(
-                    minimumSize: const Size.square(54),
-                    backgroundColor: palette.softSurface,
-                    foregroundColor: palette.primaryText,
+                if (allowVoice) ...[
+                  const SizedBox(width: 10),
+                  IconButton.filledTonal(
+                    tooltip: _t(context, '语音输入', 'Voice input'),
+                    onPressed: onToggleVoiceComposer,
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size.square(54),
+                      backgroundColor: palette.softSurface,
+                      foregroundColor: palette.primaryText,
+                    ),
+                    icon: const Icon(Icons.mic_none_rounded),
                   ),
-                  icon: const Icon(Icons.mic_none_rounded),
-                ),
+                ],
                 const SizedBox(width: 6),
                 IconButton.filled(
                   tooltip: context.l10n.sendMessage,
