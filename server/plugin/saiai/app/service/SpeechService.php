@@ -101,6 +101,10 @@ final class SpeechService
         bool $requireEnabled = true
     ): string {
         $resolved = $this->resolveSpeechConfig($configId, $expectedType, $requireEnabled);
+        if ($this->isDashscope($resolved)) {
+            return $this->transcribeDashscope($resolved, $filePath, $mimeType);
+        }
+
         $response = $this->request(
             'POST',
             $this->speechEndpoint($resolved, 'transcriptions'),
@@ -138,9 +142,13 @@ final class SpeechService
 
         $resolved = $this->resolveSpeechConfig($configId, $expectedType, $requireEnabled);
         $options = is_array($resolved['options'] ?? null) ? $resolved['options'] : [];
+        $defaultVoice = $this->isDashscope($resolved) ? 'Cherry' : (string) env('SAIAI_SPEECH_VOICE', 'alloy');
         $voice = trim($voice) !== ''
             ? trim($voice)
-            : trim((string) ($options['voice'] ?? env('SAIAI_SPEECH_VOICE', 'alloy')));
+            : trim((string) ($options['voice'] ?? $defaultVoice));
+        if ($this->isDashscope($resolved)) {
+            return $this->synthesizeDashscope($resolved, $text, $voice, $options);
+        }
 
         $response = $this->request(
             'POST',
@@ -204,6 +212,7 @@ final class SpeechService
         curl_setopt_array($curl, [
             CURLOPT_CUSTOMREQUEST => $method,
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_POSTFIELDS => $payload,
             CURLOPT_CONNECTTIMEOUT => 12,
@@ -224,10 +233,225 @@ final class SpeechService
             $message = is_array($data)
                 ? trim((string) ($data['error']['message'] ?? $data['message'] ?? ''))
                 : '';
-            throw new ApiException($message !== '' ? $message : "AI 语音服务返回 HTTP {$status}", 502);
+            $suffix = $message !== '' ? $message : ('HTTP ' . $status);
+            throw new ApiException('AI 语音服务调用失败：' . $suffix . '（' . $this->safeUrl($url) . '）', 502);
         }
 
         return ['body' => $body, 'content_type' => $contentType];
+    }
+
+    private function transcribeDashscope(array $resolved, string $filePath, string $mimeType): string
+    {
+        $bytes = file_get_contents($filePath);
+        if (!is_string($bytes) || $bytes === '') {
+            throw new ApiException('音频文件读取失败', 400);
+        }
+
+        $options = is_array($resolved['options'] ?? null) ? $resolved['options'] : [];
+        $language = trim((string) ($options['language'] ?? ''));
+        $asrOptions = ['enable_itn' => false];
+        if ($language !== '') {
+            $asrOptions['language'] = $language;
+        }
+
+        $url = $this->dashscopeAsrUrl($resolved);
+        $payload = str_contains($url, '/chat/completions')
+            ? [
+                'model' => (string) $resolved['model'],
+                'messages' => [[
+                    'role' => 'user',
+                    'content' => [[
+                        'type' => 'input_audio',
+                        'input_audio' => [
+                            'data' => $this->encodeAudioDataUrl($bytes, $mimeType),
+                        ],
+                    ]],
+                ]],
+                'asr_options' => $asrOptions,
+            ]
+            : [
+                'model' => (string) $resolved['model'],
+                'input' => [
+                    'messages' => [[
+                        'role' => 'user',
+                        'content' => [[
+                            'audio' => $this->encodeAudioDataUrl($bytes, $mimeType),
+                        ]],
+                    ]],
+                ],
+                'parameters' => [
+                    'asr_options' => $asrOptions,
+                ],
+            ];
+
+        $response = $this->request(
+            'POST',
+            $url,
+            [
+                'Authorization: Bearer ' . $resolved['apiKey'],
+                'Content-Type: application/json',
+            ],
+            json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)
+        );
+        $data = json_decode($response['body'], true);
+        $text = is_array($data) ? $this->extractDashscopeText($data) : '';
+        if ($text === '') {
+            throw new ApiException('语音转写未返回有效文本', 502);
+        }
+
+        return $text;
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     * @return array{audio_url:string,audio_mime_type:string,model:string,voice:string}
+     */
+    private function synthesizeDashscope(array $resolved, string $text, string $voice, array $options): array
+    {
+        $language = trim((string) ($options['language'] ?? $options['language_type'] ?? 'Chinese'));
+        if ($language === '' || strtolower($language) === 'zh') {
+            $language = 'Chinese';
+        }
+        $response = $this->request(
+            'POST',
+            $this->dashscopeTtsUrl($resolved),
+            [
+                'Authorization: Bearer ' . $resolved['apiKey'],
+                'Content-Type: application/json',
+            ],
+            json_encode([
+                'model' => (string) $resolved['model'],
+                'input' => [
+                    'text' => mb_substr($text, 0, 600),
+                    'voice' => $voice !== '' ? $voice : 'Cherry',
+                    'language_type' => $language,
+                ],
+            ], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)
+        );
+        $data = json_decode($response['body'], true);
+        $audioUrl = is_array($data) ? trim((string) ($data['output']['audio']['url'] ?? '')) : '';
+        if ($audioUrl === '') {
+            throw new ApiException('AI 语音合成未返回音频地址', 502);
+        }
+
+        $audio = $this->request('GET', $audioUrl, [], '');
+        $mimeType = strtolower(trim((string) ($audio['content_type'] ?? '')));
+        $extension = str_contains($mimeType, 'wav') ? 'wav' : 'mp3';
+
+        return [
+            'audio_url' => $this->saveAudio($audio['body'], $extension),
+            'audio_mime_type' => $mimeType !== '' ? $mimeType : 'audio/wav',
+            'model' => (string) $resolved['model'],
+            'voice' => $voice,
+        ];
+    }
+
+    private function isDashscope(array $resolved): bool
+    {
+        $haystack = strtolower((string) ($resolved['apiUrl'] ?? '') . ' ' . (string) ($resolved['model'] ?? ''));
+
+        return str_contains($haystack, 'dashscope')
+            || str_contains($haystack, 'qwen3-asr')
+            || str_contains($haystack, 'qwen3-tts')
+            || str_contains($haystack, 'qwen-tts')
+            || str_contains($haystack, 'qwen-audio');
+    }
+
+    private function dashscopeAsrUrl(array $resolved): string
+    {
+        $baseUrl = rtrim(trim((string) ($resolved['apiUrl'] ?? '')), '/');
+        $lower = strtolower($baseUrl);
+        if (str_contains($lower, '/chat/completions') || str_contains($lower, '/multimodal-generation/generation')) {
+            return $baseUrl;
+        }
+        if (str_contains($lower, '/compatible-mode/v1')) {
+            return $baseUrl . '/chat/completions';
+        }
+
+        return $this->dashscopeOrigin($baseUrl) . '/compatible-mode/v1/chat/completions';
+    }
+
+    private function dashscopeTtsUrl(array $resolved): string
+    {
+        $baseUrl = rtrim(trim((string) ($resolved['apiUrl'] ?? '')), '/');
+        $lower = strtolower($baseUrl);
+        if (str_contains($lower, '/multimodal-generation/generation')) {
+            return $baseUrl;
+        }
+
+        return $this->dashscopeOrigin($baseUrl) . '/api/v1/services/aigc/multimodal-generation/generation';
+    }
+
+    private function dashscopeOrigin(string $baseUrl): string
+    {
+        if (str_contains(strtolower($baseUrl), 'dashscope-intl.aliyuncs.com')) {
+            return 'https://dashscope-intl.aliyuncs.com';
+        }
+
+        return 'https://dashscope.aliyuncs.com';
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function extractDashscopeText(array $data): string
+    {
+        $candidates = [
+            $data['choices'][0]['message']['content'] ?? null,
+            $data['output']['choices'][0]['message']['content'] ?? null,
+            $data['output']['text'] ?? null,
+            $data['text'] ?? null,
+        ];
+        foreach ($candidates as $candidate) {
+            $text = $this->stringifyContent($candidate);
+            if ($text !== '') {
+                return $text;
+            }
+        }
+
+        return '';
+    }
+
+    private function stringifyContent(mixed $content): string
+    {
+        if (is_string($content)) {
+            return trim($content);
+        }
+        if (!is_array($content)) {
+            return '';
+        }
+
+        $parts = [];
+        foreach ($content as $item) {
+            if (is_string($item)) {
+                $parts[] = $item;
+                continue;
+            }
+            if (is_array($item)) {
+                $parts[] = (string) ($item['text'] ?? $item['content'] ?? '');
+            }
+        }
+
+        return trim(implode('', $parts));
+    }
+
+    private function encodeAudioDataUrl(string $bytes, string $mimeType): string
+    {
+        $mime = trim($mimeType);
+        if ($mime === '' || $mime === 'application/octet-stream') {
+            $mime = 'audio/webm';
+        }
+
+        return 'data:' . $mime . ';base64,' . base64_encode($bytes);
+    }
+
+    private function safeUrl(string $url): string
+    {
+        $parts = parse_url($url);
+        $host = (string) ($parts['host'] ?? '');
+        $path = (string) ($parts['path'] ?? '');
+
+        return $host . $path;
     }
 
     private function speechEndpoint(array $resolved, string $action): string
@@ -289,7 +513,7 @@ final class SpeechService
         return $tempPath;
     }
 
-    private function saveAudio(string $bytes): string
+    private function saveAudio(string $bytes, string $extension = 'mp3'): string
     {
         if ($bytes === '') {
             throw new ApiException('AI 语音合成结果为空', 502);
@@ -304,7 +528,8 @@ final class SpeechService
             throw new ApiException('AI 语音存储目录创建失败', 500);
         }
 
-        $fileName = date('YmdHis') . '-' . bin2hex(random_bytes(8)) . '.mp3';
+        $extension = preg_replace('/[^a-z0-9]/', '', strtolower($extension)) ?: 'mp3';
+        $fileName = date('YmdHis') . '-' . bin2hex(random_bytes(8)) . '.' . $extension;
         if (file_put_contents($directory . DIRECTORY_SEPARATOR . $fileName, $bytes) === false) {
             throw new ApiException('AI 语音文件保存失败', 500);
         }

@@ -45,7 +45,7 @@
             type="success"
             :closable="false"
             show-icon
-            title="这是非实时 ASR：录音结束后走 HTTP /v1/audio/transcriptions。不要填 wss realtime 地址，也不要选 qwen3-asr-flash-realtime。"
+            title="这是非实时 ASR。阿里云 qwen3-asr-flash 填 https://dashscope.aliyuncs.com/compatible-mode/v1，不要填 /audio/transcriptions，也不要选 realtime 模型。"
           />
         </el-col>
         <el-col :span="24" v-else-if="formData.type === 'tts'">
