@@ -172,20 +172,68 @@ class SaAiPersonaLogic extends BaseLogic
 
     private function jsonColumn(mixed $value): string
     {
-        if (is_string($value)) {
-            $value = trim($value);
-            if ($value === '') {
-                $value = [];
-            } else {
-                $decoded = json_decode($value, true);
-                $value = json_last_error() === JSON_ERROR_NONE ? $decoded : [];
-            }
-        }
+        $value = $this->utf8Value($this->decodeJsonValue($value));
         if (!is_array($value)) {
             $value = [];
         }
 
-        return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        $encoded = json_encode(
+            $value,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
+        );
+        if (!is_string($encoded) || $encoded === '' || $encoded === 'null') {
+            return '{}';
+        }
+
+        return $encoded;
+    }
+
+    private function decodeJsonValue(mixed $value): mixed
+    {
+        if (!is_string($value)) {
+            return $value;
+        }
+        $value = trim($value);
+        if ($value === '') {
+            return [];
+        }
+        $decoded = json_decode($value, true);
+        return json_last_error() === JSON_ERROR_NONE ? $decoded : [];
+    }
+
+    private function utf8Value(mixed $value): mixed
+    {
+        if (is_string($value)) {
+            return $this->utf8String($value);
+        }
+        if (is_array($value)) {
+            $result = [];
+            foreach ($value as $key => $item) {
+                $result[$this->utf8String((string) $key)] = $this->utf8Value($item);
+            }
+            return $result;
+        }
+
+        return $value;
+    }
+
+    private function utf8String(string $value): string
+    {
+        if ($value === '' || preg_match('//u', $value) === 1) {
+            return $value;
+        }
+        $cleaned = @iconv('UTF-8', 'UTF-8//IGNORE', $value);
+        if (is_string($cleaned) && $cleaned !== '') {
+            return $cleaned;
+        }
+        if (function_exists('mb_convert_encoding')) {
+            $converted = @mb_convert_encoding($value, 'UTF-8', 'UTF-8,GBK,GB2312,BIG5,ISO-8859-1');
+            if (is_string($converted)) {
+                return $converted;
+            }
+        }
+
+        return '';
     }
 
     private function i18nList(mixed $value, string $locale): mixed
