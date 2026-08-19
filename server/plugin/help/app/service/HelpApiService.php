@@ -7480,8 +7480,12 @@ class HelpApiService
                 'en-US' => 'Tell me the health concern you want to organize, and I will help prepare clear information for a clinical visit.',
             ],
         ];
-        $chatMode = in_array($chatMode, $this->chatModes(), true) ? $chatMode : 'companion';
+        $chatMode = ChatPersonaCatalog::exists($chatMode, false) ? $chatMode : 'companion';
         $localeCandidates = $this->chatGreetingLocaleCandidates($locale);
+        $personaGreeting = $this->personaGreetingMessage($chatMode, $localeCandidates);
+        if ($personaGreeting !== '') {
+            return $personaGreeting;
+        }
 
         if ($this->tableExists('sa_local_model_prompt')) {
             $rows = Db::table('sa_local_model_prompt')
@@ -7511,6 +7515,43 @@ class HelpApiService
         }
 
         return $fallbacks[$chatMode]['zh'];
+    }
+
+    /**
+     * @param list<string> $localeCandidates
+     */
+    private function personaGreetingMessage(string $chatMode, array $localeCandidates): string
+    {
+        if (!$this->tableExists('sa_ai_persona') || !$this->tableExists('sa_ai_persona_prompt')) {
+            return '';
+        }
+        $personaId = (int) Db::table('sa_ai_persona')
+            ->where('code', $chatMode)
+            ->whereNull('delete_time')
+            ->value('id');
+        if ($personaId <= 0) {
+            return '';
+        }
+        $rows = Db::table('sa_ai_persona_prompt')
+            ->where('persona_id', $personaId)
+            ->where('runtime_mode', 'online')
+            ->where('status', 1)
+            ->whereNull('delete_time')
+            ->whereIn('locale', $localeCandidates)
+            ->field('locale, first_message')
+            ->order('id', 'asc')
+            ->select()
+            ->toArray();
+        foreach ($localeCandidates as $candidate) {
+            foreach ($rows as $row) {
+                $message = trim((string) ($row['first_message'] ?? ''));
+                if ((string) ($row['locale'] ?? '') === $candidate && $message !== '') {
+                    return $message;
+                }
+            }
+        }
+
+        return '';
     }
 
     private function chatGreetingLocaleCandidates(string $locale): array
