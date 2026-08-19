@@ -165,6 +165,7 @@ REDIS_DB=0
 - 远端目录：`/www/wwwroot/b8aiadmin`
 - Webman 端口：`8787`
 - 数据库同步：默认关闭
+- 数据库迁移：默认关闭，需显式开启 `RUN_MIGRATE=1`
 - Webman 禁用函数检查：默认开启
 
 预览部署：
@@ -185,13 +186,14 @@ DRY_RUN=1 ./deploy/deploy.sh
 BUILD_ADMIN=1 ./deploy/deploy.sh
 SYNC_ADMIN=0 ./deploy/deploy.sh
 SYNC_DB=1 ./deploy/deploy.sh
+RUN_MIGRATE=1 ./deploy/deploy.sh
 CHECK_WEBMAN_DISABLED_FUNCTIONS=0 ./deploy/deploy.sh
 REMOTE_ROOT=/www/wwwroot/justai ./deploy/deploy.sh
 ```
 
 只发布 PHP 服务端、不碰后台静态资源时用 `SYNC_ADMIN=0`。脚本对 rsync 默认重试 3 次，并给 SSH 打开 keepalive；admin 同步失败时仍会继续修复权限并重启 Webman，避免后台静态资源把接口发布卡住。
 
-脚本会把本地 `server/`、`packages/`、`Database/`（基线 SQL、Phinx 配置、迁移和种子）以及 admin 静态资源和 `public/storage` 同步到远端。`Database/` 与 `server/` 平级，供远端 `php webman b8:migrate` 读取。`SYNC_DB=1` 会把本地数据库同步到远端数据库，生产环境执行前必须确认备份和覆盖风险。
+脚本会把本地 `server/`、`packages/`、`Database/`（基线 SQL、Phinx 配置、迁移和种子）以及 admin 静态资源和 `public/storage` 同步到远端。`Database/` 与 `server/` 平级，供远端 `php webman b8:migrate` 读取。`SYNC_DB=1` 会把本地数据库同步到远端数据库，生产环境执行前必须确认备份和覆盖风险。`RUN_MIGRATE=1` 会在文件同步后、Webman 重启前，于远端依次执行 `php webman b8:migrate:status`、`php webman b8:migrate --dry-run`，交互确认后再执行真实迁移；默认关闭，生产环境不要自动跑迁移。
 
 ## Docker 二进制镜像发布
 

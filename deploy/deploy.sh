@@ -47,6 +47,7 @@ REMOTE_DB_PASS="${REMOTE_DB_PASS:-help}"
 BUILD_ADMIN="${BUILD_ADMIN:-}"
 SYNC_ADMIN="${SYNC_ADMIN:-}"
 SYNC_DB="${SYNC_DB:-}"
+RUN_MIGRATE="${RUN_MIGRATE:-}"
 ADMIN_PUBLIC_BASE="${ADMIN_PUBLIC_BASE:-/admin/}"
 DRY_RUN="${DRY_RUN:-}"
 FIX_PERMS="${FIX_PERMS:-1}"
@@ -81,6 +82,15 @@ require_command() {
 
 log() {
   printf '\n==> %s\n' "$1"
+}
+
+run_remote_webman() {
+  local webman_args="$1"
+  ssh "${SSH_OPTS[@]}" "$REMOTE" "${REMOTE_ENV} OTEL_PHP_DISABLED_INSTRUMENTATIONS='$REMOTE_OTEL_DISABLED_INSTRUMENTATIONS' bash -s" <<EOF
+set -e
+cd '$REMOTE_SERVER_DIR'
+php webman $webman_args
+EOF
 }
 
 rsync_with_retry() {
@@ -149,6 +159,14 @@ if [[ "$INTERACTIVE" == "1" ]]; then
     fi
   fi
 
+  if [[ -z "$RUN_MIGRATE" ]]; then
+    if prompt_yes_no "是否在远端执行数据库迁移？默认会先 status 和 dry-run，生产环境需确认已备份" "n"; then
+      RUN_MIGRATE=1
+    else
+      RUN_MIGRATE=0
+    fi
+  fi
+
   if [[ -z "$DRY_RUN" ]]; then
     if prompt_yes_no "是否只预览，不实际同步？" "n"; then
       DRY_RUN=1
@@ -160,6 +178,7 @@ else
   BUILD_ADMIN="${BUILD_ADMIN:-0}"
   SYNC_ADMIN="${SYNC_ADMIN:-$BUILD_ADMIN}"
   SYNC_DB="${SYNC_DB:-0}"
+  RUN_MIGRATE="${RUN_MIGRATE:-0}"
   DRY_RUN="${DRY_RUN:-0}"
 fi
 
@@ -185,6 +204,7 @@ echo "admin 目标：${REMOTE_ADMIN_DIR}"
 echo "编译 admin：${BUILD_ADMIN}"
 echo "同步 admin：${SYNC_ADMIN}"
 echo "同步数据库：${SYNC_DB}"
+echo "执行数据库迁移：${RUN_MIGRATE}"
 echo "admin 基础路径：${ADMIN_PUBLIC_BASE}"
 echo "预览模式：${DRY_RUN}"
 echo "修复权限：${FIX_PERMS}"
@@ -199,6 +219,11 @@ if [[ "$SYNC_DB" == "1" ]]; then
   echo "数据库备份：覆盖前备份到 ${REMOTE}:${REMOTE_BACKUP_DIR}"
 else
   echo "数据库同步：关闭。本次不会覆盖远程数据库。"
+fi
+if [[ "$RUN_MIGRATE" == "1" ]]; then
+  echo "数据库迁移：将在远端 ${REMOTE_SERVER_DIR} 依次执行 b8:migrate:status、b8:migrate --dry-run，确认后再执行 b8:migrate"
+else
+  echo "数据库迁移：关闭。本次不会在远端执行 php webman b8:migrate"
 fi
 
 if [[ "$INTERACTIVE" == "1" ]]; then
@@ -372,6 +397,47 @@ EOF
       exit 1
     fi
   fi
+fi
+
+if [[ "$RUN_MIGRATE" == "1" ]]; then
+  if [[ "$DRY_RUN" == "1" ]]; then
+    log "预览模式：跳过远端数据库迁移"
+    echo "将执行：ssh ${REMOTE} \"cd '${REMOTE_SERVER_DIR}' && php webman b8:migrate:status\""
+    echo "将执行：ssh ${REMOTE} \"cd '${REMOTE_SERVER_DIR}' && php webman b8:migrate --dry-run\""
+    echo "确认后再执行：ssh ${REMOTE} \"cd '${REMOTE_SERVER_DIR}' && php webman b8:migrate\""
+  else
+    log "查看远端数据库迁移状态"
+    if ! run_remote_webman "b8:migrate:status"; then
+      echo "远端 b8:migrate:status 失败。代码已同步，但未执行真实迁移，也未重启 Webman。" >&2
+      echo "请确认远端 ${REMOTE_SERVER_DIR}/.env、数据库连通性和 Database/ 迁移文件后再重试：RUN_MIGRATE=1 ./deploy/deploy.sh" >&2
+      exit 1
+    fi
+
+    log "预览远端数据库迁移 SQL"
+    if ! run_remote_webman "b8:migrate --dry-run"; then
+      echo "远端 b8:migrate --dry-run 失败。代码已同步，但未执行真实迁移，也未重启 Webman。" >&2
+      echo "请确认目标库、备份和回滚窗口后再重试：RUN_MIGRATE=1 ./deploy/deploy.sh" >&2
+      exit 1
+    fi
+
+    if [[ "$INTERACTIVE" == "1" ]]; then
+      if ! prompt_yes_no "确认执行线上真实迁移？请确认数据库已备份" "n"; then
+        echo "已取消线上真实迁移。代码已同步，本次不会执行 php webman b8:migrate，也不会重启 Webman。"
+        echo "如只需重启服务、不跑迁移：RUN_MIGRATE=0 ./deploy/deploy.sh"
+        exit 0
+      fi
+    fi
+
+    log "执行远端数据库迁移"
+    if ! run_remote_webman "b8:migrate"; then
+      echo "远端 b8:migrate 失败。代码已同步，但迁移未完成，未重启 Webman。" >&2
+      echo "请先修复迁移问题，再单独重试：RUN_MIGRATE=1 ./deploy/deploy.sh" >&2
+      exit 1
+    fi
+  fi
+else
+  log "跳过远端数据库迁移"
+  echo "如需执行增量迁移，确认备份后使用：RUN_MIGRATE=1 ./deploy/deploy.sh"
 fi
 
 if [[ "$RESTART_WEBMAN" == "1" ]]; then
