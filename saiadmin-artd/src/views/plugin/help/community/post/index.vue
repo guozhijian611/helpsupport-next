@@ -95,6 +95,45 @@
     </ElCard>
 
     <ViewDialog v-model="viewDialogVisible" :dialog-type="dialogType" :data="viewDialogData" />
+
+    <ElDialog
+      v-model="rejectDialogVisible"
+      title="拒绝帖子"
+      width="480px"
+      :close-on-click-modal="false"
+      destroy-on-close
+    >
+      <ElForm label-position="top">
+        <ElFormItem label="快捷原因">
+          <div class="flex flex-wrap gap-2">
+            <ElTag
+              v-for="reason in rejectQuickReasons"
+              :key="reason"
+              class="cursor-pointer"
+              :type="rejectRemark === reason ? 'warning' : 'info'"
+              :effect="rejectRemark === reason ? 'dark' : 'plain'"
+              @click="rejectRemark = reason"
+            >
+              {{ reason }}
+            </ElTag>
+          </div>
+        </ElFormItem>
+        <ElFormItem label="拒绝原因" required>
+          <ElInput
+            v-model="rejectRemark"
+            type="textarea"
+            :rows="3"
+            placeholder="点击快捷原因或自行填写"
+            maxlength="500"
+            show-word-limit
+          />
+        </ElFormItem>
+      </ElForm>
+      <template #footer>
+        <ElButton @click="rejectDialogVisible = false">取消</ElButton>
+        <ElButton type="primary" :loading="rejectSubmitting" @click="confirmReject">确定</ElButton>
+      </template>
+    </ElDialog>
   </div>
 </template>
 
@@ -115,6 +154,17 @@
     status: undefined
   })
   const aiAuditingId = ref<number | null>(null)
+  const rejectDialogVisible = ref(false)
+  const rejectSubmitting = ref(false)
+  const rejectRemark = ref('')
+  const rejectTarget = ref<Record<string, any> | null>(null)
+  const rejectQuickReasons = [
+    '内容不符合社区规范',
+    '含有攻击、辱骂或骚扰内容',
+    '含有自伤、自杀或危险行为暗示',
+    '含有广告、引流或无关推广',
+    '涉及隐私信息或敏感个人信息'
+  ]
 
   const handleSearch = (params: Record<string, any>) => {
     Object.assign(searchParams, params)
@@ -165,23 +215,39 @@
   } = useSaiAdmin()
 
   const auditPost = async (row: Record<string, any>, auditStatus: number) => {
-    let auditRemark = ''
     if (auditStatus === 2) {
-      const result = await ElMessageBox.prompt('请输入拒绝原因', '拒绝帖子', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        inputPlaceholder: '必填',
-        inputValidator: (value) => String(value || '').trim() !== '' || '请输入拒绝原因'
-      })
-      auditRemark = String(result.value || '').trim()
-    } else {
-      await ElMessageBox.confirm(`确定通过帖子 #${row.id} 吗？`, '审核帖子', {
-        type: 'warning'
-      })
+      rejectTarget.value = row
+      rejectRemark.value = ''
+      rejectDialogVisible.value = true
+      return
     }
-    await api.audit({ id: row.id, audit_status: auditStatus, audit_remark: auditRemark })
+    await ElMessageBox.confirm(`确定通过帖子 #${row.id} 吗？`, '审核帖子', {
+      type: 'warning'
+    })
+    await api.audit({ id: row.id, audit_status: auditStatus, audit_remark: '' })
     ElMessage.success('审核成功')
     refreshData()
+  }
+
+  const confirmReject = async () => {
+    const auditRemark = rejectRemark.value.trim()
+    if (!auditRemark) {
+      ElMessage.warning('请输入拒绝原因')
+      return
+    }
+    const row = rejectTarget.value
+    if (!row) {
+      return
+    }
+    rejectSubmitting.value = true
+    try {
+      await api.audit({ id: row.id, audit_status: 2, audit_remark: auditRemark })
+      ElMessage.success('审核成功')
+      rejectDialogVisible.value = false
+      refreshData()
+    } finally {
+      rejectSubmitting.value = false
+    }
   }
 
   const retryAiAudit = async (row: Record<string, any>) => {
