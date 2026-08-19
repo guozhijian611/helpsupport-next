@@ -9,6 +9,7 @@
 | 能力 | 入口 | 说明 |
 | --- | --- | --- |
 | 文字对话 | `server/plugin/saiai/app/service/AiFactory.php` | 通过 `saiai_config` 中的模型配置调用 OpenAI、Gemini、DeepSeek、Generic 等文本模型通道。 |
+| ASR / TTS | `server/plugin/saiai/app/service/SpeechService.php` | OpenAI 兼容的转写与语音合成。后台「模型测试」可单独试 ASR / TTS，App 文字聊天语音也走同一通道。 |
 | SAI Realtime 多模态 | `plugin.saiai.saiai_realtime_gateway` 进程 | 后台浏览器连接本地 WebSocket 协议网关，由网关通过 provider adapter 连接阿里云 Qwen-Omni-Realtime 等上游。支持文本测试、麦克风音频、摄像头抽帧视频和音频输出监测。 |
 
 后台前端位于 `saiadmin-artd/src/views/plugin/saiai`，后端插件位于 `server/plugin/saiai`。

@@ -300,15 +300,21 @@ class AiFactory
         return self::resolveConfigFromModel($config, $model);
     }
 
-    public static function resolveConfigById(int $configId): array
+    public static function resolveConfigById(int $configId, bool $requireEnabled = true): array
     {
         if ($configId <= 0) {
             return self::resolveConfig(self::DEFAULT_CHAT_TYPE);
         }
 
-        $config = AiConfig::where('id', $configId)->where('status', 1)->findOrEmpty();
+        $query = AiConfig::where('id', $configId);
+        if ($requireEnabled) {
+            $query->where('status', 1);
+        }
+        $config = $query->findOrEmpty();
         if ($config->isEmpty()) {
-            throw new ApiException('所选 AI 模型配置不存在或未启用，请在后台重新选择模型策略');
+            throw new ApiException($requireEnabled
+                ? '所选 AI 模型配置不存在或未启用，请在后台重新选择模型策略'
+                : '所选 AI 模型配置不存在');
         }
 
         return self::resolveConfigFromModel($config);
@@ -331,6 +337,7 @@ class AiFactory
             'platformType' => $platformType,
             'configId' => (int) $config->id,
             'configName' => (string) $config->name,
+            'options' => self::decodeOptions($config->options ?? null),
         ];
     }
 
@@ -361,6 +368,9 @@ class AiFactory
                 break;
             case 'openai':
             case 'gemini':
+            case 'asr':
+            case 'tts':
+            case 'realtime':
                 break;
             default:
                 throw new ApiException('不支持的模型平台：' . $platformType);
@@ -370,7 +380,7 @@ class AiFactory
     protected static function normalizeApiUrl(string $apiUrl, string $platformType): string
     {
         $apiUrl = rtrim(trim($apiUrl), '/');
-        if ($platformType !== 'generic' || $apiUrl === '') {
+        if (!in_array($platformType, ['generic', 'asr', 'tts'], true) || $apiUrl === '') {
             return $apiUrl;
         }
 
@@ -379,6 +389,10 @@ class AiFactory
             '/chat/completions',
             '/v1/embeddings',
             '/embeddings',
+            '/v1/audio/transcriptions',
+            '/audio/transcriptions',
+            '/v1/audio/speech',
+            '/audio/speech',
         ] as $suffix) {
             if (str_ends_with(strtolower($apiUrl), $suffix)) {
                 return substr($apiUrl, 0, -strlen($suffix));
@@ -474,6 +488,23 @@ class AiFactory
         }
 
         return $apiUrl . '/v1/images/generations';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected static function decodeOptions(mixed $options): array
+    {
+        if (is_array($options)) {
+            return $options;
+        }
+        $raw = trim((string) $options);
+        if ($raw === '') {
+            return [];
+        }
+        $decoded = json_decode($raw, true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     protected static function formatProviderError(array $data, string $fallback): string

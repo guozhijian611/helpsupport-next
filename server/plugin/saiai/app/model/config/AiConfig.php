@@ -50,4 +50,9 @@ class AiConfig extends BaseModel
         $query->where('name', 'like', '%' . $value . '%');
     }
 
+    public function searchTypeAttr($query, $value)
+    {
+        $query->where('type', $value);
+    }
+
 }
