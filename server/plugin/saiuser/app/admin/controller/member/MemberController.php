@@ -41,8 +41,12 @@ class MemberController extends BaseController
             ['username', ''],
             ['member_level_id', ''],
             ['create_time', ''],
+            ['identity', ''],
         ]);
+        $identity = $where['identity'] ?? '';
+        unset($where['identity']);
         $query = $this->logic->search($where);
+        $query = $this->logic->applyIdentityFilter($query, $identity);
         $query->with(['level', 'platform']);
         $data = $this->logic->getList($query);
         if (isset($data['data']) && is_array($data['data'])) {
@@ -63,11 +67,24 @@ class MemberController extends BaseController
         $model = $this->logic->read($id);
         if ($model) {
             $data = is_array($model) ? $model : $model->toArray();
-            $data = $this->logic->appendIdentity($data);
             return $this->success($data);
         } else {
             return $this->fail('未查找到信息');
         }
+    }
+
+    /**
+     * 会员关联数据
+     */
+    #[Permission('会员读取', 'saiuser:member:member:read')]
+    public function related(Request $request): Response
+    {
+        $id = (int) $request->input('id', 0);
+        $type = trim((string) $request->input('type', ''));
+        $page = max(1, (int) $request->input('page', 1));
+        $limit = min(50, max(1, (int) $request->input('limit', 10)));
+        $data = $this->logic->related($id, $type, $page, $limit);
+        return $this->success($data);
     }
 
     /**

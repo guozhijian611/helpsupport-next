@@ -59,7 +59,80 @@ class MemberLogic extends BaseLogic
             ->select()
             ->toArray();
         $data['points_log'] = $pointsLog;
+        return $this->appendOverview($this->appendIdentity($data));
+    }
+
+    public function applyIdentityFilter(mixed $query, mixed $identity): mixed
+    {
+        $identity = trim((string) $identity);
+        if ($identity === '') {
+            return $query;
+        }
+
+        $doctorRoleIds = $this->memberIdsByProfileRole(self::PROFILE_ROLE_DOCTOR);
+        if ($identity === 'patient') {
+            if ($doctorRoleIds !== []) {
+                $query->whereNotIn('id', $doctorRoleIds);
+            }
+            return $query;
+        }
+
+        $pendingIds = $this->memberIdsByDoctorAudit(0);
+        $approvedIds = $this->memberIdsByDoctorAudit(1);
+        $rejectedIds = $this->memberIdsByDoctorAudit(2);
+
+        $ids = match ($identity) {
+            'doctor' => array_values(array_unique(array_merge(
+                array_intersect($doctorRoleIds, $approvedIds),
+                array_diff($doctorRoleIds, $pendingIds, $approvedIds, $rejectedIds)
+            ))),
+            'doctor_pending' => array_values(array_intersect($doctorRoleIds, $pendingIds)),
+            'doctor_rejected' => array_values(array_intersect($doctorRoleIds, $rejectedIds)),
+            default => [],
+        };
+
+        if ($ids === []) {
+            $query->where('id', 0);
+            return $query;
+        }
+
+        $query->whereIn('id', $ids);
+        return $query;
+    }
+
+    public function appendOverview(array $data): array
+    {
+        $memberId = (int) ($data['id'] ?? 0);
+        $related = new MemberRelatedLogic();
+        $data['member_profile'] = $related->memberProfile($memberId);
+        $data['doctor_profile'] = $related->doctorProfile($memberId);
+        $data['related_counts'] = $related->counts($memberId);
         return $data;
+    }
+
+    public function related(int $memberId, string $type, int $page, int $limit): array
+    {
+        return (new MemberRelatedLogic())->page($memberId, $type, $page, $limit);
+    }
+
+    private function memberIdsByProfileRole(string $role): array
+    {
+        $rows = Db::table('sa_help_member_profile')
+            ->where('member_role', $role)
+            ->whereNull('delete_time')
+            ->column('member_id');
+
+        return array_values(array_unique(array_map('intval', $rows ?: [])));
+    }
+
+    private function memberIdsByDoctorAudit(int $auditStatus): array
+    {
+        $rows = Db::table('sa_help_doctor_profile')
+            ->where('audit_status', $auditStatus)
+            ->whereNull('delete_time')
+            ->column('member_id');
+
+        return array_values(array_unique(array_map('intval', $rows ?: [])));
     }
 
     public function appendIdentityList(array $rows): array

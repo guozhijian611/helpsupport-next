@@ -89,6 +89,7 @@
   // 搜索表单
   const searchForm = ref({
     keywords: undefined,
+    identity: undefined,
     member_level_id: undefined,
     create_time: []
   })

@@ -13,6 +13,18 @@
       </el-form-item>
     </el-col>
     <el-col v-bind="setSpan(6)">
+      <el-form-item label="用户身份" prop="identity">
+        <el-select v-model="formData.identity" placeholder="请选择用户身份" clearable>
+          <el-option
+            v-for="item in identityOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
+    </el-col>
+    <el-col v-bind="setSpan(6)">
       <el-form-item label="会员等级" prop="member_level_id">
         <el-select
           v-model="formData.member_level_id"
@@ -62,6 +74,13 @@
     get: () => props.modelValue,
     set: (val) => emit('update:modelValue', val)
   })
+
+  const identityOptions = [
+    { label: '患者', value: 'patient' },
+    { label: '医生', value: 'doctor' },
+    { label: '医生待审核', value: 'doctor_pending' },
+    { label: '医生已拒绝', value: 'doctor_rejected' }
+  ]
 
   const optionData = reactive({
     member_level_id: <any[]>[],

@@ -28,6 +28,16 @@ export default {
   },
 
   /**
+   * 读取会员关联业务数据
+   */
+  related(params: Record<string, any>) {
+    return request.get<Api.Common.ApiPage>({
+      url: '/app/saiuser/admin/member/Member/related',
+      params
+    })
+  },
+
+  /**
    * 创建数据
    * @param params 数据参数
    * @returns 执行结果
