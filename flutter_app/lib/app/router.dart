@@ -353,6 +353,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => LocalModelScreen(
               preferredChatMode: state.uri.queryParameters['mode'] ?? '',
               preferredTitle: state.uri.queryParameters['title'] ?? '',
+              manageOnly: state.uri.queryParameters['manage'] == '1',
             ),
           ),
           GoRoute(

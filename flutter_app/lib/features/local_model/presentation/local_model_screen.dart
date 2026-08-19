@@ -14,10 +14,12 @@ class LocalModelScreen extends ConsumerStatefulWidget {
     super.key,
     this.preferredChatMode = '',
     this.preferredTitle = '',
+    this.manageOnly = false,
   });
 
   final String preferredChatMode;
   final String preferredTitle;
+  final bool manageOnly;
 
   @override
   ConsumerState<LocalModelScreen> createState() => _LocalModelScreenState();
@@ -37,7 +39,7 @@ class _LocalModelScreenState extends ConsumerState<LocalModelScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = _LocalModelScreenPalette.of(context);
-    if (widget.preferredChatMode == 'doctor') {
+    if (!widget.manageOnly && widget.preferredChatMode == 'doctor') {
       return Scaffold(
         backgroundColor: palette.pageBackground,
         appBar: AppBar(
@@ -79,7 +81,11 @@ class _LocalModelScreenState extends ConsumerState<LocalModelScreen> {
         backgroundColor: palette.pageBackground,
         foregroundColor: palette.primaryText,
         surfaceTintColor: Colors.transparent,
-        title: Text(context.l10n.localModelTitle),
+        title: Text(
+          widget.manageOnly
+              ? _t(context, '本地模型管理', 'Local model management')
+              : context.l10n.localModelTitle,
+        ),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -98,7 +104,10 @@ class _LocalModelScreenState extends ConsumerState<LocalModelScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
                 children: [
-                  if (widget.preferredChatMode.trim().isNotEmpty) ...[
+                  if (widget.manageOnly) ...[
+                    const _ManageOnlyBanner(),
+                    const SizedBox(height: 16),
+                  ] else if (widget.preferredChatMode.trim().isNotEmpty) ...[
                     _EntryBanner(
                       chatMode: widget.preferredChatMode,
                       title: widget.preferredTitle,
@@ -149,6 +158,7 @@ class _LocalModelScreenState extends ConsumerState<LocalModelScreen> {
                           state: state,
                           preferredChatMode: widget.preferredChatMode,
                           preferredTitle: widget.preferredTitle,
+                          manageOnly: widget.manageOnly,
                         );
                       },
                     ),
@@ -205,6 +215,47 @@ class _LocalModelScreenState extends ConsumerState<LocalModelScreen> {
 }
 
 enum _ModelFilter { all, downloaded, notDownloaded }
+
+class _ManageOnlyBanner extends StatelessWidget {
+  const _ManageOnlyBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _LocalModelScreenPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: palette.outline),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.inventory_2_outlined,
+            color: const Color(0xFFFF9585),
+            size: 28,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              _t(
+                context,
+                '这里只管理模型的下载与删除，不会进入互动聊天。',
+                'Manage downloads and deletions here. This page will not open an interactive chat.',
+              ),
+              style: TextStyle(
+                color: palette.secondaryText,
+                height: 1.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _EntryBanner extends StatelessWidget {
   const _EntryBanner({required this.chatMode, required this.title});
@@ -417,12 +468,14 @@ class _ModelCard extends ConsumerWidget {
     required this.state,
     required this.preferredChatMode,
     required this.preferredTitle,
+    this.manageOnly = false,
   });
 
   final LocalModelItem item;
   final LocalModelDownloadState state;
   final String preferredChatMode;
   final String preferredTitle;
+  final bool manageOnly;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -445,7 +498,9 @@ class _ModelCard extends ConsumerWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(26),
-        onTap: state.isReady ? () => _openLocalChat(context) : null,
+        onTap: !manageOnly && state.isReady
+            ? () => _openLocalChat(context)
+            : null,
         child: Ink(
           decoration: BoxDecoration(
             color: screenPalette.cardBackground,
@@ -535,9 +590,9 @@ class _ModelCard extends ConsumerWidget {
                       color: palette.$2,
                       onTap: state.isBusy
                           ? null
-                          : () => state.isReady
-                                ? _openLocalChat(context)
-                                : _download(context, ref),
+                          : state.isReady
+                          ? (manageOnly ? null : () => _openLocalChat(context))
+                          : () => _download(context, ref),
                     ),
                   ],
                 ),
@@ -550,6 +605,9 @@ class _ModelCard extends ConsumerWidget {
   }
 
   void _openLocalChat(BuildContext context) {
+    if (manageOnly) {
+      return;
+    }
     context.push(
       Uri(
         path: '/local-model/chat/${item.id}',

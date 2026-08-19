@@ -124,6 +124,16 @@ class SettingsScreen extends ConsumerWidget {
                   onTap: () =>
                       _openDetail(context, SettingsSectionType.notifications),
                 ),
+                _SettingsNavRow(
+                  icon: Icons.memory_outlined,
+                  title: _t(context, '本地模型管理', 'Local model management'),
+                  subtitle: _t(
+                    context,
+                    '下载或删除本地模型，不会进入对话',
+                    'Download or delete local models without opening a chat',
+                  ),
+                  onTap: () => context.push('/local-model?manage=1'),
+                ),
               ],
             ),
             _SettingsGroup(
