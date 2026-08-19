@@ -15,6 +15,7 @@ use plugin\saiadmin\basic\think\BaseModel;
  *
  * @property  $id 主键
  * @property  $name 模型显示名称
+ * @property  $cover_url 封面图地址
  * @property  $code 模型编码
  * @property  $provider 模型来源
  * @property  $model_family 模型家族

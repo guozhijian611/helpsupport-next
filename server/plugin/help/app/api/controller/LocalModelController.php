@@ -25,6 +25,7 @@ class LocalModelController extends BaseController
     #[Apidoc\Query('code', type: 'string', require: false, desc: '模型编码')]
     #[Apidoc\Query('capability', type: 'string', require: false, desc: '能力类型 llm/asr/tts')]
     #[Apidoc\Returned('list', type: 'array', desc: '可下载模型列表')]
+    #[Apidoc\Returned('list[].cover_url', type: 'string', desc: '封面图地址')]
     public function catalog(Request $request): Response
     {
         return ok($this->service->localModelCatalog($request->get()));

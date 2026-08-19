@@ -4241,6 +4241,10 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "list[].cover_url": {
+                      "type": "string",
+                      "description": "封面图地址"
                     }
                   }
                 }

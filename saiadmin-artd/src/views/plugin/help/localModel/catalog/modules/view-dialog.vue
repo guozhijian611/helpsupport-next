@@ -6,6 +6,17 @@
         <el-descriptions-item label="模型显示名称">
           <div v-text="formData?.name"></div>
         </el-descriptions-item>
+        <el-descriptions-item label="封面图">
+          <el-image
+            v-if="normalizeImageUrl(formData?.cover_url)"
+            :src="normalizeImageUrl(formData?.cover_url)"
+            :preview-src-list="[normalizeImageUrl(formData?.cover_url)]"
+            :preview-teleported="true"
+            fit="cover"
+            class="local-model-cover"
+          />
+          <span v-else>无</span>
+        </el-descriptions-item>
         <el-descriptions-item label="模型编码">
           <div v-text="formData?.code"></div>
         </el-descriptions-item>
@@ -99,6 +110,7 @@
   const initialFormData = {
     id: null,
     name: '',
+    cover_url: '',
     code: '',
     provider: '',
     model_family: '',
@@ -161,4 +173,24 @@
       }
     }
   }
+
+  const normalizeImageUrl = (url?: string) => {
+    if (!url) return ''
+    if (/^(https?:)?\/\//.test(url) || url.startsWith('data:') || url.startsWith('blob:')) {
+      return url
+    }
+    const base = import.meta.env.VITE_API_URL || ''
+    if (url.startsWith('/') && base && base !== '/') {
+      return `${base.replace(/\/$/, '')}${url}`
+    }
+    return url
+  }
 </script>
+
+<style scoped>
+  .local-model-cover {
+    width: 96px;
+    height: 96px;
+    border-radius: 12px;
+  }
+</style>

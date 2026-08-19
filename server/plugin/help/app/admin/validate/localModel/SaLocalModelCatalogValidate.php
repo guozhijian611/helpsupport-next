@@ -18,6 +18,7 @@ class SaLocalModelCatalogValidate extends BaseValidate
      */
     protected $rule =   [
         'name' => 'require',
+        'cover_url' => 'max:1000',
         'code' => 'require',
         'provider' => 'require',
         'model_family' => 'require',
@@ -41,6 +42,7 @@ class SaLocalModelCatalogValidate extends BaseValidate
      */
     protected $message  =   [
         'name' => '模型显示名称必须填写',
+        'cover_url.max' => '封面图地址不能超过1000个字符',
         'code' => '模型编码必须填写',
         'provider' => '模型来源必须填写',
         'model_family' => '模型家族必须填写',
@@ -66,6 +68,7 @@ class SaLocalModelCatalogValidate extends BaseValidate
     protected $scene = [
         'save' => [
             'name',
+            'cover_url',
             'code',
             'provider',
             'model_family',
@@ -85,6 +88,7 @@ class SaLocalModelCatalogValidate extends BaseValidate
         ],
         'update' => [
             'name',
+            'cover_url',
             'code',
             'provider',
             'model_family',

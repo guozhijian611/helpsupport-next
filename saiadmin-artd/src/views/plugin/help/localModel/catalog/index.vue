@@ -42,6 +42,17 @@
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       >
+        <template #cover_url="{ row }">
+          <ElImage
+            v-if="normalizeImageUrl(row.cover_url)"
+            :src="normalizeImageUrl(row.cover_url)"
+            :preview-src-list="[normalizeImageUrl(row.cover_url)]"
+            :preview-teleported="true"
+            fit="cover"
+            class="local-model-cover"
+          />
+          <span v-else class="local-model-cover-empty">暂无</span>
+        </template>
         <!-- 操作列 -->
         <template #operation="{ row }">
           <div class="flex gap-2">
@@ -116,6 +127,7 @@
       columnsFactory: () => [
         { type: 'selection' },
         { prop: 'name', label: '模型显示名称', minWidth: 150 },
+        { prop: 'cover_url', label: '封面图', width: 110, useSlot: true },
         { prop: 'code', label: '模型编码', minWidth: 140 },
         { prop: 'provider', label: '模型来源', width: 120 },
         { prop: 'model_family', label: '模型家族', width: 120 },
@@ -154,4 +166,28 @@
     dialogData: viewDialogData
   } = useSaiAdmin()
 
+  const normalizeImageUrl = (url?: string) => {
+    if (!url) return ''
+    if (/^(https?:)?\/\//.test(url) || url.startsWith('data:') || url.startsWith('blob:')) {
+      return url
+    }
+    const base = import.meta.env.VITE_API_URL || ''
+    if (url.startsWith('/') && base && base !== '/') {
+      return `${base.replace(/\/$/, '')}${url}`
+    }
+    return url
+  }
 </script>
+
+<style scoped>
+  .local-model-cover {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+  }
+
+  .local-model-cover-empty {
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+  }
+</style>

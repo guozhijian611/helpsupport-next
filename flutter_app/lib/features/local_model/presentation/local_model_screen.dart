@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/cache/cached_remote_image.dart';
 import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
+import '../../../core/providers/app_providers.dart';
 import '../application/local_model_controller.dart';
 import '../data/local_model_models.dart';
 
@@ -426,6 +428,7 @@ class _ModelCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final screenPalette = _LocalModelScreenPalette.of(context);
     final palette = _paletteFor(item.id);
+    final coverUrl = ref.watch(apiClientProvider).resolveUrl(item.coverUrl);
     final title = item.name.isNotEmpty ? item.name : item.code;
     final statusLabel = switch (state.status) {
       LocalModelDownloadStatus.ready => _t(context, '已下载', 'Downloaded'),
@@ -452,15 +455,33 @@ class _ModelCard extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(26),
-                    ),
-                    gradient: LinearGradient(colors: palette.$1),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(26),
                   ),
                   child: Stack(
+                    fit: StackFit.expand,
                     children: [
+                      Positioned.fill(
+                        child: coverUrl.isNotEmpty
+                            ? CachedRemoteImage(
+                                coverUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) =>
+                                    _ModelCoverFallback(
+                                      title: title,
+                                      colors: palette.$1,
+                                      accent: palette.$2,
+                                      icon: palette.$3,
+                                    ),
+                              )
+                            : _ModelCoverFallback(
+                                title: title,
+                                colors: palette.$1,
+                                accent: palette.$2,
+                                icon: palette.$3,
+                              ),
+                      ),
                       Positioned(
                         top: 18,
                         right: 18,
@@ -470,35 +491,6 @@ class _ModelCard extends ConsumerWidget {
                                 onTap: () => _delete(context, ref),
                               )
                             : const SizedBox.shrink(),
-                      ),
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircleAvatar(
-                              radius: 42,
-                              backgroundColor: palette.$2.withValues(
-                                alpha: 0.24,
-                              ),
-                              child: Icon(
-                                palette.$3,
-                                size: 42,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            Text(
-                              title.isNotEmpty
-                                  ? title.substring(0, 1).toUpperCase()
-                                  : '?',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 42,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
                     ],
                   ),
@@ -675,6 +667,48 @@ class _BottomAction extends StatelessWidget {
                   ),
                 ),
               ),
+      ),
+    );
+  }
+}
+
+class _ModelCoverFallback extends StatelessWidget {
+  const _ModelCoverFallback({
+    required this.title,
+    required this.colors,
+    required this.accent,
+    required this.icon,
+  });
+
+  final String title;
+  final List<Color> colors;
+  final Color accent;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: LinearGradient(colors: colors)),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              radius: 42,
+              backgroundColor: accent.withValues(alpha: 0.24),
+              child: Icon(icon, size: 42, color: Colors.white),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              title.isNotEmpty ? title.substring(0, 1).toUpperCase() : '?',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 42,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

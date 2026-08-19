@@ -787,7 +787,7 @@ class HelpApiService
         }
 
         return $query
-            ->field('id, name, code, provider, model_family, capability, quantization, file_size, download_url, sha256, intro, intro_i18n, license, min_memory_mb, context_size, default_temperature, default_top_p, sort')
+            ->field('id, name, cover_url, code, provider, model_family, capability, quantization, file_size, download_url, sha256, intro, intro_i18n, license, min_memory_mb, context_size, default_temperature, default_top_p, sort')
             ->order('sort', 'asc')
             ->order('id', 'asc')
             ->select()

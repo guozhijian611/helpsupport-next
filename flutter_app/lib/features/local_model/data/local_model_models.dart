@@ -2,6 +2,7 @@ class LocalModelItem {
   const LocalModelItem({
     required this.id,
     required this.name,
+    this.coverUrl = '',
     required this.code,
     required this.provider,
     required this.modelFamily,
@@ -20,6 +21,7 @@ class LocalModelItem {
 
   final int id;
   final String name;
+  final String coverUrl;
   final String code;
   final String provider;
   final String modelFamily;
@@ -39,6 +41,7 @@ class LocalModelItem {
     return LocalModelItem(
       id: _intValue(json['id']),
       name: _stringValue(json['name']),
+      coverUrl: _stringValue(json['cover_url']),
       code: _stringValue(json['code']),
       provider: _stringValue(json['provider']),
       modelFamily: _stringValue(json['model_family']),

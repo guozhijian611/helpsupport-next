@@ -15,6 +15,11 @@
           </el-form-item>
         </el-col>
         <el-col :span="24">
+          <el-form-item label="封面图" prop="cover_url">
+            <sa-image-upload v-model="formData.cover_url" :limit="1" :multiple="false" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
           <el-form-item label="模型编码" prop="code">
             <el-input v-model="formData.code" placeholder="请输入模型编码" />
           </el-form-item>
@@ -232,6 +237,7 @@
   const initialFormData = {
     id: null,
     name: '',
+    cover_url: '',
     code: '',
     provider: '',
     model_family: '',
