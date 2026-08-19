@@ -126,7 +126,7 @@ final class SpeechService
     }
 
     /**
-     * @return array{audio_url:string,audio_mime_type:string,model:string,voice:string}
+     * @return array{audio_url:string,audio_mime_type:string,model:string,voice:string,duration_seconds:int}
      */
     public function synthesize(
         string $text,
@@ -175,11 +175,13 @@ final class SpeechService
             throw new ApiException($message !== '' ? $message : 'AI 语音合成失败', 502);
         }
 
+        $bytes = $response['body'];
         return [
-            'audio_url' => $this->saveAudio($response['body']),
+            'audio_url' => $this->saveAudio($bytes),
             'audio_mime_type' => $mimeType !== '' ? $mimeType : 'audio/mpeg',
             'model' => (string) $resolved['model'],
             'voice' => $voice,
+            'duration_seconds' => $this->audioDurationSeconds($bytes, 'mp3'),
         ];
     }
 
@@ -310,7 +312,7 @@ final class SpeechService
 
     /**
      * @param array<string, mixed> $options
-     * @return array{audio_url:string,audio_mime_type:string,model:string,voice:string}
+     * @return array{audio_url:string,audio_mime_type:string,model:string,voice:string,duration_seconds:int}
      */
     private function synthesizeDashscope(array $resolved, string $text, string $voice, array $options): array
     {
@@ -349,6 +351,7 @@ final class SpeechService
             'audio_mime_type' => $mimeType !== '' ? $mimeType : 'audio/wav',
             'model' => (string) $resolved['model'],
             'voice' => $voice,
+            'duration_seconds' => $this->audioDurationSeconds($audio['body'], $extension),
         ];
     }
 
@@ -541,6 +544,19 @@ final class SpeechService
         }
 
         return '/' . trim($uri, '/') . '/' . $folder . '/' . $fileName;
+    }
+
+    private function audioDurationSeconds(string $bytes, string $extension): int
+    {
+        if ($extension === 'wav' && strlen($bytes) >= 44 && strncmp($bytes, 'RIFF', 4) === 0) {
+            $parsed = unpack('V', substr($bytes, 28, 4));
+            $byteRate = is_array($parsed) ? (int) ($parsed[1] ?? 0) : 0;
+            if ($byteRate > 0) {
+                return max(1, (int) round((strlen($bytes) - 44) / $byteRate));
+            }
+        }
+
+        return 0;
     }
 
     /**

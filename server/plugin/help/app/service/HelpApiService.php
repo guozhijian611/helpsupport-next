@@ -10,6 +10,7 @@ use plugin\saiai\app\service\AiFactory;
 use plugin\saiadmin\exception\ApiException;
 use plugin\saiuser\app\api\logic\common\IndexLogic;
 use plugin\saiuser\app\admin\logic\member\MemberLogic;
+use support\Log;
 use support\Request;
 use think\facade\Db;
 use Throwable;
@@ -7421,7 +7422,8 @@ class HelpApiService
                 ),
                 'speech_status' => 'ready',
             ];
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            Log::warning('[help.chat.tts] ' . $e->getMessage());
             return [
                 'audio_url' => '',
                 'audio_mime_type' => '',

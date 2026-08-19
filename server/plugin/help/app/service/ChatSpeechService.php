@@ -19,7 +19,7 @@ final class ChatSpeechService
     }
 
     /**
-     * @return array{audio_url:string,audio_mime_type:string}
+     * @return array{audio_url:string,audio_mime_type:string,duration_seconds:int}
      */
     public function synthesize(string $text, int $configId, string $voice = ''): array
     {
@@ -28,6 +28,7 @@ final class ChatSpeechService
         return [
             'audio_url' => (string) $result['audio_url'],
             'audio_mime_type' => (string) $result['audio_mime_type'],
+            'duration_seconds' => max(0, (int) ($result['duration_seconds'] ?? 0)),
         ];
     }
 }
