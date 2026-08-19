@@ -42,7 +42,7 @@ class SaAiPersonaLogic extends BaseLogic
         return parent::edit($id, $data);
     }
 
-    public function destroy($ids): mixed
+    public function destroy($ids): bool
     {
         $idList = is_array($ids) ? $ids : explode(',', (string) $ids);
         $system = Db::table('sa_ai_persona')
