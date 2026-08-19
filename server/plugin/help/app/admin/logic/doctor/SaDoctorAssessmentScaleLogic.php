@@ -35,7 +35,7 @@ class SaDoctorAssessmentScaleLogic extends BaseLogic
         }
 
         $scale = $this->scaleRow($id);
-        $this->assertPublishable($scale);
+        $this->assertPublishable($this->presentScale($scale));
 
         return (bool) $this->edit($id, [
             'status' => 'published',
@@ -90,6 +90,31 @@ class SaDoctorAssessmentScaleLogic extends BaseLogic
         return $data;
     }
 
+    public function presentScale(array $scale): array
+    {
+        foreach (['questions', 'scoring_rule'] as $field) {
+            if (!array_key_exists($field, $scale)) {
+                continue;
+            }
+            $scale[$field] = $this->decodeJsonList($scale[$field]);
+        }
+
+        return $scale;
+    }
+
+    private function decodeJsonList(mixed $value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+        if ($value === '' || $value === null) {
+            return [];
+        }
+        $decoded = json_decode((string) $value, true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
     private function normalizeJsonField(mixed $value, string $label): ?string
     {
         if ($value === '' || $value === null) {
@@ -120,9 +145,9 @@ class SaDoctorAssessmentScaleLogic extends BaseLogic
 
     private function assertPublishable(array $scale): void
     {
-        $questions = json_decode((string) ($scale['questions'] ?? ''), true);
-        if (json_last_error() !== JSON_ERROR_NONE || !is_array($questions) || $questions === []) {
-            throw new ApiException('发布前请先配置有效的题目JSON');
+        $questions = $scale['questions'] ?? [];
+        if (!is_array($questions) || $questions === []) {
+            throw new ApiException('发布前请先配置至少一道题目');
         }
     }
 }

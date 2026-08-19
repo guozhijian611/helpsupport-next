@@ -44,7 +44,7 @@ class SaDoctorAssessmentScaleController extends BaseController
         }
         $data = is_array($model) ? $model : $model->toArray();
 
-        return $this->success($data);
+        return $this->success($this->logic->presentScale($data));
     }
 
     #[Permission('评估量表添加', 'help:doctor:assessmentScale:save')]
