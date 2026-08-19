@@ -3506,9 +3506,15 @@ class _MarkdownRecordContent extends StatelessWidget {
     );
     return MarkdownBody(
       data: record.content,
-      selectable: true,
+      fitContent: false,
+      shrinkWrap: true,
+      softLineBreak: true,
+      listItemCrossAxisAlignment: MarkdownListItemCrossAxisAlignment.start,
       styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
         p: baseTextStyle,
+        h1: baseTextStyle?.copyWith(fontSize: 20, fontWeight: FontWeight.w800),
+        h2: baseTextStyle?.copyWith(fontSize: 18, fontWeight: FontWeight.w800),
+        h3: baseTextStyle?.copyWith(fontSize: 17, fontWeight: FontWeight.w800),
         strong: baseTextStyle?.copyWith(fontWeight: FontWeight.w800),
         em: baseTextStyle?.copyWith(fontStyle: FontStyle.italic),
         listBullet: baseTextStyle,
@@ -3524,6 +3530,7 @@ class _MarkdownRecordContent extends StatelessWidget {
           color: palette.softSurface,
           borderRadius: BorderRadius.circular(12),
         ),
+        tableColumnWidth: const FlexColumnWidth(),
         a: baseTextStyle?.copyWith(
           color: const Color(0xFF5A81DA),
           fontWeight: FontWeight.w700,
