@@ -137,7 +137,7 @@ final class NestAiManagementMenuGroups extends AbstractMigration
     {
         $this->execute(
             'INSERT INTO `sa_system_menu` (`parent_id`, `name`, `code`, `slug`, `type`, `path`, `component`, `method`, `icon`, `sort`, `link_url`, `is_iframe`, `is_keep_alive`, `is_hidden`, `is_fixed_tab`, `is_full_page`, `generate_id`, `generate_key`, `status`, `remark`, `created_by`, `updated_by`, `create_time`, `update_time`, `delete_time`)
-             SELECT parent.`id`, ' . $this->q($group['name']) . ', ' . $this->q($group['code']) . ', NULL, 1, ' . $this->q($group['path']) . ', ' . $this->q('') . ', NULL, ' . $this->q($group['icon']) . ', ' . (int) $group['sort'] . ', ' . $this->q('') . ', 2, 2, 2, 2, 2, 0, NULL, 1, ' . $this->q(self::REMARK) . ', 1, 1, NOW(), NOW(), NULL
+             SELECT parent.`id`, ' . $this->q($group['name']) . ', ' . $this->q($group['code']) . ', NULL, 2, ' . $this->q($group['path']) . ', ' . $this->q('') . ', NULL, ' . $this->q($group['icon']) . ', ' . (int) $group['sort'] . ', ' . $this->q('') . ', 2, 2, 2, 2, 2, 0, NULL, 1, ' . $this->q(self::REMARK) . ', 1, 1, NOW(), NOW(), NULL
              FROM `sa_system_menu` parent
              WHERE parent.`code` = ' . $this->q(self::ROOT_CODE) . '
                AND parent.`delete_time` IS NULL
@@ -155,7 +155,7 @@ final class NestAiManagementMenuGroups extends AbstractMigration
                     AND parent.`delete_time` IS NULL
              SET page.`parent_id` = parent.`id`,
                  page.`name` = ' . $this->q($group['name']) . ',
-                 page.`type` = 1,
+                 page.`type` = 2,
                  page.`path` = ' . $this->q($group['path']) . ',
                  page.`component` = ' . $this->q('') . ',
                  page.`icon` = ' . $this->q($group['icon']) . ',
