@@ -90,44 +90,63 @@ class AiFactory
         return new Agent($platform, $resolvedModel, [$agentProcessor], [$agentProcessor]);
     }
 
-    public static function chatOnce(string $message, array $history = [], ?string $model = null, array $imageUrls = []): array
+    public static function chatOnce(string $message, array $history = [], ?string $model = null, array $imageUrls = [], mixed $session = false): array
     {
         return self::chatOnceWithResolved(
             self::resolveConfig(self::DEFAULT_CHAT_TYPE, $model),
             $message,
             $history,
-            $imageUrls
+            $imageUrls,
+            $session
         );
     }
 
-    public static function chatOnceByConfigId(string $message, array $history = [], int $configId = 0, array $imageUrls = []): array
+    public static function chatOnceByConfigId(string $message, array $history = [], int $configId = 0, array $imageUrls = [], mixed $session = false): array
     {
         if ($configId <= 0) {
-            return self::chatOnce($message, $history, null, $imageUrls);
+            return self::chatOnce($message, $history, null, $imageUrls, $session);
         }
 
         $resolved = self::resolveConfigById($configId);
-        return self::chatOnceWithResolved($resolved, $message, $history, $imageUrls);
+        return self::chatOnceWithResolved($resolved, $message, $history, $imageUrls, $session);
     }
 
-    public static function chatStream(string $message, array $history = [], ?string $model = null, array $imageUrls = []): \Generator
+    public static function chatStream(string $message, array $history = [], ?string $model = null, array $imageUrls = [], mixed $session = false): \Generator
     {
         $resolved = self::resolveConfig(self::DEFAULT_CHAT_TYPE, $model);
-        yield from self::chatStreamWithResolved($resolved, $message, $history, $imageUrls);
+        yield from self::chatStreamWithResolved($resolved, $message, $history, $imageUrls, $session);
     }
 
-    public static function chatStreamByConfigId(string $message, array $history = [], int $configId = 0, array $imageUrls = []): \Generator
+    public static function chatStreamByConfigId(string $message, array $history = [], int $configId = 0, array $imageUrls = [], mixed $session = false): \Generator
     {
         if ($configId <= 0) {
-            yield from self::chatStream($message, $history, null, $imageUrls);
+            yield from self::chatStream($message, $history, null, $imageUrls, $session);
             return;
         }
 
-        yield from self::chatStreamWithResolved(self::resolveConfigById($configId), $message, $history, $imageUrls);
+        yield from self::chatStreamWithResolved(self::resolveConfigById($configId), $message, $history, $imageUrls, $session);
     }
 
-    protected static function chatStreamWithResolved(array $resolved, string $message, array $history = [], array $imageUrls = []): \Generator
+    public static function supportsChatSessionByConfigId(int $configId): bool
     {
+        if ($configId <= 0) {
+            return false;
+        }
+
+        try {
+            return self::shouldPassChatSession(self::resolveConfigById($configId));
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    protected static function chatStreamWithResolved(array $resolved, string $message, array $history = [], array $imageUrls = [], mixed $session = false): \Generator
+    {
+        if (self::shouldPassChatSession($resolved) && $session !== false) {
+            yield from self::chatCompletionsStream($resolved, $message, $history, $imageUrls, $session);
+            return;
+        }
+
         $resolvedModel = (string) $resolved['model'];
         $agent = self::createAgentFromResolved($resolved, false);
         $messages = self::buildChatMessages($message, $history, $imageUrls);
@@ -158,7 +177,7 @@ class AiFactory
         }
 
         if (!$hasContent) {
-            $fallback = self::chatOnceWithResolved($resolved, $message, $history);
+            $fallback = self::chatOnceWithResolved($resolved, $message, $history, $imageUrls, $session);
             $fallbackContent = (string) ($fallback['content'] ?? '');
             if ($fallbackContent !== '') {
                 yield [
@@ -166,6 +185,7 @@ class AiFactory
                     'content' => $fallbackContent,
                     'model' => (string) ($fallback['model'] ?? $resolvedModel),
                     'platform_type' => (string) $resolved['platformType'],
+                    'session' => $fallback['session'] ?? null,
                 ];
             }
         }
@@ -177,8 +197,12 @@ class AiFactory
         ];
     }
 
-    protected static function chatOnceWithResolved(array $resolved, string $message, array $history = [], array $imageUrls = []): array
+    protected static function chatOnceWithResolved(array $resolved, string $message, array $history = [], array $imageUrls = [], mixed $session = false): array
     {
+        if (self::shouldPassChatSession($resolved) && $session !== false) {
+            return self::chatCompletionsOnce($resolved, $message, $history, $imageUrls, $session);
+        }
+
         $resolvedModel = (string) $resolved['model'];
         $agent = self::createAgentFromResolved($resolved, false);
         $messages = self::buildChatMessages($message, $history, $imageUrls);
@@ -197,6 +221,7 @@ class AiFactory
             'content' => self::normalizeTextResult($response->getContent()),
             'model' => $resolvedModel,
             'type' => (string) $resolved['platformType'],
+            'session' => null,
         ];
     }
 
@@ -499,6 +524,392 @@ class AiFactory
         }
 
         return Message::ofUser(...$parts);
+    }
+
+    /**
+     * Generic 自定义模型默认带 session；官方 OpenAI / DashScope / Gemini / DeepSeek 地址默认不带。
+     * 可在 saiai_config.options 里用 pass_session=true/false 覆盖。
+     */
+    protected static function shouldPassChatSession(array $resolved): bool
+    {
+        $options = is_array($resolved['options'] ?? null) ? $resolved['options'] : [];
+        if (array_key_exists('pass_session', $options)) {
+            $value = $options['pass_session'];
+            if (is_bool($value)) {
+                return $value;
+            }
+            if (is_int($value) || is_float($value)) {
+                return (int) $value === 1;
+            }
+
+            return filter_var($value, FILTER_VALIDATE_BOOLEAN);
+        }
+        if (($resolved['platformType'] ?? '') !== 'generic') {
+            return false;
+        }
+
+        $url = strtolower((string) ($resolved['apiUrl'] ?? ''));
+        if ($url === '') {
+            return false;
+        }
+        foreach ([
+            'api.openai.com',
+            'openai.com',
+            'dashscope.aliyuncs.com',
+            'googleapis.com',
+            'generativelanguage.googleapis.com',
+            'api.deepseek.com',
+            'deepseek.com',
+        ] as $known) {
+            if (str_contains($url, $known)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    protected static function chatCompletionsOnce(array $resolved, string $message, array $history, array $imageUrls, mixed $session): array
+    {
+        try {
+            return self::chatCompletionsOnceAttempt($resolved, $message, $history, $imageUrls, $session);
+        } catch (ApiException $e) {
+            if ($session !== null && self::isInvalidModelSessionError($e)) {
+                return self::chatCompletionsOnceAttempt($resolved, $message, $history, $imageUrls, null);
+            }
+            throw $e;
+        }
+    }
+
+    protected static function chatCompletionsOnceAttempt(array $resolved, string $message, array $history, array $imageUrls, mixed $session): array
+    {
+        $httpClient = self::chatHttpClient();
+        $payload = self::chatCompletionsPayload($resolved, $message, $history, $imageUrls, $session, false);
+
+        try {
+            $response = $httpClient->request('POST', self::chatCompletionsUrl($resolved), self::chatHttpOptions($resolved, $payload));
+            $data = $response->toArray(false);
+            if ($response->getStatusCode() >= 400) {
+                throw new ApiException(self::formatProviderError(is_array($data) ? $data : [], 'AI 对话服务调用失败'));
+            }
+        } catch (ApiException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw new ApiException(self::formatThrowableError($e, 'AI 对话服务调用失败'));
+        }
+
+        $content = self::extractChatCompletionsContent(is_array($data) ? $data : []);
+        if ($content === '') {
+            throw new ApiException('AI 未返回有效内容');
+        }
+
+        return [
+            'content' => $content,
+            'model' => (string) $resolved['model'],
+            'type' => (string) $resolved['platformType'],
+            'session' => self::extractChatSession(is_array($data) ? $data : []),
+        ];
+    }
+
+    protected static function chatCompletionsStream(array $resolved, string $message, array $history, array $imageUrls, mixed $session): \Generator
+    {
+        try {
+            yield from self::chatCompletionsStreamAttempt($resolved, $message, $history, $imageUrls, $session);
+        } catch (ApiException $e) {
+            if ($session !== null && self::isInvalidModelSessionError($e)) {
+                yield from self::chatCompletionsStreamAttempt($resolved, $message, $history, $imageUrls, null);
+                return;
+            }
+            throw $e;
+        }
+    }
+
+    protected static function chatCompletionsStreamAttempt(array $resolved, string $message, array $history, array $imageUrls, mixed $session): \Generator
+    {
+        $httpClient = self::chatHttpClient();
+        $payload = self::chatCompletionsPayload($resolved, $message, $history, $imageUrls, $session, true);
+        $options = self::chatHttpOptions($resolved, $payload);
+        $options['headers']['Accept'] = 'text/event-stream';
+
+        try {
+            $response = $httpClient->request('POST', self::chatCompletionsUrl($resolved), $options);
+            $status = $response->getStatusCode();
+            $contentType = strtolower((string) ($response->getHeaders(false)['content-type'][0] ?? ''));
+            if ($status >= 400) {
+                $data = json_decode($response->getContent(false), true);
+                throw new ApiException(self::formatProviderError(is_array($data) ? $data : [], 'AI 对话服务调用失败'));
+            }
+        } catch (ApiException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw new ApiException(self::formatThrowableError($e, 'AI 对话服务调用失败'));
+        }
+
+        $resolvedModel = (string) $resolved['model'];
+        $platformType = (string) $resolved['platformType'];
+        $sessionId = is_string($session) && trim($session) !== '' ? trim($session) : null;
+        $hasContent = false;
+
+        if (!str_contains($contentType, 'text/event-stream')) {
+            $data = $response->toArray(false);
+            $content = self::extractChatCompletionsContent(is_array($data) ? $data : []);
+            $sessionId = self::extractChatSession(is_array($data) ? $data : []) ?? $sessionId;
+            if ($content === '') {
+                throw new ApiException('AI 未返回有效内容');
+            }
+            yield [
+                'type' => 'content',
+                'content' => $content,
+                'model' => $resolvedModel,
+                'platform_type' => $platformType,
+                'session' => $sessionId,
+            ];
+            yield [
+                'type' => 'done',
+                'model' => $resolvedModel,
+                'platform_type' => $platformType,
+                'session' => $sessionId,
+            ];
+            return;
+        }
+
+        $buffer = '';
+        try {
+            foreach ($httpClient->stream($response) as $chunk) {
+                $buffer .= $chunk->getContent();
+                while (($pos = strpos($buffer, "\n")) !== false) {
+                    $line = rtrim(substr($buffer, 0, $pos), "\r");
+                    $buffer = substr($buffer, $pos + 1);
+                    if (!str_starts_with($line, 'data:')) {
+                        continue;
+                    }
+                    $raw = trim(substr($line, 5));
+                    if ($raw === '' || $raw === '[DONE]') {
+                        continue;
+                    }
+                    $data = json_decode($raw, true);
+                    if (!is_array($data)) {
+                        continue;
+                    }
+                    if (isset($data['error'])) {
+                        throw new ApiException(self::formatProviderError($data, 'AI 对话服务调用失败'));
+                    }
+                    $sessionId = self::extractChatSession($data) ?? $sessionId;
+                    $delta = self::extractChatCompletionsDelta($data);
+                    if ($delta === '') {
+                        continue;
+                    }
+                    $hasContent = true;
+                    yield [
+                        'type' => 'content',
+                        'content' => $delta,
+                        'model' => $resolvedModel,
+                        'platform_type' => $platformType,
+                        'session' => $sessionId,
+                    ];
+                }
+            }
+        } catch (ApiException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw new ApiException(self::formatThrowableError($e, 'AI 对话服务调用失败'));
+        }
+
+        if (!$hasContent) {
+            $fallback = self::chatCompletionsOnce($resolved, $message, $history, $imageUrls, $sessionId);
+            $fallbackContent = (string) ($fallback['content'] ?? '');
+            $sessionId = $fallback['session'] ?? $sessionId;
+            if ($fallbackContent !== '') {
+                yield [
+                    'type' => 'content',
+                    'content' => $fallbackContent,
+                    'model' => $resolvedModel,
+                    'platform_type' => $platformType,
+                    'session' => $sessionId,
+                ];
+            }
+        }
+
+        yield [
+            'type' => 'done',
+            'model' => $resolvedModel,
+            'platform_type' => $platformType,
+            'session' => $sessionId,
+        ];
+    }
+
+    /**
+     * @param list<mixed> $imageUrls
+     * @return array<string, mixed>
+     */
+    protected static function chatCompletionsPayload(array $resolved, string $message, array $history, array $imageUrls, mixed $session, bool $stream): array
+    {
+        $messages = [];
+        foreach ($history as $item) {
+            $role = (string) ($item['role'] ?? 'user');
+            if (!in_array($role, ['system', 'user', 'assistant'], true)) {
+                $role = 'user';
+            }
+            $content = trim((string) ($item['content'] ?? ''));
+            $historyImages = is_array($item['image_urls'] ?? null) ? $item['image_urls'] : [];
+            if ($content === '' && $historyImages === []) {
+                continue;
+            }
+            if ($role === 'assistant' || $role === 'system') {
+                $messages[] = ['role' => $role, 'content' => $content];
+                continue;
+            }
+            $messages[] = self::openAiUserPayload($content, $historyImages);
+        }
+        $messages[] = self::openAiUserPayload($message, $imageUrls);
+
+        $payload = [
+            'model' => (string) $resolved['model'],
+            'messages' => $messages,
+            'temperature' => 0.7,
+            'session' => is_string($session) && trim($session) !== '' ? trim($session) : null,
+        ];
+        if ($stream) {
+            $payload['stream'] = true;
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @param list<mixed> $imageUrls
+     * @return array{role:string,content:mixed}
+     */
+    protected static function openAiUserPayload(string $content, array $imageUrls = []): array
+    {
+        $parts = [];
+        foreach ($imageUrls as $url) {
+            $url = trim((string) $url);
+            if (preg_match('/^https?:\/\//i', $url) === 1) {
+                $parts[] = [
+                    'type' => 'image_url',
+                    'image_url' => ['url' => $url],
+                ];
+            }
+        }
+        if ($parts === []) {
+            return ['role' => 'user', 'content' => $content];
+        }
+        if ($content !== '') {
+            $parts[] = ['type' => 'text', 'text' => $content];
+        }
+
+        return ['role' => 'user', 'content' => $parts];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected static function chatHttpOptions(array $resolved, array $payload): array
+    {
+        $options = [
+            'headers' => [
+                'Content-Type' => 'application/json',
+            ],
+            'json' => $payload,
+        ];
+        $apiKey = trim((string) ($resolved['apiKey'] ?? ''));
+        if ($apiKey !== '') {
+            $options['auth_bearer'] = $apiKey;
+        }
+
+        return $options;
+    }
+
+    protected static function chatHttpClient(): \Symfony\Contracts\HttpClient\HttpClientInterface
+    {
+        $requestTimeout = max(1, (int) env('SAIAI_REQUEST_TIMEOUT', self::REQUEST_TIMEOUT));
+
+        return HttpClient::create([
+            'timeout' => $requestTimeout,
+            'max_duration' => $requestTimeout + 60,
+        ]);
+    }
+
+    protected static function chatCompletionsUrl(array $resolved): string
+    {
+        $apiUrl = rtrim((string) ($resolved['apiUrl'] ?? ''), '/');
+        if ($apiUrl === '') {
+            throw new ApiException('Generic 平台必须配置 AI 接口基础地址');
+        }
+        if (str_ends_with(strtolower($apiUrl), '/chat/completions')) {
+            return $apiUrl;
+        }
+
+        return $apiUrl . '/v1/chat/completions';
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    protected static function extractChatSession(array $data): ?string
+    {
+        foreach (['session', 'session_id'] as $key) {
+            $value = $data[$key] ?? null;
+            if (is_int($value) || is_float($value)) {
+                $value = (string) $value;
+            }
+            if (!is_string($value)) {
+                continue;
+            }
+            $value = trim($value);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    protected static function extractChatCompletionsContent(array $data): string
+    {
+        $content = $data['choices'][0]['message']['content'] ?? $data['content'] ?? '';
+        if (is_array($content)) {
+            $text = '';
+            foreach ($content as $part) {
+                if (is_string($part)) {
+                    $text .= $part;
+                    continue;
+                }
+                if (is_array($part)) {
+                    $text .= (string) ($part['text'] ?? $part['content'] ?? '');
+                }
+            }
+            return trim($text);
+        }
+
+        return trim((string) $content);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    protected static function extractChatCompletionsDelta(array $data): string
+    {
+        $delta = $data['choices'][0]['delta']['content']
+            ?? $data['choices'][0]['delta']['text']
+            ?? $data['choices'][0]['text']
+            ?? '';
+
+        return is_string($delta) ? $delta : '';
+    }
+
+    protected static function isInvalidModelSessionError(ApiException $e): bool
+    {
+        $message = strtolower($e->getMessage());
+
+        return str_contains($message, 'invalid session')
+            || str_contains($message, 'session not found')
+            || str_contains($message, 'session expired')
+            || str_contains($message, 'unknown session');
     }
 
     protected static function buildImageGenerationUrl(string $apiUrl, string $platformType): string

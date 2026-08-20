@@ -89,7 +89,7 @@
             <sa-radio v-model="formData.is_default" dict="yes_or_no" />
           </el-form-item>
         </el-col>
-        <el-col :span="24" v-if="['realtime', 'asr', 'tts'].includes(formData.type)">
+        <el-col :span="24" v-if="['generic', 'realtime', 'asr', 'tts'].includes(formData.type)">
           <el-form-item label="扩展配置" prop="options">
             <el-input
               v-model="formData.options"
@@ -214,6 +214,9 @@
     return 'https://api.openai.com/v1'
   })
   const optionsPlaceholder = computed(() => {
+    if (formData.type === 'generic') {
+      return '{"pass_session":true}'
+    }
     if (formData.type === 'tts') {
       return '{"voice":"Cherry"}'
     }

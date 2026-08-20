@@ -1440,14 +1440,19 @@ class HelpApiService
         $configId = $this->resolveOnlineChatConfigId($memberId, $chatMode, $data);
         $input = $this->prepareOnlineChatInput($data + ['chat_mode' => $chatMode], $contentType, $configId);
         $content = $input['content'];
-
-        $history = $sessionId > 0 ? $this->chatHistory($memberId, $sessionId) : [];
+        $modelSession = $this->chatModelSessionArg($session, $configId);
+        $reuseModelSession = is_string($modelSession) && $modelSession !== '';
+        $history = $reuseModelSession ? [] : ($sessionId > 0 ? $this->chatHistory($memberId, $sessionId) : []);
         $prompt = $this->chatSystemPrompt($memberId, $chatMode, (string) ($data['locale'] ?? 'zh-CN'));
+        $aiMessage = $reuseModelSession
+            ? $input['ai_content']
+            : $this->chatAiMessage($prompt, $input['ai_content']);
         $aiResult = AiFactory::chatOnceByConfigId(
-            $this->chatAiMessage($prompt, $input['ai_content']),
+            $aiMessage,
             $history,
             $configId,
-            $input['ai_image_urls'] ?? []
+            $input['ai_image_urls'] ?? [],
+            $modelSession
         );
         $assistantContent = trim((string) ($aiResult['content'] ?? ''));
         if ($assistantContent === '') {
@@ -1521,6 +1526,7 @@ class HelpApiService
                 'last_message_time' => $now,
                 'updated_by' => $memberId,
                 'update_time' => $now,
+                ...$this->modelSessionUpdate($aiResult, $configId),
             ]);
 
             return [
@@ -1553,8 +1559,9 @@ class HelpApiService
         $configId = $this->resolveOnlineChatConfigId($memberId, $chatMode, $data);
         $input = $this->prepareOnlineChatInput($data + ['chat_mode' => $chatMode], $contentType, $configId);
         $content = $input['content'];
-
-        $history = $sessionId > 0 ? $this->chatHistory($memberId, $sessionId) : [];
+        $modelSession = $this->chatModelSessionArg($session, $configId);
+        $reuseModelSession = is_string($modelSession) && $modelSession !== '';
+        $history = $reuseModelSession ? [] : ($sessionId > 0 ? $this->chatHistory($memberId, $sessionId) : []);
         $prompt = $this->chatSystemPrompt($memberId, $chatMode, (string) ($data['locale'] ?? 'zh-CN'));
         $now = date('Y-m-d H:i:s');
 
@@ -1612,9 +1619,12 @@ class HelpApiService
             'chat_mode' => $chatMode,
             'content' => $content,
             'history' => $history,
-            'ai_message' => $this->chatAiMessage($prompt, $input['ai_content']),
+            'ai_message' => $reuseModelSession
+                ? $input['ai_content']
+                : $this->chatAiMessage($prompt, $input['ai_content']),
             'ai_image_urls' => $input['ai_image_urls'] ?? [],
             'config_id' => $configId,
+            'model_session' => $modelSession,
             'tts_runtime' => trim((string) ($data['tts_runtime'] ?? '')),
         ];
     }
@@ -1670,6 +1680,7 @@ class HelpApiService
                 'last_message_time' => $now,
                 'updated_by' => $memberId,
                 'update_time' => $now,
+                ...$this->modelSessionUpdate($aiMeta, $configId),
             ]);
 
             return [
@@ -7520,6 +7531,49 @@ class HelpApiService
             . $systemPrompt
             . "\n\n用户消息：\n"
             . $content;
+    }
+
+    /**
+     * @return false|string|null false 表示不传 session 字段；null 表示首次 "session": null；string 为已有模型会话
+     */
+    private function chatModelSessionArg(array $session, int $configId): mixed
+    {
+        if (!AiFactory::supportsChatSessionByConfigId($configId)) {
+            return false;
+        }
+
+        return $this->storedModelSession($session, $configId);
+    }
+
+    private function storedModelSession(array $session, int $configId): ?string
+    {
+        $stored = trim((string) ($session['model_session'] ?? ''));
+        $storedConfigId = (int) ($session['model_session_config_id'] ?? 0);
+        if ($stored === '') {
+            return null;
+        }
+        if ($storedConfigId > 0 && $storedConfigId !== $configId) {
+            return null;
+        }
+
+        return $stored;
+    }
+
+    /**
+     * @param array<string, mixed> $aiMeta
+     * @return array<string, mixed>
+     */
+    private function modelSessionUpdate(array $aiMeta, int $configId): array
+    {
+        $session = trim((string) ($aiMeta['session'] ?? ''));
+        if ($session === '' || $configId <= 0) {
+            return [];
+        }
+
+        return [
+            'model_session' => $session,
+            'model_session_config_id' => $configId,
+        ];
     }
 
     /**

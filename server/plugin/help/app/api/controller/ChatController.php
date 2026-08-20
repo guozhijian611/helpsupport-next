@@ -329,15 +329,20 @@ class ChatController extends BaseController
                 'model' => '',
                 'type' => '',
                 'config_id' => (int) $context['config_id'],
+                'session' => '',
             ];
             foreach (AiFactory::chatStreamByConfigId(
                 (string) $context['ai_message'],
                 (array) $context['history'],
                 (int) $context['config_id'],
-                (array) ($context['ai_image_urls'] ?? [])
+                (array) ($context['ai_image_urls'] ?? []),
+                array_key_exists('model_session', $context) ? $context['model_session'] : false
             ) as $chunk) {
                 $aiMeta['model'] = (string) ($chunk['model'] ?? $aiMeta['model']);
                 $aiMeta['type'] = (string) ($chunk['platform_type'] ?? $aiMeta['type']);
+                if (!empty($chunk['session'])) {
+                    $aiMeta['session'] = (string) $chunk['session'];
+                }
                 if (($chunk['type'] ?? '') !== 'content') {
                     continue;
                 }
