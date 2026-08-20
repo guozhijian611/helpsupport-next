@@ -199,6 +199,10 @@ class _PlanTaskDetailScreenState extends ConsumerState<PlanTaskDetailScreen> {
       if (!mounted || value == null) {
         return;
       }
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) {
+        return;
+      }
       feedbackContent = value.trim();
       if (feedbackContent.isEmpty) {
         context.showCenteredNotice(
@@ -211,95 +215,30 @@ class _PlanTaskDetailScreenState extends ConsumerState<PlanTaskDetailScreen> {
   }
 
   Future<String?> _showFeedbackInput(DailyTask task) async {
-    final controller = TextEditingController();
-    final palette = _PlanTaskDetailPalette.of(context);
-    final result = await showModalBottomSheet<String>(
+    final title = _t(context, '填写任务反馈', 'Task feedback');
+    final prompt = task.feedbackPrompt.trim().isEmpty
+        ? _t(
+            context,
+            '请记录这次任务后的感受、结果或需要医生了解的内容。',
+            'Record feelings, results, or anything your doctor should know.',
+          )
+        : task.feedbackPrompt;
+    final hint = _t(context, '请输入反馈内容', 'Enter feedback');
+    final submitLabel = _t(context, '提交并完成', 'Submit and complete');
+
+    return showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: palette.cardBackground,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(28),
-              ),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      _t(context, '填写任务反馈', 'Task feedback'),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: palette.primaryText,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      task.feedbackPrompt.trim().isEmpty
-                          ? _t(
-                              context,
-                              '请记录这次任务后的感受、结果或需要医生了解的内容。',
-                              'Record feelings, results, or anything your doctor should know.',
-                            )
-                          : task.feedbackPrompt,
-                      style: TextStyle(
-                        color: palette.mutedText,
-                        fontSize: 14,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: controller,
-                      autofocus: true,
-                      minLines: 4,
-                      maxLines: 6,
-                      decoration: InputDecoration(
-                        hintText: _t(context, '请输入反馈内容', 'Enter feedback'),
-                        filled: true,
-                        fillColor: palette.softBackground,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(18),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: () =>
-                          Navigator.of(sheetContext).pop(controller.text),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(52),
-                        backgroundColor: const Color(0xFFFF9585),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      ),
-                      child: Text(_t(context, '提交并完成', 'Submit and complete')),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+        return _TaskFeedbackSheet(
+          title: title,
+          prompt: prompt,
+          hint: hint,
+          submitLabel: submitLabel,
         );
       },
     );
-    controller.dispose();
-    return result;
   }
 
   Future<void> _updateStatus(
@@ -325,11 +264,13 @@ class _PlanTaskDetailScreenState extends ConsumerState<PlanTaskDetailScreen> {
       if (!mounted) {
         return;
       }
-      context.showCenteredNotice(
-        status == 1
-            ? context.l10n.planTaskUpdated
-            : _t(context, '任务已跳过', 'Task skipped'),
-      );
+      final message = status == 1
+          ? context.l10n.planTaskUpdated
+          : _t(context, '任务已跳过', 'Task skipped');
+      context.showCenteredNotice(message);
+      if (!context.mounted) {
+        return;
+      }
       Navigator.of(context).pop(true);
     } on Object catch (error) {
       if (mounted) {
@@ -347,6 +288,111 @@ class _PlanTaskDetailScreenState extends ConsumerState<PlanTaskDetailScreen> {
       return;
     }
     context.push('/materials/detail/${attachment.materialId}');
+  }
+}
+
+class _TaskFeedbackSheet extends StatefulWidget {
+  const _TaskFeedbackSheet({
+    required this.title,
+    required this.prompt,
+    required this.hint,
+    required this.submitLabel,
+  });
+
+  final String title;
+  final String prompt;
+  final String hint;
+  final String submitLabel;
+
+  @override
+  State<_TaskFeedbackSheet> createState() => _TaskFeedbackSheetState();
+}
+
+class _TaskFeedbackSheetState extends State<_TaskFeedbackSheet> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _PlanTaskDetailPalette.of(context);
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: palette.cardBackground,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  widget.title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: palette.primaryText,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  widget.prompt,
+                  style: TextStyle(
+                    color: palette.mutedText,
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _controller,
+                  autofocus: true,
+                  minLines: 4,
+                  maxLines: 6,
+                  decoration: InputDecoration(
+                    hintText: widget.hint,
+                    filled: true,
+                    fillColor: palette.softBackground,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(_controller.text),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    backgroundColor: const Color(0xFFFF9585),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  child: Text(widget.submitLabel),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
