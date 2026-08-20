@@ -12,7 +12,7 @@ class HelpMemberLevelService
     {
         $points = (int) ($member['points_balance'] ?? 0);
         $levels = $this->levels();
-        $level = $this->currentLevel($member, $levels, $points);
+        $level = $this->matchLevel($levels, $points);
         $nextLevel = $this->nextLevel($level, $levels);
         $progress = $this->progress($level, $nextLevel, $points);
 
@@ -29,6 +29,14 @@ class HelpMemberLevelService
         return $member;
     }
 
+    public function levelIdForPoints(int $points, int $fallbackId = 0): int
+    {
+        return (int) ($this->matchLevel($this->levels(), $points)['id'] ?? $fallbackId);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
     private function levels(): array
     {
         return Db::table('sa_member_level')
@@ -42,15 +50,12 @@ class HelpMemberLevelService
             ->toArray();
     }
 
-    private function currentLevel(array $member, array $levels, int $points): array
+    /**
+     * @param list<array<string, mixed>> $levels
+     * @return array<string, mixed>
+     */
+    private function matchLevel(array $levels, int $points): array
     {
-        $memberLevelId = (int) ($member['member_level_id'] ?? 0);
-        foreach ($levels as $level) {
-            if ((int) ($level['id'] ?? 0) === $memberLevelId) {
-                return $level;
-            }
-        }
-
         $matched = [];
         foreach ($levels as $level) {
             $minPoints = (int) ($level['min_points'] ?? 0);
@@ -63,6 +68,11 @@ class HelpMemberLevelService
         return $matched ?: ($levels[0] ?? []);
     }
 
+    /**
+     * @param array<string, mixed> $currentLevel
+     * @param list<array<string, mixed>> $levels
+     * @return array<string, mixed>
+     */
     private function nextLevel(array $currentLevel, array $levels): array
     {
         if ($currentLevel === []) {
@@ -79,6 +89,11 @@ class HelpMemberLevelService
         return [];
     }
 
+    /**
+     * @param array<string, mixed> $level
+     * @param array<string, mixed> $nextLevel
+     * @return array<string, mixed>
+     */
     private function progress(array $level, array $nextLevel, int $points): array
     {
         $minPoints = (int) ($level['min_points'] ?? 0);
@@ -105,6 +120,10 @@ class HelpMemberLevelService
         ];
     }
 
+    /**
+     * @param array<string, mixed> $level
+     * @return array<string, mixed>
+     */
     private function publicLevel(array $level): array
     {
         if ($level === []) {

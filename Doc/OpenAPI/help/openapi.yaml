@@ -3311,6 +3311,26 @@
                       "description": "当前积分余额",
                       "format": "int32"
                     },
+                    "member_level_id": {
+                      "type": "integer",
+                      "description": "按当前积分匹配的会员等级 ID",
+                      "format": "int32"
+                    },
+                    "member_level": {
+                      "type": "object",
+                      "description": "当前会员等级，来源 sa_member_level"
+                    },
+                    "member_levels": {
+                      "type": "array",
+                      "description": "App 可展示的有效会员等级配置列表",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "member_level_progress": {
+                      "type": "object",
+                      "description": "当前积分、下一等级和剩余积分进度"
+                    },
                     "list": {
                       "type": "array",
                       "description": "积分流水",

@@ -347,6 +347,7 @@ class PointLogPage {
     required this.page,
     required this.pageSize,
     required this.balance,
+    this.member,
   });
 
   final List<PointLogItem> list;
@@ -354,6 +355,7 @@ class PointLogPage {
   final int page;
   final int pageSize;
   final int balance;
+  final Map<String, dynamic>? member;
 
   factory PointLogPage.fromJson(Object? value) {
     if (value is! Map<String, dynamic>) {
@@ -372,8 +374,25 @@ class PointLogPage {
       page: _intValue(value['page'], fallback: 1),
       pageSize: _intValue(value['page_size'], fallback: 20),
       balance: _intValue(value['balance']),
+      member: _memberFromPointLogs(value),
     );
   }
+}
+
+Map<String, dynamic>? _memberFromPointLogs(Map<String, dynamic> value) {
+  final levels = value['member_levels'];
+  final level = value['member_level'];
+  if (levels is! List && level is! Map) {
+    return null;
+  }
+
+  return <String, dynamic>{
+    'member_level_id': value['member_level_id'],
+    'member_level': level,
+    'member_levels': levels,
+    'member_level_progress': value['member_level_progress'],
+    'points_balance': value['balance'],
+  };
 }
 
 List<T> _list<T>(Object? value, T Function(Map<String, dynamic> json) decode) {

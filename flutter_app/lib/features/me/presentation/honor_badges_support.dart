@@ -8,6 +8,7 @@ class HonorLevelSpec {
     required this.levelId,
     required this.level,
     required this.title,
+    required this.minPoints,
     required this.targetPoints,
     required this.gradientColors,
     required this.medalColor,
@@ -18,6 +19,7 @@ class HonorLevelSpec {
   final int levelId;
   final int level;
   final String title;
+  final int minPoints;
   final int targetPoints;
   final List<Color> gradientColors;
   final Color medalColor;
@@ -68,6 +70,7 @@ List<HonorLevelSpec> buildHonorLevels(BuildContext context) {
       levelId: 0,
       level: 1,
       title: l10n.meHonorLevelApprentice,
+      minPoints: 0,
       targetPoints: 1500,
       gradientColors: const [Color(0xFFB7B7B7), Color(0xFFE2E2E2)],
       medalColor: const Color(0xFFC7C7C7),
@@ -77,6 +80,7 @@ List<HonorLevelSpec> buildHonorLevels(BuildContext context) {
       levelId: 0,
       level: 2,
       title: l10n.meHonorLevelPersistent,
+      minPoints: 1500,
       targetPoints: 3000,
       gradientColors: const [Color(0xFFFFD31E), Color(0xFFFFEB6B)],
       medalColor: const Color(0xFFE8C12B),
@@ -86,6 +90,7 @@ List<HonorLevelSpec> buildHonorLevels(BuildContext context) {
       levelId: 0,
       level: 3,
       title: l10n.meHonorLevelInspired,
+      minPoints: 3000,
       targetPoints: 6000,
       gradientColors: const [Color(0xFF44B6E7), Color(0xFF81D7F4)],
       medalColor: const Color(0xFF45B3DD),
@@ -95,6 +100,7 @@ List<HonorLevelSpec> buildHonorLevels(BuildContext context) {
       levelId: 0,
       level: 4,
       title: l10n.meHonorLevelReborn,
+      minPoints: 6000,
       targetPoints: 10000,
       gradientColors: const [
         Color(0xFFF3DADB),
@@ -115,29 +121,38 @@ HonorSummaryData buildHonorSummary(
   Map<String, dynamic>? member,
 }) {
   final levels = _configuredHonorLevels(member) ?? buildHonorLevels(context);
-  var currentIndex = levels.length - 1;
-  final memberLevelId = _intValue(member?['member_level_id']);
-  if (memberLevelId > 0) {
-    final configuredIndex = levels.indexWhere(
-      (level) => level.levelId == memberLevelId,
-    );
-    if (configuredIndex >= 0) {
-      currentIndex = configuredIndex;
-    }
-  } else {
-    for (var index = 0; index < levels.length; index += 1) {
-      if (balance < levels[index].targetPoints) {
-        currentIndex = index;
-        break;
-      }
-    }
-  }
   return HonorSummaryData(
     levels: levels,
     balance: balance,
     badgeCount: badgeCount,
-    currentIndex: currentIndex,
+    currentIndex: honorCurrentIndex(levels, balance),
   );
+}
+
+int honorCurrentIndex(List<HonorLevelSpec> levels, int balance) {
+  if (levels.isEmpty) {
+    return 0;
+  }
+  var currentIndex = 0;
+  for (var index = 0; index < levels.length; index += 1) {
+    if (balance >= levels[index].minPoints) {
+      currentIndex = index;
+    }
+  }
+  return currentIndex;
+}
+
+Map<String, dynamic>? honorMemberPayload(
+  Map<String, dynamic>? sessionMember,
+  Map<String, dynamic>? liveMember,
+) {
+  if (sessionMember == null || sessionMember.isEmpty) {
+    return liveMember;
+  }
+  if (liveMember == null || liveMember.isEmpty) {
+    return sessionMember;
+  }
+  return <String, dynamic>{...sessionMember, ...liveMember};
 }
 
 List<HonorLevelSpec>? _configuredHonorLevels(Map<String, dynamic>? member) {
@@ -150,10 +165,14 @@ List<HonorLevelSpec>? _configuredHonorLevels(Map<String, dynamic>? member) {
       .whereType<Map>()
       .map((row) => Map<String, dynamic>.from(row))
       .where((row) => _intValue(row['id']) > 0)
-      .toList(growable: false);
+      .toList();
   if (rows.isEmpty) {
     return null;
   }
+  rows.sort(
+    (left, right) =>
+        _intValue(left['min_points']).compareTo(_intValue(right['min_points'])),
+  );
 
   return [
     for (var index = 0; index < rows.length; index += 1)
@@ -177,6 +196,7 @@ HonorLevelSpec _levelSpecFromConfig(
     levelId: _intValue(row['id']),
     level: index + 1,
     title: _stringValue(row['level_name'], fallback: 'Lv.${index + 1}'),
+    minPoints: minPoints,
     targetPoints: targetPoints,
     gradientColors: colors.gradient,
     medalColor: colors.medal,
@@ -186,10 +206,11 @@ HonorLevelSpec _levelSpecFromConfig(
 }
 
 double honorLevelProgress(int balance, HonorLevelSpec level) {
-  if (level.targetPoints <= 0) {
-    return 0;
+  final span = level.targetPoints - level.minPoints;
+  if (span <= 0) {
+    return balance >= level.minPoints ? 1 : 0;
   }
-  return (balance / level.targetPoints).clamp(0, 1).toDouble();
+  return ((balance - level.minPoints) / span).clamp(0, 1).toDouble();
 }
 
 String honorLevelStatus(

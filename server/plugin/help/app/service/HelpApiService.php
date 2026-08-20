@@ -159,7 +159,7 @@ class HelpApiService
 
     public function profile(int $memberId, array $memberInfo): array
     {
-        $member = $this->member($memberId);
+        $member = (new HelpMemberLevelService())->enrichMember($this->member($memberId));
         $profile = $this->rowByMember('sa_help_member_profile', $memberId);
         $doctorProfile = $this->rowByMember('sa_help_doctor_profile', $memberId);
 
@@ -3133,6 +3133,14 @@ class HelpApiService
             return $query->order('id', 'desc');
         }, $params);
         $page['balance'] = (new HelpPointService())->balance($memberId);
+        $enriched = (new HelpMemberLevelService())->enrichMember([
+            'id' => $memberId,
+            'points_balance' => $page['balance'],
+        ]);
+        $page['member_level_id'] = $enriched['member_level_id'];
+        $page['member_level'] = $enriched['member_level'];
+        $page['member_levels'] = $enriched['member_levels'];
+        $page['member_level_progress'] = $enriched['member_level_progress'];
 
         return $page;
     }

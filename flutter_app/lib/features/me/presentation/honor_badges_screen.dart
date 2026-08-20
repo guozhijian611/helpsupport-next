@@ -33,6 +33,10 @@ class HonorBadgesScreen extends ConsumerWidget {
       AsyncData(:final value) => value.balance,
       _ => _intValue(session?.member['points_balance']),
     };
+    final honorMember = switch (pointsState) {
+      AsyncData(:final value) => honorMemberPayload(session?.member, value.member),
+      _ => session?.member,
+    };
     final badges = switch (badgesState) {
       AsyncData(:final value) => value.list,
       _ => const <MemberBadge>[],
@@ -44,7 +48,7 @@ class HonorBadgesScreen extends ConsumerWidget {
       context,
       balance: balance,
       badgeCount: latestDistinctBadges(badges).length,
-      member: session?.member,
+      member: honorMember,
     );
 
     return Scaffold(

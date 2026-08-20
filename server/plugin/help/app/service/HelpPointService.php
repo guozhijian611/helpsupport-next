@@ -46,7 +46,10 @@ class HelpPointService
                 'points_balance' => $balanceAfter,
                 'update_time' => $now,
             ];
-            $levelId = $this->levelIdForPoints($balanceAfter, (int) ($member['member_level_id'] ?? 0));
+            $levelId = (new HelpMemberLevelService())->levelIdForPoints(
+                $balanceAfter,
+                (int) ($member['member_level_id'] ?? 0)
+            );
             if ($levelId > 0) {
                 $memberUpdate['member_level_id'] = $levelId;
             }
@@ -108,23 +111,5 @@ class HelpPointService
             ->where('source_id', (int) $data['source_id'])
             ->whereNull('delete_time')
             ->find();
-    }
-
-    private function levelIdForPoints(int $points, int $currentLevelId): int
-    {
-        $level = Db::table('sa_member_level')
-            ->where('min_points', '<=', $points)
-            ->where('status', 1)
-            ->whereNull('delete_time')
-            ->where(function ($query) use ($points): void {
-                $query->whereNull('max_points')->whereOr('max_points', '>=', $points);
-            })
-            ->field('id')
-            ->order('min_points', 'desc')
-            ->order('sort', 'asc')
-            ->order('id', 'desc')
-            ->find();
-
-        return (int) ($level['id'] ?? $currentLevelId);
     }
 }

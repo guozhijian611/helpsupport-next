@@ -393,6 +393,10 @@ class MeController extends BaseController
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
     #[Apidoc\Returned('balance', type: 'int', desc: '当前积分余额')]
+    #[Apidoc\Returned('member_level_id', type: 'int', desc: '按当前积分匹配的会员等级 ID')]
+    #[Apidoc\Returned('member_level', type: 'object', desc: '当前会员等级，来源 sa_member_level')]
+    #[Apidoc\Returned('member_levels', type: 'array', desc: 'App 可展示的有效会员等级配置列表')]
+    #[Apidoc\Returned('member_level_progress', type: 'object', desc: '当前积分、下一等级和剩余积分进度')]
     #[Apidoc\Returned('list', type: 'array', desc: '积分流水')]
     #[Apidoc\Returned('total', type: 'int', desc: '总数')]
     public function points(Request $request): Response
