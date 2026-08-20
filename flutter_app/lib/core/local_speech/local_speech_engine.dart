@@ -74,9 +74,9 @@ class LocalSpeechEngine {
     await _tts.stop();
     await _tts.setLanguage(_ttsLocale(locale));
     await _tts.setSpeechRate(0.47);
-    await _tts.setCompletionHandler(() => onDone?.call());
-    await _tts.setCancelHandler(() => onDone?.call());
-    await _tts.setErrorHandler((_) => onDone?.call());
+    _tts.setCompletionHandler(() => onDone?.call());
+    _tts.setCancelHandler(() => onDone?.call());
+    _tts.setErrorHandler((_) => onDone?.call());
     await _tts.speak(content);
   }
 
