@@ -105,6 +105,7 @@ void main() {
       'allow_voice': 1,
       'allow_user_prompt': 2,
       'speech_runtime': 'auto',
+      'auto_play_voice': 2,
       'tags': {
         'zh-CN': ['陪伴', '夜间'],
         'en': ['companion'],
@@ -121,6 +122,7 @@ void main() {
     expect(mode.allowUserPrompt, isFalse);
     expect(mode.allowRealtime, isFalse);
     expect(mode.speechRuntime, 'auto');
+    expect(mode.autoPlayVoice, isFalse);
     expect(mode.tagsFor('zh'), ['陪伴', '夜间']);
     expect(mode.tagsFor('en'), ['companion']);
     expect(mode.robotProfile.displayNameFor('zh'), '夜间陪伴');
@@ -154,6 +156,37 @@ void main() {
         priority: SpeechPriority.onlineFirst,
       ),
       isFalse,
+    );
+  });
+
+  test('reply playback follows persona unless the user overrides it', () {
+    expect(
+      shouldAutoPlayReply(
+        personaAutoPlay: false,
+        preference: ReplyPlaybackPreference.follow,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldAutoPlayReply(
+        personaAutoPlay: true,
+        preference: ReplyPlaybackPreference.follow,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldAutoPlayReply(
+        personaAutoPlay: true,
+        preference: ReplyPlaybackPreference.textFirst,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldAutoPlayReply(
+        personaAutoPlay: false,
+        preference: ReplyPlaybackPreference.autoPlay,
+      ),
+      isTrue,
     );
   });
 

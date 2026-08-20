@@ -1001,6 +1001,7 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     final textScale = ref.watch(appTextScaleProvider);
     final asrPriority = ref.watch(asrPriorityProvider);
     final ttsPriority = ref.watch(ttsPriorityProvider);
+    final replyPlayback = ref.watch(replyPlaybackProvider);
     final catalog = ref.watch(localModelCatalogProvider).asData?.value ??
         const <LocalModelItem>[];
     final asrModel = _speechCatalogItem(catalog, 'asr');
@@ -1050,8 +1051,8 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
         title: _t(context, '语音', 'Speech'),
         footer: _t(
           context,
-          '默认各使用一个系统端侧模型，内存占用最低。优先本地失败时仍可回退在线。',
-          'Each uses one system on-device model by default to keep memory low. Online is used if local speech is unavailable.',
+          '回复默认先看文字。跟随角色时使用后台开关，也可在这里改成仅文字或自动播放。',
+          'Replies show text first. Follow the role default, or force text-only or auto-play here.',
         ),
         children: [
           _SettingsNavRow(
@@ -1067,6 +1068,16 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
                 _t(context, '系统端侧语音合成', 'On-device speech synthesis'),
             value: _speechPriorityLabel(context, ttsPriority),
             onTap: _selectTtsPriority,
+          ),
+          _SettingsNavRow(
+            title: _t(context, '回复播放', 'Reply playback'),
+            subtitle: _t(
+              context,
+              'AI 文字回复是否自动朗读',
+              'Whether AI text replies play automatically',
+            ),
+            value: _replyPlaybackLabel(context, replyPlayback),
+            onTap: _selectReplyPlayback,
           ),
         ],
       ),
@@ -1089,6 +1100,17 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
     return priority == SpeechPriority.localFirst
         ? _t(context, '优先本地', 'Local first')
         : _t(context, '优先在线', 'Online first');
+  }
+
+  String _replyPlaybackLabel(
+    BuildContext context,
+    ReplyPlaybackPreference preference,
+  ) {
+    return switch (preference) {
+      ReplyPlaybackPreference.follow => _t(context, '跟随角色', 'Follow role'),
+      ReplyPlaybackPreference.textFirst => _t(context, '仅文字', 'Text first'),
+      ReplyPlaybackPreference.autoPlay => _t(context, '自动播放', 'Auto-play'),
+    };
   }
 
   String _localCacheValueLabel(BuildContext context) {
@@ -1474,6 +1496,32 @@ class _SettingsDetailScreenState extends ConsumerState<SettingsDetailScreen> {
       onSelected: (value) =>
           ref.read(ttsPriorityProvider.notifier).setPriority(value),
     );
+  }
+
+  Future<void> _selectReplyPlayback() async {
+    final selected = await _showChoiceSheet<ReplyPlaybackPreference>(
+      context: context,
+      title: _t(context, '回复播放', 'Reply playback'),
+      currentValue: ref.read(replyPlaybackProvider),
+      items: [
+        _ChoiceSheetItem(
+          ReplyPlaybackPreference.follow,
+          _t(context, '跟随角色', 'Follow role'),
+        ),
+        _ChoiceSheetItem(
+          ReplyPlaybackPreference.textFirst,
+          _t(context, '仅文字', 'Text first'),
+        ),
+        _ChoiceSheetItem(
+          ReplyPlaybackPreference.autoPlay,
+          _t(context, '自动播放', 'Auto-play'),
+        ),
+      ],
+    );
+    if (selected == null || !mounted) {
+      return;
+    }
+    unawaited(ref.read(replyPlaybackProvider.notifier).setPreference(selected));
   }
 
   Future<void> _selectSpeechPriority({

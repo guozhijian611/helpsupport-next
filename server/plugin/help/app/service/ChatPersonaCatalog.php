@@ -180,6 +180,7 @@ final class ChatPersonaCatalog
             'allow_voice' => self::flag($row['allow_voice'] ?? $fallback['allow_voice']),
             'allow_user_prompt' => self::flag($row['allow_user_prompt'] ?? $fallback['allow_user_prompt']),
             'speech_runtime' => self::speechRuntime($row['speech_runtime'] ?? 'online'),
+            'auto_play_voice' => self::flagDefaultOff($row['auto_play_voice'] ?? $fallback['auto_play_voice']),
             'online_config_id' => max(0, (int) ($row['online_config_id'] ?? 0)),
             'realtime_config_id' => max(0, (int) ($row['realtime_config_id'] ?? 0)),
             'asr_config_id' => max(0, (int) ($row['asr_config_id'] ?? 0)),
@@ -235,6 +236,7 @@ final class ChatPersonaCatalog
             'allow_voice' => 1,
             'allow_user_prompt' => $code === 'doctor' ? 2 : 1,
             'speech_runtime' => 'online',
+            'auto_play_voice' => 2,
             'online_config_id' => 0,
             'realtime_config_id' => 0,
             'asr_config_id' => 0,
@@ -414,6 +416,11 @@ final class ChatPersonaCatalog
     private static function flag(mixed $value): int
     {
         return (int) $value === 2 ? 2 : 1;
+    }
+
+    private static function flagDefaultOff(mixed $value): int
+    {
+        return (int) $value === 1 ? 1 : 2;
     }
 
     private static function speechRuntime(mixed $value): string

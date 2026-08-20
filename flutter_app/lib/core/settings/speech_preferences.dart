@@ -4,6 +4,8 @@ import '../providers/app_providers.dart';
 
 enum SpeechPriority { onlineFirst, localFirst }
 
+enum ReplyPlaybackPreference { follow, textFirst, autoPlay }
+
 final asrPriorityProvider = NotifierProvider<AsrPriorityController, SpeechPriority>(
   AsrPriorityController.new,
 );
@@ -11,6 +13,11 @@ final asrPriorityProvider = NotifierProvider<AsrPriorityController, SpeechPriori
 final ttsPriorityProvider = NotifierProvider<TtsPriorityController, SpeechPriority>(
   TtsPriorityController.new,
 );
+
+final replyPlaybackProvider =
+    NotifierProvider<ReplyPlaybackController, ReplyPlaybackPreference>(
+      ReplyPlaybackController.new,
+    );
 
 class AsrPriorityController extends _SpeechPriorityController {
   @override
@@ -39,6 +46,25 @@ abstract class _SpeechPriorityController extends Notifier<SpeechPriority> {
   }
 }
 
+class ReplyPlaybackController extends Notifier<ReplyPlaybackPreference> {
+  static const storageKey = 'app.speech.reply_playback';
+
+  @override
+  ReplyPlaybackPreference build() {
+    final stored = ref.read(sharedPreferencesProvider).getString(storageKey);
+    return switch (stored) {
+      'textFirst' => ReplyPlaybackPreference.textFirst,
+      'autoPlay' => ReplyPlaybackPreference.autoPlay,
+      _ => ReplyPlaybackPreference.follow,
+    };
+  }
+
+  Future<void> setPreference(ReplyPlaybackPreference value) async {
+    state = value;
+    await ref.read(sharedPreferencesProvider).setString(storageKey, value.name);
+  }
+}
+
 bool useLocalSpeech({
   required String speechRuntime,
   required SpeechPriority priority,
@@ -47,5 +73,16 @@ bool useLocalSpeech({
     'online' => false,
     'local' => true,
     _ => priority == SpeechPriority.localFirst,
+  };
+}
+
+bool shouldAutoPlayReply({
+  required bool personaAutoPlay,
+  required ReplyPlaybackPreference preference,
+}) {
+  return switch (preference) {
+    ReplyPlaybackPreference.follow => personaAutoPlay,
+    ReplyPlaybackPreference.textFirst => false,
+    ReplyPlaybackPreference.autoPlay => true,
   };
 }

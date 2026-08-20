@@ -916,6 +916,7 @@ class HelpApiService
                 'allow_voice' => (int) ($persona['allow_voice'] ?? 1),
                 'allow_user_prompt' => (int) ($persona['allow_user_prompt'] ?? 1),
                 'speech_runtime' => (string) ($persona['speech_runtime'] ?? 'auto'),
+                'auto_play_voice' => (int) ($persona['auto_play_voice'] ?? 2) === 1 ? 1 : 2,
                 'local_asr_id' => max(0, (int) ($persona['local_asr_id'] ?? 0)),
                 'local_tts_id' => max(0, (int) ($persona['local_tts_id'] ?? 0)),
                 'tags' => $persona['tags_i18n'] ?? ['zh-CN' => [], 'en' => []],

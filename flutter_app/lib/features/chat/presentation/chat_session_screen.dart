@@ -159,6 +159,13 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
     priority: ref.watch(ttsPriorityProvider),
   );
 
+  bool _shouldAutoPlayReply() {
+    return shouldAutoPlayReply(
+      personaAutoPlay: _persona?.autoPlayVoice ?? false,
+      preference: ref.read(replyPlaybackProvider),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -402,6 +409,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
                             resolveMediaUrl: apiClient.resolveUrl,
                             collapsedVoiceTextIds: _collapsedVoiceTextIds,
                             playingVoiceRecordId: _playingVoiceRecordId,
+                            showAssistantVoiceAction: _allowVoice,
                             onToggleTranscript: _toggleTranscript,
                             onToggleVoicePlayback: (record) =>
                                 unawaited(_toggleVoicePlayback(record)),
@@ -2251,43 +2259,79 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   }
 
   Future<void> _toggleVoicePlayback(ChatRecord record) async {
+    if (_playingVoiceRecordId == record.id) {
+      await _stopMessagePlayback();
+      return;
+    }
+
     final rawUrl = record.isUser ? record.mediaUrl : record.audioUrl;
     final url = ref.read(apiClientProvider).resolveUrl(rawUrl);
-    if (url.isEmpty) {
-      if (mounted) {
-        context.showCenteredNotice(
-          _t(
-            context,
-            record.isUser ? '语音文件不可用' : 'AI 本次仅返回了文本',
-            record.isUser
-                ? 'The voice file is unavailable.'
-                : 'AI returned text only for this message.',
-          ),
-        );
+    if (url.isNotEmpty) {
+      try {
+        await ref.read(localSpeechEngineProvider).stopSpeak();
+        await _messageAudioPlayer.stop();
+        await _messageAudioPlayer.setUrl(url);
+        if (mounted) {
+          setState(() => _playingVoiceRecordId = record.id);
+        }
+        await _messageAudioPlayer.play();
+      } on Object catch (error) {
+        if (mounted) {
+          setState(() => _playingVoiceRecordId = null);
+          context.showCenteredNotice(error.toString());
+        }
       }
       return;
     }
 
-    if (_playingVoiceRecordId == record.id) {
-      await _messageAudioPlayer.stop();
-      if (mounted) {
-        setState(() => _playingVoiceRecordId = null);
+    final localText = record.isUser ? '' : _assistantDisplayText(record);
+    if (localText.isNotEmpty) {
+      try {
+        await _messageAudioPlayer.stop();
+        if (mounted) {
+          setState(() => _playingVoiceRecordId = record.id);
+        }
+        await ref
+            .read(localSpeechEngineProvider)
+            .speak(
+              localText,
+              Localizations.localeOf(context).toLanguageTag(),
+              onDone: () {
+                if (!mounted || _playingVoiceRecordId != record.id) {
+                  return;
+                }
+                setState(() => _playingVoiceRecordId = null);
+              },
+            );
+      } on Object {
+        if (mounted) {
+          setState(() => _playingVoiceRecordId = null);
+          context.showCenteredNotice(
+            _t(context, '语音播放失败', 'Unable to play this reply.'),
+          );
+        }
       }
       return;
     }
 
-    try {
-      await _messageAudioPlayer.stop();
-      await _messageAudioPlayer.setUrl(url);
-      if (mounted) {
-        setState(() => _playingVoiceRecordId = record.id);
-      }
-      await _messageAudioPlayer.play();
-    } on Object catch (error) {
-      if (mounted) {
-        setState(() => _playingVoiceRecordId = null);
-        context.showCenteredNotice(error.toString());
-      }
+    if (mounted) {
+      context.showCenteredNotice(
+        _t(
+          context,
+          record.isUser ? '语音文件不可用' : 'AI 本次仅返回了文本',
+          record.isUser
+              ? 'The voice file is unavailable.'
+              : 'AI returned text only for this message.',
+        ),
+      );
+    }
+  }
+
+  Future<void> _stopMessagePlayback() async {
+    await _messageAudioPlayer.stop();
+    await ref.read(localSpeechEngineProvider).stopSpeak();
+    if (mounted) {
+      setState(() => _playingVoiceRecordId = null);
     }
   }
 
@@ -2574,7 +2618,7 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   }
 
   Future<void> _maybeSpeakLocalReply(ChatStreamEvent event) async {
-    if (!_useLocalTts) {
+    if (!_useLocalTts || !_shouldAutoPlayReply()) {
       return;
     }
     final records = event.records.isNotEmpty
@@ -2621,7 +2665,10 @@ class _ChatSessionScreenState extends ConsumerState<ChatSessionScreen>
   }
 
   Future<void> _maybePlayOnlineReplyRecord(ChatRecord? record) async {
-    if (_useLocalTts || record == null || record.audioUrl.trim().isEmpty) {
+    if (!_shouldAutoPlayReply() ||
+        _useLocalTts ||
+        record == null ||
+        record.audioUrl.trim().isEmpty) {
       return;
     }
     if (record.id <= 0 || _autoPlayedVoiceRecordId == record.id) {
@@ -3142,6 +3189,7 @@ class _RecordList extends StatelessWidget {
     required this.resolveMediaUrl,
     required this.collapsedVoiceTextIds,
     required this.playingVoiceRecordId,
+    required this.showAssistantVoiceAction,
     required this.onToggleTranscript,
     required this.onToggleVoicePlayback,
     required this.onRecordActions,
@@ -3157,6 +3205,7 @@ class _RecordList extends StatelessWidget {
   final String Function(String value) resolveMediaUrl;
   final Set<int> collapsedVoiceTextIds;
   final int? playingVoiceRecordId;
+  final bool showAssistantVoiceAction;
   final ValueChanged<ChatRecord> onToggleTranscript;
   final ValueChanged<ChatRecord> onToggleVoicePlayback;
   final ValueChanged<ChatRecord> onRecordActions;
@@ -3190,6 +3239,7 @@ class _RecordList extends StatelessWidget {
                 _hasTranscript(record) &&
                 !collapsedVoiceTextIds.contains(record.id),
             voicePlaying: playingVoiceRecordId == record.id,
+            showAssistantVoiceAction: showAssistantVoiceAction,
             onToggleTranscript: () => onToggleTranscript(record),
             onToggleVoicePlayback: () => onToggleVoicePlayback(record),
             onLongPress: () => onRecordActions(record),
@@ -3211,6 +3261,7 @@ class _MessageBubble extends StatelessWidget {
     required this.resolvedMediaUrls,
     required this.transcriptExpanded,
     required this.voicePlaying,
+    required this.showAssistantVoiceAction,
     required this.onToggleTranscript,
     required this.onToggleVoicePlayback,
     required this.onLongPress,
@@ -3225,6 +3276,7 @@ class _MessageBubble extends StatelessWidget {
   final List<String> resolvedMediaUrls;
   final bool transcriptExpanded;
   final bool voicePlaying;
+  final bool showAssistantVoiceAction;
   final VoidCallback onToggleTranscript;
   final VoidCallback onToggleVoicePlayback;
   final VoidCallback onLongPress;
@@ -3234,7 +3286,12 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _ChatSessionPalette.of(context);
-    final isVoice = record.contentType == 'voice';
+    final assistantText = _assistantDisplayText(record);
+    final isUserVoice = record.isUser && record.contentType == 'voice';
+    final showAssistantText = assistantText.isNotEmpty;
+    final displayRecord = showAssistantText && record.content.trim() != assistantText
+        ? record.copyWith(content: assistantText)
+        : record;
     final align = record.isUser ? Alignment.centerRight : Alignment.centerLeft;
     final bubbleColor = record.isUser
         ? palette.userBubbleBackground
@@ -3285,7 +3342,7 @@ class _MessageBubble extends StatelessWidget {
                     constraints: BoxConstraints(
                       maxWidth: MediaQuery.sizeOf(context).width * 0.76,
                     ),
-                    padding: isVoice
+                    padding: isUserVoice
                         ? const EdgeInsets.symmetric(
                             horizontal: 14,
                             vertical: 12,
@@ -3307,7 +3364,7 @@ class _MessageBubble extends StatelessWidget {
                               ),
                             ],
                     ),
-                    child: isVoice
+                    child: isUserVoice
                         ? _VoiceRecordRow(
                             record: record,
                             textColor: textColor,
@@ -3316,12 +3373,19 @@ class _MessageBubble extends StatelessWidget {
                             onToggleTranscript: onToggleTranscript,
                           )
                         : _RecordContent(
-                            record: record,
+                            record: displayRecord,
                             textColor: textColor,
                             resolvedMediaUrls: resolvedMediaUrls,
                           ),
                   ),
-                  if (transcriptExpanded && _hasTranscript(record)) ...[
+                  if (showAssistantText && showAssistantVoiceAction)
+                    _AssistantReplyPlayButton(
+                      playing: voicePlaying,
+                      onTap: onToggleVoicePlayback,
+                    ),
+                  if (isUserVoice &&
+                      transcriptExpanded &&
+                      _hasTranscript(record)) ...[
                     const SizedBox(height: 10),
                     Container(
                       constraints: BoxConstraints(
@@ -3491,6 +3555,66 @@ class _VoiceRecordRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _AssistantReplyPlayButton extends StatelessWidget {
+  const _AssistantReplyPlayButton({
+    required this.playing,
+    required this.onTap,
+  });
+
+  final bool playing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _ChatSessionPalette.of(context);
+    final label = playing
+        ? _t(context, '停止播放', 'Stop')
+        : _t(context, '播放语音', 'Play voice');
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(2, 4, 8, 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: palette.voiceActionBackground,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Icon(
+                    playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    size: 18,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFFFFB4A8)
+                        : const Color(0xFFFF9585),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: palette.secondaryText,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -5011,7 +5135,7 @@ String _voiceDurationText(ChatRecord record) {
 
 int _estimatedVoiceSeconds(ChatRecord record) {
   final text = _transcriptText(record);
-  if (text.isEmpty || RegExp(r"^\d+\s*(?:''|″|”|秒)$").hasMatch(text)) {
+  if (text.isEmpty || _isDurationOnlyText(text)) {
     return 1;
   }
   return math.max(1, (text.length / 5).ceil());
@@ -5072,15 +5196,31 @@ String _transcriptText(ChatRecord record) {
   return record.content.trim();
 }
 
+bool _isDurationOnlyText(String value) {
+  return RegExp(r"^\d+\s*(?:''|″|”|秒)$").hasMatch(value.trim());
+}
+
+String _assistantDisplayText(ChatRecord record) {
+  if (record.isUser) {
+    return '';
+  }
+  final content = record.content.trim();
+  if (content.isNotEmpty && !_isDurationOnlyText(content)) {
+    return content;
+  }
+  final transcript = record.transcript.trim();
+  if (transcript.isNotEmpty && !_isDurationOnlyText(transcript)) {
+    return transcript;
+  }
+  return '';
+}
+
 bool _hasTranscript(ChatRecord record) {
   if (record.contentType != 'voice') {
     return false;
   }
   final trimmed = _transcriptText(record);
-  if (trimmed.isEmpty) {
-    return false;
-  }
-  if (RegExp(r"^\d+\s*(?:''|″|”|秒)$").hasMatch(trimmed)) {
+  if (trimmed.isEmpty || _isDurationOnlyText(trimmed)) {
     return false;
   }
   return true;

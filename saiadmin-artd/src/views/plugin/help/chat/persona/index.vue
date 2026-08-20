@@ -7,7 +7,7 @@
       show-icon
       :closable="false"
       title="这里配置 App 互动聊天的角色卡片"
-      description="新增角色后，App 首页会按启用状态、标题、封面、卡片图标、标签和能力开关展示。卡片右侧图标在角色编码旁选择 Material 图标。实时音视频、ASR、TTS 都在角色上绑定，不要和模型测试台的对话混用。"
+      description="新增角色后，App 首页会按启用状态、标题、封面、卡片图标、标签和能力开关展示。卡片右侧图标在角色编码旁选择 Material 图标。实时音视频、ASR、TTS 都在角色上绑定，不要和模型测试台的对话混用。回复默认文字优先，可在角色能力里打开自动播语音；App 设置可再覆盖。"
     />
     <ElCard class="art-table-card" shadow="never">
       <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData">

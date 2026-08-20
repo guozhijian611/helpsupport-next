@@ -95,6 +95,7 @@ class SaAiPersonaLogic extends BaseLogic
         foreach (['allow_online', 'allow_local', 'allow_realtime', 'allow_voice', 'allow_user_prompt'] as $field) {
             $data[$field] = (int) ($data[$field] ?? 1) === 2 ? 2 : 1;
         }
+        $data['auto_play_voice'] = (int) ($data['auto_play_voice'] ?? 2) === 1 ? 1 : 2;
         $runtime = trim((string) ($data['speech_runtime'] ?? 'online'));
         $data['speech_runtime'] = in_array($runtime, ['online', 'local', 'auto'], true) ? $runtime : 'online';
         foreach (['online_config_id', 'realtime_config_id', 'asr_config_id', 'tts_config_id', 'local_model_id', 'local_asr_id', 'local_tts_id', 'sort', 'status'] as $field) {
@@ -149,6 +150,7 @@ class SaAiPersonaLogic extends BaseLogic
             'allow_voice' => (int) ($data['allow_voice'] ?? 1),
             'allow_user_prompt' => (int) ($data['allow_user_prompt'] ?? 1),
             'speech_runtime' => (string) ($data['speech_runtime'] ?? 'online'),
+            'auto_play_voice' => (int) ($data['auto_play_voice'] ?? 2) === 1 ? 1 : 2,
             'online_config_id' => (int) ($data['online_config_id'] ?? 0),
             'realtime_config_id' => (int) ($data['realtime_config_id'] ?? 0),
             'asr_config_id' => (int) ($data['asr_config_id'] ?? 0),

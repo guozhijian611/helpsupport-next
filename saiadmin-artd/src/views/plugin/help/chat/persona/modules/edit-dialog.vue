@@ -112,6 +112,12 @@
                 </el-select>
               </el-form-item>
             </el-col>
+            <el-col :span="12">
+              <el-form-item label="回复自动播语音">
+                <sa-radio v-model="formData.auto_play_voice" dict="yes_or_no" />
+                <p class="form-hint">默认关闭，App 先展示文字。用户可在设置里覆盖为始终播放或仅文字。</p>
+              </el-form-item>
+            </el-col>
           </el-row>
         </el-tab-pane>
         <el-tab-pane label="模型" name="models">
@@ -366,6 +372,7 @@
       allow_voice: formData.allow_voice,
       allow_user_prompt: formData.allow_user_prompt,
       speech_runtime: formData.speech_runtime,
+      auto_play_voice: formData.auto_play_voice,
       online_config_id: formData.online_config_id,
       realtime_config_id: formData.realtime_config_id,
       asr_config_id: formData.asr_config_id,
@@ -443,6 +450,7 @@
       allow_voice: 1,
       allow_user_prompt: 1,
       speech_runtime: 'online',
+      auto_play_voice: 2,
       online_config_id: 0,
       realtime_config_id: 0,
       asr_config_id: 0,
@@ -479,7 +487,17 @@
       tags_en: Array.isArray(tags.en) ? tags.en.join(',') : '',
       cover: row.cover || row.avatar || '',
       cover_dark: row.cover_dark || row.dark_avatar || '',
-      icon: row.icon || defaultPersonaIcon(row.code || '')
+      icon: row.icon || defaultPersonaIcon(row.code || ''),
+      auto_play_voice: Number(row.auto_play_voice) === 1 ? 1 : 2
     }
   }
 </script>
+
+<style scoped>
+  .form-hint {
+    margin: 6px 0 0;
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+</style>

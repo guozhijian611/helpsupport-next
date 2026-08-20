@@ -12,6 +12,7 @@ class SaAiPersonaValidate extends BaseValidate
         'sort' => 'require|integer',
         'status' => 'require|in:1,2',
         'speech_runtime' => 'in:online,local,auto',
+        'auto_play_voice' => 'in:1,2',
     ];
 
     protected $message = [
@@ -21,10 +22,11 @@ class SaAiPersonaValidate extends BaseValidate
         'sort.require' => '排序必须填写',
         'status.require' => '状态必须填写',
         'speech_runtime.in' => '语音运行时只能是 online、local 或 auto',
+        'auto_play_voice.in' => '回复自动播放语音只能是 1 或 2',
     ];
 
     protected $scene = [
-        'save' => ['code', 'title_zh', 'sort', 'status', 'speech_runtime'],
-        'update' => ['code', 'title_zh', 'sort', 'status', 'speech_runtime'],
+        'save' => ['code', 'title_zh', 'sort', 'status', 'speech_runtime', 'auto_play_voice'],
+        'update' => ['code', 'title_zh', 'sort', 'status', 'speech_runtime', 'auto_play_voice'],
     ];
 }

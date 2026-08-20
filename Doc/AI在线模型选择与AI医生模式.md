@@ -25,6 +25,7 @@
 | `icon` | 首页卡片右侧 Material 图标，存 Flutter `Icons` 名称，如 `smart_toy_rounded` |
 | `allow_online` / `allow_local` / `allow_realtime` / `allow_voice` / `allow_user_prompt` | 能力开关 |
 | `speech_runtime` | `online` / `local` / `auto` |
+| `auto_play_voice` | 回复是否默认自动播放语音，`1` 是 / `2` 否，默认 `2` 文字优先 |
 | `online_config_id` | 默认在线文本模型 |
 | `realtime_config_id` | 角色绑定的 realtime 配置 |
 | `asr_config_id` / `tts_config_id` / `tts_voice` | 在线语音 |
@@ -37,13 +38,14 @@
 - 文字聊天：ASR → 文本模型 → TTS
 - 实时：Omni / realtime
 - 本地：系统端侧 ASR/TTS，App 设置可选「优先在线 / 优先本地」；角色 `speech_runtime=auto` 时跟随用户设置
+- 回复播放：角色 `auto_play_voice` 控制默认是否自动朗读；App 设置可选「跟随角色 / 仅文字 / 自动播放」。默认文字优先，卡片下方提供「播放语音」
 
 ## 语音记录约定
 
 语音消息不新增独立转写列：
 
 - `content`：正文。用户语音 = ASR 文本，助手语音 = 回复文本。
-- `content_type=voice`：表示还有音频。
+- `content_type=voice`：表示还有音频。用户语音仍按语音条展示；助手回复即使带 TTS，App 也优先展示文字卡片，下方提供播放按钮。
 - `ext.transcript`：与 `content` 对齐的转写文本，接口同时返回顶层 `transcript`。
 - `ext.media_url`：用户原录音；`ext.audio_url`：助手 TTS。
 
@@ -85,6 +87,7 @@
 - `chat_mode`：角色编码
 - `allow_online` / `allow_local` / `allow_realtime` / `allow_voice` / `allow_user_prompt`
 - `speech_runtime`
+- `auto_play_voice`
 - `tags`：`{ "zh-CN": [], "en": [] }`
 - `icon`：首页卡片右侧 Material 图标
 - `robot_profile`：标题、简介、封面

@@ -61,14 +61,22 @@ class LocalSpeechEngine {
     _partial = '';
   }
 
-  Future<void> speak(String text, String locale) async {
+  Future<void> speak(
+    String text,
+    String locale, {
+    void Function()? onDone,
+  }) async {
     final content = text.trim();
     if (content.isEmpty) {
+      onDone?.call();
       return;
     }
     await _tts.stop();
     await _tts.setLanguage(_ttsLocale(locale));
     await _tts.setSpeechRate(0.47);
+    await _tts.setCompletionHandler(() => onDone?.call());
+    await _tts.setCancelHandler(() => onDone?.call());
+    await _tts.setErrorHandler((_) => onDone?.call());
     await _tts.speak(content);
   }
 
