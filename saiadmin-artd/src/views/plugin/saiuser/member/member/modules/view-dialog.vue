@@ -216,7 +216,6 @@
               <el-tag :type="appointStatusType(row.status)">{{ appointStatusText(row.status) }}</el-tag>
             </template>
             <template #materialType="{ row }">{{ materialTypeText(row.material_type) }}</template>
-            <template #privacy="{ row }">{{ Number(row.is_private) === 1 ? '私密' : '公开' }}</template>
           </RelatedTable>
         </template>
       </section>
@@ -345,7 +344,6 @@
         count: (counts.value.plans || 0) + (showDoctorNav.value ? counts.value.doctor_plans || 0 : 0)
       },
       { key: 'assessments', label: '评估表', count: counts.value.assessments || 0 },
-      { key: 'journals', label: '日记', count: counts.value.journals || 0 },
       { key: 'appointments', label: '预约', count: counts.value.appointments || 0 },
       { key: 'login_logs', label: '登录日志', count: counts.value.login_logs || 0 },
       { key: 'points_logs', label: '积分日志', count: counts.value.points_logs || 0 }
@@ -435,15 +433,6 @@
         { prop: 'score', label: '得分', width: 100, slot: 'score' },
         { prop: 'result_level', label: '等级', width: 100 },
         { prop: 'assessed_at', label: '评估时间', width: 170 }
-      ],
-      journals: [
-        { prop: 'id', label: 'ID', width: 80 },
-        { prop: 'entry_date', label: '日期', width: 120 },
-        { prop: 'title', label: '标题', minWidth: 160 },
-        { prop: 'content', label: '内容', minWidth: 240, slot: 'content' },
-        { prop: 'mood_score', label: '心情', width: 80 },
-        { prop: 'is_private', label: '可见性', width: 90, slot: 'privacy' },
-        { prop: 'create_time', label: '创建时间', width: 170 }
       ],
       appointments: [
         { prop: 'id', label: 'ID', width: 80 },

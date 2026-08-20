@@ -275,7 +275,7 @@ class SaMemberMemoirConfigLogic extends BaseLogic
             ->where('entry_date', '<=', $endDate)
             ->where('status', 1)
             ->whereNull('delete_time')
-            ->field('id, entry_date, title, content, mood_score')
+            ->field('id, entry_date, summary, word_count, mood_score')
             ->order('entry_date', 'asc')
             ->order('id', 'asc')
             ->select()
@@ -449,12 +449,12 @@ class SaMemberMemoirConfigLogic extends BaseLogic
             if ($scores) {
                 $parts[] = '平均心情分 ' . round(array_sum($scores) / count($scores), 1);
             }
-            $titles = array_values(array_filter(array_map(
-                fn (array $row): string => trim((string) ($row['title'] ?? '')),
+            $summaries = array_values(array_filter(array_map(
+                fn (array $row): string => trim((string) ($row['summary'] ?? '')),
                 array_slice($journals, 0, 5)
             )));
-            if ($titles) {
-                $parts[] = '重点记录：' . implode('、', $titles);
+            if ($summaries) {
+                $parts[] = '日记摘要：' . implode('、', $summaries);
             }
         }
         if ($tasks) {
@@ -620,7 +620,7 @@ class SaMemberMemoirConfigLogic extends BaseLogic
     private function sourceMaterialsSnapshot(array $materials): array
     {
         return [
-            'journals' => $this->mapRows($materials['journals'] ?? [], ['id', 'entry_date', 'title', 'mood_score']),
+            'journals' => $this->mapRows($materials['journals'] ?? [], ['id', 'entry_date', 'summary', 'word_count', 'mood_score']),
             'tasks' => $this->mapRows($materials['tasks'] ?? [], ['id', 'task_date', 'title', 'task_type', 'completed_time']),
             'material_history' => $this->mapRows($materials['material_history'] ?? [], ['id', 'content_id', 'title', 'author_name', 'route', 'progress', 'viewed_at']),
             'material_collect' => $this->mapRows($materials['material_collect'] ?? [], ['id', 'material_id', 'title', 'material_type', 'media_type', 'cover_url', 'content_url']),

@@ -27,7 +27,7 @@ class SaMemberJournalController extends BaseController
         $where = $request->more([
             ['member_id', ''],
             ['entry_date', ''],
-            ['title', ''],
+            ['summary', ''],
             ['is_private', ''],
             ['ai_access', ''],
             ['status', ''],

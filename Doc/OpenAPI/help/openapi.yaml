@@ -2749,7 +2749,7 @@
         "tags": [
           "helpsupport-api.我的.MeController"
         ],
-        "summary": "我的日记列表",
+        "summary": "我的日记摘要列表",
         "description": "",
         "parameters": [
           {
@@ -2786,7 +2786,7 @@
                   "properties": {
                     "list": {
                       "type": "array",
-                      "description": "日记列表",
+                      "description": "日记摘要列表，不含原文",
                       "items": {
                         "type": "string"
                       }
@@ -2822,7 +2822,7 @@
         "tags": [
           "helpsupport-api.我的.MeController"
         ],
-        "summary": "保存我的日记",
+        "summary": "同步日记摘要",
         "description": "",
         "parameters": [
           {
@@ -2841,34 +2841,37 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "id": {
+                  "local_id": {
                     "type": "integer",
-                    "description": "日记ID，空为新增",
-                    "format": "int32"
+                    "description": "客户端本地日记ID",
+                    "format": "int64"
                   },
                   "entry_date": {
                     "type": "string",
                     "description": "记录日期 YYYY-MM-DD"
                   },
-                  "title": {
+                  "entry_time": {
                     "type": "string",
-                    "description": "标题"
+                    "description": "记录时间"
                   },
-                  "content": {
+                  "mood_score": {
+                    "type": "integer",
+                    "description": "心情分",
+                    "format": "int32"
+                  },
+                  "word_count": {
+                    "type": "integer",
+                    "description": "字数",
+                    "format": "int32"
+                  },
+                  "summary": {
                     "type": "string",
-                    "description": "内容"
-                  },
-                  "media": {
-                    "type": "array",
-                    "description": "媒体列表",
-                    "items": {
-                      "type": "string"
-                    }
+                    "description": "非原文摘要"
                   }
                 },
                 "required": [
-                  "entry_date",
-                  "title"
+                  "local_id",
+                  "entry_date"
                 ]
               }
             }
@@ -2884,16 +2887,21 @@
                   "properties": {
                     "id": {
                       "type": "integer",
-                      "description": "日记ID",
+                      "description": "服务端摘要ID",
                       "format": "int32"
+                    },
+                    "local_id": {
+                      "type": "integer",
+                      "description": "客户端本地日记ID",
+                      "format": "int64"
                     },
                     "entry_date": {
                       "type": "string",
                       "description": "记录日期"
                     },
-                    "title": {
+                    "summary": {
                       "type": "string",
-                      "description": "标题"
+                      "description": "非原文摘要"
                     }
                   }
                 }
@@ -2911,7 +2919,7 @@
         "tags": [
           "helpsupport-api.我的.MeController"
         ],
-        "summary": "删除我的日记",
+        "summary": "删除日记摘要",
         "description": "",
         "parameters": [
           {
@@ -2930,15 +2938,17 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "local_id": {
+                    "type": "integer",
+                    "description": "客户端本地日记ID",
+                    "format": "int64"
+                  },
                   "id": {
                     "type": "integer",
-                    "description": "日记ID",
+                    "description": "服务端摘要ID",
                     "format": "int32"
                   }
-                },
-                "required": [
-                  "id"
-                ]
+                }
               }
             }
           }
@@ -2953,8 +2963,13 @@
                   "properties": {
                     "id": {
                       "type": "integer",
-                      "description": "日记ID",
+                      "description": "服务端摘要ID",
                       "format": "int32"
+                    },
+                    "local_id": {
+                      "type": "integer",
+                      "description": "客户端本地日记ID",
+                      "format": "int64"
                     },
                     "deleted": {
                       "type": "string",

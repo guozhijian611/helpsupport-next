@@ -4447,38 +4447,62 @@ class HelpApiService
     public function saveJournal(int $memberId, array $data): array
     {
         $entryDate = trim((string) ($data['entry_date'] ?? ''));
-        $title = trim((string) ($data['title'] ?? ''));
-        if ($entryDate === '' || $title === '') {
-            throw new ApiException('日记日期和标题必须填写', 400);
+        if ($entryDate === '') {
+            throw new ApiException('日记日期必须填写', 400);
         }
 
-        $payload = $this->only($data, [
-            'entry_date',
-            'entry_time',
-            'title',
-            'content',
-            'media',
-            'mood_score',
-            'is_private',
-            'ai_access',
-            'status',
-            'remark',
-        ]);
-        if (array_key_exists('media', $payload)) {
-            $payload['media'] = $this->jsonValue($payload['media']);
-        }
-
+        $localId = (int) ($data['local_id'] ?? 0);
         $journalId = (int) ($data['id'] ?? 0);
-        if ($journalId > 0) {
+        $wordCount = max(0, (int) ($data['word_count'] ?? 0));
+        $summary = trim((string) ($data['summary'] ?? ''));
+        if ($summary === '') {
+            $summary = $wordCount > 0
+                ? ('当天写了一篇约 ' . $wordCount . ' 字的日记')
+                : '当天写了一篇日记';
+        }
+
+        $entryTime = trim((string) ($data['entry_time'] ?? ''));
+        $payload = [
+            'entry_date' => $entryDate,
+            'entry_time' => $entryTime !== '' ? $entryTime : null,
+            'title' => '',
+            'content' => '',
+            'media' => null,
+            'summary' => mb_substr($summary, 0, 255),
+            'word_count' => $wordCount,
+            'mood_score' => max(0, (int) ($data['mood_score'] ?? 0)),
+            'is_private' => 1,
+            'ai_access' => 2,
+            'status' => 1,
+            'delete_time' => null,
+        ];
+        $exists = null;
+        if ($localId > 0) {
+            $exists = Db::table('sa_member_journal')
+                ->where('member_id', $memberId)
+                ->where('local_id', $localId)
+                ->find();
+        } elseif ($journalId > 0) {
             $exists = Db::table('sa_member_journal')
                 ->where('id', $journalId)
                 ->where('member_id', $memberId)
-                ->whereNull('delete_time')
                 ->find();
-            if (!$exists) {
-                throw new ApiException('日记不存在或无权操作', 404);
+        }
+        if (is_array($exists) && (int) ($exists['id'] ?? 0) > 0) {
+            $journalId = (int) $exists['id'];
+            if ($localId <= 0) {
+                $localId = (int) ($exists['local_id'] ?? 0);
+            }
+            if ($localId <= 0) {
+                $localId = $journalId;
+            }
+        } else {
+            $journalId = 0;
+            if ($localId <= 0) {
+                $localId = (int) round(microtime(true) * 1000000);
             }
         }
+        $payload['local_id'] = $localId;
 
         $id = $this->saveRow('sa_member_journal', $payload, $memberId, $journalId);
         $this->awardJournalBadges($memberId, (int) $id);
@@ -4486,23 +4510,34 @@ class HelpApiService
         return Db::table('sa_member_journal')->where('id', $id)->find() ?: [];
     }
 
-    public function deleteJournal(int $memberId, int $journalId): array
+    public function deleteJournal(int $memberId, array $data): array
     {
-        if ($journalId <= 0) {
+        $localId = (int) ($data['local_id'] ?? 0);
+        $journalId = (int) ($data['id'] ?? 0);
+        if ($localId <= 0 && $journalId <= 0) {
             throw new ApiException('日记ID必须填写', 400);
         }
 
-        $affected = Db::table('sa_member_journal')
-            ->where('id', $journalId)
+        $query = Db::table('sa_member_journal')
             ->where('member_id', $memberId)
-            ->whereNull('delete_time')
-            ->update([
-                'delete_time' => date('Y-m-d H:i:s'),
-                'updated_by' => $memberId,
-                'update_time' => date('Y-m-d H:i:s'),
-            ]);
+            ->whereNull('delete_time');
+        if ($localId > 0) {
+            $query->where('local_id', $localId);
+        } else {
+            $query->where('id', $journalId);
+        }
 
-        return ['id' => $journalId, 'deleted' => $affected > 0];
+        $affected = $query->update([
+            'delete_time' => date('Y-m-d H:i:s'),
+            'updated_by' => $memberId,
+            'update_time' => date('Y-m-d H:i:s'),
+        ]);
+
+        return [
+            'id' => $journalId,
+            'local_id' => $localId,
+            'deleted' => $affected > 0,
+        ];
     }
 
     public function memoirs(int $memberId, array $params): array

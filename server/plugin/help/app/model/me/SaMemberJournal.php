@@ -5,7 +5,7 @@ namespace plugin\help\app\model\me;
 use plugin\saiadmin\basic\think\BaseModel;
 
 /**
- * 会员日记模型
+ * 会员日记摘要模型
  */
 class SaMemberJournal extends BaseModel
 {
@@ -23,9 +23,9 @@ class SaMemberJournal extends BaseModel
         $query->where('entry_date', (string) $value);
     }
 
-    public function searchTitleAttr($query, $value): void
+    public function searchSummaryAttr($query, $value): void
     {
-        $query->where('title', 'like', '%' . $value . '%');
+        $query->where('summary', 'like', '%' . $value . '%');
     }
 
     public function searchIsPrivateAttr($query, $value): void

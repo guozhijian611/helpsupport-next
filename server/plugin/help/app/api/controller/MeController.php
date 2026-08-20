@@ -274,12 +274,12 @@ class MeController extends BaseController
         return ok($this->service->saveDoctorCertification($this->memberId, $request->all()));
     }
 
-    #[Apidoc\Title('我的日记列表')]
+    #[Apidoc\Title('我的日记摘要列表')]
     #[Apidoc\Url('/app/help/me/journals')]
     #[Apidoc\Method('GET')]
     #[Apidoc\Query('page', type: 'int', require: false, default: 1, desc: '页码')]
     #[Apidoc\Query('page_size', type: 'int', require: false, default: 20, desc: '每页数量')]
-    #[Apidoc\Returned('list', type: 'array', desc: '日记列表')]
+    #[Apidoc\Returned('list', type: 'array', desc: '日记摘要列表，不含原文')]
     #[Apidoc\Returned('total', type: 'int', desc: '总数')]
     #[Apidoc\Returned('page', type: 'int', desc: '当前页码')]
     #[Apidoc\Returned('page_size', type: 'int', desc: '每页数量')]
@@ -288,31 +288,35 @@ class MeController extends BaseController
         return ok($this->service->journals($this->memberId, $request->get()));
     }
 
-    #[Apidoc\Title('保存我的日记')]
+    #[Apidoc\Title('同步日记摘要')]
     #[Apidoc\Url('/app/help/me/journal')]
     #[Apidoc\Method('POST')]
-    #[Apidoc\Param('id', type: 'int', require: false, desc: '日记ID，空为新增')]
+    #[Apidoc\Param('local_id', type: 'int', require: true, desc: '客户端本地日记ID')]
     #[Apidoc\Param('entry_date', type: 'string', require: true, desc: '记录日期 YYYY-MM-DD')]
-    #[Apidoc\Param('title', type: 'string', require: true, desc: '标题')]
-    #[Apidoc\Param('content', type: 'string', require: false, desc: '内容')]
-    #[Apidoc\Param('media', type: 'array', require: false, desc: '媒体列表')]
-    #[Apidoc\Returned('id', type: 'int', desc: '日记ID')]
+    #[Apidoc\Param('entry_time', type: 'string', require: false, desc: '记录时间')]
+    #[Apidoc\Param('mood_score', type: 'int', require: false, desc: '心情分')]
+    #[Apidoc\Param('word_count', type: 'int', require: false, desc: '字数')]
+    #[Apidoc\Param('summary', type: 'string', require: false, desc: '非原文摘要')]
+    #[Apidoc\Returned('id', type: 'int', desc: '服务端摘要ID')]
+    #[Apidoc\Returned('local_id', type: 'int', desc: '客户端本地日记ID')]
     #[Apidoc\Returned('entry_date', type: 'string', desc: '记录日期')]
-    #[Apidoc\Returned('title', type: 'string', desc: '标题')]
+    #[Apidoc\Returned('summary', type: 'string', desc: '非原文摘要')]
     public function saveJournal(Request $request): Response
     {
         return ok($this->service->saveJournal($this->memberId, $request->post()));
     }
 
-    #[Apidoc\Title('删除我的日记')]
+    #[Apidoc\Title('删除日记摘要')]
     #[Apidoc\Url('/app/help/me/journal/delete')]
     #[Apidoc\Method('POST')]
-    #[Apidoc\Param('id', type: 'int', require: true, desc: '日记ID')]
-    #[Apidoc\Returned('id', type: 'int', desc: '日记ID')]
+    #[Apidoc\Param('local_id', type: 'int', require: false, desc: '客户端本地日记ID')]
+    #[Apidoc\Param('id', type: 'int', require: false, desc: '服务端摘要ID')]
+    #[Apidoc\Returned('id', type: 'int', desc: '服务端摘要ID')]
+    #[Apidoc\Returned('local_id', type: 'int', desc: '客户端本地日记ID')]
     #[Apidoc\Returned('deleted', type: 'boolean', desc: '是否删除成功')]
     public function deleteJournal(Request $request): Response
     {
-        return ok($this->service->deleteJournal($this->memberId, (int) $request->post('id')));
+        return ok($this->service->deleteJournal($this->memberId, $request->post()));
     }
 
     #[Apidoc\Title('我的回忆录列表')]

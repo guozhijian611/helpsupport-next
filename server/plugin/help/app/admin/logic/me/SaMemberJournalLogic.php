@@ -4,10 +4,9 @@ namespace plugin\help\app\admin\logic\me;
 
 use plugin\help\app\model\me\SaMemberJournal;
 use plugin\saiadmin\basic\think\BaseLogic;
-use plugin\saiadmin\exception\ApiException;
 
 /**
- * 会员日记逻辑层
+ * 会员日记摘要逻辑层
  */
 class SaMemberJournalLogic extends BaseLogic
 {
@@ -20,12 +19,22 @@ class SaMemberJournalLogic extends BaseLogic
 
     public function add(array $data): mixed
     {
-        return parent::add($this->normalizeFields($data));
+        $data = $this->normalizeFields($data);
+        if ((int) $data['local_id'] <= 0) {
+            $data['local_id'] = (int) round(microtime(true) * 1000000);
+        }
+
+        return parent::add($data);
     }
 
     public function edit($id, array $data): mixed
     {
-        return parent::edit($id, $this->normalizeFields($data));
+        $data = $this->normalizeFields($data);
+        if ((int) $data['local_id'] <= 0) {
+            $data['local_id'] = (int) $id;
+        }
+
+        return parent::edit($id, $data);
     }
 
     private function normalizeFields(array $data): array
@@ -33,9 +42,14 @@ class SaMemberJournalLogic extends BaseLogic
         if (array_key_exists('entry_time', $data) && $data['entry_time'] === '') {
             $data['entry_time'] = null;
         }
-        if (array_key_exists('media', $data)) {
-            $data['media'] = $this->normalizeJsonField($data['media']);
-        }
+
+        $data['title'] = '';
+        $data['content'] = '';
+        $data['media'] = null;
+        $data['summary'] = mb_substr(trim((string) ($data['summary'] ?? '')), 0, 255);
+        $data['word_count'] = max(0, (int) ($data['word_count'] ?? 0));
+        $data['local_id'] = max(0, (int) ($data['local_id'] ?? 0));
+
         foreach (['mood_score' => 0, 'is_private' => 1, 'ai_access' => 2, 'status' => 1] as $field => $default) {
             if (!array_key_exists($field, $data) || $data[$field] === '') {
                 $data[$field] = $default;
@@ -43,23 +57,5 @@ class SaMemberJournalLogic extends BaseLogic
         }
 
         return $data;
-    }
-
-    private function normalizeJsonField(mixed $value): ?string
-    {
-        if ($value === '' || $value === null) {
-            return null;
-        }
-
-        if (is_array($value) || is_object($value)) {
-            return json_encode($value, JSON_UNESCAPED_UNICODE);
-        }
-
-        $decoded = json_decode((string) $value, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new ApiException('媒体列表JSON格式错误');
-        }
-
-        return json_encode($decoded, JSON_UNESCAPED_UNICODE);
     }
 }

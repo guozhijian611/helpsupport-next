@@ -65,8 +65,9 @@ class JournalEntry {
   }
 
   factory JournalEntry.fromJson(Map<String, dynamic> json) {
+    final localId = _intValue(json['local_id']);
     return JournalEntry(
-      id: _intValue(json['id']),
+      id: localId > 0 ? localId : _intValue(json['id']),
       memberId: _intValue(json['member_id']),
       entryDate: _stringValue(json['entry_date']),
       entryTime: _stringValue(json['entry_time']),
@@ -77,6 +78,50 @@ class JournalEntry {
       isPrivate: _boolValue(json['is_private'], trueValue: 1),
       aiAccess: _boolValue(json['ai_access'], trueValue: 1),
       createTime: _stringValue(json['create_time']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'member_id': memberId,
+      'entry_date': entryDate,
+      'entry_time': entryTime,
+      'title': title,
+      'content': content,
+      'media': media,
+      'mood_score': moodScore,
+      'is_private': isPrivate ? 1 : 2,
+      'ai_access': aiAccess ? 1 : 2,
+      'create_time': createTime,
+    };
+  }
+
+  JournalEntry copyWith({
+    int? id,
+    int? memberId,
+    String? entryDate,
+    String? entryTime,
+    String? title,
+    String? content,
+    List<String>? media,
+    int? moodScore,
+    bool? isPrivate,
+    bool? aiAccess,
+    String? createTime,
+  }) {
+    return JournalEntry(
+      id: id ?? this.id,
+      memberId: memberId ?? this.memberId,
+      entryDate: entryDate ?? this.entryDate,
+      entryTime: entryTime ?? this.entryTime,
+      title: title ?? this.title,
+      content: content ?? this.content,
+      media: media ?? this.media,
+      moodScore: moodScore ?? this.moodScore,
+      isPrivate: isPrivate ?? this.isPrivate,
+      aiAccess: aiAccess ?? this.aiAccess,
+      createTime: createTime ?? this.createTime,
     );
   }
 }

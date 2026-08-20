@@ -1,22 +1,37 @@
 import '../../../core/api/api_client.dart';
+import '../../../core/auth/token_storage.dart';
+import '../../../core/settings/privacy_preferences.dart';
+import 'local_journal_store.dart';
 import 'me_content_models.dart';
 
 class MeContentRepository {
-  const MeContentRepository(this._apiClient);
+  const MeContentRepository(
+    this._apiClient, {
+    required SecureTokenStorage tokenStorage,
+    required LocalJournalStore journalStore,
+    required PrivacyPreferences privacyPreferences,
+  }) : _tokenStorage = tokenStorage,
+       _journalStore = journalStore,
+       _privacyPreferences = privacyPreferences;
 
   final ApiClient _apiClient;
+  final SecureTokenStorage _tokenStorage;
+  final LocalJournalStore _journalStore;
+  final PrivacyPreferences _privacyPreferences;
 
   Future<MePage<JournalEntry>> fetchJournals({
     int page = 1,
     int pageSize = 100,
   }) async {
-    final result = await _apiClient.getApi<MePage<JournalEntry>>(
-      '/app/help/me/journals',
-      queryParameters: {'page': page, 'page_size': pageSize},
-      decode: (value) => MePage.fromJson(value, JournalEntry.fromJson),
+    final memberId = await _requireMemberId();
+    await _importLegacyJournalsIfNeeded(memberId);
+    final entries = await _journalStore.list(memberId);
+    return MePage(
+      list: entries,
+      total: entries.length,
+      page: page,
+      pageSize: pageSize,
     );
-    return result.data ??
-        const MePage(list: [], total: 0, page: 1, pageSize: 100);
   }
 
   Future<JournalEntry> saveJournal({
@@ -26,40 +41,58 @@ class MeContentRepository {
     required String title,
     required String content,
   }) async {
-    final result = await _apiClient.postApi<JournalEntry>(
-      '/app/help/me/journal',
-      data: {
-        if (id != null && id > 0) 'id': id,
-        'entry_date': entryDate,
-        if (entryTime.trim().isNotEmpty) 'entry_time': entryTime,
-        'title': title,
-        'content': content,
-      },
-      decode: (value) {
-        if (value is Map<String, dynamic>) {
-          return JournalEntry.fromJson(value);
+    final memberId = await _requireMemberId();
+    final memberIdValue = int.tryParse(memberId) ?? 0;
+    JournalEntry? existing;
+    if (id != null && id > 0) {
+      for (final item in await _journalStore.list(memberId)) {
+        if (item.id == id) {
+          existing = item;
+          break;
         }
-        throw const FormatException('Unexpected journal shape');
-      },
-    );
-    final entry = result.data;
-    if (entry == null || entry.id <= 0) {
-      throw const FormatException('日记保存失败');
+      }
     }
-    return entry;
+    final now = DateTime.now();
+    final entry = JournalEntry(
+      id: existing?.id ?? ((id != null && id > 0) ? id : now.microsecondsSinceEpoch),
+      memberId: existing?.memberId ?? memberIdValue,
+      entryDate: entryDate,
+      entryTime: entryTime,
+      title: title,
+      content: content,
+      media: existing?.media ?? const [],
+      moodScore: existing?.moodScore ?? 0,
+      isPrivate: existing?.isPrivate ?? true,
+      aiAccess: existing?.aiAccess ?? false,
+      createTime: (existing?.createTime.trim().isNotEmpty ?? false)
+          ? existing!.createTime
+          : now.toIso8601String(),
+    );
+    final saved = await _journalStore.save(memberId, entry);
+    await _syncJournalSummary(saved);
+    return saved;
   }
 
   Future<void> deleteJournal(int id) async {
-    await _apiClient.postApi<Map<String, dynamic>>(
-      '/app/help/me/journal/delete',
-      data: {'id': id},
-      decode: (value) {
-        if (value is Map<String, dynamic>) {
-          return value;
-        }
-        return const {};
-      },
-    );
+    final memberId = await _requireMemberId();
+    await _journalStore.delete(memberId, id);
+    if (!_privacyPreferences.syncDiarySummary) {
+      return;
+    }
+    try {
+      await _apiClient.postApi<Map<String, dynamic>>(
+        '/app/help/me/journal/delete',
+        data: {'local_id': id},
+        decode: (value) {
+          if (value is Map<String, dynamic>) {
+            return value;
+          }
+          return const {};
+        },
+      );
+    } catch (_) {
+      // 本地日记已删除，摘要同步失败不回滚原文。
+    }
   }
 
   Future<MePage<MemoirItem>> fetchMemoirs({
@@ -177,5 +210,86 @@ class MeContentRepository {
           pageSize: 20,
           balance: 0,
         );
+  }
+
+  Future<String> _requireMemberId() async {
+    final memberId = await _tokenStorage.readMemberId();
+    if (memberId == null || memberId.trim().isEmpty) {
+      throw const FormatException('请先登录后再写日记');
+    }
+    return memberId.trim();
+  }
+
+  Future<void> _importLegacyJournalsIfNeeded(String memberId) async {
+    if (await _journalStore.hasImported(memberId)) {
+      return;
+    }
+
+    final local = await _journalStore.list(memberId);
+    if (local.isNotEmpty) {
+      await _journalStore.replaceAll(memberId, local, imported: true);
+      return;
+    }
+
+    try {
+      final result = await _apiClient.getApi<MePage<JournalEntry>>(
+        '/app/help/me/journals',
+        queryParameters: {'page': 1, 'page_size': 200},
+        decode: (value) => MePage.fromJson(value, JournalEntry.fromJson),
+      );
+      final remote = result.data?.list ?? const <JournalEntry>[];
+      await _journalStore.replaceAll(
+        memberId,
+        remote
+            .map(
+              (item) => item.id > 0
+                  ? item
+                  : item.copyWith(id: DateTime.now().microsecondsSinceEpoch),
+            )
+            .toList(growable: false),
+        imported: true,
+      );
+    } catch (_) {
+      // 网络失败时不标记已导入，下次打开再尝试拉取旧云端日记。
+    }
+  }
+
+  Future<void> _syncJournalSummary(JournalEntry entry) async {
+    if (!_privacyPreferences.syncDiarySummary) {
+      return;
+    }
+    try {
+      await _apiClient.postApi<Map<String, dynamic>>(
+        '/app/help/me/journal',
+        data: {
+          'local_id': entry.id,
+          'entry_date': entry.entryDate,
+          if (entry.entryTime.trim().isNotEmpty) 'entry_time': entry.entryTime,
+          'mood_score': entry.moodScore,
+          'word_count': _journalWordCount(entry),
+          'summary': _journalSummary(entry),
+        },
+        decode: (value) {
+          if (value is Map<String, dynamic>) {
+            return value;
+          }
+          return const {};
+        },
+      );
+    } catch (_) {
+      // 原文已落本地，摘要同步失败不回滚。
+    }
+  }
+
+  int _journalWordCount(JournalEntry entry) {
+    return '${entry.title} ${entry.content}'.replaceAll(RegExp(r'\s+'), '').length;
+  }
+
+  String _journalSummary(JournalEntry entry) {
+    final wordCount = _journalWordCount(entry);
+    if (wordCount <= 0) {
+      return '当天写了一篇日记';
+    }
+    return '当天写了一篇约 $wordCount 字的日记';
   }
 }

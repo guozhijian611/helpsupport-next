@@ -22,7 +22,6 @@ class MemberRelatedLogic
         'plans',
         'doctor_plans',
         'assessments',
-        'journals',
         'login_logs',
         'points_logs',
         'patients',
@@ -100,7 +99,6 @@ class MemberRelatedLogic
             'plans' => $this->countTable('sa_treatment_plan', ['member_id' => $memberId]),
             'doctor_plans' => $this->countTable('sa_treatment_plan', ['doctor_id' => $memberId]),
             'assessments' => $this->countTable('sa_member_assessment_result', ['member_id' => $memberId]),
-            'journals' => $this->countTable('sa_member_journal', ['member_id' => $memberId]),
             'login_logs' => (int) MemberLoginLog::where('member_id', $memberId)->count(),
             'points_logs' => (int) MemberPointsLog::where('member_id', $memberId)->count(),
             'patients' => $this->countTable('sa_doctor_patient', ['doctor_id' => $memberId, 'status' => 1]),
@@ -134,7 +132,6 @@ class MemberRelatedLogic
             'plans' => $this->pagePlans($memberId, $page, $limit, false),
             'doctor_plans' => $this->pagePlans($memberId, $page, $limit, true),
             'assessments' => $this->pageAssessments($memberId, $page, $limit),
-            'journals' => $this->pageJournals($memberId, $page, $limit),
             'login_logs' => $this->pageLoginLogs($memberId, $page, $limit),
             'points_logs' => $this->pagePointsLogs($memberId, $page, $limit),
             'patients' => $this->pagePatients($memberId, $page, $limit),
@@ -255,19 +252,6 @@ class MemberRelatedLogic
                 ->where('member_id', $memberId)
                 ->whereNull('delete_time')
                 ->field('id, assessment_id, assessment_title, task_title, question_count, total_score, achieved_score, result_level, suggestions, assessed_at, create_time')
-                ->order('id', 'desc'),
-            $page,
-            $limit
-        );
-    }
-
-    private function pageJournals(int $memberId, int $page, int $limit): array
-    {
-        return $this->paginate(
-            Db::table('sa_member_journal')
-                ->where('member_id', $memberId)
-                ->whereNull('delete_time')
-                ->field('id, entry_date, entry_time, title, content, mood_score, is_private, status, create_time')
                 ->order('id', 'desc'),
             $page,
             $limit
