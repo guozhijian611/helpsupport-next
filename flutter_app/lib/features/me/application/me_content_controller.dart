@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/app_providers.dart';
 import '../../../core/settings/privacy_preferences.dart';
+import '../../auth/application/auth_controller.dart';
 import '../data/local_journal_store.dart';
 import '../data/me_content_models.dart';
 import '../data/me_content_repository.dart';
@@ -54,6 +55,18 @@ final memberBadgeWallProvider = FutureProvider.autoDispose<MePage<MemberBadge>>(
     return ref.watch(meContentRepositoryProvider).fetchBadges(pageSize: 200);
   },
 );
+
+final liveHonorMemberProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
+      try {
+        final session = await ref
+            .read(authControllerProvider.notifier)
+            .refreshCurrentSession();
+        return session.member;
+      } on Object {
+        return ref.read(authControllerProvider).asData?.value?.member;
+      }
+    });
 
 final pointLogsProvider = FutureProvider.autoDispose<PointLogPage>((ref) {
   return ref.watch(meContentRepositoryProvider).fetchPointLogs();

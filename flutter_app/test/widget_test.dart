@@ -447,6 +447,7 @@ void main() {
       ProviderScope(
         overrides: [
           authControllerProvider.overrideWith(_TriggerTagsAuthController.new),
+          liveHonorMemberProvider.overrideWith((ref) async => {'id': 1}),
           memberBadgesProvider.overrideWith(
             (ref) async => const MePage<MemberBadge>(
               list: [],

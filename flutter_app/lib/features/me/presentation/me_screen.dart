@@ -51,13 +51,17 @@ class MeScreen extends ConsumerWidget {
       _ => const <MemberBadge>[],
     };
     final pointLogs = ref.watch(pointLogsProvider);
+    final liveMember = switch (ref.watch(liveHonorMemberProvider)) {
+      AsyncData(:final value) => value,
+      _ => session?.member,
+    };
     final honorBalance = switch (pointLogs) {
       AsyncData(:final value) => value.balance,
-      _ => _intValue(session?.member['points_balance']),
+      _ => _intValue(liveMember?['points_balance']),
     };
     final honorMember = switch (pointLogs) {
-      AsyncData(:final value) => honorMemberPayload(session?.member, value.member),
-      _ => session?.member,
+      AsyncData(:final value) => honorMemberPayload(liveMember, value.member),
+      _ => liveMember,
     };
     final honorSummary = buildHonorSummary(
       context,

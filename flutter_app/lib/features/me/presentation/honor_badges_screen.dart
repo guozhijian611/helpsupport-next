@@ -29,13 +29,17 @@ class HonorBadgesScreen extends ConsumerWidget {
     final profile = _HonorProfile.fromSession(session, apiClient.resolveUrl);
     final badgesState = ref.watch(memberBadgesProvider);
     final pointsState = ref.watch(pointLogsProvider);
+    final liveMember = switch (ref.watch(liveHonorMemberProvider)) {
+      AsyncData(:final value) => value,
+      _ => session?.member,
+    };
     final balance = switch (pointsState) {
       AsyncData(:final value) => value.balance,
-      _ => _intValue(session?.member['points_balance']),
+      _ => _intValue(liveMember?['points_balance']),
     };
     final honorMember = switch (pointsState) {
-      AsyncData(:final value) => honorMemberPayload(session?.member, value.member),
-      _ => session?.member,
+      AsyncData(:final value) => honorMemberPayload(liveMember, value.member),
+      _ => liveMember,
     };
     final badges = switch (badgesState) {
       AsyncData(:final value) => value.list,
@@ -60,9 +64,11 @@ class HonorBadgesScreen extends ConsumerWidget {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
+            ref.invalidate(liveHonorMemberProvider);
             ref.invalidate(memberBadgesProvider);
             ref.invalidate(pointLogsProvider);
             await Future.wait([
+              ref.read(liveHonorMemberProvider.future),
               ref.read(memberBadgesProvider.future),
               ref.read(pointLogsProvider.future),
             ]);
