@@ -2,6 +2,7 @@
 
 namespace plugin\help\app\admin\logic\config;
 
+use plugin\help\app\service\HelpAiPlanCardConfigService;
 use plugin\saiadmin\app\cache\ConfigCache;
 use plugin\saiadmin\exception\ApiException;
 use support\Db;
@@ -24,6 +25,14 @@ class HelpRuntimeConfigLogic
         'help_firebase_push' => 'Firebase 推送',
         'help_appointment_payment' => '预约积分',
         'help_ai_audit' => 'AI 内容审核',
+        'help_ai_plan_card' => 'AI 时间线卡片',
+    ];
+
+    private const PLAN_CARD_CSV_KEYS = [
+        'enabled_fields',
+        'allowed_task_types',
+        'allowed_reminders',
+        'default_reminders',
     ];
 
     private const APP_DOWNLOAD_GROUPS = [
@@ -157,7 +166,9 @@ class HelpRuntimeConfigLogic
                         continue;
                     }
                     $value = $this->normalizeValue($groupCode, (string) $key, $value);
-                    $this->assertAllowedOption($items[$key], $value);
+                    if (!$this->isCsvKey($groupCode, (string) $key)) {
+                        $this->assertAllowedOption($items[$key], $value);
+                    }
 
                     Db::table('sa_system_config')
                         ->where('id', $items[$key]->id)
@@ -171,6 +182,9 @@ class HelpRuntimeConfigLogic
 
                 if ($groupCode === 'help_ai_audit') {
                     $this->assertAiAuditReady((int) $group->id);
+                }
+                if ($groupCode === 'help_ai_plan_card') {
+                    $this->assertPlanCardReady((int) $group->id);
                 }
             }
         });
@@ -308,6 +322,10 @@ class HelpRuntimeConfigLogic
             }
         }
 
+        if ($groupCode === 'help_ai_plan_card') {
+            return $this->normalizePlanCardValue($key, $value);
+        }
+
         return $value;
     }
 
@@ -346,5 +364,125 @@ class HelpRuntimeConfigLogic
         return count($parts) === 3 && str_starts_with($remark, 'phinx:')
             ? $parts[2]
             : $remark;
+    }
+
+    private function isCsvKey(string $groupCode, string $key): bool
+    {
+        return $groupCode === 'help_ai_plan_card' && in_array($key, self::PLAN_CARD_CSV_KEYS, true);
+    }
+
+    private function normalizePlanCardValue(string $key, string $value): string
+    {
+        if ($this->isCsvKey('help_ai_plan_card', $key)) {
+            $allowed = match ($key) {
+                'enabled_fields' => HelpAiPlanCardConfigService::ALL_FIELDS,
+                'allowed_task_types' => HelpAiPlanCardConfigService::TASK_TYPES,
+                'allowed_reminders', 'default_reminders' => HelpAiPlanCardConfigService::REMINDERS,
+                default => [],
+            };
+            $items = [];
+            foreach (preg_split('/\s*,\s*/', $value) ?: [] as $item) {
+                $item = trim((string) $item);
+                if ($item !== '' && in_array($item, $allowed, true) && !in_array($item, $items, true)) {
+                    $items[] = $item;
+                }
+            }
+            if ($key === 'enabled_fields' && !in_array('title', $items, true)) {
+                array_unshift($items, 'title');
+            }
+            if ($key === 'allowed_task_types' && $items === []) {
+                throw new ApiException('至少选择一种任务类型');
+            }
+            return implode(',', $items);
+        }
+
+        if (in_array($key, ['min_tasks', 'max_tasks', 'title_max_length', 'description_max_length', 'default_duration_minutes', 'points_min', 'points_max', 'points_default', 'feedback_prompt_max_length'], true)) {
+            if ($value !== '' && !is_numeric($value)) {
+                throw new ApiException('数字配置必须是整数');
+            }
+            $number = (int) $value;
+            [$min, $max, $label] = match ($key) {
+                'min_tasks' => [0, 5, '最少任务数'],
+                'max_tasks' => [1, 5, '最多任务数'],
+                'title_max_length' => [10, 80, '标题最长字数'],
+                'description_max_length' => [20, 1000, '描述最长字数'],
+                'default_duration_minutes' => [0, 180, '默认持续分钟'],
+                'points_min' => [0, 100, '积分下限'],
+                'points_max' => [1, 200, '积分上限'],
+                'points_default' => [0, 200, '默认积分'],
+                default => [0, 255, '反馈提示最长字数'],
+            };
+            if ($number < $min || $number > $max) {
+                throw new ApiException($label . '超出允许范围');
+            }
+            return (string) $number;
+        }
+
+        if ($key === 'default_start_time') {
+            if ($value === '') {
+                return '';
+            }
+            if (preg_match('/^([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/', $value, $matches) !== 1) {
+                throw new ApiException('默认开始时间格式必须是 HH:MM');
+            }
+            return sprintf('%02d:%02d', (int) $matches[1], (int) $matches[2]);
+        }
+
+        if ($key === 'default_date_mode' && !in_array($value, HelpAiPlanCardConfigService::DATE_MODES, true)) {
+            throw new ApiException('默认任务日期参数错误');
+        }
+        if ($key === 'default_task_type' && !in_array($value, HelpAiPlanCardConfigService::TASK_TYPES, true)) {
+            throw new ApiException('默认任务类型参数错误');
+        }
+        if (in_array($key, ['fallback_title', 'default_feedback_prompt'], true)) {
+            return mb_substr($value, 0, 80);
+        }
+        if (in_array($key, ['fallback_description', 'prompt_policy'], true)) {
+            return mb_substr($value, 0, $key === 'prompt_policy' ? 3000 : 500);
+        }
+
+        return $value;
+    }
+
+    private function assertPlanCardReady(int $groupId): void
+    {
+        $values = Db::table('sa_system_config')
+            ->where('group_id', $groupId)
+            ->whereNull('delete_time')
+            ->pluck('value', 'key')
+            ->all();
+
+        $minTasks = (int) ($values['min_tasks'] ?? 0);
+        $maxTasks = (int) ($values['max_tasks'] ?? 2);
+        if ($minTasks > $maxTasks) {
+            throw new ApiException('最少任务数不能大于最多任务数');
+        }
+        $pointsMin = (int) ($values['points_min'] ?? 5);
+        $pointsMax = (int) ($values['points_max'] ?? 30);
+        $pointsDefault = (int) ($values['points_default'] ?? 10);
+        if ($pointsMin > $pointsMax) {
+            throw new ApiException('积分下限不能大于积分上限');
+        }
+        if ($pointsDefault < $pointsMin || $pointsDefault > $pointsMax) {
+            throw new ApiException('默认积分必须落在积分上下限之间');
+        }
+
+        $allowedTypes = array_filter(preg_split('/\s*,\s*/', (string) ($values['allowed_task_types'] ?? '')) ?: []);
+        $defaultType = trim((string) ($values['default_task_type'] ?? 'daily'));
+        if ($allowedTypes !== [] && !in_array($defaultType, $allowedTypes, true)) {
+            throw new ApiException('默认任务类型必须包含在允许的任务类型中');
+        }
+
+        $allowedReminders = array_filter(preg_split('/\s*,\s*/', (string) ($values['allowed_reminders'] ?? '')) ?: []);
+        $defaultReminders = array_filter(preg_split('/\s*,\s*/', (string) ($values['default_reminders'] ?? '')) ?: []);
+        foreach ($defaultReminders as $reminder) {
+            if ($allowedReminders !== [] && !in_array($reminder, $allowedReminders, true)) {
+                throw new ApiException('默认提醒必须包含在允许的提醒列表中');
+            }
+        }
+
+        if ((int) ($values['force_emit'] ?? 2) === 1 && trim((string) ($values['fallback_title'] ?? '')) === '') {
+            throw new ApiException('启用强制出卡时必须填写兜底卡片标题');
+        }
     }
 }

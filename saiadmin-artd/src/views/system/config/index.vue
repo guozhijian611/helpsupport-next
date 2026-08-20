@@ -117,6 +117,16 @@
                       @change="handleSelect($event, item)"
                       :placeholder="'请选择' + item.name"
                     />
+                    <el-select
+                      v-else-if="item.input_type === 'checkbox'"
+                      v-model="item.value"
+                      class="config-control"
+                      multiple
+                      collapse-tags
+                      collapse-tags-tooltip
+                      :options="item.config_select_data"
+                      :placeholder="'请选择' + item.name"
+                    />
                     <el-input
                       v-else-if="item.input_type === 'input'"
                       v-model="item.value"
@@ -263,6 +273,8 @@
   }
 
   const isAiAuditGroup = () => selectedRow.value.code === 'help_ai_audit'
+  const isPlanCardGroup = () => selectedRow.value.code === 'help_ai_plan_card'
+  const isHelpRuntimeGroup = () => isAiAuditGroup() || isPlanCardGroup()
 
   const selectNoDataText = (item: Record<string, any>) => {
     if (isAiAuditGroup() && item.key === 'ai_config_id') {
@@ -272,16 +284,30 @@
   }
 
   const numberInputAttrs = (item: Record<string, any>) => {
-    if (!isAiAuditGroup()) {
-      return {}
+    if (isAiAuditGroup()) {
+      const limits: Record<string, { min: number; max: number; step: number }> = {
+        auto_pass_confidence: { min: 0.5, max: 1, step: 0.01 },
+        auto_reject_confidence: { min: 0.8, max: 1, step: 0.01 },
+        max_attempts: { min: 1, max: 5, step: 1 },
+        retry_delay_seconds: { min: 1, max: 300, step: 1 }
+      }
+      return limits[item.key] || {}
     }
-    const limits: Record<string, { min: number; max: number; step: number }> = {
-      auto_pass_confidence: { min: 0.5, max: 1, step: 0.01 },
-      auto_reject_confidence: { min: 0.8, max: 1, step: 0.01 },
-      max_attempts: { min: 1, max: 5, step: 1 },
-      retry_delay_seconds: { min: 1, max: 300, step: 1 }
+    if (isPlanCardGroup()) {
+      const limits: Record<string, { min: number; max: number; step: number }> = {
+        min_tasks: { min: 0, max: 5, step: 1 },
+        max_tasks: { min: 1, max: 5, step: 1 },
+        title_max_length: { min: 10, max: 80, step: 1 },
+        description_max_length: { min: 20, max: 1000, step: 1 },
+        default_duration_minutes: { min: 0, max: 180, step: 5 },
+        points_min: { min: 0, max: 100, step: 1 },
+        points_max: { min: 1, max: 200, step: 1 },
+        points_default: { min: 0, max: 200, step: 1 },
+        feedback_prompt_max_length: { min: 0, max: 255, step: 1 }
+      }
+      return limits[item.key] || {}
     }
-    return limits[item.key] || {}
+    return {}
   }
 
   // 配置选中行
@@ -326,6 +352,12 @@
         if (String(item.value || '') === '0') {
           item.value = ''
         }
+      }
+      if (item.input_type === 'checkbox') {
+        item.value = String(item.value || '')
+          .split(',')
+          .map((value: string) => value.trim())
+          .filter((value: string) => value !== '')
       }
       if (
         item.key.indexOf('local_') !== -1 ||
@@ -477,11 +509,16 @@
   }
 
   const submit = async (params: any) => {
-    if (isAiAuditGroup()) {
+    if (isHelpRuntimeGroup()) {
       const values = Object.fromEntries(
-        params.map((item: Record<string, any>) => [item.key, item.value ?? ''])
+        params.map((item: Record<string, any>) => [
+          item.key,
+          Array.isArray(item.value) ? item.value.join(',') : (item.value ?? '')
+        ])
       )
-      await helpRuntimeApi.update({ configs: { help_ai_audit: values } })
+      await helpRuntimeApi.update({
+        configs: { [selectedRow.value.code]: values }
+      })
       ElMessage.success('保存成功')
       await getConfigData()
       return

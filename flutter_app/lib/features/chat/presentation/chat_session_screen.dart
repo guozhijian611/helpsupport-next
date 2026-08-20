@@ -3031,13 +3031,33 @@ class _AiPlanTaskCard extends StatelessWidget {
                 ),
               ),
             ],
+            if (task.scheduleLabel.isNotEmpty || task.reminders.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (task.scheduleLabel.isNotEmpty)
+                    _PlanTaskChip(
+                      label: task.scheduleLabel,
+                      icon: Icons.schedule_outlined,
+                    ),
+                  ...task.reminders.map(
+                    (item) => _PlanTaskChip(
+                      label: _planReminderLabel(context, item),
+                      icon: Icons.notifications_active_outlined,
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 12),
             Row(
               children: [
                 _PlanTaskChip(
                   label: task.requiresFeedback
                       ? _t(context, '需反馈', 'Feedback')
-                      : _t(context, '日常', 'Daily'),
+                      : _planTaskTypeLabel(context, task.taskType),
                   icon: task.requiresFeedback
                       ? Icons.rate_review_outlined
                       : Icons.today_outlined,
@@ -5189,4 +5209,25 @@ String _chatImageUrl(String value, String Function(String value) resolveMediaUrl
 
 String _t(BuildContext context, String zh, String en) {
   return Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
+}
+
+String _planTaskTypeLabel(BuildContext context, String taskType) {
+  return switch (taskType) {
+    'checkin' => _t(context, '打卡', 'Check-in'),
+    'assessment' => _t(context, '评估', 'Assessment'),
+    'material' => _t(context, '素材', 'Material'),
+    _ => _t(context, '日常', 'Daily'),
+  };
+}
+
+String _planReminderLabel(BuildContext context, String value) {
+  return switch (value) {
+    'T-5m' => _t(context, '提前 5 分钟', '5 min before'),
+    'T-10m' => _t(context, '提前 10 分钟', '10 min before'),
+    'T-15m' => _t(context, '提前 15 分钟', '15 min before'),
+    'T-30m' => _t(context, '提前 30 分钟', '30 min before'),
+    'T-60m' => _t(context, '提前 60 分钟', '60 min before'),
+    'on-time' => _t(context, '准时提醒', 'On time'),
+    _ => value,
+  };
 }

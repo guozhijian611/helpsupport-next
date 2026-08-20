@@ -1325,19 +1325,24 @@ class HelpApiService
 
         $session = $this->assertChatSession($memberId, $sessionId);
         $now = date('Y-m-d H:i:s');
-        $summary = $this->chatSummary($content, 'text');
+        $assistantPayload = $this->extractAssistantPlanTasks($content);
+        $summary = $this->chatSummary($assistantPayload['content'], 'text');
 
-        $id = Db::transaction(function () use ($memberId, $session, $sessionId, $content, $summary, $now) {
+        $id = Db::transaction(function () use ($memberId, $session, $sessionId, $assistantPayload, $summary, $now) {
             $record = $this->insertChatRecord(
                 $memberId,
                 $sessionId,
                 (string) $session['chat_mode'],
                 'assistant',
-                $content,
+                $assistantPayload['content'],
                 'text',
-                json_encode(['source' => 'realtime_call'], JSON_UNESCAPED_UNICODE),
+                json_encode([
+                    'source' => 'realtime_call',
+                    'plan_tasks' => $assistantPayload['plan_tasks'],
+                ], JSON_UNESCAPED_UNICODE),
                 $now
             );
+            $record = $this->autoAssignAssistantPlanTasks($memberId, $record);
 
             Db::table('sa_member_chat_session')->where('id', $sessionId)->update([
                 'last_message' => $summary,
@@ -1390,36 +1395,16 @@ class HelpApiService
             }
         }
 
-        $taskDate = trim((string) ($data['task_date'] ?? ''));
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $taskDate)) {
-            $taskDate = date('Y-m-d');
-        }
-
-        $payload = [
-            'member_id' => $memberId,
-            'plan_id' => 0,
-            'stage_id' => 0,
-            'task_date' => $taskDate,
-            'start_time' => null,
-            'end_time' => null,
-            'title' => (string) $template['title'],
-            'description' => (string) $template['description'],
-            'task_type' => (string) $template['task_type'],
-            'source' => 'ai',
-            'source_id' => 'chat_record:' . $recordId . ':' . $taskIndex,
-            'reminders' => null,
-            'attachments' => null,
-            'points_reward' => (int) $template['points_reward'],
-            'requires_feedback' => (int) $template['requires_feedback'],
-            'feedback_prompt' => (string) $template['feedback_prompt'],
-            'status' => 0,
-            'remark' => 'AI 对话计划卡片确认加入',
-        ];
-
-        $id = $this->saveRow('sa_daily_task', $payload, $memberId);
-        $task = Db::table('sa_daily_task')->where('id', $id)->find() ?: [];
-        $tasks[$taskIndex]['daily_task_id'] = $id;
-        $tasks[$taskIndex]['assigned_at'] = date('Y-m-d H:i:s');
+        $preferredDate = trim((string) ($data['task_date'] ?? ''));
+        $created = $this->createDailyTaskFromPlanCard($memberId, $recordId, $taskIndex, $template, $preferredDate);
+        $tasks[$taskIndex] = array_merge($template, [
+            'daily_task_id' => $created['id'],
+            'assigned_at' => $created['assigned_at'],
+            'task_date' => $created['task_date'],
+            'start_time' => $created['start_time'],
+            'end_time' => $created['end_time'],
+            'reminders' => $created['reminders'],
+        ]);
         $ext['plan_tasks'] = $tasks;
         Db::table('sa_member_chat_record')->where('id', $recordId)->update([
             'ext' => $this->jsonValue($ext),
@@ -1428,7 +1413,7 @@ class HelpApiService
         ]);
 
         return [
-            'task' => $this->normalizeDailyTaskRow($task),
+            'task' => $created['task'],
             'message' => 'AI 已添加计划任务',
         ];
     }
@@ -1527,6 +1512,8 @@ class HelpApiService
                 ], $assistantSpeech['audio_url'] !== '' ? 'voice' : 'text', $assistantPayload['content'])),
                 $now
             );
+
+            $assistantRecord = $this->autoAssignAssistantPlanTasks($memberId, $assistantRecord);
 
             Db::table('sa_member_chat_session')->where('id', $activeSessionId)->update([
                 'last_message' => $this->chatSummary($assistantPayload['content']),
@@ -1674,6 +1661,8 @@ class HelpApiService
                 ], $assistantSpeech['audio_url'] !== '' ? 'voice' : 'text', $assistantPayload['content'])),
                 $now
             );
+
+            $assistantRecord = $this->autoAssignAssistantPlanTasks($memberId, $assistantRecord);
 
             Db::table('sa_member_chat_session')->where('id', $activeSessionId)->update([
                 'last_message' => $this->chatSummary($assistantPayload['content']),
@@ -7508,11 +7497,7 @@ class HelpApiService
             $prompt .= "\n\n用户额外要求：\n" . $customPrompt;
         }
 
-        $prompt .= "\n\n当你认为本轮对话适合给用户一个可执行计划任务时，先用自然语言解释建议，再在回复末尾追加一个独立代码块：\n"
-            . "```helpsupport_plan_tasks\n"
-            . "[{\"title\":\"任务标题\",\"description\":\"执行说明\",\"task_type\":\"daily\",\"points_reward\":10,\"requires_feedback\":false,\"feedback_prompt\":\"\"}]\n"
-            . "```\n"
-            . "任务字段要求：title 不超过 30 个汉字，description 具体可执行，task_type 只能是 daily 或 checkin，points_reward 只能是 5 到 30 的整数，requires_feedback 为布尔值。一次最多给 2 个任务。不要告诉用户你已经加入计划，只能说可由用户确认加入。";
+        $prompt .= (new HelpAiPlanCardConfigService())->promptAppendix();
 
         return $prompt;
     }
@@ -7530,64 +7515,115 @@ class HelpApiService
      */
     private function extractAssistantPlanTasks(string $content): array
     {
-        $tasks = [];
-        $cleanContent = preg_replace_callback(
-            '/```helpsupport_plan_tasks\s*(.*?)```/su',
-            function (array $matches) use (&$tasks): string {
-                $decoded = json_decode(trim((string) ($matches[1] ?? '')), true);
-                if (is_array($decoded)) {
-                    foreach ($decoded as $item) {
-                        if (!is_array($item)) {
-                            continue;
-                        }
-                        $task = $this->normalizeAssistantPlanTask($item);
-                        if ($task !== null) {
-                            $tasks[] = $task;
-                        }
-                        if (count($tasks) >= 2) {
-                            break;
-                        }
-                    }
-                }
-
-                return '';
-            },
-            $content
-        );
-        $cleanContent = trim((string) $cleanContent);
-        if ($cleanContent === '') {
-            $cleanContent = trim($content);
-        }
-
-        return [
-            'content' => $cleanContent,
-            'plan_tasks' => array_slice($tasks, 0, 2),
-        ];
+        return (new HelpAiPlanCardConfigService())->extract($content);
     }
 
+    /**
+     * @param array<string, mixed> $item
+     * @return array<string, mixed>|null
+     */
     private function normalizeAssistantPlanTask(array $item): ?array
     {
-        $title = mb_substr(trim((string) ($item['title'] ?? '')), 0, 160);
-        if ($title === '') {
-            return null;
+        return (new HelpAiPlanCardConfigService())->normalizeTask($item);
+    }
+
+    /**
+     * @param array<string, mixed> $record
+     * @return array<string, mixed>
+     */
+    private function autoAssignAssistantPlanTasks(int $memberId, array $record): array
+    {
+        $config = (new HelpAiPlanCardConfigService())->all();
+        if (!$config['enabled'] || !$config['auto_assign']) {
+            return $record;
         }
-        $taskType = trim((string) ($item['task_type'] ?? 'daily'));
-        if (!in_array($taskType, ['daily', 'checkin'], true)) {
-            $taskType = 'daily';
+
+        $recordId = (int) ($record['id'] ?? 0);
+        $ext = $this->decodeJsonArray($record['ext'] ?? null);
+        $tasks = $ext['plan_tasks'] ?? [];
+        if ($recordId <= 0 || !is_array($tasks) || $tasks === []) {
+            return $record;
         }
-        $pointsReward = (int) ($item['points_reward'] ?? 10);
-        $pointsReward = max(5, min(30, $pointsReward));
-        $requiresFeedback = filter_var($item['requires_feedback'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
-        $feedbackPrompt = mb_substr(trim((string) ($item['feedback_prompt'] ?? '')), 0, 255);
+
+        $changed = false;
+        foreach ($tasks as $index => $item) {
+            if (!is_array($item) || (int) ($item['daily_task_id'] ?? 0) > 0) {
+                continue;
+            }
+            $template = $this->normalizeAssistantPlanTask($item);
+            if ($template === null) {
+                continue;
+            }
+            $created = $this->createDailyTaskFromPlanCard($memberId, $recordId, (int) $index, $template);
+            $tasks[$index] = array_merge($template, [
+                'daily_task_id' => $created['id'],
+                'assigned_at' => $created['assigned_at'],
+                'task_date' => $created['task_date'],
+                'start_time' => $created['start_time'],
+                'end_time' => $created['end_time'],
+                'reminders' => $created['reminders'],
+            ]);
+            $changed = true;
+        }
+        if (!$changed) {
+            return $record;
+        }
+
+        $ext['plan_tasks'] = array_values($tasks);
+        Db::table('sa_member_chat_record')->where('id', $recordId)->update([
+            'ext' => $this->jsonValue($ext),
+            'updated_by' => $memberId,
+            'update_time' => date('Y-m-d H:i:s'),
+        ]);
+        $record['ext'] = $ext;
+
+        return $record;
+    }
+
+    /**
+     * @param array<string, mixed> $template
+     * @return array{id:int,assigned_at:string,task_date:string,start_time:?string,end_time:?string,reminders:array<int,string>,task:array<string,mixed>}
+     */
+    private function createDailyTaskFromPlanCard(
+        int $memberId,
+        int $recordId,
+        int $taskIndex,
+        array $template,
+        string $preferredDate = ''
+    ): array {
+        $schedule = (new HelpAiPlanCardConfigService())->resolveSchedule($template, null, $preferredDate);
+        $assignedAt = date('Y-m-d H:i:s');
+        $payload = [
+            'member_id' => $memberId,
+            'plan_id' => 0,
+            'stage_id' => 0,
+            'task_date' => $schedule['task_date'],
+            'start_time' => $schedule['start_time'],
+            'end_time' => $schedule['end_time'],
+            'title' => (string) $template['title'],
+            'description' => (string) $template['description'],
+            'task_type' => (string) $template['task_type'],
+            'source' => 'ai',
+            'source_id' => 'chat_record:' . $recordId . ':' . $taskIndex,
+            'reminders' => $schedule['reminders'] !== [] ? $this->jsonValue($schedule['reminders']) : null,
+            'attachments' => null,
+            'points_reward' => (int) $template['points_reward'],
+            'requires_feedback' => (int) $template['requires_feedback'],
+            'feedback_prompt' => (string) $template['feedback_prompt'],
+            'status' => 0,
+            'remark' => 'AI 对话计划卡片确认加入',
+        ];
+        $id = $this->saveRow('sa_daily_task', $payload, $memberId);
+        $task = Db::table('sa_daily_task')->where('id', $id)->find() ?: [];
 
         return [
-            'title' => $title,
-            'description' => mb_substr(trim((string) ($item['description'] ?? '')), 0, 500),
-            'task_type' => $taskType,
-            'points_reward' => $pointsReward,
-            'requires_feedback' => $requiresFeedback,
-            'feedback_prompt' => $feedbackPrompt,
-            'daily_task_id' => max(0, (int) ($item['daily_task_id'] ?? 0)),
+            'id' => $id,
+            'assigned_at' => $assignedAt,
+            'task_date' => $schedule['task_date'],
+            'start_time' => $schedule['start_time'],
+            'end_time' => $schedule['end_time'],
+            'reminders' => $schedule['reminders'],
+            'task' => $this->normalizeDailyTaskRow($task),
         ];
     }
 

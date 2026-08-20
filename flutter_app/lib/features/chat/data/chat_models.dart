@@ -452,6 +452,10 @@ class ChatPlanTaskSuggestion {
     required this.title,
     required this.description,
     required this.taskType,
+    required this.taskDate,
+    required this.startTime,
+    required this.endTime,
+    required this.reminders,
     required this.pointsReward,
     required this.requiresFeedback,
     required this.feedbackPrompt,
@@ -461,6 +465,10 @@ class ChatPlanTaskSuggestion {
   final String title;
   final String description;
   final String taskType;
+  final String taskDate;
+  final String startTime;
+  final String endTime;
+  final List<String> reminders;
   final int pointsReward;
   final bool requiresFeedback;
   final String feedbackPrompt;
@@ -468,11 +476,31 @@ class ChatPlanTaskSuggestion {
 
   bool get isAssigned => dailyTaskId > 0;
 
+  String get scheduleLabel {
+    final date = taskDate.trim();
+    final start = startTime.trim();
+    final end = endTime.trim();
+    if (date.isEmpty && start.isEmpty) {
+      return '';
+    }
+    if (start.isEmpty) {
+      return date;
+    }
+    if (end.isEmpty) {
+      return date.isEmpty ? start : '$date $start';
+    }
+    return date.isEmpty ? '$start-$end' : '$date $start-$end';
+  }
+
   factory ChatPlanTaskSuggestion.fromJson(Map<String, dynamic> json) {
     return ChatPlanTaskSuggestion(
       title: (json['title'] ?? '').toString(),
       description: (json['description'] ?? '').toString(),
       taskType: (json['task_type'] ?? 'daily').toString(),
+      taskDate: (json['task_date'] ?? '').toString(),
+      startTime: (json['start_time'] ?? '').toString(),
+      endTime: (json['end_time'] ?? '').toString(),
+      reminders: _stringList(json['reminders']),
       pointsReward: (json['points_reward'] as num?)?.toInt() ?? 10,
       requiresFeedback:
           json['requires_feedback'] == true ||

@@ -41,14 +41,31 @@
                 :label="item.name"
               >
                 <ElSwitch
-                  v-if="item.key === 'enabled' || item.input_type === 'radio'"
+                  v-if="isSwitchItem(item)"
                   v-model="formValues[group.code][item.key]"
                   active-value="1"
                   inactive-value="2"
-                  active-text="启用"
-                  inactive-text="禁用"
+                  :active-text="switchTexts(group.code, item.key).active"
+                  :inactive-text="switchTexts(group.code, item.key).inactive"
                   inline-prompt
                 />
+                <ElSelect
+                  v-else-if="isMultiSelect(item)"
+                  v-model="formValues[group.code][item.key]"
+                  multiple
+                  collapse-tags
+                  collapse-tags-tooltip
+                  filterable
+                  class="runtime-select"
+                  :placeholder="'请选择' + item.name"
+                >
+                  <ElOption
+                    v-for="option in item.options"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </ElSelect>
                 <ElSelect
                   v-else-if="group.code === 'help_ai_audit' && item.key === 'ai_config_id'"
                   v-model="formValues[group.code][item.key]"
@@ -123,12 +140,19 @@
 
   defineOptions({ name: 'HelpRuntimeConfig' })
 
+  const PLAN_CARD_MULTI_KEYS = [
+    'enabled_fields',
+    'allowed_task_types',
+    'allowed_reminders',
+    'default_reminders'
+  ]
+
   const loading = ref(false)
   const saving = ref(false)
   const groups = ref<RuntimeConfigGroup[]>([])
   const activeGroup = ref('')
   const aiModelOptions = ref<AiModelOption[]>([])
-  const formValues = reactive<Record<string, Record<string, string>>>({})
+  const formValues = reactive<Record<string, Record<string, string | string[]>>>({})
 
   const loadConfig = async () => {
     loading.value = true
@@ -141,6 +165,10 @@
         formValues[group.code] = {}
         group.items.forEach((item) => {
           const value = item.value ?? ''
+          if (isMultiSelect(item)) {
+            formValues[group.code][item.key] = splitCsv(value)
+            return
+          }
           formValues[group.code][item.key] =
             group.code === 'help_ai_audit' && item.key === 'ai_config_id' && value === '0'
               ? ''
@@ -161,6 +189,31 @@
     return item.has_value ? '已配置，留空则不修改' : '请输入' + item.name
   }
 
+  const isMultiSelect = (item: RuntimeConfigItem) => {
+    return item.input_type === 'checkbox' || PLAN_CARD_MULTI_KEYS.includes(item.key)
+  }
+
+  const isSwitchItem = (item: RuntimeConfigItem) => {
+    return item.key === 'enabled' || item.input_type === 'radio'
+  }
+
+  const splitCsv = (value: string) => {
+    return value
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item) => item !== '')
+  }
+
+  const switchTexts = (groupCode: string, key: string) => {
+    if (groupCode === 'help_ai_plan_card' && key === 'default_requires_feedback') {
+      return { active: '需要', inactive: '不需要' }
+    }
+    if (groupCode === 'help_ai_plan_card' && key === 'force_emit') {
+      return { active: '强制', inactive: '按需' }
+    }
+    return { active: '启用', inactive: '禁用' }
+  }
+
   const numberLimits = (groupCode: string, key: string) => {
     if (groupCode === 'help_ai_audit' && key === 'auto_pass_confidence') {
       return { min: 0.5, max: 1, step: 0.01 }
@@ -174,13 +227,34 @@
     if (groupCode === 'help_ai_audit' && key === 'retry_delay_seconds') {
       return { min: 1, max: 300, step: 1 }
     }
+    if (groupCode === 'help_ai_plan_card') {
+      const limits: Record<string, { min: number; max: number; step: number }> = {
+        min_tasks: { min: 0, max: 5, step: 1 },
+        max_tasks: { min: 1, max: 5, step: 1 },
+        title_max_length: { min: 10, max: 80, step: 1 },
+        description_max_length: { min: 20, max: 1000, step: 1 },
+        default_duration_minutes: { min: 0, max: 180, step: 5 },
+        points_min: { min: 0, max: 100, step: 1 },
+        points_max: { min: 1, max: 200, step: 1 },
+        points_default: { min: 0, max: 200, step: 1 },
+        feedback_prompt_max_length: { min: 0, max: 255, step: 1 }
+      }
+      return limits[key] || { min: 0, max: undefined, step: 1 }
+    }
     return { min: 1, max: undefined, step: 1 }
   }
 
   const handleSubmit = async () => {
     saving.value = true
     try {
-      await api.update({ configs: formValues })
+      const configs: Record<string, Record<string, string>> = {}
+      Object.entries(formValues).forEach(([groupCode, values]) => {
+        configs[groupCode] = {}
+        Object.entries(values).forEach(([key, value]) => {
+          configs[groupCode][key] = Array.isArray(value) ? value.join(',') : String(value ?? '')
+        })
+      })
+      await api.update({ configs })
       ElMessage.success('保存成功')
       await loadConfig()
     } finally {

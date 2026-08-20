@@ -30,12 +30,15 @@ void main() {
       'content': '建议你今天先完成一个小任务。',
       'content_type': 'text',
       'ext':
-          '{"plan_tasks":[{"title":"记录情绪波动","description":"写下触发点和应对方式","task_type":"checkin","points_reward":15,"requires_feedback":1,"feedback_prompt":"记录本次应对是否有效"}]}',
+          '{"plan_tasks":[{"title":"记录情绪波动","description":"写下触发点和应对方式","task_type":"checkin","task_date":"2026-08-20","start_time":"09:00","end_time":"09:30","reminders":["T-30m","on-time"],"points_reward":15,"requires_feedback":1,"feedback_prompt":"记录本次应对是否有效"}]}',
     });
 
     expect(record.planTasks, hasLength(1));
     expect(record.planTasks.first.title, '记录情绪波动');
     expect(record.planTasks.first.requiresFeedback, isTrue);
+    expect(record.planTasks.first.taskDate, '2026-08-20');
+    expect(record.planTasks.first.scheduleLabel, '2026-08-20 09:00-09:30');
+    expect(record.planTasks.first.reminders, ['T-30m', 'on-time']);
   });
 
   test('chat record parses voice and image metadata from ext', () {
