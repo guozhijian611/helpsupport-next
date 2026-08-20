@@ -52,6 +52,7 @@ ADMIN_PUBLIC_BASE="${ADMIN_PUBLIC_BASE:-/admin/}"
 DRY_RUN="${DRY_RUN:-}"
 FIX_PERMS="${FIX_PERMS:-1}"
 RESTART_WEBMAN="${RESTART_WEBMAN:-1}"
+WEBMAN_MEMORY_LIMIT="${WEBMAN_MEMORY_LIMIT:-1024M}"
 CHECK_WEBMAN_DISABLED_FUNCTIONS="${CHECK_WEBMAN_DISABLED_FUNCTIONS:-1}"
 RSYNC_RETRIES="${RSYNC_RETRIES:-3}"
 if [[ -t 0 ]]; then
@@ -443,10 +444,10 @@ fi
 if [[ "$RESTART_WEBMAN" == "1" ]]; then
   if [[ "$DRY_RUN" == "1" ]]; then
     log "预览模式：跳过远程重启"
-    echo "将执行：ssh ${REMOTE} \"${REMOTE_ENV} OTEL_PHP_DISABLED_INSTRUMENTATIONS='${REMOTE_OTEL_DISABLED_INSTRUMENTATIONS}' bash -lc 'cd '${REMOTE_SERVER_DIR}' && php webman restart -d'\""
+    echo "将执行：ssh ${REMOTE} \"${REMOTE_ENV} OTEL_PHP_DISABLED_INSTRUMENTATIONS='${REMOTE_OTEL_DISABLED_INSTRUMENTATIONS}' bash -lc 'cd '${REMOTE_SERVER_DIR}' && php -d memory_limit='${WEBMAN_MEMORY_LIMIT}' webman restart -d'\""
   else
     log "重启服务器 Webman"
-    ssh "${SSH_OPTS[@]}" "$REMOTE" "${REMOTE_ENV} OTEL_PHP_DISABLED_INSTRUMENTATIONS='$REMOTE_OTEL_DISABLED_INSTRUMENTATIONS' bash -lc 'cd '$REMOTE_SERVER_DIR' && php webman restart -d'"
+    ssh "${SSH_OPTS[@]}" "$REMOTE" "${REMOTE_ENV} OTEL_PHP_DISABLED_INSTRUMENTATIONS='$REMOTE_OTEL_DISABLED_INSTRUMENTATIONS' bash -lc 'cd '$REMOTE_SERVER_DIR' && php -d memory_limit='$WEBMAN_MEMORY_LIMIT' webman restart -d'"
   fi
 else
   log "跳过 Webman 重启"
