@@ -34,11 +34,19 @@ export interface ChatMessage {
   avatar: string
   /** 是否正在流式输出 */
   isStreaming?: boolean
+  /** 调试模式下的请求/响应详情 */
+  debug?: ChatDebugInfo
+}
+
+export interface ChatDebugInfo {
+  request?: Record<string, any>
+  response?: Record<string, any>
 }
 
 // 存储 key
 const STORAGE_KEY = 'saiai_messages'
 const MODEL_STORAGE_KEY = 'saiai_current_model'
+const DEBUG_STORAGE_KEY = 'saiai_debug_mode'
 
 /**
  * AI 聊天状态管理
@@ -92,6 +100,11 @@ export const useChatStore = defineStore('saiaiChat', () => {
 
   // 当前会话分组ID
   const currentGroupId = ref<number | null>(null)
+  const debugMode = ref(localStorage.getItem(DEBUG_STORAGE_KEY) === '1')
+
+  watch(debugMode, (value) => {
+    localStorage.setItem(DEBUG_STORAGE_KEY, value ? '1' : '0')
+  })
 
   /**
    * 从 sessionStorage 恢复消息
@@ -213,9 +226,16 @@ export const useChatStore = defineStore('saiaiChat', () => {
     window.aiAbortController = controller
 
     try {
-      const body: any = {
+      const body: Record<string, any> = {
         message: text.trim(),
-        type: currentModel.value.type
+        type: currentModel.value.type,
+        debug: debugMode.value
+      }
+      if (currentModel.value.id) {
+        body.config_id = currentModel.value.id
+      }
+      if (currentModel.value.model) {
+        body.model = currentModel.value.model
       }
       if (currentGroupId.value) {
         body.group_id = currentGroupId.value
@@ -270,6 +290,18 @@ export const useChatStore = defineStore('saiaiChat', () => {
                   currentGroupId.value = parsed.data
                   // 触发事件通知外部刷新列表（如果有必要）
                   break
+                case 'debug': {
+                  const current = messages.value[aiMessageIndex]?.debug || {}
+                  const phase = parsed.data?.phase
+                  updateMessage(aiMessageIndex, {
+                    debug:
+                      phase === 'response'
+                        ? { ...current, response: parsed.data }
+                        : { ...current, request: parsed.data }
+                  })
+                  onScroll?.()
+                  break
+                }
                 case 'content':
                   if (parsed.data) {
                     appendContent(aiMessageIndex, parsed.data)
@@ -357,6 +389,7 @@ export const useChatStore = defineStore('saiaiChat', () => {
     sendMessage,
     currentModel,
     currentGroupId,
+    debugMode,
     saveModel
   }
 })

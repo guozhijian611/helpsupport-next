@@ -140,6 +140,43 @@ class AiFactory
         }
     }
 
+    /**
+     * 对话测试调试面板用：返回实际发往模型的地址、载荷和 session，不发起请求。
+     *
+     * @param list<mixed> $imageUrls
+     * @return array<string, mixed>
+     */
+    public static function inspectChatRequest(int $configId, string $message, array $history = [], array $imageUrls = [], mixed $session = false): array
+    {
+        $resolved = $configId > 0
+            ? self::resolveConfigById($configId)
+            : self::resolveConfig(self::DEFAULT_CHAT_TYPE);
+        $passSession = self::shouldPassChatSession($resolved);
+        $sessionArg = $passSession ? ($session === false ? null : $session) : false;
+        $payload = $passSession
+            ? self::chatCompletionsPayload($resolved, $message, $history, $imageUrls, $sessionArg, true)
+            : [
+                'model' => (string) $resolved['model'],
+                'messages' => self::inspectAgentMessages($message, $history, $imageUrls),
+                'temperature' => 0.7,
+                'stream' => true,
+            ];
+
+        return [
+            'config_id' => (int) ($resolved['configId'] ?? $configId),
+            'config_name' => (string) ($resolved['configName'] ?? ''),
+            'platform_type' => (string) $resolved['platformType'],
+            'model' => (string) $resolved['model'],
+            'api_url' => (string) ($resolved['apiUrl'] ?? ''),
+            'request_url' => $passSession ? self::chatCompletionsUrl($resolved) : ((string) ($resolved['apiUrl'] ?? '')),
+            'pass_session' => $passSession,
+            'session_in' => $passSession ? ($sessionArg === false ? null : $sessionArg) : null,
+            'transport' => $passSession ? 'openai_compatible' : 'symfony_agent',
+            'payload' => $payload,
+            'api_key' => self::maskSecret((string) ($resolved['apiKey'] ?? '')),
+        ];
+    }
+
     protected static function chatStreamWithResolved(array $resolved, string $message, array $history = [], array $imageUrls = [], mixed $session = false): \Generator
     {
         if (self::shouldPassChatSession($resolved) && $session !== false) {
@@ -910,6 +947,54 @@ class AiFactory
             || str_contains($message, 'session not found')
             || str_contains($message, 'session expired')
             || str_contains($message, 'unknown session');
+    }
+
+    /**
+     * @param list<mixed> $imageUrls
+     * @return list<array<string, mixed>>
+     */
+    protected static function inspectAgentMessages(string $message, array $history, array $imageUrls = []): array
+    {
+        $messages = [
+            ['role' => 'system', 'content' => '你是一个中文 AI 助手，请用简洁、清晰、可执行的方式回答用户。'],
+        ];
+        foreach ($history as $item) {
+            $role = (string) ($item['role'] ?? 'user');
+            if (!in_array($role, ['system', 'user', 'assistant'], true)) {
+                $role = 'user';
+            }
+            $content = trim((string) ($item['content'] ?? ''));
+            $historyImages = is_array($item['image_urls'] ?? null) ? $item['image_urls'] : [];
+            if ($content === '' && $historyImages === []) {
+                continue;
+            }
+            $row = ['role' => $role, 'content' => $content];
+            if ($historyImages !== []) {
+                $row['image_urls'] = $historyImages;
+            }
+            $messages[] = $row;
+        }
+        $user = ['role' => 'user', 'content' => $message];
+        if ($imageUrls !== []) {
+            $user['image_urls'] = $imageUrls;
+        }
+        $messages[] = $user;
+
+        return $messages;
+    }
+
+    protected static function maskSecret(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+        $length = strlen($value);
+        if ($length <= 8) {
+            return str_repeat('*', $length);
+        }
+
+        return substr($value, 0, 4) . str_repeat('*', max(4, $length - 8)) . substr($value, -4);
     }
 
     protected static function buildImageGenerationUrl(string $apiUrl, string $platformType): string

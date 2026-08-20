@@ -71,7 +71,11 @@
             </div>
           </div>
         </div>
-        <div class="flex-c gap-2">
+        <div class="flex-c gap-3">
+          <div class="flex-c gap-2 text-xs text-[var(--el-text-color-secondary)]">
+            <span>调试模式</span>
+            <ElSwitch v-model="debugMode" />
+          </div>
           <ElButton
             :icon="Setting"
             circle
@@ -158,6 +162,25 @@
                 v-if="message.isStreaming && message.content"
                 class="inline-block w-2 h-4 mt-1 bg-[var(--el-text-color-secondary)] rounded-sm animate-pulse"
               ></span>
+              <div
+                v-if="debugMode && !message.isMe && message.debug"
+                class="mt-2 w-full min-w-[280px] max-w-full rounded-lg border border-[var(--el-border-color-light)] bg-[var(--el-fill-color-blank)] text-left"
+              >
+                <div
+                  class="flex items-center justify-between gap-2 px-3 py-2 border-b border-[var(--el-border-color-light)]"
+                >
+                  <span class="text-xs font-medium text-[var(--el-text-color-secondary)]"
+                    >调试信息</span
+                  >
+                  <span class="text-[11px] text-[var(--el-text-color-placeholder)]">{{
+                    debugSummary(message.debug)
+                  }}</span>
+                </div>
+                <pre
+                  class="m-0 max-h-72 overflow-auto px-3 py-2 text-[11px] leading-5 text-[var(--el-text-color-regular)] whitespace-pre-wrap break-all"
+                  >{{ formatDebug(message.debug) }}</pre
+                >
+              </div>
             </div>
           </div>
         </template>
@@ -190,7 +213,9 @@
           </ElButton>
         </div>
         <div class="flex-c justify-between mt-2 text-xs text-[var(--el-text-color-secondary)]">
-          <span>按 Shift + Enter 换行</span>
+          <span>{{
+            debugMode ? '调试模式已开启，回复下方会展示请求详情' : '按 Shift + Enter 换行'
+          }}</span>
           <span>由 {{ currentModel.model || 'SaiAi' }} 提供支持</span>
         </div>
       </div>
@@ -275,7 +300,8 @@
 
   // 使用 store
   const chatStore = useChatStore()
-  const { messages, isLoading, isConnected, currentModel, currentGroupId } = storeToRefs(chatStore)
+  const { messages, isLoading, isConnected, currentModel, currentGroupId, debugMode } =
+    storeToRefs(chatStore)
   const {
     sendMessage: storeSendMessage,
     clearMessages: storeClearMessages,
@@ -425,6 +451,28 @@
     } catch {
       return content
     }
+  }
+
+  const formatDebug = (debug: Record<string, any>): string => {
+    try {
+      return JSON.stringify(debug, null, 2)
+    } catch {
+      return String(debug)
+    }
+  }
+
+  const debugSummary = (debug: Record<string, any>): string => {
+    const request = debug.request || {}
+    const response = debug.response || {}
+    const parts = [
+      request.transport,
+      request.model,
+      request.pass_session ? `session=${request.session_in ?? 'null'}` : '',
+      response.elapsed_ms != null ? `${response.elapsed_ms}ms` : '',
+      response.session_out ? `out=${response.session_out}` : '',
+      response.error ? '失败' : ''
+    ]
+    return parts.filter(Boolean).join(' · ')
   }
 
   /**
