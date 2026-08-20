@@ -3,6 +3,7 @@ import 'package:helpsupport_app/core/cache/cached_remote_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/i18n/l10n_extensions.dart';
 import '../../../core/notifications/centered_notice.dart';
 import '../../../core/providers/app_providers.dart';
 import '../application/me_content_controller.dart';
@@ -23,7 +24,7 @@ class MemoirScreen extends ConsumerWidget {
         backgroundColor: palette.pageBackground,
         foregroundColor: palette.primaryText,
         surfaceTintColor: Colors.transparent,
-        title: Text(_t(context, '回忆录', 'Memoir')),
+        title: Text(context.l10n.meMemoir),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -39,56 +40,64 @@ class MemoirScreen extends ConsumerWidget {
           child: memoirs.when(
             data: (page) {
               final configPanel = configs.when(
-                data: (items) =>
-                    page.list.isEmpty || items.any((item) => item.canGenerate)
-                    ? _MemoirConfigPanel(configs: items)
-                    : const SizedBox.shrink(),
-                error: (error, _) => page.list.isEmpty
-                    ? _EmptyPanel(
-                        title: _t(context, '还没有回忆录', 'No memoirs yet'),
-                        subtitle: error.toString(),
-                      )
-                    : const SizedBox.shrink(),
-                loading: () => page.list.isEmpty
-                    ? const _PanelSkeleton(height: 180)
-                    : const SizedBox.shrink(),
+                data: (items) => _MemoirConfigPanel(configs: items),
+                error: (error, _) => _EmptyPanel(
+                  title: context.l10n.meMemoirRulesTitle,
+                  subtitle: error.toString(),
+                ),
+                loading: () => const _PanelSkeleton(height: 180),
               );
-              if (page.list.isEmpty) {
-                return ListView(
-                  padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
-                  children: [
-                    const _MemoirHeroCard(),
-                    const SizedBox(height: 16),
-                    configPanel,
-                  ],
-                );
-              }
               return CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
                     sliver: SliverToBoxAdapter(child: configPanel),
                   ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 14)),
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 28),
-                    sliver: SliverGrid.builder(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 14,
-                            mainAxisSpacing: 14,
-                            childAspectRatio: 0.68,
-                          ),
-                      itemCount: page.list.length,
-                      itemBuilder: (context, index) =>
-                          _MemoirCard(item: page.list[index]),
+                    padding: const EdgeInsets.fromLTRB(18, 22, 18, 12),
+                    sliver: SliverToBoxAdapter(
+                      child: Text(
+                        context.l10n.meMemoirHistoryTitle,
+                        style: TextStyle(
+                          color: palette.primaryText,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
                   ),
+                  if (page.list.isEmpty)
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(18, 0, 18, 28),
+                      sliver: SliverToBoxAdapter(
+                        child: _EmptyPanel(
+                          title: context.l10n.meMemoirEmptyTitle,
+                          subtitle: context.l10n.meMemoirEmptySubtitle,
+                        ),
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(18, 0, 18, 28),
+                      sliver: SliverGrid.builder(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 14,
+                              mainAxisSpacing: 14,
+                              childAspectRatio: 0.68,
+                            ),
+                        itemCount: page.list.length,
+                        itemBuilder: (context, index) =>
+                            _MemoirCard(item: page.list[index]),
+                      ),
+                    ),
                 ],
               );
             },
             error: (error, _) => ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               children: [
                 Center(
                   child: Padding(
@@ -122,7 +131,7 @@ class MemoirDetailScreen extends ConsumerWidget {
         backgroundColor: palette.pageBackground,
         foregroundColor: palette.primaryText,
         surfaceTintColor: Colors.transparent,
-        title: Text(_t(context, '回忆录详情', 'Memoir detail')),
+        title: Text(context.l10n.meMemoirDetailTitle),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -160,10 +169,8 @@ class MemoirDetailScreen extends ConsumerWidget {
                               : item.sourceMonth,
                         ),
                         _MetaChip(
-                          label: _t(
-                            context,
-                            '${item.journalCount} 篇日记',
-                            '${item.journalCount} journals',
+                          label: context.l10n.meMemoirJournalCount(
+                            item.journalCount,
                           ),
                         ),
                         if (item.grantLevelName.isNotEmpty)
@@ -174,11 +181,7 @@ class MemoirDetailScreen extends ConsumerWidget {
                     Text(
                       item.description.isNotEmpty
                           ? item.description
-                          : _t(
-                              context,
-                              '系统会根据你的日记、任务与成长阶段生成这份回忆录。',
-                              'This memoir is generated from your journals, tasks, and progress.',
-                            ),
+                          : context.l10n.meMemoirDefaultDescription,
                       style: TextStyle(
                         color: palette.bodyText,
                         fontSize: 15,
@@ -194,7 +197,7 @@ class MemoirDetailScreen extends ConsumerWidget {
                       FilledButton.tonalIcon(
                         onPressed: () => _openVideo(context, item.videoUrl),
                         icon: const Icon(Icons.play_circle_outline_rounded),
-                        label: Text(_t(context, '打开回忆视频', 'Open memoir video')),
+                        label: Text(context.l10n.meMemoirOpenVideo),
                       ),
                     ],
                   ],
@@ -212,13 +215,13 @@ class MemoirDetailScreen extends ConsumerWidget {
   Future<void> _openVideo(BuildContext context, String videoUrl) async {
     final uri = Uri.tryParse(videoUrl.trim());
     if (uri == null) {
-      context.showCenteredNotice(_t(context, '视频地址无效', 'Invalid video URL'));
+      context.showCenteredNotice(context.l10n.meMemoirVideoInvalid);
       return;
     }
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && context.mounted) {
       context.showCenteredNotice(
-        _t(context, '无法打开视频链接', 'Unable to open video'),
+        context.l10n.meMemoirVideoOpenFailed,
       );
     }
   }
@@ -259,10 +262,8 @@ class _MemoirCard extends ConsumerWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              _t(
-                context,
-                '时间：${item.sourceMonth.isEmpty ? item.createTime : item.sourceMonth}',
-                'Date: ${item.sourceMonth.isEmpty ? item.createTime : item.sourceMonth}',
+              context.l10n.meMemoirDateLabel(
+                item.sourceMonth.isEmpty ? item.createTime : item.sourceMonth,
               ),
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -279,54 +280,53 @@ class _MemoirCard extends ConsumerWidget {
 }
 
 class _MemoirHeroCard extends ConsumerWidget {
-  const _MemoirHeroCard({this.item});
+  const _MemoirHeroCard({required this.item});
 
-  final MemoirItem? item;
+  final MemoirItem item;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final url = ref.watch(apiClientProvider).resolveUrl(item?.cover ?? '');
+    final url = ref.watch(apiClientProvider).resolveUrl(item.cover);
 
     return Container(
       height: 250,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF173A7C), Color(0xFF2A6CB7)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(28)),
       clipBehavior: Clip.antiAlias,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (url.isNotEmpty) CachedRemoteImage(url, fit: BoxFit.cover),
-          if (item != null)
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.black.withValues(alpha: 0.08),
-                    Colors.black.withValues(alpha: 0.28),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
+          if (url.isNotEmpty)
+            CachedRemoteImage(
+              url,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => _MemoirCoverPlaceholder(item: item),
+            )
+          else
+            _MemoirCoverPlaceholder(item: item),
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.black.withValues(alpha: 0.08),
+                  Colors.black.withValues(alpha: 0.28),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-              child: Align(
-                alignment: Alignment.bottomLeft,
-                child: Text(
-                  item!.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                  ),
+            ),
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: Text(
+                item.title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
+          ),
         ],
       ),
     );
@@ -370,7 +370,7 @@ class _MemoirCoverPlaceholder extends StatelessWidget {
               children: [
                 Text(
                   item.sourceMonth.isEmpty
-                      ? 'Memoir'
+                      ? context.l10n.meMemoir
                       : item.sourceMonth.replaceAll('-', '.'),
                   style: const TextStyle(
                     color: Colors.white,
@@ -428,7 +428,7 @@ class _MemoirConfigPanelState extends ConsumerState<_MemoirConfigPanel> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _t(context, '回忆录生成规则', 'Memoir generation rules'),
+            context.l10n.meMemoirRulesTitle,
             style: TextStyle(
               color: palette.primaryText,
               fontSize: 20,
@@ -438,11 +438,7 @@ class _MemoirConfigPanelState extends ConsumerState<_MemoirConfigPanel> {
           const SizedBox(height: 12),
           if (configs.isEmpty)
             Text(
-              _t(
-                context,
-                '每次等级达到配置条件后，系统会给你一次生成专属回忆录的机会。',
-                'Each eligible level milestone gives you a chance to generate a dedicated memoir.',
-              ),
+              context.l10n.meMemoirRulesHint,
               style: TextStyle(color: palette.secondaryText, height: 1.6),
             )
           else
@@ -474,21 +470,52 @@ class _MemoirConfigPanelState extends ConsumerState<_MemoirConfigPanel> {
                           ),
                           if (item.canGenerate) ...[
                             const SizedBox(height: 10),
-                            FilledButton.icon(
-                              onPressed: _generatingConfigId == null
-                                  ? () => _generate(context, item)
-                                  : null,
-                              icon: _generatingConfigId == item.id
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Icon(Icons.auto_awesome_rounded),
-                              label: Text(
-                                _t(context, '生成回忆录', 'Generate memoir'),
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                onPressed: _generatingConfigId == null
+                                    ? () => _generate(context, item)
+                                    : null,
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: palette.accent,
+                                  foregroundColor: Colors.white,
+                                  disabledBackgroundColor: palette.accent
+                                      .withValues(alpha: 0.45),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                ),
+                                icon: _generatingConfigId == item.id
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Icon(Icons.auto_awesome_rounded),
+                                label: Text(context.l10n.meMemoirGenerate),
+                              ),
+                            ),
+                          ] else if (item.existingMemoirId > 0) ...[
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () => _openExisting(
+                                  context,
+                                  item.existingMemoirId,
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: palette.accent,
+                                  side: BorderSide(color: palette.accent),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                ),
+                                icon: const Icon(Icons.menu_book_rounded),
+                                label: Text(context.l10n.meMemoirView),
                               ),
                             ),
                           ] else if (item.reason.isNotEmpty) ...[
@@ -525,7 +552,7 @@ class _MemoirConfigPanelState extends ConsumerState<_MemoirConfigPanel> {
       if (!context.mounted) {
         return;
       }
-      context.showCenteredNotice(_t(context, '回忆录已生成', 'Memoir generated'));
+      context.showCenteredNotice(context.l10n.meMemoirGenerated);
       await Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => MemoirDetailScreen(id: item.id)),
       );
@@ -538,6 +565,12 @@ class _MemoirConfigPanelState extends ConsumerState<_MemoirConfigPanel> {
         setState(() => _generatingConfigId = null);
       }
     }
+  }
+
+  void _openExisting(BuildContext context, int memoirId) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => MemoirDetailScreen(id: memoirId)),
+    );
   }
 }
 
@@ -837,20 +870,26 @@ class _MemoirPalette {
     required this.primaryText,
     required this.secondaryText,
     required this.bodyText,
+    required this.accent,
   });
 
   factory _MemoirPalette.of(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final isDark = scheme.brightness == Brightness.dark;
     return _MemoirPalette(
-      pageBackground: scheme.surface,
-      cardBackground: scheme.surfaceContainerLowest,
-      softBackground: scheme.surfaceContainerLow,
-      primaryText: scheme.onSurface,
-      secondaryText: scheme.onSurfaceVariant,
+      pageBackground: isDark ? scheme.surface : const Color(0xFFF4F5F9),
+      cardBackground: isDark
+          ? scheme.surfaceContainerLowest
+          : Colors.white,
+      softBackground: isDark
+          ? scheme.surfaceContainerLow
+          : const Color(0xFFF7F7FA),
+      primaryText: isDark ? scheme.onSurface : const Color(0xFF303236),
+      secondaryText: isDark ? scheme.onSurfaceVariant : const Color(0xFF96999F),
       bodyText: isDark
           ? scheme.onSurface.withValues(alpha: 0.84)
           : const Color(0xFF4A4D55),
+      accent: isDark ? const Color(0xFFFFB4A8) : const Color(0xFFFF9585),
     );
   }
 
@@ -860,4 +899,5 @@ class _MemoirPalette {
   final Color primaryText;
   final Color secondaryText;
   final Color bodyText;
+  final Color accent;
 }

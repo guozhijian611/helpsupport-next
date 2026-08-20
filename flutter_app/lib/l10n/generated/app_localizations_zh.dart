@@ -712,6 +712,55 @@ class AppLocalizationsZh extends AppLocalizations {
   String get meMemoir => '回忆录';
 
   @override
+  String get meMemoirHistoryTitle => '历史回忆录';
+
+  @override
+  String get meMemoirEmptyTitle => '还没有回忆录';
+
+  @override
+  String get meMemoirEmptySubtitle => '达标后可以手动生成，生成后会显示在这里。';
+
+  @override
+  String get meMemoirRulesTitle => '回忆录生成规则';
+
+  @override
+  String get meMemoirRulesHint => '每次等级达到配置条件后，系统会给你一次生成专属回忆录的机会。';
+
+  @override
+  String get meMemoirGenerate => '生成回忆录';
+
+  @override
+  String get meMemoirGenerated => '回忆录已生成';
+
+  @override
+  String get meMemoirView => '查看回忆录';
+
+  @override
+  String get meMemoirDetailTitle => '回忆录详情';
+
+  @override
+  String get meMemoirDefaultDescription => '系统会根据你的日记、任务与成长阶段生成这份回忆录。';
+
+  @override
+  String get meMemoirOpenVideo => '打开回忆视频';
+
+  @override
+  String get meMemoirVideoInvalid => '视频地址无效';
+
+  @override
+  String get meMemoirVideoOpenFailed => '无法打开视频链接';
+
+  @override
+  String meMemoirDateLabel(Object date) {
+    return '时间：$date';
+  }
+
+  @override
+  String meMemoirJournalCount(Object count) {
+    return '$count 篇日记';
+  }
+
+  @override
   String get meJournal => '日记';
 
   @override

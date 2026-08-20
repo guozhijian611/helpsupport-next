@@ -1448,6 +1448,96 @@ abstract class AppLocalizations {
   /// **'Memoir'**
   String get meMemoir;
 
+  /// No description provided for @meMemoirHistoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Past memoirs'**
+  String get meMemoirHistoryTitle;
+
+  /// No description provided for @meMemoirEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No memoirs yet'**
+  String get meMemoirEmptyTitle;
+
+  /// No description provided for @meMemoirEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Once you meet the requirements, you can generate a memoir here.'**
+  String get meMemoirEmptySubtitle;
+
+  /// No description provided for @meMemoirRulesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Memoir generation rules'**
+  String get meMemoirRulesTitle;
+
+  /// No description provided for @meMemoirRulesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Each eligible level milestone gives you a chance to generate a dedicated memoir.'**
+  String get meMemoirRulesHint;
+
+  /// No description provided for @meMemoirGenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate memoir'**
+  String get meMemoirGenerate;
+
+  /// No description provided for @meMemoirGenerated.
+  ///
+  /// In en, this message translates to:
+  /// **'Memoir generated'**
+  String get meMemoirGenerated;
+
+  /// No description provided for @meMemoirView.
+  ///
+  /// In en, this message translates to:
+  /// **'View memoir'**
+  String get meMemoirView;
+
+  /// No description provided for @meMemoirDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Memoir detail'**
+  String get meMemoirDetailTitle;
+
+  /// No description provided for @meMemoirDefaultDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This memoir is generated from your journals, tasks, and progress.'**
+  String get meMemoirDefaultDescription;
+
+  /// No description provided for @meMemoirOpenVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Open memoir video'**
+  String get meMemoirOpenVideo;
+
+  /// No description provided for @meMemoirVideoInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid video URL'**
+  String get meMemoirVideoInvalid;
+
+  /// No description provided for @meMemoirVideoOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to open video'**
+  String get meMemoirVideoOpenFailed;
+
+  /// No description provided for @meMemoirDateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Date: {date}'**
+  String meMemoirDateLabel(Object date);
+
+  /// No description provided for @meMemoirJournalCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} journals'**
+  String meMemoirJournalCount(Object count);
+
   /// No description provided for @meJournal.
   ///
   /// In en, this message translates to:

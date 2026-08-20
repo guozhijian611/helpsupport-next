@@ -296,6 +296,31 @@
   "meHistory": "历史记录",
   "mePrivacy": "隐私设置",
   "meMemoir": "回忆录",
+  "meMemoirHistoryTitle": "历史回忆录",
+  "meMemoirEmptyTitle": "还没有回忆录",
+  "meMemoirEmptySubtitle": "达标后可以手动生成，生成后会显示在这里。",
+  "meMemoirRulesTitle": "回忆录生成规则",
+  "meMemoirRulesHint": "每次等级达到配置条件后，系统会给你一次生成专属回忆录的机会。",
+  "meMemoirGenerate": "生成回忆录",
+  "meMemoirGenerated": "回忆录已生成",
+  "meMemoirView": "查看回忆录",
+  "meMemoirDetailTitle": "回忆录详情",
+  "meMemoirDefaultDescription": "系统会根据你的日记、任务与成长阶段生成这份回忆录。",
+  "meMemoirOpenVideo": "打开回忆视频",
+  "meMemoirVideoInvalid": "视频地址无效",
+  "meMemoirVideoOpenFailed": "无法打开视频链接",
+  "meMemoirDateLabel": "时间：{date}",
+  "@meMemoirDateLabel": {
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "meMemoirJournalCount": "{count} 篇日记",
+  "@meMemoirJournalCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "meJournal": "日记",
   "aiCapabilityTestEntryTitle": "AI 运行测试",
   "aiCapabilityTestEntrySubtitle": "检查本设备能否运行本地 AI",

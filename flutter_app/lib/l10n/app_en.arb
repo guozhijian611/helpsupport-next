@@ -296,6 +296,31 @@
   "meHistory": "History",
   "mePrivacy": "Privacy",
   "meMemoir": "Memoir",
+  "meMemoirHistoryTitle": "Past memoirs",
+  "meMemoirEmptyTitle": "No memoirs yet",
+  "meMemoirEmptySubtitle": "Once you meet the requirements, you can generate a memoir here.",
+  "meMemoirRulesTitle": "Memoir generation rules",
+  "meMemoirRulesHint": "Each eligible level milestone gives you a chance to generate a dedicated memoir.",
+  "meMemoirGenerate": "Generate memoir",
+  "meMemoirGenerated": "Memoir generated",
+  "meMemoirView": "View memoir",
+  "meMemoirDetailTitle": "Memoir detail",
+  "meMemoirDefaultDescription": "This memoir is generated from your journals, tasks, and progress.",
+  "meMemoirOpenVideo": "Open memoir video",
+  "meMemoirVideoInvalid": "Invalid video URL",
+  "meMemoirVideoOpenFailed": "Unable to open video",
+  "meMemoirDateLabel": "Date: {date}",
+  "@meMemoirDateLabel": {
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "meMemoirJournalCount": "{count} journals",
+  "@meMemoirJournalCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "meJournal": "Journal",
   "aiCapabilityTestEntryTitle": "AI capability test",
   "aiCapabilityTestEntrySubtitle": "Check whether this device can run on-device AI",

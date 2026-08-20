@@ -732,6 +732,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String get meMemoir => 'Memoir';
 
   @override
+  String get meMemoirHistoryTitle => 'Past memoirs';
+
+  @override
+  String get meMemoirEmptyTitle => 'No memoirs yet';
+
+  @override
+  String get meMemoirEmptySubtitle =>
+      'Once you meet the requirements, you can generate a memoir here.';
+
+  @override
+  String get meMemoirRulesTitle => 'Memoir generation rules';
+
+  @override
+  String get meMemoirRulesHint =>
+      'Each eligible level milestone gives you a chance to generate a dedicated memoir.';
+
+  @override
+  String get meMemoirGenerate => 'Generate memoir';
+
+  @override
+  String get meMemoirGenerated => 'Memoir generated';
+
+  @override
+  String get meMemoirView => 'View memoir';
+
+  @override
+  String get meMemoirDetailTitle => 'Memoir detail';
+
+  @override
+  String get meMemoirDefaultDescription =>
+      'This memoir is generated from your journals, tasks, and progress.';
+
+  @override
+  String get meMemoirOpenVideo => 'Open memoir video';
+
+  @override
+  String get meMemoirVideoInvalid => 'Invalid video URL';
+
+  @override
+  String get meMemoirVideoOpenFailed => 'Unable to open video';
+
+  @override
+  String meMemoirDateLabel(Object date) {
+    return 'Date: $date';
+  }
+
+  @override
+  String meMemoirJournalCount(Object count) {
+    return '$count journals';
+  }
+
+  @override
   String get meJournal => 'Journal';
 
   @override
