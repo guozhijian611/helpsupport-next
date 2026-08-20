@@ -52,7 +52,7 @@ class AppointmentDoctorDetailScreen extends ConsumerWidget {
   }
 }
 
-class _AppointmentDoctorDetailBody extends ConsumerWidget {
+class _AppointmentDoctorDetailBody extends ConsumerStatefulWidget {
   const _AppointmentDoctorDetailBody({
     required this.doctor,
     required this.slots,
@@ -66,7 +66,28 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
   final bool isSlotLoading;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AppointmentDoctorDetailBody> createState() =>
+      _AppointmentDoctorDetailBodyState();
+}
+
+class _AppointmentDoctorDetailBodyState
+    extends ConsumerState<_AppointmentDoctorDetailBody> {
+  static const _heroHeight = 320.0;
+  static const _sheetOverlap = 24.0;
+
+  final _scrollController = ScrollController();
+
+  AppointmentDoctor get doctor => widget.doctor;
+  List<AppointmentSlot> get slots => widget.slots;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final palette = _AppointmentDoctorDetailPalette.of(context);
     final apiClient = ref.watch(apiClientProvider);
     final avatarUrl = apiClient.resolveUrl(doctor.avatar);
@@ -79,24 +100,12 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
     return Stack(
       children: [
         CustomScrollView(
+          controller: _scrollController,
           slivers: [
-            SliverAppBar(
-              pinned: true,
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              leading: IconButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Icon(Icons.arrow_back_ios_new_rounded),
-              ),
-              actions: [
-                IconButton(
-                  onPressed: () => context.push('/appointments/mine'),
-                  icon: const Icon(Icons.calendar_month_rounded),
-                ),
-              ],
-              expandedHeight: 320,
-              flexibleSpace: FlexibleSpaceBar(
-                background: avatarUrl.isNotEmpty
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: _heroHeight,
+                child: avatarUrl.isNotEmpty
                     ? CachedRemoteImage(
                         avatarUrl,
                         fit: BoxFit.cover,
@@ -108,7 +117,7 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
             ),
             SliverToBoxAdapter(
               child: Transform.translate(
-                offset: const Offset(0, -30),
+                offset: const Offset(0, -_sheetOverlap),
                 child: Container(
                   decoration: BoxDecoration(
                     color: palette.pageBackground,
@@ -117,7 +126,7 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
                     ),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 20, 18, 120),
+                    padding: const EdgeInsets.fromLTRB(18, 44, 18, 120),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -127,10 +136,13 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
                             Expanded(
                               child: Text(
                                 doctor.displayName,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: palette.primaryText,
                                   fontSize: 26,
                                   fontWeight: FontWeight.w800,
+                                  height: 1.25,
                                 ),
                               ),
                             ),
@@ -243,9 +255,9 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 18),
-                        if (slotError != null)
-                          _InlineNotice(message: slotError!)
-                        else if (isSlotLoading)
+                        if (widget.slotError != null)
+                          _InlineNotice(message: widget.slotError!)
+                        else if (widget.isSlotLoading)
                           const Center(child: CircularProgressIndicator())
                         else if (slots.isEmpty)
                           _InlineNotice(
@@ -262,6 +274,60 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
               ),
             ),
           ],
+        ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: AnimatedBuilder(
+            animation: _scrollController,
+            builder: (context, _) {
+              final offset = _scrollController.hasClients
+                  ? _scrollController.offset
+                  : 0.0;
+              final collapseStart =
+                  _heroHeight - _sheetOverlap - kToolbarHeight;
+              final t = ((offset - collapseStart) / 40).clamp(0.0, 1.0);
+              return DecoratedBox(
+                decoration: BoxDecoration(
+                  color: palette.pageBackground.withValues(alpha: t),
+                ),
+                child: SizedBox(
+                  height: kToolbarHeight,
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.of(context).maybePop(),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                      ),
+                      Expanded(
+                        child: Opacity(
+                          opacity: t,
+                          child: ExcludeSemantics(
+                            child: Text(
+                              doctor.displayName,
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: palette.primaryText,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => context.push('/appointments/mine'),
+                        icon: const Icon(Icons.calendar_month_rounded),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
         ),
         Positioned(
           left: 18,
@@ -301,8 +367,12 @@ class _AppointmentDoctorDetailBody extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _AppointmentSlotSheet(doctor: doctor, slots: slots),
+      builder: (sheetContext) =>
+          _AppointmentSlotSheet(doctor: doctor, slots: slots),
     );
+    if (!mounted) {
+      return;
+    }
     ref.invalidate(appointmentSlotsProvider);
   }
 
