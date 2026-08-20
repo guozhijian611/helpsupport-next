@@ -42,22 +42,24 @@
               >
                 <ElSwitch
                   v-if="isSwitchItem(item)"
-                  v-model="formValues[group.code][item.key]"
+                  :model-value="stringValue(group.code, item.key)"
                   active-value="1"
                   inactive-value="2"
                   :active-text="switchTexts(group.code, item.key).active"
                   :inactive-text="switchTexts(group.code, item.key).inactive"
                   inline-prompt
+                  @update:model-value="setStringValue(group.code, item.key, $event)"
                 />
                 <ElSelect
                   v-else-if="isMultiSelect(item)"
-                  v-model="formValues[group.code][item.key]"
+                  :model-value="arrayValue(group.code, item.key)"
                   multiple
                   collapse-tags
                   collapse-tags-tooltip
                   filterable
                   class="runtime-select"
                   :placeholder="'请选择' + item.name"
+                  @update:model-value="setArrayValue(group.code, item.key, $event)"
                 >
                   <ElOption
                     v-for="option in item.options"
@@ -68,11 +70,12 @@
                 </ElSelect>
                 <ElSelect
                   v-else-if="group.code === 'help_ai_audit' && item.key === 'ai_config_id'"
-                  v-model="formValues[group.code][item.key]"
+                  :model-value="stringValue(group.code, item.key)"
                   filterable
                   class="runtime-select"
                   placeholder="请选择审核模型"
                   no-data-text="暂无可用于文本审核的已启用模型"
+                  @update:model-value="setStringValue(group.code, item.key, $event)"
                 >
                   <ElOption
                     v-for="option in aiModelOptions"
@@ -83,27 +86,30 @@
                 </ElSelect>
                 <ElInput
                   v-else-if="item.input_type === 'number'"
-                  v-model="formValues[group.code][item.key]"
+                  :model-value="stringValue(group.code, item.key)"
                   type="number"
                   :min="numberLimits(group.code, item.key).min"
                   :max="numberLimits(group.code, item.key).max"
                   :step="numberLimits(group.code, item.key).step"
                   clearable
                   :placeholder="secretPlaceholder(item)"
+                  @update:model-value="setStringValue(group.code, item.key, $event)"
                 />
                 <ElInput
                   v-else-if="item.input_type === 'textarea'"
-                  v-model="formValues[group.code][item.key]"
+                  :model-value="stringValue(group.code, item.key)"
                   type="textarea"
                   :autosize="{ minRows: item.is_secret ? 6 : 4, maxRows: 12 }"
                   :placeholder="secretPlaceholder(item)"
+                  @update:model-value="setStringValue(group.code, item.key, $event)"
                 />
                 <ElSelect
                   v-else-if="item.options?.length"
-                  v-model="formValues[group.code][item.key]"
+                  :model-value="stringValue(group.code, item.key)"
                   filterable
                   class="runtime-select"
                   :placeholder="'请选择' + item.name"
+                  @update:model-value="setStringValue(group.code, item.key, $event)"
                 >
                   <ElOption
                     v-for="option in item.options"
@@ -114,10 +120,11 @@
                 </ElSelect>
                 <ElInput
                   v-else
-                  v-model="formValues[group.code][item.key]"
+                  :model-value="stringValue(group.code, item.key)"
                   :show-password="item.is_secret"
                   clearable
                   :placeholder="secretPlaceholder(item)"
+                  @update:model-value="setStringValue(group.code, item.key, $event)"
                 />
                 <div v-if="item.remark" class="runtime-help">{{ item.remark }}</div>
               </ElFormItem>
@@ -195,6 +202,34 @@
 
   const isSwitchItem = (item: RuntimeConfigItem) => {
     return item.key === 'enabled' || item.input_type === 'radio'
+  }
+
+  const stringValue = (groupCode: string, key: string): string => {
+    const value = formValues[groupCode]?.[key]
+    return typeof value === 'string' ? value : ''
+  }
+
+  const arrayValue = (groupCode: string, key: string): string[] => {
+    const value = formValues[groupCode]?.[key]
+    return Array.isArray(value) ? value : []
+  }
+
+  const setStringValue = (groupCode: string, key: string, value: unknown) => {
+    if (!formValues[groupCode]) {
+      formValues[groupCode] = {}
+    }
+    formValues[groupCode][key] = value == null ? '' : String(value)
+  }
+
+  const setArrayValue = (groupCode: string, key: string, value: unknown) => {
+    if (!formValues[groupCode]) {
+      formValues[groupCode] = {}
+    }
+    if (Array.isArray(value)) {
+      formValues[groupCode][key] = value.map((item) => String(item))
+      return
+    }
+    formValues[groupCode][key] = value == null || value === '' ? [] : [String(value)]
   }
 
   const splitCsv = (value: string) => {
