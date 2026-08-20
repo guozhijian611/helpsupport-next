@@ -26,6 +26,7 @@ class MemberRelatedLogic
         'login_logs',
         'points_logs',
         'patients',
+        'doctors',
         'appointments',
     ];
 
@@ -102,7 +103,8 @@ class MemberRelatedLogic
             'journals' => $this->countTable('sa_member_journal', ['member_id' => $memberId]),
             'login_logs' => (int) MemberLoginLog::where('member_id', $memberId)->count(),
             'points_logs' => (int) MemberPointsLog::where('member_id', $memberId)->count(),
-            'patients' => $this->countTable('sa_doctor_patient', ['doctor_id' => $memberId]),
+            'patients' => $this->countTable('sa_doctor_patient', ['doctor_id' => $memberId, 'status' => 1]),
+            'doctors' => $this->countTable('sa_doctor_patient', ['member_id' => $memberId, 'status' => 1]),
             'appointments' => $this->countWhere(function () use ($memberId) {
                 return Db::table('sa_doctor_appointment')
                     ->whereNull('delete_time')
@@ -136,6 +138,7 @@ class MemberRelatedLogic
             'login_logs' => $this->pageLoginLogs($memberId, $page, $limit),
             'points_logs' => $this->pagePointsLogs($memberId, $page, $limit),
             'patients' => $this->pagePatients($memberId, $page, $limit),
+            'doctors' => $this->pageDoctors($memberId, $page, $limit),
             'appointments' => $this->pageAppointments($memberId, $page, $limit),
         };
     }
@@ -299,11 +302,66 @@ class MemberRelatedLogic
                 ->leftJoin('sa_member m', 'm.id = p.member_id')
                 ->where('p.doctor_id', $memberId)
                 ->whereNull('p.delete_time')
-                ->field('p.id, p.member_id, p.status, p.bind_source, p.bind_time, p.unbind_time, p.remark, p.create_time, m.nickname as member_nickname, m.username as member_username, m.avatar as member_avatar')
+                ->field('p.id, p.member_id, p.status, p.bind_source, p.bind_time, p.unbind_time, p.remark, p.create_time, m.nickname as member_nickname, m.username as member_username, m.avatar as member_avatar, m.mobile as member_mobile, m.email as member_email')
+                ->order('p.status', 'asc')
                 ->order('p.id', 'desc'),
             $page,
             $limit
         );
+    }
+
+    private function pageDoctors(int $memberId, int $page, int $limit): array
+    {
+        return $this->paginate(
+            Db::table('sa_doctor_patient')
+                ->alias('p')
+                ->leftJoin('sa_member m', 'm.id = p.doctor_id')
+                ->leftJoin('sa_help_doctor_profile d', 'd.member_id = p.doctor_id AND d.delete_time IS NULL')
+                ->where('p.member_id', $memberId)
+                ->whereNull('p.delete_time')
+                ->field('p.id, p.doctor_id, p.status, p.bind_source, p.bind_time, p.unbind_time, p.remark, p.create_time, m.nickname as doctor_nickname, m.username as doctor_username, m.avatar as doctor_avatar, d.real_name, d.title, d.hospital, d.department')
+                ->order('p.status', 'asc')
+                ->order('p.id', 'desc'),
+            $page,
+            $limit
+        );
+    }
+
+    public function currentDoctors(int $memberId): array
+    {
+        if ($memberId <= 0) {
+            return [];
+        }
+
+        return Db::table('sa_doctor_patient')
+            ->alias('p')
+            ->leftJoin('sa_member m', 'm.id = p.doctor_id')
+            ->leftJoin('sa_help_doctor_profile d', 'd.member_id = p.doctor_id AND d.delete_time IS NULL')
+            ->where('p.member_id', $memberId)
+            ->where('p.status', 1)
+            ->whereNull('p.delete_time')
+            ->field('p.id, p.doctor_id, p.bind_time, m.nickname as doctor_nickname, m.username as doctor_username, d.real_name, d.title, d.hospital, d.department')
+            ->order('p.id', 'desc')
+            ->select()
+            ->toArray();
+    }
+
+    public function currentPatients(int $memberId): array
+    {
+        if ($memberId <= 0) {
+            return [];
+        }
+
+        return Db::table('sa_doctor_patient')
+            ->alias('p')
+            ->leftJoin('sa_member m', 'm.id = p.member_id')
+            ->where('p.doctor_id', $memberId)
+            ->where('p.status', 1)
+            ->whereNull('p.delete_time')
+            ->field('p.id, p.member_id, p.bind_time, m.nickname as member_nickname, m.username as member_username')
+            ->order('p.id', 'desc')
+            ->select()
+            ->toArray();
     }
 
     private function pageAppointments(int $memberId, int $page, int $limit): array

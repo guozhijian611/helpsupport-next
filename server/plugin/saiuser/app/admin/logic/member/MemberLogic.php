@@ -107,6 +107,8 @@ class MemberLogic extends BaseLogic
         $data['member_profile'] = $related->memberProfile($memberId);
         $data['doctor_profile'] = $related->doctorProfile($memberId);
         $data['related_counts'] = $related->counts($memberId);
+        $data['bound_doctors'] = $related->currentDoctors($memberId);
+        $data['bound_patients'] = $related->currentPatients($memberId);
         return $data;
     }
 

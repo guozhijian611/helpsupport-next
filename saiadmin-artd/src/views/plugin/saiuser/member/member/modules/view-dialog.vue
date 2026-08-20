@@ -53,6 +53,22 @@
             <el-descriptions-item label="资料身份">{{ formData.profile_role_text || '-' }}</el-descriptions-item>
             <el-descriptions-item label="当前生效身份">{{ formData.current_role_text || '-' }}</el-descriptions-item>
             <el-descriptions-item label="医生审核状态">{{ formData.doctor_audit_status_text || '-' }}</el-descriptions-item>
+            <el-descriptions-item v-if="showDoctorsTab" :span="2" label="当前绑定医生">
+              <div v-if="boundDoctors.length" class="bind-list">
+                <el-tag v-for="item in boundDoctors" :key="item.id" type="success" class="bind-tag">
+                  {{ doctorBindText(item) }}
+                </el-tag>
+              </div>
+              <span v-else>未绑定医生</span>
+            </el-descriptions-item>
+            <el-descriptions-item v-if="showPatientsTab" :span="2" label="当前绑定患者">
+              <div v-if="boundPatients.length" class="bind-list">
+                <el-tag v-for="item in boundPatients" :key="item.id" type="primary" class="bind-tag">
+                  {{ displayName(item.member_nickname, item.member_username, item.member_id) }}
+                </el-tag>
+              </div>
+              <span v-else>暂无绑定患者</span>
+            </el-descriptions-item>
             <el-descriptions-item label="性别">{{ genderText(memberProfile.gender) }}</el-descriptions-item>
             <el-descriptions-item label="生日">{{ memberProfile.birthday || '-' }}</el-descriptions-item>
             <el-descriptions-item :span="2" label="个人简介">{{ memberProfile.bio || '-' }}</el-descriptions-item>
@@ -195,6 +211,7 @@
                 {{ Number(row.status) === 1 ? '绑定中' : '已解绑' }}
               </el-tag>
             </template>
+            <template #bindSource="{ row }">{{ bindSourceText(row.bind_source) }}</template>
             <template #appointStatus="{ row }">
               <el-tag :type="appointStatusType(row.status)">{{ appointStatusText(row.status) }}</el-tag>
             </template>
@@ -269,7 +286,9 @@
     status: 1,
     member_profile: {} as Record<string, any>,
     doctor_profile: {} as Record<string, any>,
-    related_counts: {} as Record<string, number>
+    related_counts: {} as Record<string, number>,
+    bound_doctors: [] as Record<string, any>[],
+    bound_patients: [] as Record<string, any>[]
   }
 
   const formData = reactive({ ...initialFormData })
@@ -280,6 +299,12 @@
   const showDoctorNav = computed(
     () => formData.profile_role === 'doctor' || hasDoctorProfile.value
   )
+  const showDoctorsTab = computed(
+    () => formData.current_role === 'patient' || formData.profile_role !== 'doctor'
+  )
+  const showPatientsTab = computed(() => showDoctorNav.value)
+  const boundDoctors = computed(() => formData.bound_doctors || [])
+  const boundPatients = computed(() => formData.bound_patients || [])
   const identityTagType = computed<TagType>(() => {
     if (formData.identity_text === '医生') return 'success'
     if (formData.identity_text === '医生待审核') return 'warning'
@@ -296,6 +321,12 @@
     const items = [
       { key: 'profile', label: '基本信息' },
       ...(showDoctorNav.value ? [{ key: 'doctor', label: '医生资料' }] : []),
+      ...(showDoctorsTab.value
+        ? [{ key: 'doctors', label: '绑定医生', count: counts.value.doctors || 0 }]
+        : []),
+      ...(showPatientsTab.value
+        ? [{ key: 'patients', label: '绑定患者', count: counts.value.patients || 0 }]
+        : []),
       { key: 'posts', label: '帖子', count: counts.value.posts || 0 },
       {
         key: 'comments',
@@ -316,9 +347,6 @@
       { key: 'assessments', label: '评估表', count: counts.value.assessments || 0 },
       { key: 'journals', label: '日记', count: counts.value.journals || 0 },
       { key: 'appointments', label: '预约', count: counts.value.appointments || 0 },
-      ...(showDoctorNav.value
-        ? [{ key: 'patients', label: '患者', count: counts.value.patients || 0 }]
-        : []),
       { key: 'login_logs', label: '登录日志', count: counts.value.login_logs || 0 },
       { key: 'points_logs', label: '积分日志', count: counts.value.points_logs || 0 }
     ]
@@ -429,10 +457,22 @@
       patients: [
         { prop: 'id', label: 'ID', width: 80 },
         { prop: 'member_id', label: '患者', minWidth: 180, slot: 'member' },
+        { prop: 'member_mobile', label: '手机', width: 130 },
         { prop: 'status', label: '绑定状态', width: 100, slot: 'bindStatus' },
-        { prop: 'bind_source', label: '来源', width: 110 },
+        { prop: 'bind_source', label: '来源', width: 110, slot: 'bindSource' },
         { prop: 'bind_time', label: '绑定时间', width: 170 },
         { prop: 'unbind_time', label: '解绑时间', width: 170 }
+      ],
+      doctors: [
+        { prop: 'id', label: 'ID', width: 80 },
+        { prop: 'doctor_id', label: '医生', minWidth: 160, slot: 'doctor' },
+        { prop: 'real_name', label: '真实姓名', width: 120 },
+        { prop: 'title', label: '职称', width: 100 },
+        { prop: 'hospital', label: '医院/机构', minWidth: 160 },
+        { prop: 'department', label: '科室', width: 120 },
+        { prop: 'status', label: '绑定状态', width: 100, slot: 'bindStatus' },
+        { prop: 'bind_source', label: '来源', width: 110, slot: 'bindSource' },
+        { prop: 'bind_time', label: '绑定时间', width: 170 }
       ],
       login_logs: [
         { prop: 'create_time', label: '登录时间', width: 180 },
@@ -598,6 +638,17 @@
     return id ? `#${id}` : '-'
   }
 
+  const doctorBindText = (item: Record<string, any>) => {
+    const name = item.real_name || displayName(item.doctor_nickname, item.doctor_username, item.doctor_id)
+    const hospital = [item.hospital, item.department, item.title].filter(Boolean).join(' / ')
+    return hospital ? `${name}（${hospital}）` : name
+  }
+
+  const bindSourceText = (value: string) =>
+    ({ manual: '手动', system: '系统', appointment: '预约' } as Record<string, string>)[value] ||
+    value ||
+    '-'
+
   const plainText = (content: string | undefined) =>
     String(content || '')
       .replace(/<[^>]+>/g, '')
@@ -701,6 +752,19 @@
   .section-title {
     margin-bottom: 12px;
     font-weight: 600;
+  }
+
+  .bind-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .bind-tag {
+    max-width: 100%;
+    height: auto;
+    white-space: normal;
+    line-height: 1.4;
   }
 
   .certification-image {
