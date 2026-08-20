@@ -609,6 +609,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String meHonorUnlockHint(Object points) {
+    return '再获得$points积分解锁';
+  }
+
+  @override
   String get meHonorFinalHint => '恭喜你已经到达了最终阶段，祝你在新的阶段一帆风顺！';
 
   @override

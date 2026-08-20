@@ -628,6 +628,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String meHonorUnlockHint(Object points) {
+    return '$points points to unlock';
+  }
+
+  @override
   String get meHonorFinalHint =>
       'You have reached the final level. Wishing you steady progress in the next chapter.';
 

@@ -214,6 +214,12 @@
       "points": {}
     }
   },
+  "meHonorUnlockHint": "再获得{points}积分解锁",
+  "@meHonorUnlockHint": {
+    "placeholders": {
+      "points": {}
+    }
+  },
   "meHonorFinalHint": "恭喜你已经到达了最终阶段，祝你在新的阶段一帆风顺！",
   "meHonorRecentBadges": "最近获得",
   "meHonorViewAll": "查看全部",

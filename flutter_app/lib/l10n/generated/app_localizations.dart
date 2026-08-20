@@ -1286,6 +1286,12 @@ abstract class AppLocalizations {
   /// **'{points} points to the next level'**
   String meHonorNextHint(Object points);
 
+  /// No description provided for @meHonorUnlockHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{points} points to unlock'**
+  String meHonorUnlockHint(Object points);
+
   /// No description provided for @meHonorFinalHint.
   ///
   /// In en, this message translates to:

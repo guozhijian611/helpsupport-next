@@ -187,9 +187,15 @@ HonorLevelSpec _levelSpecFromConfig(
   final row = rows[index];
   final nextRow = index + 1 < rows.length ? rows[index + 1] : null;
   final minPoints = _intValue(row['min_points']);
-  final targetPoints = nextRow == null
-      ? minPoints
-      : _intValue(nextRow['min_points'], fallback: minPoints);
+  final maxPoints = _nullableInt(row['max_points']);
+  final nextMinPoints = nextRow == null
+      ? null
+      : _intValue(nextRow['min_points']);
+  final targetPoints = _levelTargetPoints(
+    minPoints: minPoints,
+    maxPoints: maxPoints,
+    nextMinPoints: nextMinPoints,
+  );
   final colors = _levelColors(row, index);
 
   return HonorLevelSpec(
@@ -203,6 +209,20 @@ HonorLevelSpec _levelSpecFromConfig(
     progressDotColor: colors.dot,
     isFinal: index == rows.length - 1,
   );
+}
+
+int _levelTargetPoints({
+  required int minPoints,
+  required int? maxPoints,
+  required int? nextMinPoints,
+}) {
+  if (nextMinPoints != null && nextMinPoints > minPoints) {
+    return nextMinPoints;
+  }
+  if (maxPoints != null && maxPoints > minPoints) {
+    return maxPoints;
+  }
+  return minPoints;
 }
 
 double honorLevelProgress(int balance, HonorLevelSpec level) {
@@ -246,17 +266,27 @@ String honorHintText(
   int index,
 ) {
   final level = summary.levels[index];
-  if (level.isFinal &&
-      summary.currentIndex == index &&
-      summary.balance >= level.targetPoints) {
-    return context.l10n.meHonorFinalHint;
+  if (index < summary.currentIndex) {
+    return context.l10n.meHonorUnlocked;
   }
-  final remaining = (level.targetPoints - summary.balance)
-      .clamp(0, level.targetPoints)
+  if (index == summary.currentIndex) {
+    if (level.isFinal) {
+      return context.l10n.meHonorFinalHint;
+    }
+    final remaining = (level.targetPoints - summary.balance)
+        .clamp(0, level.targetPoints)
+        .toInt();
+    return remaining == 0
+        ? context.l10n.meHonorUnlocked
+        : context.l10n.meHonorNextHint(remaining);
+  }
+
+  final remainingToUnlock = (level.minPoints - summary.balance)
+      .clamp(0, level.minPoints)
       .toInt();
-  return remaining == 0
+  return remainingToUnlock == 0
       ? context.l10n.meHonorUnlocked
-      : context.l10n.meHonorNextHint(remaining);
+      : context.l10n.meHonorUnlockHint(remainingToUnlock);
 }
 
 List<MemberBadge> latestDistinctBadges(List<MemberBadge> badges) {
@@ -339,6 +369,17 @@ int _intValue(Object? value, {int fallback = 0}) {
     return value.toInt();
   }
   return int.tryParse((value ?? '').toString()) ?? fallback;
+}
+
+int? _nullableInt(Object? value) {
+  if (value == null) {
+    return null;
+  }
+  final text = value.toString().trim();
+  if (text.isEmpty || text == 'null') {
+    return null;
+  }
+  return _intValue(value);
 }
 
 String _stringValue(Object? value, {String fallback = ''}) {
