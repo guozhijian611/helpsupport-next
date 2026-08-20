@@ -26,6 +26,7 @@ class SaMemberMemoirController extends BaseController
     {
         $where = $request->more([
             ['member_id', ''],
+            ['config_id', ''],
             ['title', ''],
             ['source_month', ''],
             ['status', ''],

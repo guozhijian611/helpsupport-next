@@ -339,7 +339,11 @@ class MeController extends BaseController
     #[Apidoc\Method('GET')]
     #[Apidoc\Query('id', type: 'int', require: true, desc: '回忆录ID')]
     #[Apidoc\Returned('id', type: 'int', desc: '回忆录ID')]
+    #[Apidoc\Returned('config_id', type: 'int', desc: '回忆录配置ID')]
+    #[Apidoc\Returned('config_name', type: 'string', desc: '回忆录配置名称')]
     #[Apidoc\Returned('title', type: 'string', desc: '回忆录标题')]
+    #[Apidoc\Returned('description', type: 'string', desc: '回忆录摘要')]
+    #[Apidoc\Returned('source_materials', type: 'object', desc: '生成时使用的素材快照')]
     public function memoirDetail(Request $request): Response
     {
         return ok($this->service->memoirDetail($this->memberId, (int) $request->get('id')));

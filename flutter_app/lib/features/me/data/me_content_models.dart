@@ -130,6 +130,8 @@ class MemoirItem {
   const MemoirItem({
     required this.id,
     required this.memberId,
+    required this.configId,
+    required this.configName,
     required this.grantLevelId,
     required this.grantLevelRank,
     required this.grantLevelName,
@@ -146,6 +148,8 @@ class MemoirItem {
 
   final int id;
   final int memberId;
+  final int configId;
+  final String configName;
   final int grantLevelId;
   final int grantLevelRank;
   final String grantLevelName;
@@ -163,6 +167,8 @@ class MemoirItem {
     return MemoirItem(
       id: _intValue(json['id']),
       memberId: _intValue(json['member_id']),
+      configId: _intValue(json['config_id']),
+      configName: _stringValue(json['config_name']),
       grantLevelId: _intValue(json['grant_level_id']),
       grantLevelRank: _intValue(json['grant_level_rank']),
       grantLevelName: _stringValue(json['grant_level_name']),

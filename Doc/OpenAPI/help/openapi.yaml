@@ -3106,6 +3106,23 @@
                     "title": {
                       "type": "string",
                       "description": "回忆录标题"
+                    },
+                    "config_id": {
+                      "type": "integer",
+                      "description": "回忆录配置ID",
+                      "format": "int32"
+                    },
+                    "config_name": {
+                      "type": "string",
+                      "description": "回忆录配置名称"
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "回忆录摘要"
+                    },
+                    "source_materials": {
+                      "type": "object",
+                      "description": "生成时使用的素材快照"
                     }
                   }
                 }
@@ -3139,6 +3156,13 @@
             "required": false,
             "type": "string",
             "description": "配置编码"
+          },
+          {
+            "name": "trigger_mode",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "触发模式 level_up/level_interval/cycle/manual"
           },
           {
             "name": "generation_cycle",

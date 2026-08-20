@@ -32,6 +32,15 @@
       width: 100
     },
     {
+      prop: 'config_id',
+      label: '配置ID',
+      type: 'number',
+      search: true,
+      form: true,
+      default: 0,
+      width: 100
+    },
+    {
       prop: 'source_month',
       label: '来源月份',
       search: true,

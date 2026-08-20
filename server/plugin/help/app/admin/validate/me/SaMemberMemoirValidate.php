@@ -11,6 +11,7 @@ class SaMemberMemoirValidate extends BaseValidate
 {
     protected $rule = [
         'member_id' => 'require|integer',
+        'config_id' => 'integer',
         'title' => 'require|max:160',
         'source_month' => 'require|max:7',
         'grant_level_id' => 'integer',
@@ -28,7 +29,7 @@ class SaMemberMemoirValidate extends BaseValidate
     ];
 
     protected $scene = [
-        'save' => ['member_id', 'title', 'source_month', 'grant_level_id', 'grant_level_rank', 'journal_count', 'material_count', 'status'],
-        'update' => ['member_id', 'title', 'source_month', 'grant_level_id', 'grant_level_rank', 'journal_count', 'material_count', 'status'],
+        'save' => ['member_id', 'config_id', 'title', 'source_month', 'grant_level_id', 'grant_level_rank', 'journal_count', 'material_count', 'status'],
+        'update' => ['member_id', 'config_id', 'title', 'source_month', 'grant_level_id', 'grant_level_rank', 'journal_count', 'material_count', 'status'],
     ];
 }

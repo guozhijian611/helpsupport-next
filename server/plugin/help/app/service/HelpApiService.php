@@ -4540,7 +4540,7 @@ class HelpApiService
 
     public function memoirs(int $memberId, array $params): array
     {
-        return $this->paginate(function () use ($memberId, $params) {
+        $page = $this->paginate(function () use ($memberId, $params) {
             $query = Db::table('sa_member_memoir')
                 ->where('member_id', $memberId)
                 ->where('status', 1)
@@ -4555,6 +4555,9 @@ class HelpApiService
                 ->order('source_month', 'desc')
                 ->order('id', 'desc');
         }, $params);
+        $page['list'] = (new SaMemberMemoirConfigLogic())->presentMemoirs($page['list']);
+
+        return $page;
     }
 
     public function memoirDetail(int $memberId, int $memoirId): array
@@ -4564,7 +4567,7 @@ class HelpApiService
             throw new ApiException('回忆录不存在或无权访问', 404);
         }
 
-        return $memoir;
+        return (new SaMemberMemoirConfigLogic())->presentMemoir($memoir);
     }
 
     public function memoirConfigs(int $memberId, array $params): array
@@ -4596,11 +4599,11 @@ class HelpApiService
 
         return [
             'list' => array_map(function (array $row) use ($logic, $memberId, $params): array {
-                return array_merge($row, $logic->generationOpportunity(
+                return $logic->presentConfig(
                     $row,
                     $memberId,
                     trim((string) ($params['source_month'] ?? ''))
-                ));
+                );
             }, $rows),
         ];
     }

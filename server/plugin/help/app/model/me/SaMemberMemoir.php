@@ -18,6 +18,11 @@ class SaMemberMemoir extends BaseModel
         $query->where('member_id', (int) $value);
     }
 
+    public function searchConfigIdAttr($query, $value): void
+    {
+        $query->where('config_id', (int) $value);
+    }
+
     public function searchTitleAttr($query, $value): void
     {
         $query->where('title', 'like', '%' . $value . '%');

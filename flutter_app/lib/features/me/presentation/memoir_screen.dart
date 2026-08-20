@@ -175,6 +175,9 @@ class MemoirDetailScreen extends ConsumerWidget {
                         ),
                         if (item.grantLevelName.isNotEmpty)
                           _MetaChip(label: item.grantLevelName),
+                        if (item.configName.isNotEmpty &&
+                            item.configName != item.grantLevelName)
+                          _MetaChip(label: item.configName),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -262,14 +265,21 @@ class _MemoirCard extends ConsumerWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              context.l10n.meMemoirDateLabel(
-                item.sourceMonth.isEmpty ? item.createTime : item.sourceMonth,
-              ),
+              item.title.isNotEmpty
+                  ? item.title
+                  : context.l10n.meMemoirDateLabel(
+                      item.sourceMonth.isEmpty
+                          ? item.createTime
+                          : item.sourceMonth,
+                    ),
               textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: palette.secondaryText,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+                color: palette.primaryText,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
               ),
             ),
           ],
@@ -365,35 +375,15 @@ class _MemoirCoverPlaceholder extends StatelessWidget {
           Positioned(
             top: 18,
             right: 18,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  item.sourceMonth.isEmpty
-                      ? context.l10n.meMemoir
-                      : item.sourceMonth.replaceAll('-', '.'),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: 110,
-                  child: Text(
-                    item.title,
-                    textAlign: TextAlign.right,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
+            child: Text(
+              item.sourceMonth.isEmpty
+                  ? context.l10n.meMemoir
+                  : item.sourceMonth.replaceAll('-', '.'),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],
@@ -521,7 +511,7 @@ class _MemoirConfigPanelState extends ConsumerState<_MemoirConfigPanel> {
                           ] else if (item.reason.isNotEmpty) ...[
                             const SizedBox(height: 6),
                             Text(
-                              item.reason,
+                              _reasonText(context, item),
                               style: TextStyle(
                                 color: palette.secondaryText,
                                 fontSize: 12,
@@ -797,32 +787,60 @@ String _ruleText(BuildContext context, MemoirConfig item) {
     'manual' => _t(context, '后台手动', 'manual'),
     _ => _t(context, '每升一级', 'each level'),
   };
-  final sourceText = _sourceLabels(context, item.materialSources).join('、');
-  final target = item.targetLevelName.isEmpty
-      ? ''
-      : _t(
-          context,
-          '，当前机会：${item.targetLevelName}',
-          ', current: ${item.targetLevelName}',
-        );
+  final sourceText = _sourceLabels(context, item).join('、');
+  final status = item.canGenerate
+      ? (item.triggerMode == 'cycle' || item.triggerMode == 'manual'
+            ? _t(context, '，当前可生成', ', ready to generate')
+            : (item.targetLevelName.isEmpty
+                  ? _t(context, '，当前可生成', ', ready to generate')
+                  : _t(
+                      context,
+                      '，当前可生成：${item.targetLevelName}',
+                      ', ready: ${item.targetLevelName}',
+                    )))
+      : (item.existingMemoirId > 0
+            ? _t(context, '，已生成本档回忆录', ', already generated')
+            : '');
 
   return _t(
     context,
-    '${item.name}：$levelText 可生成，素材来自 $sourceText$target',
-    '${item.name}: $levelText generation, sources: $sourceText$target',
+    '${item.name}：$levelText 可生成，素材来自 $sourceText$status',
+    '${item.name}: $levelText generation, sources: $sourceText$status',
   );
 }
 
-List<String> _sourceLabels(BuildContext context, List<String> values) {
-  final sourceValues = values.isEmpty
-      ? const [
-          'journal',
-          'task',
-          'material_history',
-          'material_collect',
-          'private_material',
-        ]
-      : values;
+String _reasonText(BuildContext context, MemoirConfig item) {
+  return switch (item.reason) {
+    '当前等级回忆录已生成' || '本周期回忆录已生成' => context.l10n.meMemoirGenerated,
+    '可用素材数量未达到配置要求' => _t(
+      context,
+      '当前周期素材还不够，先去留下更多记录吧',
+      'Not enough sources in this period yet.',
+    ),
+    '当前会员等级未达到生成间隔' => _t(
+      context,
+      '还没到可生成的等级',
+      'This level is not eligible yet.',
+    ),
+    '未达到生成条件' => _t(context, '暂未达到生成条件', 'Requirements not met yet.'),
+    _ => item.reason,
+  };
+}
+
+List<String> _sourceLabels(BuildContext context, MemoirConfig item) {
+  final sourceValues = item.materialSources.isNotEmpty
+      ? item.materialSources
+      : switch (item.sourceType) {
+          'journal' => const ['journal'],
+          'task' => const ['task'],
+          _ => const [
+            'journal',
+            'task',
+            'material_history',
+            'material_collect',
+            'private_material',
+          ],
+        };
   return sourceValues
       .map(
         (value) => switch (value) {
@@ -852,9 +870,16 @@ String _sourceTitle(BuildContext context, Map<String, dynamic> row) {
   if (title.isNotEmpty) {
     return title;
   }
+  final summary = (row['summary'] ?? '').toString().trim();
   final date = (row['entry_date'] ?? row['task_date'] ?? row['viewed_at'] ?? '')
       .toString()
       .trim();
+  if (date.isNotEmpty && summary.isNotEmpty) {
+    return '$date · $summary';
+  }
+  if (summary.isNotEmpty) {
+    return summary;
+  }
   return date.isEmpty ? _t(context, '未命名素材', 'Untitled') : date;
 }
 
